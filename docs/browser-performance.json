@@ -1,0 +1,209 @@
+{
+  "scenario": {
+    "complete": true,
+    "stage": "done",
+    "total": 65.1666666666646,
+    "waypoints": 14,
+    "walkDistance": 22.86094486782156,
+    "maxReverse": 3.106077812482277,
+    "entered": 2,
+    "exited": 1,
+    "health": 92,
+    "enemies": [
+      0,
+      0,
+      0
+    ],
+    "crowdAvoids": 434,
+    "log": [
+      {
+        "stage": "walk",
+        "time": 1.21,
+        "position": [
+          74.5,
+          124.02055454854337
+        ],
+        "hp": 100,
+        "phase": 0
+      },
+      {
+        "stage": "return-start",
+        "time": 2.27,
+        "position": [
+          74.5,
+          129.51477373618027
+        ],
+        "hp": 100,
+        "phase": 0
+      },
+      {
+        "stage": "enter",
+        "time": 2.27,
+        "position": [
+          74.5,
+          129.5527424103593
+        ],
+        "hp": 100,
+        "phase": 0
+      },
+      {
+        "stage": "drive",
+        "time": 56.6,
+        "position": [
+          -103.07722621274554,
+          -14.496532009696704
+        ],
+        "hp": 100,
+        "phase": 1
+      },
+      {
+        "stage": "brake",
+        "time": 57.09,
+        "position": [
+          -104.30317343873541,
+          -14.304254050462848
+        ],
+        "hp": 100,
+        "phase": 1
+      },
+      {
+        "stage": "reverse",
+        "time": 58.7,
+        "position": [
+          -101.78868240755433,
+          -14.717095755587588
+        ],
+        "hp": 100,
+        "phase": 1
+      },
+      {
+        "stage": "stop",
+        "time": 59.02,
+        "position": [
+          -101.31432850136669,
+          -14.794977550763893
+        ],
+        "hp": 100,
+        "phase": 1
+      },
+      {
+        "stage": "exit",
+        "time": 59.03,
+        "position": [
+          -101.31413013937124,
+          -14.795010118827733
+        ],
+        "hp": 100,
+        "phase": 1
+      },
+      {
+        "stage": "fight",
+        "time": 62.67,
+        "position": [
+          -101.07847814013385,
+          -13.359726737311938
+        ],
+        "hp": 100,
+        "phase": 3
+      },
+      {
+        "stage": "walk-objective",
+        "time": 63.59,
+        "position": [
+          -98.20578438623224,
+          -9.551770514310336
+        ],
+        "hp": 100,
+        "phase": 3
+      },
+      {
+        "stage": "return-car",
+        "time": 64.43,
+        "position": [
+          -100.73876856060055,
+          -12.909417961571865
+        ],
+        "hp": 92,
+        "phase": 3
+      },
+      {
+        "stage": "reenter",
+        "time": 64.44,
+        "position": [
+          -100.76163488620975,
+          -12.939728873336303
+        ],
+        "hp": 92,
+        "phase": 3
+      },
+      {
+        "stage": "depart",
+        "time": 65.17,
+        "position": [
+          -102.03782561042176,
+          -14.676190179303081
+        ],
+        "hp": 92,
+        "phase": 4
+      }
+    ]
+  },
+  "metrics": {
+    "frame": {
+      "n": 3911,
+      "p50": 16.69999999999709,
+      "p95": 17.099999999999454
+    },
+    "cpu": {
+      "n": 3910,
+      "p50": 2.899999976158142,
+      "p95": 7
+    },
+    "resolution": [
+      1440,
+      900
+    ],
+    "pedestrians": 480,
+    "renderer": {
+      "drawCalls": 70,
+      "triangles": 1241716,
+      "instances": 39509,
+      "contextLost": false,
+      "webglVersion": 2,
+      "backend": "webgl2",
+      "bloom": true,
+      "shadows": true,
+      "staticTotal": 37803,
+      "biome": "ville",
+      "worldRevision": 0,
+      "renderScale": 1,
+      "pixelRatio": 1,
+      "width": 1440,
+      "height": 900,
+      "msaa": 4,
+      "viewDistance": 64,
+      "staticVisible": 37803,
+      "staticCulled": 0,
+      "dynamicLights": 0,
+      "blackoutLights": 0,
+      "shadowMaps": 1,
+      "shadowMode": "sun-atlas",
+      "uploadBytes": 78464,
+      "fxInstances": 9,
+      "crowdInstances": 0,
+      "pdrLotInstances": 0,
+      "lotsVisibles": 0
+    },
+    "webgl": "WebKit WebGL",
+    "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/157.0.0.0 Safari/537.36"
+  },
+  "errors": [],
+  "details": {
+    "meshes": 10602,
+    "groups": 95
+  },
+  "clearedTrees": 143,
+  "buildSha256": "0c97bb4062703ae9d1ac4180daa3b55a053386a3ec9d8c71ac7e74e74a3c900a",
+  "hardware": "MacBook Air Mac17,4, Apple M5, 24 Go (machine du contr\u00f4le initial)",
+  "url": "file://dist/index.html"
+}

@@ -1,0 +1,157 @@
+{
+  "complete": true,
+  "stage": "done",
+  "total": 65.1666666666646,
+  "waypoints": 14,
+  "walkDistance": 22.86094486782157,
+  "maxReverse": 3.1060778124822797,
+  "entered": 2,
+  "exited": 1,
+  "health": 92,
+  "enemies": [
+    0,
+    0,
+    0
+  ],
+  "crowdAvoids": 449,
+  "log": [
+    {
+      "stage": "walk",
+      "time": 1.21,
+      "position": [
+        74.5,
+        124.02055454854337
+      ],
+      "hp": 100,
+      "phase": 0
+    },
+    {
+      "stage": "return-start",
+      "time": 2.27,
+      "position": [
+        74.5,
+        129.51477373618027
+      ],
+      "hp": 100,
+      "phase": 0
+    },
+    {
+      "stage": "enter",
+      "time": 2.27,
+      "position": [
+        74.5,
+        129.5527424103593
+      ],
+      "hp": 100,
+      "phase": 0
+    },
+    {
+      "stage": "drive",
+      "time": 56.6,
+      "position": [
+        -103.07722621274563,
+        -14.496532009696688
+      ],
+      "hp": 100,
+      "phase": 1
+    },
+    {
+      "stage": "brake",
+      "time": 57.09,
+      "position": [
+        -104.30317343873548,
+        -14.304254050462832
+      ],
+      "hp": 100,
+      "phase": 1
+    },
+    {
+      "stage": "reverse",
+      "time": 58.7,
+      "position": [
+        -101.7886824075544,
+        -14.717095755587573
+      ],
+      "hp": 100,
+      "phase": 1
+    },
+    {
+      "stage": "stop",
+      "time": 59.02,
+      "position": [
+        -101.31432850136675,
+        -14.794977550763878
+      ],
+      "hp": 100,
+      "phase": 1
+    },
+    {
+      "stage": "exit",
+      "time": 59.03,
+      "position": [
+        -101.3141301393713,
+        -14.795010118827719
+      ],
+      "hp": 100,
+      "phase": 1
+    },
+    {
+      "stage": "fight",
+      "time": 62.67,
+      "position": [
+        -101.07847814013391,
+        -13.359726737311924
+      ],
+      "hp": 100,
+      "phase": 3
+    },
+    {
+      "stage": "walk-objective",
+      "time": 63.59,
+      "position": [
+        -98.20578438623227,
+        -9.551770514310327
+      ],
+      "hp": 100,
+      "phase": 3
+    },
+    {
+      "stage": "return-car",
+      "time": 64.43,
+      "position": [
+        -100.73876856060059,
+        -12.909417961571835
+      ],
+      "hp": 92,
+      "phase": 3
+    },
+    {
+      "stage": "reenter",
+      "time": 64.44,
+      "position": [
+        -100.76163488620979,
+        -12.939728873336273
+      ],
+      "hp": 92,
+      "phase": 3
+    },
+    {
+      "stage": "depart",
+      "time": 65.17,
+      "position": [
+        -102.03782561042182,
+        -14.676190179303067
+      ],
+      "hp": 92,
+      "phase": 4
+    }
+  ],
+  "checks": [
+    "10 entrées/sorties, même voiture, même foule, combat conservé",
+    "sortie côté libre, deux côtés bloqués et explication",
+    "balayage véhicule contre un bâtiment réel, rayon arrêté à sa façade",
+    "tirs METAL arrêtés par la façade : aucune perte de PV derrière",
+    "TMAX, trottinette et vélo : accélération, limite de vitesse et freinage",
+    "aucun tronc de la végétation RTS sur la chaussée"
+  ]
+}

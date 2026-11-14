@@ -1,0 +1,46 @@
+{
+  "METAL": {
+    "commit": "731ace7016b0a787afd3b390c5882bf0527f6a29",
+    "files": {
+      "src/metal/fmath.js": "bb001302bd2d57239c86183615c921563cf21f0490d67eef42586d1fc3457c9f",
+      "src/metal/physics.js": "8b1ca9eba50d3be95f1cfe771ba2f2475f4f7f2592fe61715f887a0b869b2fd1",
+      "src/metal/simulation.js": "ae09ac158ff5ef15d3bbd14c5cf72254d5013dcc7933f014dbbdd76116448b63",
+      "src/metal/actors.js": "e1bb0d61ec0002b4f1c74a10a7365a25db6db036399a22d6854e052595335844",
+      "src/metal/motion.js": "c20b6e38fdafecc96fc340851f842c504e159b1cc0192d7b506b789159ed9087",
+      "src/metal/effects.js": "9407c066b0543086cba6539eb8c2ab46c397d0ee240c2c44a718bafc3b699ef5",
+      "src/metal/input.js": "40c4cdfc34f402ab1f7f05a172f40ad237ee16df4f1d08ab8cdd4f4a6bddf02f",
+      "src/metal/audio.js": "3b5528e2b4af232663268d491ea020f4d41d48c8adbd1585abb1e5ab26b9d3c7",
+      "src/metal/audio-recipes.js": "fd923bfbdceb2fe5fb34fca8d1eea1bf2e86149cf49f61fe78fed24c84f32570"
+    },
+    "integrationSources": {
+      "src/renderer.js": "11460253bae6487d6623bd8224204ebe5fa546ca2bdd565e8a09938240944874",
+      "src/game.js": "96345af4f4ac10876c5d96acf975820dab69762903d45c2511fd425867a94d34"
+    }
+  },
+  "BITUME": {
+    "commit": "e9a5e7f96503a1fe65c79227a0624fb44a318f38",
+    "files": {
+      "src/bitume/carene.js": "8da5450a26e5d292d6628b6c687392b84658f7f9b110e0692df9d95dbebfea4a",
+      "src/bitume/main.js": "49e97a7cb481e6c987131148e12e941448c33d280d31bd2af9551d5e1c31f55a",
+      "src/bitume/voiture.js": "54cfc793dc9428059116cfa32213075f2e4c56ee67fdb6aa480dfc2c0da5add3",
+      "src/bitume/son.js": "140a4e96b76083374fe2aa8b725bc56dc0ee6b06f6db1ddb0ce2b8f2535da146"
+    },
+    "integrationSources": {
+      "src/moteur/renderer.js": "e6c99cc5fa60ac4ad4fd3c439d6057c14e7fc8937fee9ffda386cc2a4a76e054",
+      "src/conduite.js": "7832c6f8c41600bf7c591c245613170ad3dcce78978d2301a442049113174356"
+    }
+  },
+  "PDR": {
+    "commit": "1e8b6351a8c9f52c66858c731648ae0606045334",
+    "files": {
+      "src/pdr/ville-reelle.js": "a12052b6e83d75c296ee56fbbcfb1134f7baeea989cdc78299f17a723106f06d",
+      "src/pdr/foule.js": "1b20ec50e0e041f34caffb56215e333326b535d6da40b2843bc51cc3b4aec210",
+      "src/pdr/sim/nav.js": "f72bbb75ebaa266933b0e9402cc4ac04c1852f3346d4b4c17e70248ebed29b1e",
+      "src/pdr/sim/regles.js": "9c62f5003461ab693b27d138805a7f75dfd45d8e1059daff4adf3b9cf59dac19",
+      "src/pdr/villes/marseille.js": "b2cb276ff41ef5a94a15d90f79f30d68b307f0154e9d728c0490055ee9455f5b"
+    },
+    "integrationSources": {
+      "Jeu/src/moteur/renderer.js": "e6eb25ab63c9fe6f4a341055245bb313405b40625e0bdc0b2662961bb4aa0a6d"
+    }
+  }
+}

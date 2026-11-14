@@ -1,0 +1,9 @@
+{
+  "keyboardExit": true,
+  "pointerLockAfterExit": true,
+  "mouseYawDelta": 0.11,
+  "mousePitchDelta": -0.044,
+  "repeatedTransitions": 10,
+  "freeSideExit": true,
+  "twoBlockedSides": true
+}

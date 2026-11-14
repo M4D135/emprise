@@ -1,0 +1,8 @@
+# RADE : build autonome, publication explicite depuis le Mac.
+gta.estrasse.fr {
+    import security_headers
+    root * /home/ddd/apps/rade/current
+    encode zstd gzip
+    header Cache-Control "no-cache"
+    file_server
+}
