@@ -2313,6 +2313,7 @@
     ms.total = Math.round((maintenant() - t00) * 10) / 10;
 
     const ville = {
+      batiments: bats.filter(b=>!b.souleve&&b.boites.length).map(b=>({id: String(b.k), h:b.h, public:b.hote||b.monument>=0, boites:b.boites.map(q=>({x:q.x,z:q.z,lx:q.a*2,lz:q.b*2,lacet:lacetDe(q.ux,q.uz)}))})),
       type: 'reelle', nom, ville: P.nom, ilots, N: ilots, attribution: P.attribution, licence: P.licence, etendue, objets, MAT, FACTIONS: factions,
       barricades: [], sites: { qg, lieux, gisements, cassables, immeubles }, obstacles,
       accrocher: (x, z) => accrocher(x, z), praticable, surChaussee, sol, itineraire, departs, pointAuHasard, carrefours, hasard, grillePraticable,

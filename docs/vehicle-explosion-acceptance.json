@@ -1,0 +1,18 @@
+{
+  "checks": [
+    "Tirs répétés : fumée avant le feu, flammes progressives puis explosion",
+    "Au moins 8,4 secondes de feu, sans raccourci sous les tirs",
+    "Carrosserie et roues projetées : plus de 20 fragments physiques",
+    "Une détonation par épave ; carcasse sombre sans vitres ni éclairage",
+    "Carcasse persistante et entrée refusée",
+    "Réaction en chaîne différée entre deux véhicules",
+    "Sauvegarde/reprise en cours d’incendie conserve sa progression",
+    "Chocs balayés réels : dégradation, feu puis explosion"
+  ],
+  "seconds": 30.816666666666666,
+  "shots": 74,
+  "fireStart": 22.325,
+  "flameDuration": 8.491666666666667,
+  "collisions": 2,
+  "explosions": 1
+}

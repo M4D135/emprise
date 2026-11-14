@@ -1,0 +1,18 @@
+{
+  "checks": [
+    "Tête adversaire : un tir réel suffit",
+    "Bras : blessure distincte, survivant et cadence de visée réduite",
+    "Jambe : survivant, mobilité réduite et volume abaissé au sol",
+    "Mur opaque : tir arrêté avant la tête",
+    "Passant : headshot réel, décès et sauvegarde/reprise",
+    "Tous les véhicules du trafic ont un pilote ; extraction, conducteur dans la rue, prise de volant et recherche policière",
+    "Véhicule volé et pilote blessé conservés après rechargement",
+    "Accélération réelle du véhicule après extraction du pilote",
+    "Commerçant intérieur : décès conservé après sortie, retour et rechargement",
+    "Commerce sans commerçant : revenus interrompus"
+  ],
+  "stats": {
+    "hits": 3,
+    "headshots": 1
+  }
+}

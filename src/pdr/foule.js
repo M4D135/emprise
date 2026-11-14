@@ -39,7 +39,7 @@
   const LARGEUR = 1024, CAPACITE = 262144, LIGNES = CAPACITE / LARGEUR;
   const ECHELLE = 1.0; // RADE : taille humaine au sol                    // figurines grandies d'un tiers, pour rester lisibles vue de haut
   const TYPES = 13, NIVEAUX = 2, SEAUX = TYPES * NIVEAUX;
-  const SEUIL_DETAIL = 26;                // pixels : au-delà, le maillage détaillé
+  const SEUIL_DETAIL = 52;                // pixels : au-delà, le maillage détaillé
   const DEFAUT_PLAFOND = 12000, DEFAUT_SEUIL = 7;
   // Hauteur d'une unité, en mètres, échelle comprise : taille projetée des points et seuil des figurines.
   const HAUTEURS = Object.freeze([1.8, 1.8, 1.8, 1.8, 1.8, 1.8, 1.8, 1.8, 1.8, 1.8, 1.8, 1.8, 4.3]);
@@ -170,81 +170,64 @@
       }
       for (let i = 0; i < segments; i++) { triangle(dedans[i], dehors[i], dehors[i + 1], n); triangle(dedans[i], dehors[i + 1], dedans[i + 1], n); }
     }
-    return { f, b, idx, regler, boite, cylindre, sphere, anneau, get sommets() { return b.length / 4; } };
+    // Smooth garment profile: [height, half-width, half-depth], with connected rings.
+    function profil(x,z,rings,n){const rows=[];for(let j=0;j<rings.length;j++){const [y,rx,rz]=rings[j],row=[];for(let i=0;i<=n;i++){const a=i*Math.PI*2/n,ca=Math.cos(a),sa=Math.sin(a);const before=rings[Math.max(0,j-1)],after=rings[Math.min(rings.length-1,j+1)],dy=after[0]-before[0]||1,ny=-((after[1]-before[1])*ca*ca+(after[2]-before[2])*sa*sa)/dy;row.push(sommet([x+rx*ca,y,z+rz*sa],unite([ca,ny,sa]),[i/n,j/(rings.length-1)]));}rows.push(row);}for(let j=0;j<rows.length-1;j++)for(let i=0;i<n;i++){const a=(i+.5)*Math.PI*2/n,norm=[Math.cos(a),0,Math.sin(a)];triangle(rows[j][i],rows[j][i+1],rows[j+1][i+1],norm);triangle(rows[j][i],rows[j+1][i+1],rows[j+1][i],norm);}for(const j of [0,rings.length-1]){const normal=[0,j?1:-1,0],mid=sommet([x,rings[j][0],z],normal,[.5,.5]);for(let i=0;i<n;i++)triangle(mid,rows[j][i],rows[j][i+1],normal);}}
+    function corps(data,feminine=false){const start=b.length/4;for(let i=0;i<data.positions.length;i++){const [a,second,weight]=data.bones[i],t=data.materials[i];regler(a,t,t===0?MATIERE.PEAU:MATIERE.TISSU,32);const p=data.positions[i].slice(),n=data.normals[i].slice();if(feminine){const scale=p[1]>1.15?.92:p[1]>.74?1.07:1;p[0]*=scale;n[0]/=scale;}sommet(p,unite(n),[second,weight]);}for(const i of data.indices)idx.push(start+i);}
+    function maillage(data){const start=b.length/4;for(let i=0;i<data.positions.length;i++)sommet(data.positions[i],data.normals[i],[0,0]);for(const i of data.indices)idx.push(start+i);}
+    return { f, b, idx, regler, boite, cylindre, sphere, anneau, profil, maillage, corps, get sommets() { return b.length / 4; } };
   }
 
-  // Les cotes d'une figurine debout de 1,8 m, pieds en y = 0, face vers +z ; +x est sa droite.
-  function humain(m, t, detail) {
-    const R = m.regler, T = TEINTE, M = MATIERE;
-    const lon = detail ? 8 : 6, lat = detail ? 5 : 3;
-    const capuche = t === 2, trapu = t === 6 || t === 10;
-    const largeur = trapu ? 1.12 : capuche ? .92 : 1;
-    // Jambes et chaussures.
-    for (const [o, x] of [[OS.JAMBE_G, -.1], [OS.JAMBE_D, .1]]) {
-      R(o, T.BAS); m.boite([x, .5, 0], [.15, .84, .18]);
-      if (detail) { R(o, T.SOMBRE); m.boite([x, .05, .04], [.15, .1, .27]); }
+  // Everyday clothing variants are chosen by civilian identity, never by faction or aggression.
+  function tenue(m,t,detail){const R=m.regler,T=TEINTE,veil=t===5||t===7,feminine=[2,5,7,9].includes(t),street=[0,3,8].includes(t);
+   if(veil&&globalThis.RADE?.human){R(OS.TETE,T.SAC);m.maillage(RADE.human.scarf);R(OS.CORPS,T.SAC);m.profil(0,-.012,[[1.39,.21,.115],[1.46,.155,.10],[1.56,.068,.071]],detail?20:10);}
+   if(feminine){R(OS.CORPS,T.HAUT);m.profil(0,0,[[.70,.24,.19],[.94,.22,.185],[1.10,.205,.18],[1.30,.215,.185]],detail?18:8);}
+   if(street){R(OS.TETE,T.SAC);m.sphere([0,1.80,-.005],[.105,.062,.106],detail?20:8,detail?8:4,.6);m.boite([0,1.788,.123],[.17,.012,.13]);R(OS.CORPS,T.SOMBRE);m.boite([.015,1.25,.16],[.024,.52,.018],[0,0,-.55]);m.boite([.14,1.055,.18],[.155,.18,.075]);if(detail){R(OS.CORPS,T.METAL,MATIERE.METAL);m.boite([.14,1.11,.221],[.12,.007,.006]);R(OS.CORPS,T.SAC);m.boite([.14,1.032,.22],[.12,.07,.009]);}}
+  }
+  // RADE civilians: rounded anatomy, articulated knees/elbows, faces and ten outfits.
+  function humain(m,t,detail){
+    const R=m.regler,T=TEINTE,M=MATIERE,lon=detail?12:7,lat=detail?8:4;
+    if(detail&&globalThis.RADE?.human?.body){
+      m.corps(RADE.human.body,[2,5,7,9].includes(t));R(OS.TETE,T.PEAU,M.PEAU);m.maillage(RADE.human.head);if(t!==5&&t!==7){R(OS.TETE,T.CHEVEUX);m.maillage(RADE.human.hair);}
+      for(const eye of RADE.human.head.eyes){R(OS.TETE,T.BLANC);m.sphere(eye,[.011,.009,.010],12,8);R(OS.TETE,T.SOMBRE);m.sphere([eye[0],eye[1],eye[2]+.009],[.004,.004,.002],10,6);}
+      for(const [os,x]of [[16,-.105],[17,.105]]){R(os,T.SOMBRE);m.profil(x,.035,[[.022,.055,.111],[.047,.059,.124],[.086,.052,.112],[.142,.043,.052]],16);R(os,T.CLAIR);m.profil(x,.035,[[.015,.056,.116],[.032,.060,.125]],16);}
+      R(OS.CORPS,T.HAUT);m.cylindre([0,1.518,0],.066,.067,.025,20);
+      R(OS.CORPS,T.SOMBRE);m.boite([0,1.035,.095],[.30,.027,.022]);R(OS.CORPS,T.METAL,M.METAL);m.boite([0,1.035,.112],[.038,.025,.006]);tenue(m,t,detail);return;
     }
-    // Bassin, torse effilé vers la taille, cou et tête.
-    if (detail) {
-      R(OS.CORPS, T.BAS); m.boite([0, .97, 0], [.36 * largeur, .2, .22]);
-      R(OS.CORPS, T.HAUT); m.boite([0, 1.25, 0], [.37 * largeur, .52, .25], null, [1.2, 1.04]);
-      R(OS.TETE, T.PEAU, M.PEAU); m.sphere([0, 1.67, .01], [.12, .14, .13], lon, lat);
-    } else {
-      R(OS.CORPS, T.HAUT); m.boite([0, 1.2, 0], [.42 * largeur, .64, .25]);
-      R(OS.TETE, T.PEAU, M.PEAU); m.boite([0, 1.67, .01], [.22, .26, .24]);
+    const wide=t===6?1.14:t===5?.88:1,short=t===1||t===8,dress=t===5;
+    const sph=(p,r)=>m.sphere(p,r,lon,lat),oval=(p,r)=>sph(p,r);
+    for(const [o,k,x]of [[OS.JAMBE_G,16,-.10],[OS.JAMBE_D,17,.10]]){
+      R(o,T.BAS);m.profil(x,0,[[.48,.071,.078],[.62,.084,.093],[.83,.098*wide,.109],[1.02,.095*wide,.10]],lon);
+      R(k,T.BAS);m.profil(x,0,[[.08,.064,.074],[.27,.071,.081],[.46,.077,.085],[.56,.074,.083]],lon);
+      R(k,T.SOMBRE);m.profil(x,.045,[[.022,.055,.111],[.047,.059,.124],[.086,.052,.112],[.142,.043,.052]],lon);
+      if(detail){R(k,T.BLANC);m.boite([x,.025,.045],[.118,.018,.25]);R(k,T.CLAIR);for(let j=0;j<3;j++)m.boite([x,.113,.055+j*.018],[.065,.006,.007]);}
     }
-    // Bras (manche et main).
-    for (const [o, x] of [[OS.BRAS_G, -.27 * largeur], [OS.BRAS_D, .27 * largeur]]) {
-      R(o, T.HAUT); m.boite([x, 1.17, 0], [.11, .56, .12]);
-      if (detail) { R(o, T.PEAU, M.PEAU); m.boite([x, .85, .01], [.09, .1, .09]); }
+    R(OS.CORPS,T.BAS);m.profil(0,0,[[.88,.175*wide,.12],[1.04,.19*wide,.13]],lon);
+    R(OS.CORPS,T.HAUT);m.profil(0,0,[[1.015,.18*wide,.13],[1.12,.18*wide,.14],[1.32,.205*wide,.142],[1.44,.21*wide,.12],[1.50,.075,.07]],lon);
+    if(dress){R(OS.CORPS,T.HAUT);m.boite([0,.88,0],[.49,.42,.31],null,[.7,.8]);}
+    if(t===3||t===9){R(OS.CORPS,T.HAUT);m.boite([0,1.03,0],[.40*wide,.40,.26],null,[1.03,1]);}
+    const anatomical=detail&&globalThis.RADE?.human;
+    R(OS.TETE,T.PEAU,M.PEAU);
+    if(anatomical)m.maillage(RADE.human.head);else{m.cylindre([0,1.515,0],.061,.061,.13,lon);oval([0,1.676,.005],[.108,.151,.106]);oval([0,1.605,.026],[.081,.068,.080]);}
+    for(const [o,fore,x]of [[OS.BRAS_G,18,-.255*wide],[OS.BRAS_D,19,.255*wide]]){
+      R(o,T.HAUT);m.profil(x,0,[[1.18,.061,.069],[1.32,.077,.087],[1.43,.079,.085],[1.46,.05,.06]],lon);oval([x*.79,1.43,0],[.086,.075,.085]);
+      R(fore,short?T.PEAU:T.HAUT,short?M.PEAU:M.TISSU);m.profil(x,.012,[[.94,.046,.052],[1.04,.051,.060],[1.16,.061,.067],[1.23,.060,.068]],lon);
+      R(fore,T.PEAU,M.PEAU);oval([x,.88,.015],[.045,.065,.034]);
+      if(detail){oval([x+(x>0?-.044:.044),.91,.033],[.019,.038,.022]);R(fore,T.SOMBRE);m.cylindre([x,.952,.013],.059,.066,.025,lon);}
     }
-    // Coiffes.
-    const casque = (teinte, r = [.145, .1, .155]) => {
-      R(OS.TETE, teinte, M.LAQUE); m.sphere([0, 1.73, 0], r, lon, lat, .5);
-      if (detail) m.cylindre([0, 1.735, .01], .175, .185, .02, lon);
-    };
-    if (capuche) { R(OS.TETE, T.HAUT); m.sphere([0, 1.69, -.035], [.155, .155, .155], lon, lat); }
-    else if (t === 4 || t === 6 || t === 7) casque(T.CASQUE);                                 // chantier
-    else if (t === 10) {                                                                       // Compagnie
-      R(OS.TETE, T.CASQUE, M.LAQUE); m.sphere([0, 1.72, 0], [.16, .15, .17], lon, lat, .62);
-      R(OS.TETE, T.VERRE, M.VERRE); m.boite([0, 1.65, .155], [.24, .1, .03]);
-    } else if (t === 8 || t === 9) {                                                           // casquettes
-      R(OS.TETE, T.CAMP); m.cylindre([0, 1.775, 0], .13, .135, .07, lon);
-      m.boite([0, 1.75, .14], [.2, .02, .12]);
-    } else if (t === 3) { R(OS.TETE, T.CAMP); m.cylindre([0, 1.79, 0], .14, .14, .06, lon); }  // Fanfare
-    else if (t === 0 || t === 5) { R(OS.TETE, T.CAMP); m.sphere([0, 1.74, 0], [.13, .085, .14], lon, lat, .5); }  // bonnets
-    else if (detail) { R(OS.TETE, T.CHEVEUX); m.sphere([0, 1.72, -.01], [.125, .09, .135], lon, lat, .55); }
-    // Accessoires du type.
-    if (t === 0) { R(OS.CORPS, T.SAC); m.boite([0, 1.28, -.2], [.3, .38, .14]); }
-    if (t === 0 || t === 4 || t === 8) {                                                       // ce que porte une Équipe
-      if (t === 0) { R(OS.PORTE, T.SAC); m.sphere([0, 1.12, .33], [.2, .16, .16], lon, lat); }
-      else { R(OS.PORTE, t === 4 ? T.BOIS : T.METAL, t === 4 ? M.TISSU : M.LAQUE); m.boite([0, 1.12, .33], [.42, .28, .3]); }
+    if(detail){
+      for(const eye of RADE.human.head.eyes){R(OS.TETE,T.BLANC);oval(eye,[.011,.009,.010]);R(OS.TETE,T.SOMBRE);oval([eye[0],eye[1],eye[2]+.009],[.004,.004,.002]);}
+      R(OS.CORPS,T.SOMBRE);m.boite([0,1.015,.12],[.32*wide,.035,.035]);R(OS.CORPS,T.METAL,M.METAL);m.boite([0,1.015,.144],[.045,.027,.009]);
+      if(t!==1&&t!==5){R(OS.CORPS,T.CLAIR);m.boite([0,1.272,.133],[.014,.40,.008]);R(OS.CORPS,T.SAC);for(const x of [-.12,.12])m.boite([x,1.13,.125],[.105,.035,.016]);}
+      if(t===1){R(OS.CORPS,T.BLANC);for(let j=0;j<5;j++)m.boite([0,1.16+j*.053,.13],[.34,.013,.012]);}
+      if(t===9){R(OS.CORPS,T.BLANC);m.boite([0,1.39,.134],[.10,.16,.015]);R(OS.CORPS,T.SOMBRE);m.boite([0,1.35,.15],[.027,.17,.012]);}
     }
-    if (t === 1) {                                                                              // Cortège : banderole
-      R(OS.BANDEROLE, T.BOIS); m.boite([.27, 2.5, .05], [.035, 1.3, .035]);
-      R(OS.BANDEROLE, T.CAMP, M.TISSU, 1); m.boite([.69, 2.83, .05], [.8, .5, .025]);
-      if (detail) { R(OS.CORPS, T.CAMP); m.boite([0, 1.5, .02], [.3, .08, .28]); }                 // écharpe
-    }
-    if (t === 5) {                                                                              // Piquets : pancarte
-      R(OS.BANDEROLE, T.BOIS); m.boite([.27, 2.4, .06], [.035, 1.1, .035]);
-      R(OS.BANDEROLE, T.BLANC, M.TISSU, 1); m.boite([.27, 2.95, .06], [.56, .42, .03]);
-    }
-    if (t === 3) {                                                                              // Fanfare
-      R(OS.TAMBOUR, T.CAMP, M.LAQUE); m.cylindre([0, 1.02, .26], .2, .2, .18, lon, null, T.BLANC);
-      R(OS.OUTIL, T.BOIS); m.boite([.27 * largeur, .82, .14], [.025, .025, .34]);
-      R(OS.CUIVRE, T.DORE, M.METAL); m.boite([0, 1.63, .3], [.05, .05, .42]);
-      m.cylindre([0, 1.63, .55], .085, .085, .07, lon, [Math.PI / 2, 0, 0]);
-    }
-    if (t === 6) {                                                                              // Pavois : panneau-porte
-      R(OS.BOUCLIER, T.BOIS, M.TISSU, 1); m.boite([-.04, 1.08, .4], [.82, 1.62, .06]);
-      if (detail) { R(OS.BOUCLIER, T.METAL, M.METAL); m.boite([-.04, 1.08, .44], [.08, .3, .03]); }
-    }
-    if (t === 7) { R(OS.POUTRE, T.BOIS); m.boite([.04, 1.0, .55], [.2, .2, 1.6]); }            // Béliers : poutre
-    if (t === 10) {                                                                             // Compagnie : bouclier
-      R(OS.BOUCLIER, T.BLANC, M.LAQUE, 1); m.boite([-.06, 1.12, .38], [.56, .96, .04]);
-    }
-    // Anneau de sélection (passe couleur seulement).
-    R(OS.ANNEAU, T.CAMP, M.EMISSIF); m.anneau(.04, .55, .7, detail ? 24 : 12);
+    R(OS.TETE,T.CHEVEUX);if(anatomical)m.maillage(RADE.human.hair);else m.sphere([0,1.731,-.011],[.114,.103,.112],lon,lat,.54);
+    if(t===5||t===7){oval([0,1.62,-.095],[.127,.17,.055]);if(t===7)oval([0,1.705,-.153],[.06,.065,.07]);}
+    if(t===2){R(OS.TETE,T.HAUT);oval([0,1.68,-.09],[.145,.178,.105]);R(OS.CORPS,T.HAUT);oval([0,1.49,-.06],[.14,.08,.11]);}
+    if(t===8){R(OS.TETE,T.SAC);m.sphere([0,1.75,0],[.127,.073,.125],lon,lat,.6);m.boite([0,1.768,.13],[.19,.015,.13]);}
+    if(t===0||t===4){R(OS.CORPS,T.SAC);oval([0,1.27,-.17],[.15,.20,.095]);R(OS.CORPS,T.SOMBRE);for(const x of [-.13,.13])m.boite([x,1.29,.11],[.035,.37,.025]);}
+    if(t===6&&detail){R(OS.TETE,T.SOMBRE);for(const x of [-.048,.048])m.boite([x,1.698,.122],[.073,.036,.014]);m.boite([0,1.702,.123],[.032,.008,.013]);}
+    tenue(m,t,detail);
   }
 
   // Motards : la moto et son pilote assis d'un bloc.
@@ -291,13 +274,13 @@
       if (t === 11) motard(m, detail); else if (t === 12) camion(m, detail); else humain(m, t, detail);
       plages.push({ type: t, niveau, premier, compte: m.idx.length - premier, sommets: m.sommets - base });
     }
-    if (m.sommets > 65535) throw new Error('foule : trop de sommets pour des indices 16 bits');
+
     const n = m.sommets, tampon = new ArrayBuffer(n * SOMMET), fl = new Float32Array(tampon), u8 = new Uint8Array(tampon);
     for (let i = 0; i < n; i++) {
       for (let k = 0; k < 8; k++) fl[i * 9 + k] = m.f[i * 8 + k];
       for (let k = 0; k < 4; k++) u8[i * SOMMET + 32 + k] = m.b[i * 4 + k];
     }
-    return { sommets: tampon, nombre: n, indices: Uint16Array.from(m.idx), plages: Object.freeze(plages), SOMMET };
+    return { sommets: tampon, nombre: n, indices: Uint32Array.from(m.idx), plages: Object.freeze(plages), SOMMET };
   }
 
   // ---------------------------------------------------------------------------------------------------------------
@@ -426,7 +409,7 @@
     vec3(.90,.58,.12),vec3(.30,.29,.27),vec3(.80,.50,.10),vec3(.42,.40,.36),
     vec3(.10,.15,.30),vec3(.12,.17,.33),vec3(.16,.20,.36),vec3(.09,.12,.24),
     vec3(.12,.12,.13),vec3(.18,.17,.18),vec3(.25,.10,.09),vec3(.14,.14,.16));
-  vec3 haut(Unite u){uint k=(u.h>>4)&3u;return u.type==2u?HAUTS[12u+k]:HAUTS[u.faction*4u+k];}
+  vec3 haut(Unite u){uint k=(u.h>>4)&3u;return HAUTS[(u.h>>4)&15u];}
   // Un Cortège sur huit porte la banderole, un Piquet sur huit la pancarte (David, 12/11/2026 : « trop de pancartes »).
   bool porteur(Unite u){return (u.type==1u||u.type==5u)&&((u.h>>20)&7u)==0u;}`;
 
@@ -466,7 +449,7 @@
     else if(e==10u){q.jg=q.jd=1.5;q.haut=-.62;q.torse=-.22+.05*sin(t*2.+ph);q.bg=q.bd=.8+.08*sin(t*1.7+ph);q.tete=.3+.1*sin(t*2.6+ph);}
     else if(e==11u){float k=.5+.5*sin(t*3.+ph);q.bd=.6+2.1*k;q.bg=1.;}
     if((u.drapeaux&1u)!=0u&&(e<2u||e==4u||e==8u))q.bg=q.bd=.95;
-    if(e!=10u){
+    if(false){
       if(porteur(u)){q.bd=2.85+.08*sin(t*1.7+ph);q.banderole=.12*sin(t*2.3+ph);if(u.type==5u)q.bg=marche?q.bg:.3;}
       if(u.type==6u||u.type==10u){bool leve=(u.drapeaux&8u)!=0u||e==9u||e==2u;q.bouclier=leve?0.:-.35;q.bg=leve?1.05:.3;}
       if(u.type==7u){q.bg=q.bd=.95;q.poutre=(e==6u||e==2u||e==7u)?.38*max(0.,sin(t*5.+ph)):0.;}
@@ -480,6 +463,20 @@
     }
     if((u.drapeaux&2u)!=0u)q.torse-=.22;
     return q;
+  }
+  void poserOs(inout vec3 p,inout vec3 n,uint os,Pose q){
+    if(os==16u||os==17u){float a=os==16u?q.jg:q.jd;vec3 knee=vec3(os==16u?-.1:.1,.52,0.);tourner(p,n,knee,-max(0.,-a)*1.1);tourner(p,n,os==16u?PIV_JAMBE_G:PIV_JAMBE_D,a);}
+    else if(os==18u||os==19u){float a=os==18u?q.bg:q.bd;vec3 elbow=vec3(os==18u?-.255:.255,1.19,0.);tourner(p,n,elbow,.13+max(0.,a)*.4);tourner(p,n,os==18u?PIV_BRAS_G:PIV_BRAS_D,a);}
+    else if(os==4u)tourner(p,n,PIV_JAMBE_G,q.jg);
+    else if(os==5u)tourner(p,n,PIV_JAMBE_D,q.jd);
+    else if(os==2u)tourner(p,n,PIV_BRAS_G,q.bg);
+    else if(os==3u||os==7u)tourner(p,n,PIV_BRAS_D,q.bd);
+    else if(os==8u)tourner(p,n,PIV_BRAS_G,q.bouclier);
+    else if(os==12u)tourner(p,n,PIV_BANDEROLE,-q.banderole);
+    else if(os==13u)p.z+=q.poutre;
+    else if(os==1u||os==14u)tourner(p,n,PIV_COU,-q.tete);
+    else if(os==10u)tourner(p,n,PIV_TOURELLE,-q.tourelle);
+    if(os!=4u&&os!=5u&&os!=16u&&os!=17u&&os!=9u&&os!=10u&&os!=11u)tourner(p,n,PIV_HANCHES,-q.torse);
   }
   void main(){
     Unite u=lireUnite(int(aUnite));
@@ -500,20 +497,13 @@
       return;}
     Pose q=poser(u,cuivre);
     vec3 p=aPosition,n=aNormale;
-    if(os==4u)tourner(p,n,PIV_JAMBE_G,q.jg);
-    else if(os==5u)tourner(p,n,PIV_JAMBE_D,q.jd);
-    else if(os==2u)tourner(p,n,PIV_BRAS_G,q.bg);
-    else if(os==3u||os==7u)tourner(p,n,PIV_BRAS_D,q.bd);
-    else if(os==8u)tourner(p,n,PIV_BRAS_G,q.bouclier);
-    else if(os==12u)tourner(p,n,PIV_BANDEROLE,-q.banderole);
-    else if(os==13u)p.z+=q.poutre;
-    else if(os==1u||os==14u)tourner(p,n,PIV_COU,-q.tete);
-    else if(os==10u)tourner(p,n,PIV_TOURELLE,-q.tourelle);
-    if(os!=4u&&os!=5u&&os!=9u&&os!=10u&&os!=11u)tourner(p,n,PIV_HANCHES,-q.torse);
+    poserOs(p,n,os,q);
+    if((aInfo.w&32u)!=0u){vec3 bp=aPosition,bn=aNormale;poserOs(bp,bn,uint(aUV.x+.5),q);p=mix(p,bp,aUV.y);n=normalize(mix(n,bn,aUV.y));}
     if(os!=11u){
       if(q.roulis!=0.){float c=cos(q.roulis),s=sin(q.roulis);p=vec3(c*p.x-s*p.y,s*p.x+c*p.y,p.z);n=vec3(c*n.x-s*n.y,s*n.x+c*n.y,n.z);}
       p.y+=q.haut;
     }
+    float height=.94+float((u.h>>22)&7u)*.017,width=.92+float((u.h>>25)&7u)*.022;p*=vec3(width,height,1.);n=normalize(n/vec3(width,height,1.));
     float c=cos(u.cap),s=sin(u.cap);p*=${ECHELLE.toFixed(2)};
     vec3 monde=vec3(u.xz.x+c*p.x+s*p.z,solSous(u.xz)+p.y,u.xz.y-s*p.x+c*p.z);
     gl_Position=uVP*vec4(monde,1.);
@@ -521,9 +511,9 @@
     vMonde=monde;vNormale=vec3(c*n.x+s*n.z,n.y,-s*n.x+c*n.z);vUV=aUV;vFaction=u.faction;
     // Teinte de la partie, tirée pour l'unité.
     uint tt=aInfo.y,h=u.h;vec3 camp=uFactions[u.faction],b;
-    if(tt==0u){const vec3 P[4]=vec3[4](vec3(.80,.60,.47),vec3(.62,.44,.32),vec3(.44,.30,.21),vec3(.88,.70,.58));b=P[(h>>8)&3u];}
+    if(tt==0u){const vec3 P[8]=vec3[8](vec3(.28,.17,.12),vec3(.37,.23,.16),vec3(.45,.29,.20),vec3(.51,.34,.23),vec3(.60,.41,.29),vec3(.66,.46,.32),vec3(.79,.60,.46),vec3(.87,.70,.57));b=P[(h>>8)&7u];}
     else if(tt==1u)b=haut(u);
-    else if(tt==2u){const vec3 P[4]=vec3[4](vec3(.15,.17,.23),vec3(.22,.21,.22),vec3(.30,.27,.22),vec3(.11,.12,.16));b=P[(h>>10)&3u];if(u.faction==2u)b=vec3(.07,.10,.20);}
+    else if(tt==2u){const vec3 P[4]=vec3[4](vec3(.15,.17,.23),vec3(.22,.21,.22),vec3(.30,.27,.22),vec3(.11,.12,.16));b=P[(h>>10)&3u];}
     else if(tt==3u)b=camp;
     else if(tt==4u)b=vec3(.06,.06,.065);
     else if(tt==5u)b=vec3(.55,.57,.6);
@@ -538,7 +528,7 @@
     else b=vec3(.80,.62,.25);
     uint mat=aInfo.z;
     vMatiere=mat==1u?vec4(.22,.35,0.,0.):mat==2u?vec4(.38,.75,0.,0.):mat==3u?vec4(.7,0.,0.,0.):mat==4u?vec4(.1,.5,0.,0.):mat==5u?vec4(.5,0.,1.6,0.):vec4(.92,0.,0.,0.);
-    vMatiere.w=float(aInfo.w);vMotif=tt==10u||tt==9u?camp:mix(camp,vec3(1.),.6);
+    vMatiere.w=float(aInfo.w&31u);vMotif=tt==10u||tt==9u?camp:mix(camp,vec3(1.),.6);
     // Cohésion basse : plus sombre. Sélection : plus clair. Touché : un éclair blanc. Colère du Bastion : le visage rougit.
     if(mat!=5u)b*=.5+.5*smoothstep(0.,34.,float(u.niveau));
     if((u.marques&1u)!=0u&&mat!=5u)b=mix(b,b*1.3+.05,.7);
@@ -566,7 +556,7 @@
     vec3 n=normalize(vNormale),base=vBase;
     if(vMatiere.w>.5)base=mix(base,vMotif,motif(vUV,vFaction));
     float ombre=pdrOmbreSoleil(vMonde,n);
-    fragColor=vec4(pdrFinir(pdrEclairer(base,n,vMonde,vMatiere.x,vMatiere.y,vMatiere.z,ombre),vMonde),1.);
+    fragColor=vec4(pdrFinir(pdrEclairer(base,n,vMonde,vMatiere.x,vMatiere.y,vMatiere.z,ombre),vMonde),0.);
   }`;
 
   const OMBRE_FS = `#version 300 es
@@ -853,7 +843,7 @@
         if (!nombre) continue;
         gl.vertexAttribIPointer(4, 1, gl.UNSIGNED_INT, 4, r.debut[s] * 4);
         const p = plages[s];
-        gl.drawElementsInstanced(gl.TRIANGLES, p.compte, gl.UNSIGNED_SHORT, p.premier * 2, nombre);
+        gl.drawElementsInstanced(gl.TRIANGLES, p.compte, gl.UNSIGNED_INT, p.premier * 4, nombre);
         appels++; triangles += p.compte / 3 * nombre;
       }
       gl.bindBuffer(gl.ARRAY_BUFFER, null);

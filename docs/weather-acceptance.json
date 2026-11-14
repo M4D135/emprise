@@ -1,0 +1,16 @@
+{
+  "seconds": 750,
+  "modes": [
+    "soleil",
+    "nuages",
+    "pluie",
+    "orage",
+    "eclaircie"
+  ],
+  "lightning": 7,
+  "thunder": 7,
+  "continuousCloudDrift": true,
+  "cloudPositionPersisted": true,
+  "wetnessPersisted": true,
+  "rainShelter": true
+}

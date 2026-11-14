@@ -1,37 +1,53 @@
-# RADE
+# EMPRISE — 0.2.0 « Territoires »
 
-Un premier monde ouvert jouable autour du Vieux-Port : FPS de **METAL**, conduite libre issue de **BITUME**, Marseille et foule GPU de **Point de rupture**, dans un seul renderer **FERRO**. Une mission courte, 480 piétons et cinq véhicules utilisables : **205 GTI, R5 GT Turbo, TMAX, trottinette électrique et vélo**. Modèles procéduraux stylisés, couleurs libres et habitacles des deux voitures.
+Sandbox FPS solo persistant dans un secteur de Marseille, avec conduite et combat dans un seul renderer **FERRO**. Jouer : **[gta.estrasse.fr](https://gta.estrasse.fr)** · [Dépôt GitHub privé](https://github.com/M4D135/rade).
 
-**Jouer : [gta.estrasse.fr](https://gta.estrasse.fr)** · [Sources](https://github.com/M4D135/rade) (dépôt privé).
+Cette version réunit le trafic civil et policier, les vols de véhicules, les gangs, les commerces et territoires à conquérir, les revenus passifs et les contre-attaques. Les conducteurs sont visibles et peuvent être extraits d’un véhicule arrêté. Les blessures distinguent tête, bras et jambes ; une blessure à la jambe impose une posture au sol et une mobilité très réduite.
 
-## Hors ligne et développement
+Les véhicules se dégradent au fil des impacts : moteur, pneus et direction affectent la conduite. Les chocs et les tirs provoquent déformations, fumée, puis un feu progressif. Une voiture brûle au moins 8,5 secondes avant une grosse explosion : capot, toit, portes, roues et fragments sont projetés ; une carcasse calcinée persistante remplace le véhicule. Les véhicules voisins peuvent prendre feu à leur tour. Les roquettes ouvrent des brèches dans le décor ; des débris physiques ont une masse selon leur matériau. Les feux se propagent et les marins-pompiers peuvent intervenir.
+
+## Jouer hors ligne
 
 ```sh
 python3 build.py
-open dist/index.html                   # macOS ; sinon ouvrir ce fichier dans Chrome
-node tests/acceptance.mjs              # physique, mission, collisions et transitions
-python3 tests/browser.py               # parcours WebGL2 réel, environ 70 secondes
+open dist/index.html
 ```
 
-Python 3 standard et Node suffisent. Aucun npm, téléchargement, CDN, serveur local, texture ou fichier audio externe. Le build HTML autonome pèse environ **1,27 Mo**. `SIZE.json` contient son empreinte. `tests/browser.py --chrome /chemin/vers/chrome` accepte un autre exécutable Chromium.
+Python 3 standard pour construire ; Node et Chrome pour les tests. Le HTML autonome pèse environ **7,31 Mo**, textures comprises, sans CDN ni requête réseau à l’exécution. `SIZE.json` donne son empreinte. WebGL2 et un navigateur de bureau sont requis pour la configuration vérifiée.
+
+La version et l’identifiant du build apparaissent à l’écran titre. Après **5 secondes sans interaction**, des sessions de test enregistrées sont rejouées. Une touche ou un clic ramène au titre ; cette démonstration ne modifie pas la progression.
 
 ## Commandes
 
 | Action | Commande |
 |---|---|
-| Marcher / conduire | ZQSD sur AZERTY, WASD sur QWERTY |
-| Courir / dérapage en voiture | Maj |
-| Monter dans le véhicule le plus proche / sortir à l’arrêt | E |
-| Démarrer / couper le moteur | Automatique à la montée ; F pour couper / rallumer |
+| Marcher / conduire | ZQSD ou WASD |
+| Courir / déraper | Maj |
+| Interagir, entrer, sortir, extraire un conducteur arrêté | E |
+| Contact moteur | Automatique à la montée ; F pour couper / rallumer |
 | Freiner puis reculer | S maintenu |
 | Frein / esquive à pied | Espace |
-| Cockpit ou poursuite | C |
-| Regarder, viser, tirer | Souris, clic gauche ; glisser si capture refusée |
-| Armes / coup de crosse / onde | 1 et 2 / V / R |
-| Couleur du véhicule | H, ou sélecteur de couleur dans la pause |
-| Pause / reprise | P ou Échap ; bouton Reprendre |
+| Cockpit / poursuite | C |
+| Regarder / tirer | Souris / clic gauche ; glisser si capture refusée |
+| Mitraillette / fusil / roquette | 1 / 2 / 3 |
+| Crosse / onde | V / R |
+| Saisir un petit objet / le lancer | G / B |
+| Allumer un feu à portée / réparer au garage | I / T |
+| Couleur du véhicule | H ; sélecteur RGB dans la pause |
+| Lire le plan acheté | M |
+| Pause / reprise | P ou Échap |
 
-Au départ, les véhicules sont alignés sur le quai. La mission indique le quai du Port. Après le combat contre trois sentinelles fictives, remonter et repartir termine la mission ; l’exploration continue. Aucun chargement entre marche et conduite. La session conserve véhicules, foule et combat jusqu’au rechargement de la page.
+**Aucune minimap à l’ATH.** Les quatre panneaux publics permettent de consulter le plan ; un exemplaire portable coûte 60 € dans un commerce. Le monde continue pendant sa consultation. L’objectif apparaît pendant une prise ou une défense, sans trajet GPS permanent.
+
+Les six commerces et six points de deal ont chacun leurs défenseurs et leur gang. Les prendre puis les conserver génère un revenu ; les adversaires peuvent les reprendre. La sauvegarde locale conserve argent, contrôle, véhicules acquis, blessures, destruction, incendies et intérieur visité. Les revenus hors ligne sont plafonnés à huit heures. Le bouton de nouvelle partie efface cette sauvegarde après confirmation. Les sauvegardes de l’URL publique et du fichier local sont distinctes.
+
+## Monde et modèles
+
+- Secteur de 660 × 660 m, données OpenStreetMap embarquées. Mobilier urbain, façades détaillées, fenêtres écartées des angles ; 143 arbres retirés des chaussées.
+- 746 adresses accessibles par portes ou passages communs. Intérieurs meublés : commerces, supermarchés, hôtels, bâtiments publics, logements, bureaux et garages. L’entrée et les escaliers chargent un espace distinct ; les étages ne sont pas tous géométriquement continus avec la rue.
+- 205 GTI, R5 GT Turbo, TMAX, trottinette et vélo : couleurs libres, habitacles et tableaux de bord des autos, silhouettes procédurales. Fourgon de secours supplémentaire.
+- Corps et mains issus d’un maillage anatomique MakeHuman CC0, vêtements adaptés, articulations pondérées pour la foule, chaussures affinées. Carnations majoritairement foncées à mates, femmes avec voile ou sans voile, tenues longues, casquettes et sacoches en bandoulière ; variantes sans lien avec la faction ni le comportement. Visages et carrosseries restent stylisés : le résultat n’est pas encore photoréaliste.
+- Textures PBR Poly Haven pour asphalte et enduit, ombres dynamiques, reflets d’environnement et réflexions à l’écran. Soleil, nuages en dérive continue, pluie, vent, orages et éclairs. Sol mouillé et adhérence variable. Ce rendu WebGL2 n’utilise pas de ray tracing matériel.
 
 ## Intégration et origine
 
@@ -43,13 +59,15 @@ Au départ, les véhicules sont alignés sur le quai. La mission indique le quai
 
 Socle renderer PDR pour ses passes de foule, complété par les formes libres et indices 32 bits de BITUME. Le contrôleur, les armes, les ennemis et les effets viennent de METAL. La dynamique automobile conserve les courbes de pneus, le transfert de charge, les freins et la boîte de BITUME ; son intégration de circuit est remplacée par des positions libres et des collisions urbaines. Les réglages sont adaptés à des compactes à traction. Les deux-roues utilisent un modèle plus simple.
 
-[Détails techniques](docs/INTEGRATION.md) · [Références et modèles](docs/VEHICULES.md) · [Vérification et performances](docs/VERIFICATION.md). Les trois dépôts sources sont restés intacts. `ORIGINS.json` donne les empreintes de départ, avant adaptation des copies.
+[Détails techniques](docs/INTEGRATION.md) · [Références et modèles](docs/VEHICULES.md) · [Vérification et performances](docs/VERIFICATION.md). Les copies de travail de EMPRISE sont indépendantes des trois dépôts sources. `ORIGINS.json` donne les empreintes de départ, avant adaptation des copies.
 
-## Périmètre de cette version
+## Validation et limites
 
-Secteur continu de 660 × 660 m issu des données embarquées, sol plat, bâtiments extérieurs et contacts simplifiés. Plus de 10 000 pièces de détail ajoutées ; 143 arbres retirés des chaussées. Les véhicules sont stationnés au départ : pas encore de trafic automobile autonome, de police, d’intérieurs de bâtiments ou de sauvegarde entre sessions. Les modèles sont des interprétations procédurales, pas des scans ni une simulation mécanique exacte. Les piétons s’écartent et fuient les tirs ; ils n’ont pas de ragdoll.
+Les tests couvrent les vrais événements clavier/souris, les sessions de combat et conduite, la capture/reprise d’un commerce, la sauvegarde, le trafic et la police, les accès intérieurs, la météo, les blessures, la destruction, les pompiers et les explosions. Les rapports et leurs conditions sont détaillés dans [VERIFICATION.md](docs/VERIFICATION.md).
 
-WebGL2 et navigateur de bureau requis pour la version vérifiée. Les commandes tactiles sont expérimentales. Le parcours testé ne certifie pas chaque ruelle ou chaque configuration mobile. Aucun élément de GTA n’est embarqué ; l’inspiration porte sur la liberté de déplacement et l’alternance à pied / véhicule.
+C’est une version solo ; le multijoueur reste à développer. Le terrain et l’eau ne sont pas destructibles. La physique utilise des volumes simplifiés, un budget de 240 débris et 96 corps actifs, sans calcul de structure d’ingénierie ni ragdoll intégral. La foule n’est pas un obstacle rigide. Les animations d’extraction, de chute et de rampement sont simplifiées. Les deux-roues et le fourgon ont un niveau de détail inférieur aux compactes. Les intérieurs restent accessibles même si leur enveloppe extérieure a été endommagée. Un feu intérieur hors de la scène chargée ne simule pas toute sa destruction structurelle.
+
+La sauvegarde dépend du navigateur. Les tests n’attestent pas chaque ruelle, chaque accès depuis tous les itinéraires, ni toutes les machines et commandes tactiles. Aucun asset de GTA n’est embarqué.
 
 ## Publication
 
@@ -57,6 +75,6 @@ WebGL2 et navigateur de bureau requis pour la version vérifiée. Les commandes 
 ./deploy.sh
 ```
 
-Le script exige sources et build commités, envoie l’HTML par SSH vers le VPS `amiga`, vérifie son SHA-256, bascule le lien `current`, puis applique le vhost Caddy existant pour `gta.estrasse.fr`. Publication manuelle, aucun service de jeu supplémentaire. Pour revenir à un commit précédemment déposé : remplacer le lien `/home/ddd/apps/rade/current` par `releases/<commit>` avec une bascule atomique identique au script. Les anciennes versions sont conservées.
+Le script exige sources, assets et build commités, envoie l’HTML sur le VPS `amiga`, vérifie son SHA-256 puis bascule atomiquement `/home/ddd/apps/rade/current`. Le vhost Caddy existant n’est réappliqué que s’il change. Les anciennes releases sont conservées pour retour arrière.
 
-Données géographiques : **© les contributeurs OpenStreetMap**, [ODbL](https://www.openstreetmap.org/copyright), tuiles OpenFreeMap / schéma OpenMapTiles. Attribution visible dans le jeu. Les marques des véhicules servent à identifier les références ; projet indépendant sans affiliation aux constructeurs.
+Données : **© les contributeurs OpenStreetMap**, [ODbL](https://www.openstreetmap.org/copyright), OpenFreeMap / OpenMapTiles. Modèles, licences et références : [VEHICULES.md](docs/VEHICULES.md), [ASSETS.md](docs/ASSETS.md). Projet indépendant, sans affiliation aux marques représentées.

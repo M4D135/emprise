@@ -70,10 +70,10 @@ function render(c,out,opt={}){
  return mod;
 }
 function step(c,cmd,world,dt){
- const spec=V.SPECS[c.model];if(!spec.two)return BITUME.conduite.pas(c,cmd,world,dt);
+ const spec=V.SPECS[c.model];if(world.weather?.gust>.65&&c.v>3)c.w+=Math.sin(c.cap-.4)*world.weather.gust*.18*dt;if(!spec.two)return BITUME.conduite.pas(c,cmd,world,dt);
  const gaz=c.moteur?cmd.gaz||0:0,reverse=!!cmd.marcheArriere,old=c.u;
  c.gaz=gaz;c.arriere=reverse;c.volant+=((cmd.volant||0)-c.volant)*(1-Math.exp(-dt/.12));
- const thrust=spec.acc*gaz*(reverse?-.6:1)*Math.max(0,1-Math.abs(c.u)/(reverse?2:spec.top)),drag=.10+c.u*c.u*.0015,brake=(cmd.frein||0)*6;
+ const thrust=spec.acc*gaz*(reverse?-.6:1)*Math.max(0,1-Math.abs(c.u)/(reverse?2:spec.top)),drag=.10+c.u*c.u*.0015,brake=(cmd.frein||0)*6*(1-.22*(world.weather?.wet||0));
  c.u+= (thrust-Math.sign(c.u)*(drag+brake))*dt;if(old*c.u<0&&!gaz)c.u=0;
  c.braquage=c.volant*Math.min(.5,2.5/Math.max(1,Math.abs(c.u)));c.omega=c.u*Math.tan(c.braquage)/spec.wheelbase;
  const next=c.cap+c.omega*dt,hit=world.moveVehicle(c,Math.cos(next)*c.u*dt,Math.sin(next)*c.u*dt,next);if(hit)c.u=0;

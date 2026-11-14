@@ -1,0 +1,2 @@
+/* Bundled CC0 PBR maps. Decoded before WebGL initialization; no runtime network request. */
+(function(R){'use strict';R.materials={layers:[],async load(){this.layers=await Promise.all((R.materialImages||[]).map(async layer=>{const out={};for(const kind of ['diff','nor_gl','rough']){const image=new Image();image.src=layer[kind];await image.decode();out[kind]=image;}return out;}));}};})(globalThis.RADE);

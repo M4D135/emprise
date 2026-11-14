@@ -1,0 +1,18 @@
+{
+  "buildings": 746,
+  "passages": 177,
+  "types": {
+    "supermarche": 143,
+    "hotel": 102,
+    "public": 105,
+    "commerce": 102,
+    "logement": 102,
+    "bureau": 96,
+    "garage": 96
+  },
+  "checks": [
+    "Chaque bâtiment : adresse unique, porte libre, apparition intérieure libre, murs solides, tous les paliers libres",
+    "Sept usages : entrer, marcher, sortir sans soin gratuit ni collision de sortie",
+    "Escalier, étage, sauvegarde/reprise intérieure et sortie validés"
+  ]
+}

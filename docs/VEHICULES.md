@@ -1,6 +1,6 @@
 # Modèles et références
 
-Les cinq types sont des meshes originaux construits par code, interprétés dans le style géométrique du jeu. Les recherches de références visuelles ont servi à relever proportions et détails ; aucune photo commerciale, texture ou mesh téléchargé n’est livré dans le jeu.
+Les cinq types sont des meshes originaux construits par code, interprétés dans le style géométrique du jeu. Les recherches de références visuelles ont servi à relever proportions et détails ; aucun modèle commercial de ces véhicules n’est embarqué. Les assets humains et matériaux CC0 ajoutés au monde sont documentés dans [ASSETS.md](ASSETS.md).
 
 | Modèle | Caractéristiques reproduites |
 |---|---|

@@ -22,6 +22,7 @@
   out vec3 vNormal;
   out vec3 vSurface;
   out vec3 vLocal;
+  out vec3 vFaceNormal;flat out vec3 vDimensions;
   out vec3 vSurfaceNormal;
   flat out float vMaterial;
   flat out float vEmission;
@@ -48,7 +49,7 @@
     vOutdoor=mod(floor(iRotation.w*.5),2.);
     vObject=floor(iRotation.w*.25);
     vSurface=vObject>.5?aPosition*iScale.xyz:vWorld;
-    vLocal=aPosition;
+    vLocal=aPosition;vFaceNormal=aNormal;vDimensions=abs(iScale.xyz);
     vSurfaceNormal=vObject>.5?normalize(aNormal/max(abs(iScale.xyz),vec3(.0001))):vNormal;
     vColor=iColor;
     gl_Position=uViewProjection*vec4(vWorld,1.);
@@ -60,6 +61,7 @@
   in vec3 vNormal;
   in vec3 vSurface;
   in vec3 vLocal;
+  in vec3 vFaceNormal;flat in vec3 vDimensions;
   in vec3 vSurfaceNormal;
   flat in float vMaterial;
   flat in float vEmission;
@@ -68,6 +70,10 @@
   flat in float vObject;
   flat in vec4 vColor;
   uniform vec3 uEye;
+  uniform vec4 uWeather;uniform vec2 uCloudOffset;
+  uniform highp sampler2DArray uPbrAlbedo;uniform highp sampler2DArray uPbrNormal;uniform highp sampler2DArray uPbrRough;uniform float uPbrReady;
+  uniform vec3 uLightDirection[12];
+  uniform vec2 uLightCone[12];
   uniform vec3 uForward;
   uniform vec3 uLightPosition[12];
   uniform vec3 uLightColor[12];
@@ -174,7 +180,7 @@
     vec2 uv=an.y>.65?vSurface.xz:(an.x>an.z?vSurface.zy:vSurface.xy);
     float m=vMaterial, emission=vEmission;
     vec3 base=vec3(.105,.135,.15);
-    float roughness=.47,metalness=.65,organicHeight=0.,urbanHeight=0.;
+    float roughness=.47,metalness=.65,organicHeight=0.,urbanHeight=0.,pbrWeight=0.,pbrLayer=1.;
     float pixelSpan=max(fwidth(uv).x,fwidth(uv).y);
     float fineDetail=1.-smoothstep(.015,.10,pixelSpan);
     float grain=noise(uv*23.)*.5+mix(.5,noise(uv*71.),fineDetail)*.2;
@@ -293,10 +299,15 @@
       }else{
         float etage=3.05+.55*fract(style*7.31),pas=2.25+1.35*fract(style*3.17);
         float largeur=.34+.30*fract(style*5.73),hauteur=.42+.22*fract(style*9.11);
-        vec2 g=vec2(uv.x/pas,uv.y/etage),cellule=floor(g),f=fract(g),aa=max(fwidth(g),vec2(.0001));
+        bool sideX=abs(vFaceNormal.x)>abs(vFaceNormal.z);float faceW=sideX?vDimensions.z:vDimensions.x;
+        float faceX=(sideX?vLocal.z:vLocal.x)*faceW+faceW*.5,margin=min(.8,faceW*.2),span=max(.01,faceW-2.*margin),columns=max(1.,floor(span/pas)),stepX=span/columns;
+        float edge=step(margin,faceX)*step(faceX,faceW-margin)*step(1.7,faceW);
+        vec2 g=vec2((faceX-margin)/stepX,uv.y/etage),cellule=floor(g),f=fract(g),aa=max(fwidth(g),vec2(.0001));
         float haut=step(4.3,uv.y),rez=1.-haut;
         float fenetre=(1.-smoothstep(largeur*.5-aa.x,largeur*.5+aa.x,abs(f.x-.5)))*(1.-smoothstep(hauteur*.5-aa.y,hauteur*.5+aa.y,abs(f.y-.56)))*haut;
-        float baie=fract(uv.x/5.4),ab=max(fwidth(uv.x/5.4),.0001);
+        float facadeTop=vWorld.y+(.5-vLocal.y)*vDimensions.y;
+        fenetre*=step((cellule.y+.56+hauteur*.5)*etage,facadeTop-.30);
+        float bays=max(1.,floor(span/5.4)),bayX=(faceX-margin)/span*bays,baie=fract(bayX),ab=max(fwidth(bayX),.0001);
         float vitrine=(1.-smoothstep(.40-ab,.40+ab,abs(baie-.5)))*smoothstep(.5,.62,uv.y)*(1.-smoothstep(3.2,3.3,uv.y))*rez;
         float bandeau=smoothstep(3.5,3.58,uv.y)*(1.-smoothstep(4.05,4.12,uv.y));
         float corniche=(1.-smoothstep(0.,.06+aa.y,f.y))*haut;
@@ -308,9 +319,9 @@
         mur=mix(mur,enduit*.5,bandeau);
         float lointain=smoothstep(.3,.75,max(aa.x,aa.y));
         float verre=mix(max(fenetre,vitrine),mix(largeur*hauteur,.32,rez),lointain);
-        base=mix(mur,vitre,verre);
+        verre*=edge;base=mix(mur,vitre,verre);
         roughness=mix(.86,.12,verre);metalness=mix(0.,.45,verre);
-        urbanHeight=-verre*.035;
+        urbanHeight=-verre*.035;pbrWeight=1.-verre;
       }
     } else if(m<14.5) {
       // PDR : asphalte, granulat fin, reprises et fissures.
@@ -354,6 +365,7 @@
       base+=vec3(.04,.045,.048)*scuff;
       roughness=mix(roughness,.21,wear*.82);
     }
+    if(m>18.5&&m<19.5){base=vColor.rgb;roughness=.08;metalness=.48;}
     float height=(1.-panel)*.012+grain*.003*fineDetail;
     if(m>1.5&&m<2.5){
       vec2 treadUV=mat2(.707,-.707,.707,.707)*uv*12.;
@@ -364,9 +376,27 @@
     if(m>7.5&&m<9.5)n=reliefNormal(n,(noise(uv*7.)-.5)*.009*fineDetail);
     if(m>9.5&&m<11.5)n=reliefNormal(n,organicHeight*fineDetail);
     if(m>12.5&&m<15.5)n=reliefNormal(n,urbanHeight*fineDetail);
+    if(m>2.5&&m<3.5)pbrWeight=1.;
+    if(m>13.5&&m<14.5){pbrWeight=1.;pbrLayer=0.;}
+    if(uPbrReady>.5&&pbrWeight>0.){
+      vec2 texUV=uv/(pbrLayer<.5?3.:2.);vec3 coord=vec3(texUV,pbrLayer);
+      vec3 albedo=texture(uPbrAlbedo,coord).rgb;
+      if(pbrLayer>.5)albedo*=vColor.w>.5?vColor.rgb*1.9:vec3(1.25);
+      base=mix(base,albedo,pbrWeight*.92);roughness=mix(roughness,clamp(texture(uPbrRough,coord).r,.35,.98),pbrWeight);
+      vec3 mapN=texture(uPbrNormal,coord).xyz*2.-1.;mapN.xy*=.50;
+      vec3 dp1=dFdx(vWorld),dp2=dFdy(vWorld);vec2 duv1=dFdx(texUV),duv2=dFdy(texUV);
+      vec3 t=cross(dp2,geometricNormal)*duv1.x+cross(geometricNormal,dp1)*duv2.x;
+      vec3 b=cross(dp2,geometricNormal)*duv1.y+cross(geometricNormal,dp1)*duv2.y;
+      float inv=inversesqrt(max(max(dot(t,t),dot(b,b)),1e-10));
+      vec3 mapped=normalize(mat3(t*inv,b*inv,geometricNormal)*mapN);n=normalize(mix(n,mapped,pbrWeight));metalness=0.;
+    }
+    if(m>19.5&&m<20.5){base=vColor.rgb*(.96+noise(uv*210.)*.04);roughness=.53;metalness=0.;}
     // Pixel-scale normal variation broadens highlights instead of shimmering.
     vec3 ndx=dFdx(n),ndy=dFdy(n);
     roughness=min(.98,sqrt(roughness*roughness+min(.16,max(dot(ndx,ndx),dot(ndy,ndy))*.28)));
+    float wet=uWeather.x*clamp(n.y,0.,1.)*step(13.5,m)*step(m,15.5);
+    float puddle=smoothstep(.48,.72,noise(vWorld.xz*.29))*wet;
+    base*=1.-wet*.22;roughness=mix(roughness,.105,puddle);metalness=mix(metalness,.24,puddle);
     vec3 view=normalize(uEye-vWorld);
     float distanceToEye=length(uEye-vWorld);
     vec3 light=vec3(.075,.10,.12)*(.72+.28*n.y);
@@ -383,6 +413,7 @@
       vec3 l=toLight/max(d,.001);
       float attenuation=(i<2?.27:.13)/(1.+d*d*.26);
       if(uLightRange[i]>0.)attenuation*=1.-smoothstep(uLightRange[i]*.35,uLightRange[i],d);
+      if(uLightCone[i].x>0.)attenuation*=smoothstep(uLightCone[i].x,uLightCone[i].y,dot(-l,uLightDirection[i]));
       float diffuse=max(dot(n,l),0.);
       float visibility=i==0?shadow(geometricNormal,l,0):i==1&&uEnvironment.x<.5?shadow(geometricNormal,l,1):1.;
       light+=uLightColor[i]*attenuation*(diffuse*visibility+.035);
@@ -411,7 +442,7 @@
     vec3 reflected=reflect(-view,n);
     vec3 sky=mix(uSkyBottom,uSkyTop,smoothstep(0.,1.,reflected.y));
     if(outdoors>.5&&roughness<.65&&metalness>.25){
-      vec2 cloudUV=reflected.xz/max(.13,reflected.y+.18)*1.8+vec2(uWindTime.y*.006*uWindTime.x,0.);
+      vec2 cloudUV=reflected.xz/max(.13,reflected.y+.18)*1.8+uCloudOffset;
       // One broad procedural lobe, filtered by roughness; no cubemap pass.
       float field=noise(cloudUV)*.8+.2;
       float cloud=smoothstep(.49-roughness*.08,.73+roughness*.08,field)*smoothstep(-.01,.24,reflected.y);
@@ -449,7 +480,8 @@
     float waveRadius=(1.-clamp(uEffects.w,0.,1.))*.8;
     float wave=exp(-abs(length((screen-.5)*vec2(uResolution.x/uResolution.y,1.))-waveRadius)*85.)*uEffects.w;
     color+=vec3(.03,.27,.23)*wave;
-    fragColor=vec4(color,1.);
+    float reflection=(vOverlay>.5||emission>.5)?0.:clamp((1.-roughness)*(.13+metalness*.6)+puddle*.30,0.,.75);
+    fragColor=vec4(color,reflection);
   }`;
 
   // A separate translucent pass keeps smoke/steam out of depth atlases and
@@ -472,12 +504,13 @@
   in vec3 vNormal;
   in vec3 vSurface;
   in vec3 vLocal;
+  in vec3 vFaceNormal;flat in vec3 vDimensions;
   flat in float vMaterial;
   flat in float vEmission;
   flat in float vOutdoor;
   flat in vec4 vColor;
   uniform vec3 uEye;
-  uniform vec3 uAmbient;
+  uniform vec3 uAmbient;uniform vec3 uSkyTop;uniform vec3 uSkyBottom;
   uniform vec3 uFogColor;
   uniform vec2 uEnvironment;
   uniform float uTime;
@@ -501,8 +534,10 @@
       alpha*=smoothstep(.16,.76,billow);
     }
     if(spark)alpha*=.30+.70*smoothstep(-.5,.18,vLocal.y);
+    bool glass=vMaterial>17.5&&vMaterial<18.5;if(glass)alpha=mix(vColor.a,.70,pow(1.-abs(dot(normalize(vNormal),toEye/distanceToEye)),3.));
     if(alpha<.004)discard;
     vec3 color=vColor.rgb*(uAmbient*.65+vec3(.34)+max(vEmission,0.)*1.25);
+    if(glass){vec3 r=reflect(-toEye/distanceToEye,normalize(vNormal));color=mix(color,mix(uSkyBottom,uSkyTop,smoothstep(0.,1.,r.y)),.68);}
     if(fire){
       vec3 temperature=mix(vec3(.72,.025,.002),vec3(1.8,.23,.008),smoothstep(.10,.65,heat));
       temperature=mix(temperature,vec3(2.7,1.45,.23),smoothstep(.60,1.,heat));
@@ -538,7 +573,7 @@
   uniform vec3 uSunDirection;
   uniform vec3 uSunColor;
   uniform vec2 uSkyFov;
-  uniform vec2 uSkyMotion;
+  uniform vec2 uSkyMotion;uniform vec4 uWeather;uniform vec2 uCloudOffset;
   out vec4 fragColor;
   float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
   float noise(vec2 p){
@@ -553,10 +588,10 @@
     vec3 color=mix(uSkyBottom,uSkyTop,pow(elevation,.55));
     float sun=max(0.,dot(ray,uSunDirection));
     color+=uSunColor*(pow(sun,48.)*.20+pow(sun,650.)*.65+smoothstep(.99925,.99965,sun)*2.8);
-    vec2 cloudUV=ray.xz/max(.13,ray.y+.18)*1.8+vec2(uSkyMotion.x*.006*uSkyMotion.y,0.);
-    float clouds=smoothstep(.49,.73,cloud(cloudUV))*smoothstep(-.01,.24,ray.y);
+    vec2 cloudUV=ray.xz/max(.13,ray.y+.18)*1.8+uCloudOffset;
+    float clouds=smoothstep(.68-uWeather.y*.49,.88-uWeather.y*.41,cloud(cloudUV))*smoothstep(-.03,.16,ray.y);
     vec3 cloudColor=mix(uSkyBottom,vec3(1.12,1.10,1.01),.62)+uSunColor*pow(sun,6.)*.12;
-    color=mix(color,cloudColor,clouds*.66);
+    cloudColor=mix(cloudColor,vec3(.075,.09,.12),uWeather.z*.84);color=mix(color,cloudColor,clouds*.92);color+=vec3(.65,.72,.90)*uWeather.w;
     // Two distant ridgelines close the horizon without a flat, fog-coloured void.
     float angle=atan(ray.z,ray.x);
     float ridge=.018+noise(vec2(angle*5.,1.7))*.075+noise(vec2(angle*13.,4.))*.025;
@@ -565,13 +600,39 @@
     color=mix(color,uSkyFog*.80,1.-smoothstep(nearRidge-.002,nearRidge+.002,ray.y));
     color=color/(color+vec3(.76));color=pow(max(color,vec3(0.)),vec3(.4545));
     float vignette=pow(max(0.,16.*vUV.x*vUV.y*(1.-vUV.x)*(1.-vUV.y)),.13);
-    fragColor=vec4(color*mix(.76,1.,vignette),1.);
+    fragColor=vec4(color*mix(.76,1.,vignette),0.);
+  }`;
+  // Screen-space ray tracing of the current opaque scene; analytic sky remains the fallback.
+  const SSR_FRAG=`#version 300 es
+  precision highp float;
+  in vec2 vUV;uniform sampler2D uColor;uniform sampler2D uDepth;
+  uniform vec4 uProjection;uniform vec2 uPixel;out vec4 fragColor;
+  float distanceZ(float depth){return uProjection.w/(depth*2.-1.+uProjection.z);}
+  vec3 position(vec2 uv){float z=distanceZ(texture(uDepth,uv).r);return vec3((uv*2.-1.)*uProjection.xy*z,-z);}
+  vec2 project(vec3 p){return .5+.5*p.xy/(-p.z*uProjection.xy);}
+  void main(){
+    fragColor=vec4(0.);vec4 original=texture(uColor,vUV);float depth=texture(uDepth,vUV).r;
+    vec3 p=position(vUV),dx=dFdx(p),dy=dFdy(p),n=normalize(cross(dx,dy));
+    if(original.a<.06||depth>=.999999||-p.z>200.||-p.z<.12)return;
+    vec3 eye=normalize(-p);if(dot(n,eye)<0.)n=-n;vec3 r=reflect(-eye,n),origin=p+n*.055;
+    float prev=0.,travel=.16,weight=0.;vec2 hit=vec2(0.);
+    for(int i=0;i<48;i++){
+      float oldTravel=travel;travel+=.24+float(i)*.085;vec3 q=origin+r*travel;if(q.z>-.08)break;vec2 uv=project(q);
+      if(min(uv.x,uv.y)<.012||max(uv.x,uv.y)>.988)break;
+      float sceneZ=distanceZ(texture(uDepth,uv).r),delta=-q.z-sceneZ;
+      if(delta>0.&&prev<=0.&&delta<1.2+travel*.025){
+        float lo=oldTravel,hi=travel;for(int j=0;j<5;j++){float mid=(lo+hi)*.5;vec3 v=origin+r*mid;vec2 at=project(v);float d=-v.z-distanceZ(texture(uDepth,at).r);if(d>0.)hi=mid;else lo=mid;}
+        hit=project(origin+r*(lo+hi)*.5);float edge=min(min(hit.x,hit.y),min(1.-hit.x,1.-hit.y));
+        weight=smoothstep(.01,.12,edge)*(1.-smoothstep(70.,115.,travel));break;
+      }prev=delta;
+    }
+    if(weight>0.){float fresnel=.35+.65*pow(1.-max(dot(n,eye),0.),3.);fragColor=vec4(texture(uColor,hit).rgb,weight*original.a*fresnel);}
   }`;
   const POST_FRAG=`#version 300 es
   precision highp float;
   in vec2 vUV;
   uniform sampler2D uScene;
-  uniform sampler2D uBloom;
+  uniform sampler2D uBloom;uniform sampler2D uReflection;uniform int uReflections;
   uniform vec2 uTexel;
   uniform int uPass;
   out vec4 fragColor;
@@ -591,7 +652,7 @@
     c+=texture(uBloom,vUV-axis*1.384615).rgb*.316216;
     c+=texture(uBloom,vUV+axis*3.230769).rgb*.070270;
     c+=texture(uBloom,vUV-axis*3.230769).rgb*.070270;
-    if(uPass==2)c=texture(uScene,vUV).rgb+c*.28;
+    if(uPass==2){vec4 scene=texture(uScene,vUV),reflection=texture(uReflection,vUV);c=scene.rgb+c*.28;if(uReflections==1)c=mix(c,reflection.rgb,min(.70,reflection.a)*step(.025,scene.a));}
     fragColor=vec4(c,1.);
   }`;
 
@@ -617,7 +678,7 @@
   uniform vec2 uPdrResolution;
   uniform vec3 uPdrLumierePosition[12];
   uniform vec3 uPdrLumiereCouleur[12];
-  uniform float uPdrLumierePortee[12];
+  uniform float uPdrLumierePortee[12];uniform vec3 uPdrLumiereDirection[12];uniform vec2 uPdrLumiereCone[12];
   uniform int uPdrLumieres;
   float pdrEchantillon(vec2 uv,vec2 decalage,float profondeur,vec2 pente){
     float texel=uPdrOmbreReglages.y;
@@ -660,6 +721,7 @@
       vec3 l=versLumiere/max(d,.001);
       float attenuation=(i<2?.27:.13)/(1.+d*d*.26);
       if(uPdrLumierePortee[i]>0.)attenuation*=1.-smoothstep(uPdrLumierePortee[i]*.35,uPdrLumierePortee[i],d);
+      if(uPdrLumiereCone[i].x>0.)attenuation*=smoothstep(uPdrLumiereCone[i].x,uPdrLumiereCone[i].y,dot(-l,uPdrLumiereDirection[i]));
       lumiere+=uPdrLumiereCouleur[i]*attenuation*(max(dot(n,l),0.)+.035);
       reflet+=uPdrLumiereCouleur[i]*attenuation*pdrReflet(n,vue,l,rugosite,f0)*2.4;
     }
@@ -686,7 +748,7 @@
   // y densité du brouillard, z temps (s), w inutilisé.
   const PDR_UNIFORMS=['uPdrOmbre','uPdrMatriceOmbre','uPdrOmbreReglages','uPdrOeil','uPdrSoleil','uPdrCouleurSoleil','uPdrAmbiance',
     'uPdrBrouillard','uPdrCielHaut','uPdrCielBas','uPdrEnvironnement','uPdrResolution','uPdrLumierePosition','uPdrLumiereCouleur',
-    'uPdrLumierePortee','uPdrLumieres'];
+    'uPdrLumierePortee','uPdrLumiereDirection','uPdrLumiereCone','uPdrLumieres'];
 
   // A closed, asymmetric crown shared with collision raycasts. Its canonical
   // 72 triangles are smaller than the old GPU sphere and remain identical in
@@ -865,7 +927,7 @@
       if(distance>(180+range)**2)continue;
       const color=Array.isArray(source.color)&&source.color.length===3?source.color.map(v=>Number.isFinite(v)?Math.max(0,Math.min(3,v)):0):[1,.42,.09];
       if(!color.some(v=>v>0))continue;
-      valid.push({p,color,power,range,score:power/(1+distance*.1)});
+      valid.push({p,color,power,range,dir:source.dir,cone:source.cone,score:power/(1+distance*.1)});
     }
     return valid.sort((a,b)=>b.score-a.score).slice(0,limit);
   }
@@ -903,7 +965,7 @@
       const name=mesh.shape||'sphere',last=groups[groups.length-1];
       if(last&&last.name===name)last.count++;else groups.push({name,offset:offset*4,count:1});
       const p=mesh.p,s=mesh.s||[1,1,1],r=mesh.r||[0,0,0],c=mesh.color||[.5,.5,.5];
-      const material=mesh.shape==='ring'&&Number.isFinite(mesh.innerRatio)?20+Math.min(.999,Math.max(0,mesh.innerRatio)):mesh.fxPriority==='hazard'?16:mesh.fxFire?14:mesh.fxSmoke?15:mesh.fxSpark?17:7;
+      const material=mesh.window?18:mesh.shape==='ring'&&Number.isFinite(mesh.innerRatio)?20+Math.min(.999,Math.max(0,mesh.innerRatio)):mesh.fxPriority==='hazard'?16:mesh.fxFire?14:mesh.fxSmoke?15:mesh.fxSpark?17:7;
       values.set([p[0],p[1],p[2],material,s[0],s[1],s[2],mesh.emissive||0,r[0],r[1],r[2],surfaceFlags(mesh,environment,true),c[0],c[1],c[2],Math.min(1,Math.max(0,mesh.alpha))],offset);offset+=16;
     }
     return {values,groups};
@@ -967,12 +1029,12 @@
     return {mesh,p:mesh.p||[0,0,0],radius:Math.hypot(...(mesh.s||[1,1,1]))*.5,detail:Math.max(0,Math.min(2,Math.floor(mesh.detail||0))),software:null,softwareCoarse:null};
   }
   function spatialIndex(meshes,environment,previous){
-    const levels=[new Map(),new Map(),new Map()],maxRadius=[0,0,0],entries=[],byMesh=new WeakMap();
+    const levels=[new Map(),new Map(),new Map()],large=[[],[],[]],maxRadius=[0,0,0],entries=[],byMesh=new WeakMap();
     for(const mesh of meshes||[]){
       // Destruction replaces changed meshes; retained immutable meshes keep
       // their instance rows and expensive Canvas face/lighting caches.
       const retained=previous&&previous.byMesh.get(mesh),e=retained||metadata(mesh),key=Math.floor(e.p[0]/8)+','+Math.floor(e.p[2]/8),map=levels[e.detail];
-      if(!map.has(key))map.set(key,[]);map.get(key).push(e);maxRadius[e.detail]=Math.max(maxRadius[e.detail],e.radius);
+      if(e.radius>32)large[e.detail].push(e);else{if(!map.has(key))map.set(key,[]);map.get(key).push(e);maxRadius[e.detail]=Math.max(maxRadius[e.detail],e.radius);}
       if(!retained){const p=e.p,s=mesh.s||[1,1,1],r=mesh.r||[0,0,0],c=mesh.color||[0,0,0];
         e.row=new Float32Array([p[0],p[1],p[2],mesh.mat||0,s[0],s[1],s[2],mesh.emissive||0,r[0],r[1],r[2],surfaceFlags(mesh,environment),c[0],c[1],c[2],mesh.color?1:0]);}
       entries.push(e);byMesh.set(mesh,e);
@@ -981,6 +1043,7 @@
       const result=[];
       for(let level=0;level<3;level++){
         const range=ranges[level];if(!(range>0))continue;
+        for(const e of large[level]){const d=(e.p[0]-eye[0])**2+(e.p[1]-eye[1])**2+(e.p[2]-eye[2])**2;if(d<=(range+e.radius)**2)result.push(e);}
         const radius=range+maxRadius[level];
         for(let x=Math.floor((eye[0]-radius)/8);x<=Math.floor((eye[0]+radius)/8);x++)for(let z=Math.floor((eye[2]-radius)/8);z<=Math.floor((eye[2]+radius)/8);z++){
           const bucket=levels[level].get(x+','+z);if(!bucket)continue;
@@ -1472,7 +1535,7 @@
       };
     }
     function dispose(){disposed=true;world=spatialIndex([]);lights=[];vignette=null;shadowGeometry=new WeakMap();staticCasterPlan=null;}
-    return {setWorld,updateWorld,draw,resize,dispose,stats,actorFilter};
+    return {setEnvironment(value){environment=environmentInfo(value);},setWorld,updateWorld,draw,resize,dispose,stats,actorFilter};
   }
 
   // FERRO 0.2 : réglages de création, tous facultatifs. Sans eux, l'image et les commandes GPU sont celles de FERRO 0.1.
@@ -1498,10 +1561,10 @@
     const config=settings(options),worldFrag=worldFragment(config),postFrag=postFragment(config);
     const source=geometry(),view=new Float32Array(16),projection=new Float32Array(16),vp=new Float32Array(16);
     const shadowView=new Float32Array(16),shadowProjection=new Float32Array(16),shadowMatrix=new Float32Array(16),shadowMatrices=new Float32Array(48);
-    const lightPositions=new Float32Array(36),lightColors=new Float32Array(36),lightRanges=new Float32Array(12);
+    const lightPositions=new Float32Array(36),lightColors=new Float32Array(36),lightRanges=new Float32Array(12),lightDirections=new Float32Array(36),lightCones=new Float32Array(24);
     const stats={drawCalls:0,triangles:0,instances:0,contextLost:false,webglVersion:2,backend:'webgl2',bloom:false,shadows:false};
-    let program,depthProgram,postProgram,skyProgram,fxProgram,vao,postVao,vbo,ibo,worldBuffer,dynamicBuffer,overlayBuffer,fxBuffer,crowdBuffer,uniforms,postUniforms,skyUniforms,fxUniforms,depthMatrix,depthWind;
-    let post=null,shadowTarget=null,whiteTexture=null,targetKey='',shadowKey='',shadowLight=null;
+    let program,depthProgram,postProgram,skyProgram,fxProgram,vao,postVao,vbo,ibo,worldBuffer,dynamicBuffer,overlayBuffer,fxBuffer,crowdBuffer,uniforms,postUniforms,skyUniforms,fxUniforms,depthMatrix,depthWind,ssrProgram,ssrUniforms;
+    let post=null,shadowTarget=null,whiteTexture=null,pbrTextures=[],targetKey='',shadowKey='',shadowLight=null;
     let world=[],worldIndex=spatialIndex([]),lights=[],environment=null,worldBatch=pack([]),quality='auto',disposed=false,worldRevision=0;
     let staticCaches=[],lampCasters=[],actorLightPlan=null;
     // BITUME : nappes (chaussée, accotements, terrain : triangles continus, matière et couleur par sommet) et lots
@@ -1524,7 +1587,7 @@
       largeur:1,hauteur:1,near:.045,far:180,temps:0,qualite:'auto',msaa:0,soleil:[.4,.8,.3],couleurSoleil:[0,0,0],ambiance:[.075,.10,.12],
       brouillard:[.009,.018,.024],densiteBrouillard:.014,cielHaut:[.05,.08,.10],cielBas:[.16,.20,.22],
       ombre:{texture:null,unite:2,matrice:pdrMatriceSoleil,texel:1,plein:false,active:false},
-      lumieres:{positions:lightPositions,couleurs:lightColors,portees:lightRanges,nombre:0},
+      lumieres:{positions:lightPositions,couleurs:lightColors,portees:lightRanges,directions:lightDirections,cones:lightCones,nombre:0},
       sortie:'Couleur finale de la cible de scène (RGBA8) : pdrFinir applique brouillard, tonemap c/(c+0,76), gamma 1/2,2 et vignettage, comme le monde.'};
 
     function compile(type,code) {
@@ -1546,12 +1609,13 @@
       return t;
     }
     function deleteTarget(target){
-      if(!target)return;gl.deleteFramebuffer(target.framebuffer);gl.deleteTexture(target.texture);if(target.depth)gl.deleteRenderbuffer(target.depth);
+      if(!target)return;gl.deleteFramebuffer(target.framebuffer);gl.deleteTexture(target.texture);if(target.depth)gl.deleteRenderbuffer(target.depth);if(target.depthTexture)gl.deleteTexture(target.depthTexture);
     }
     function colorTarget(width,height,depth){
       const target={framebuffer:gl.createFramebuffer(),texture:texture(width,height),width,height,depth:null};
       gl.bindFramebuffer(gl.FRAMEBUFFER,target.framebuffer);gl.framebufferTexture2D(gl.FRAMEBUFFER,gl.COLOR_ATTACHMENT0,gl.TEXTURE_2D,target.texture,0);
-      if(depth){target.depth=gl.createRenderbuffer();gl.bindRenderbuffer(gl.RENDERBUFFER,target.depth);gl.renderbufferStorage(gl.RENDERBUFFER,gl.DEPTH_COMPONENT24,width,height);gl.framebufferRenderbuffer(gl.FRAMEBUFFER,gl.DEPTH_ATTACHMENT,gl.RENDERBUFFER,target.depth);}
+      if(depth==='texture'){target.depthTexture=texture(width,height,true);gl.framebufferTexture2D(gl.FRAMEBUFFER,gl.DEPTH_ATTACHMENT,gl.TEXTURE_2D,target.depthTexture,0);}
+      else if(depth){target.depth=gl.createRenderbuffer();gl.bindRenderbuffer(gl.RENDERBUFFER,target.depth);gl.renderbufferStorage(gl.RENDERBUFFER,gl.DEPTH_COMPONENT24,width,height);gl.framebufferRenderbuffer(gl.FRAMEBUFFER,gl.DEPTH_ATTACHMENT,gl.RENDERBUFFER,target.depth);}
       gl.drawBuffers([gl.COLOR_ATTACHMENT0]);
       if(gl.checkFramebufferStatus(gl.FRAMEBUFFER)!==gl.FRAMEBUFFER_COMPLETE){deleteTarget(target);return null;}
       return target;
@@ -1568,7 +1632,7 @@
       if(gl.checkFramebufferStatus(gl.FRAMEBUFFER)!==gl.FRAMEBUFFER_COMPLETE){deleteMsaa(target);return null;}
       return target;
     }
-    function freePost(){if(post){deleteTarget(post.scene);deleteTarget(post.a);deleteTarget(post.b);deleteMsaa(post.msaa);post=null;}}
+    function freePost(){if(post){deleteTarget(post.scene);deleteTarget(post.a);deleteTarget(post.b);deleteTarget(post.reflectSource);deleteTarget(post.reflection);deleteMsaa(post.msaa);post=null;}}
     function ensureTargets(){
       const key=canvas.width+'x'+canvas.height+':'+quality;if(key===targetKey)return;targetKey=key;
       freePost();
@@ -1576,6 +1640,7 @@
       const width=canvas.width,height=canvas.height,bw=Math.max(1,Math.ceil(width/4)),bh=Math.max(1,Math.ceil(height/4));
       const scene=colorTarget(width,height,true),a=colorTarget(bw,bh,false),b=colorTarget(bw,bh,false);
       if(scene&&a&&b)post={scene,a,b};else{deleteTarget(scene);deleteTarget(a);deleteTarget(b);}
+      if(post){post.reflectSource=colorTarget(width,height,'texture');post.reflection=colorTarget(Math.ceil(width/2),Math.ceil(height/2),false);}
       if(post&&config.msaa)post.msaa=msaaTarget(width,height);stats.msaa=post&&post.msaa?post.msaa.samples:0;
       // Tuile d'ombre de 512 en auto, 1 024 en haute qualité. Avec shadowMapScale: 2 (repris de Point de rupture, où un
       // seul soleil couvre tout le sol visible), elle double, bornée par MAX_TEXTURE_SIZE.
@@ -1592,11 +1657,12 @@
       stats.bloom=!!post;stats.shadows=!!shadowTarget;
     }
     function initialize() {
+      ssrProgram=link(POST_VERT,SSR_FRAG);ssrUniforms={};for(const name of ['uColor','uDepth','uProjection','uPixel'])ssrUniforms[name]=gl.getUniformLocation(ssrProgram,name);
       program=link(VERT,worldFrag);depthProgram=link(VERT,DEPTH_FRAG);postProgram=link(POST_VERT,postFrag);skyProgram=link(POST_VERT,SKY_FRAG);fxProgram=link(FX_VERT,FX_FRAG);
-      uniforms={};for(const name of ['uViewProjection','uWindTime','uEye','uForward','uLightPosition','uLightColor','uLightRange','uLightCount','uResolution','uEffects','uShadowMap','uShadowMatrix','uShadowSettings','uTorchPosition','uSunDirection','uSunColor','uAmbient','uFogColor','uSkyTop','uSkyBottom','uEnvironment']) uniforms[name]=gl.getUniformLocation(program,name);
-      postUniforms={};for(const name of ['uScene','uBloom','uTexel','uPass'])postUniforms[name]=gl.getUniformLocation(postProgram,name);
-      skyUniforms={};for(const name of ['uSkyRight','uSkyUp','uSkyForward','uSkyTop','uSkyBottom','uSkyFog','uSunDirection','uSunColor','uSkyFov','uSkyMotion'])skyUniforms[name]=gl.getUniformLocation(skyProgram,name);
-      fxUniforms={};for(const name of ['uViewProjection','uWindTime','uEye','uAmbient','uFogColor','uEnvironment','uTime'])fxUniforms[name]=gl.getUniformLocation(fxProgram,name);
+      uniforms={};for(const name of ['uViewProjection','uWindTime','uEye','uForward','uLightPosition','uLightColor','uLightRange','uLightDirection','uLightCone','uWeather','uCloudOffset','uPbrAlbedo','uPbrNormal','uPbrRough','uPbrReady','uLightCount','uResolution','uEffects','uShadowMap','uShadowMatrix','uShadowSettings','uTorchPosition','uSunDirection','uSunColor','uAmbient','uFogColor','uSkyTop','uSkyBottom','uEnvironment']) uniforms[name]=gl.getUniformLocation(program,name);
+      postUniforms={};for(const name of ['uScene','uBloom','uReflection','uReflections','uTexel','uPass'])postUniforms[name]=gl.getUniformLocation(postProgram,name);
+      skyUniforms={};for(const name of ['uSkyRight','uSkyUp','uSkyForward','uSkyTop','uSkyBottom','uSkyFog','uSunDirection','uSunColor','uSkyFov','uSkyMotion','uWeather','uCloudOffset'])skyUniforms[name]=gl.getUniformLocation(skyProgram,name);
+      fxUniforms={};for(const name of ['uViewProjection','uWindTime','uEye','uAmbient','uSkyTop','uSkyBottom','uFogColor','uEnvironment','uTime'])fxUniforms[name]=gl.getUniformLocation(fxProgram,name);
       depthMatrix=gl.getUniformLocation(depthProgram,'uViewProjection');depthWind=gl.getUniformLocation(depthProgram,'uWindTime');
       vao=gl.createVertexArray();gl.bindVertexArray(vao);
       vbo=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,vbo);gl.bufferData(gl.ARRAY_BUFFER,source.vertices,gl.STATIC_DRAW);
@@ -1614,6 +1680,15 @@
       gl.bindBuffer(gl.ARRAY_BUFFER,worldBuffer);gl.bufferData(gl.ARRAY_BUFFER,worldBatch.values,gl.STATIC_DRAW);
       postVao=gl.createVertexArray();
       whiteTexture=texture(1,1);gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA8,1,1,0,gl.RGBA,gl.UNSIGNED_BYTE,new Uint8Array([255,255,255,255]));
+      pbrTextures=[];const layers=globalThis.RADE?.materials?.layers||[],size=layers[0]?.diff.width||1;
+      for(const [k,kind] of ['diff','nor_gl','rough'].entries()){
+        const tex=gl.createTexture();pbrTextures.push(tex);gl.activeTexture(gl.TEXTURE5+k);gl.bindTexture(gl.TEXTURE_2D_ARRAY,tex);
+        gl.texStorage3D(gl.TEXTURE_2D_ARRAY,Math.floor(Math.log2(size))+1,k===0?gl.SRGB8_ALPHA8:gl.RGBA8,size,size,Math.max(1,layers.length));
+        for(let j=0;j<layers.length;j++)gl.texSubImage3D(gl.TEXTURE_2D_ARRAY,0,0,0,j,size,size,1,gl.RGBA,gl.UNSIGNED_BYTE,layers[j][kind]);
+        gl.texParameteri(gl.TEXTURE_2D_ARRAY,gl.TEXTURE_MIN_FILTER,gl.LINEAR_MIPMAP_LINEAR);gl.texParameteri(gl.TEXTURE_2D_ARRAY,gl.TEXTURE_MAG_FILTER,gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D_ARRAY,gl.TEXTURE_WRAP_S,gl.REPEAT);gl.texParameteri(gl.TEXTURE_2D_ARRAY,gl.TEXTURE_WRAP_T,gl.REPEAT);gl.generateMipmap(gl.TEXTURE_2D_ARRAY);
+        const aniso=gl.getExtension('EXT_texture_filter_anisotropic');if(aniso)gl.texParameterf(gl.TEXTURE_2D_ARRAY,aniso.TEXTURE_MAX_ANISOTROPY_EXT,Math.min(8,gl.getParameter(aniso.MAX_TEXTURE_MAX_ANISOTROPY_EXT)));
+      }gl.useProgram(program);gl.uniform1i(uniforms.uPbrAlbedo,5);gl.uniform1i(uniforms.uPbrNormal,6);gl.uniform1i(uniforms.uPbrRough,7);gl.uniform1f(uniforms.uPbrReady,layers.length?1:0);stats.pbrLayers=layers.length;
       // PDR (voile) : ses uniformes. L'échantillonneur reste sur l'unité 4, que rien d'autre n'emploie (texture blanche,
       // force nulle) : tant qu'aucun voile n'est passé à draw, le moteur n'ajoute aucune commande par image.
       for(const name of ['uVoile','uVoileZone','uVoileForce'])uniforms[name]=gl.getUniformLocation(program,name);
@@ -1737,7 +1812,7 @@
     function renderEffects(meshes,eye,time){
       const batch=packEffects(meshes,environment,eye);stats.fxInstances+=batch.values.length/16;if(!batch.groups.length)return;
       gl.useProgram(fxProgram);gl.uniformMatrix4fv(fxUniforms.uViewProjection,false,vp);gl.uniform2f(fxUniforms.uWindTime,0,time);
-      gl.uniform3fv(fxUniforms.uEye,eye);gl.uniform3fv(fxUniforms.uAmbient,environment?environment.ambient:[.12,.15,.16]);
+      gl.uniform3fv(fxUniforms.uSkyTop,environment?.skyTop||[.2,.3,.4]);gl.uniform3fv(fxUniforms.uSkyBottom,environment?.skyBottom||[.5,.6,.6]);gl.uniform3fv(fxUniforms.uEye,eye);gl.uniform3fv(fxUniforms.uAmbient,environment?environment.ambient:[.12,.15,.16]);
       gl.uniform3fv(fxUniforms.uFogColor,environment?environment.fog:[.009,.018,.024]);gl.uniform2f(fxUniforms.uEnvironment,environment?1:0,environment?environment.fogDensity:.018);gl.uniform1f(fxUniforms.uTime,time);
       gl.enable(gl.BLEND);gl.blendFunc(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA);gl.depthMask(false);
       renderBatch(batch,fxBuffer,true);gl.depthMask(true);gl.disable(gl.BLEND);gl.useProgram(program);
@@ -1806,17 +1881,22 @@
     function pdrCompter(r,shadow){
       if(!r)return;stats.drawCalls+=r.appels||0;stats.triangles+=r.triangles||0;if(!shadow)stats.instances+=r.instances||0;
     }
-    function skyPass(axes,f,time){
+    function skyPass(axes,f,time,weather=[0,.4,0,0],cloudOffset=[0,0]){
       gl.disable(gl.DEPTH_TEST);gl.disable(gl.CULL_FACE);gl.bindVertexArray(postVao);gl.useProgram(skyProgram);
       gl.uniform3fv(skyUniforms.uSkyRight,axes.right);gl.uniform3fv(skyUniforms.uSkyUp,axes.up);gl.uniform3fv(skyUniforms.uSkyForward,axes.forward);
       gl.uniform3fv(skyUniforms.uSkyTop,environment.skyTop);gl.uniform3fv(skyUniforms.uSkyBottom,environment.skyBottom);gl.uniform3fv(skyUniforms.uSkyFog,environment.fog);
       gl.uniform3fv(skyUniforms.uSunDirection,environment.sunDirection);gl.uniform3fv(skyUniforms.uSunColor,environment.sunColor);
-      gl.uniform2f(skyUniforms.uSkyFov,canvas.width/canvas.height/f,1/f);gl.uniform2f(skyUniforms.uSkyMotion,time,environment.wind);gl.drawArrays(gl.TRIANGLES,0,3);
+      gl.uniform2f(skyUniforms.uSkyFov,canvas.width/canvas.height/f,1/f);gl.uniform4fv(skyUniforms.uWeather,weather);gl.uniform2f(skyUniforms.uSkyMotion,time,environment.wind);gl.uniform2fv(skyUniforms.uCloudOffset,cloudOffset);gl.drawArrays(gl.TRIANGLES,0,3);
       stats.drawCalls++;gl.enable(gl.DEPTH_TEST);gl.enable(gl.CULL_FACE);
+    }
+    function reflectionsPass(){
+      gl.disable(gl.DEPTH_TEST);gl.disable(gl.CULL_FACE);gl.bindVertexArray(postVao);gl.useProgram(ssrProgram);gl.bindFramebuffer(gl.FRAMEBUFFER,post.reflection.framebuffer);gl.viewport(0,0,post.reflection.width,post.reflection.height);
+      gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,post.reflectSource.texture);gl.uniform1i(ssrUniforms.uColor,0);gl.activeTexture(gl.TEXTURE1);gl.bindTexture(gl.TEXTURE_2D,post.reflectSource.depthTexture);gl.uniform1i(ssrUniforms.uDepth,1);
+      gl.uniform4f(ssrUniforms.uProjection,1/projection[0],1/projection[5],projection[10],projection[14]);gl.uniform2f(ssrUniforms.uPixel,1/canvas.width,1/canvas.height);gl.drawArrays(gl.TRIANGLES,0,3);stats.drawCalls++;
     }
     function postPass(){
       gl.disable(gl.DEPTH_TEST);gl.disable(gl.CULL_FACE);gl.bindVertexArray(postVao);gl.useProgram(postProgram);
-      gl.uniform1i(postUniforms.uScene,0);gl.uniform1i(postUniforms.uBloom,1);
+      gl.uniform1i(postUniforms.uScene,0);gl.uniform1i(postUniforms.uBloom,1);gl.uniform1i(postUniforms.uReflection,3);gl.uniform1i(postUniforms.uReflections,stats.reflections?1:0);gl.activeTexture(gl.TEXTURE3);gl.bindTexture(gl.TEXTURE_2D,post.reflection?.texture||whiteTexture);
       gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,post.scene.texture);
       gl.activeTexture(gl.TEXTURE1);gl.bindTexture(gl.TEXTURE_2D,post.b.texture);
       gl.bindFramebuffer(gl.FRAMEBUFFER,post.a.framebuffer);gl.viewport(0,0,post.a.width,post.a.height);
@@ -1900,14 +1980,14 @@
       const shown=camera.allStatic?worldIndex.entries:worldIndex.query(eye,ranges).filter(e=>visible(e,eye,axes,canvas.width/canvas.height/f,1/f,ranges[0]));
       stats.staticVisible=shown.length;stats.staticCulled=world.length-shown.length;
       const planned=actorLightPlan&&actorLightPlan.previous===shadowLight&&eye.every((v,k)=>v===actorLightPlan.eye[k])?actorLightPlan.plan:lightPlan(eye);actorLightPlan=null;
-      const {sorted,distanceTo,chosen,shadowLights}=planned;shadowLight=chosen;
+      const {sorted,distanceTo,chosen}=planned,shadowLights=fx.headlight?[fx.headlight]:planned.shadowLights;shadowLight=chosen;
       // PDR (lampes) : huit lampes passagères (quatre en qualité basse) au lieu de trois : les huit foyers les plus proches
       // de la visée éclairent façades et foule (decor.js) ; la ville n'a pas de lampe fixe, les douze places restent assez.
       const transient=transientLights(fx.lights,eye,quality==='low'?4:8);stats.dynamicLights=transient.length;
       const selected=shadowLights.map(light=>({light,d:distanceTo(light)})).concat(transient.map(light=>({light,d:distanceTo(light)})),sorted.filter(entry=>!shadowLights.includes(entry.light)).slice(0,(quality==='low'?6:12)-shadowLights.length-transient.length));
       const blackout=horrorLights(fx.horror,lights);stats.blackoutLights=blackout?.size||0;
-      lightPositions.fill(0);lightColors.fill(0);lightRanges.fill(0);
-      selected.forEach(({light},i)=>{lightPositions.set(light.p,i*3);lightRanges[i]=light.range||0;const c=light.color||[1,1,1],power=(light.power===undefined?1:light.power)*(blackout?.get(light)??1);lightColors.set([c[0]*power,c[1]*power,c[2]*power],i*3);});
+      lightPositions.fill(0);lightColors.fill(0);lightRanges.fill(0);lightDirections.fill(0);lightCones.fill(0);
+      selected.forEach(({light},i)=>{if(light.dir){lightDirections.set(light.dir,i*3);lightCones.set(light.cone||[.75,.94],i*2);}lightPositions.set(light.p,i*3);lightRanges[i]=light.range||0;const c=light.color||[1,1,1],power=(light.power===undefined?1:light.power)*(blackout?.get(light)??1);lightColors.set([c[0]*power,c[1]*power,c[2]*power],i*3);});
       const ordinary=[],overlay=[],particles=[],overlayParticles=[];for(const mesh of dynamic||[]) (mesh.overlay?(mesh.fx?overlayParticles:overlay):mesh.fx?particles:ordinary).push(mesh);
       const dynamicBatch=pack(ordinary,environment,true);
       const torchPosition=eye.map((v,i)=>v+right[i]*.16-up[i]*.08);
@@ -1916,7 +1996,7 @@
       // Animated instances are shared unchanged by every depth and colour pass.
       if(dynamicBatch.values.length){gl.bindBuffer(gl.ARRAY_BUFFER,dynamicBuffer);gl.bufferData(gl.ARRAY_BUFFER,dynamicBatch.values,gl.DYNAMIC_DRAW);stats.uploadBytes+=dynamicBatch.values.byteLength;}
       const crowd=fx.instances&&fx.instances.groups&&fx.instances.groups.length?fx.instances:null,sunOnly=!!fx.sunOnly;
-      stats.crowdInstances=crowd?crowd.values.length/16:0;if(sunOnly)stats.shadowMaps=stats.shadows&&environment?1:0;
+      stats.crowdInstances=crowd?crowd.values.length/16:0;stats.shadowMaps=stats.shadows?(sunOnly?0:shadowLights.length+(fx.torch!==false?1:0))+(environment?1:0):0;
       if(crowd){if(!crowdBuffer)crowdBuffer=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,crowdBuffer);gl.bufferData(gl.ARRAY_BUFFER,crowd.values,gl.DYNAMIC_DRAW);stats.uploadBytes+=crowd.values.byteLength;}
       // PDR (lots) : lots déjà empaquetés par le jeu (fx.lots : le décor), au format de pack. Un lot ne repart au GPU que si
       // l'objet ou sa version (lot.version) change ; il sert ensuite à l'ombre du soleil et à la passe couleur.
@@ -1932,22 +2012,23 @@
       }
       if(stats.shadows){
         gl.bindFramebuffer(gl.FRAMEBUFFER,shadowTarget.framebuffer);gl.clear(gl.DEPTH_BUFFER_BIT);
-        if(!sunOnly)shadowLights.forEach((light,i)=>shadowPass(light,dynamicBatch,i,null,t));
+        if(!sunOnly)shadowLights.forEach((light,i)=>{const fw=light.dir,axes=fw?{forward:fw,right:[-fw[2],0,fw[0]],up:[0,1,0]}:null;shadowPass(light,dynamicBatch,i,axes,t);});
         if(environment)sunShadowPass(eye,axes,dynamicBatch,t,camera,fx,crowd);
-        if(!sunOnly)shadowPass({p:torchPosition},dynamicBatch,2,axes,t);
+        if(!sunOnly&&fx.torch!==false)shadowPass({p:torchPosition},dynamicBatch,2,axes,t);
       }
       // PDR (msaa) : fx.msaa === false coupe l'anticrénelage à l'exécution, sans recréer les cibles (réglage du jeu).
       const msaa=stats.bloom&&post.msaa&&fx.msaa!==false?post.msaa:null;
       gl.bindFramebuffer(gl.FRAMEBUFFER,stats.bloom?(msaa?msaa.framebuffer:post.scene.framebuffer):null);gl.viewport(0,0,canvas.width,canvas.height);
-      gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);if(environment)skyPass(axes,f,t);gl.useProgram(program);gl.bindVertexArray(vao);
+      gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);if(environment)skyPass(axes,f,t,fx.weather,fx.cloudOffset);gl.useProgram(program);gl.bindVertexArray(vao);
       gl.uniformMatrix4fv(uniforms.uViewProjection,false,vp);gl.uniform3fv(uniforms.uEye,eye);gl.uniform3fv(uniforms.uForward,forward);
-      gl.uniform2f(uniforms.uWindTime,environment?environment.wind:0,t);gl.uniform3fv(uniforms.uSunDirection,environment?environment.sunDirection:[.4,.8,.3]);gl.uniform3fv(uniforms.uSunColor,environment?environment.sunColor:[0,0,0]);
+      gl.uniform2fv(uniforms.uCloudOffset,fx.cloudOffset||[t*.0018,0]);gl.uniform2f(uniforms.uWindTime,environment?environment.wind:0,t);gl.uniform3fv(uniforms.uSunDirection,environment?environment.sunDirection:[.4,.8,.3]);gl.uniform3fv(uniforms.uSunColor,environment?environment.sunColor:[0,0,0]);
       gl.uniform3fv(uniforms.uAmbient,environment?environment.ambient:[.075,.10,.12]);gl.uniform3fv(uniforms.uFogColor,environment?environment.fog:[.009,.018,.024]);gl.uniform2f(uniforms.uEnvironment,environment?1:0,environment?environment.fogDensity:.014);
       gl.uniform3fv(uniforms.uSkyTop,environment?environment.skyTop:[.05,.08,.10]);gl.uniform3fv(uniforms.uSkyBottom,environment?environment.skyBottom:[.16,.20,.22]);
-      gl.uniform3fv(uniforms.uLightPosition,lightPositions);gl.uniform3fv(uniforms.uLightColor,lightColors);gl.uniform1fv(uniforms.uLightRange,lightRanges);gl.uniform1i(uniforms.uLightCount,selected.length);
+      for(let k=0;k<pbrTextures.length;k++){gl.activeTexture(gl.TEXTURE5+k);gl.bindTexture(gl.TEXTURE_2D_ARRAY,pbrTextures[k]);}
+      gl.uniform4fv(uniforms.uWeather,fx.weather||[0,.4,0,0]);gl.uniform3fv(uniforms.uLightDirection,lightDirections);gl.uniform2fv(uniforms.uLightCone,lightCones);gl.uniform3fv(uniforms.uLightPosition,lightPositions);gl.uniform3fv(uniforms.uLightColor,lightColors);gl.uniform1fv(uniforms.uLightRange,lightRanges);gl.uniform1i(uniforms.uLightCount,selected.length);
       gl.uniform2f(uniforms.uResolution,canvas.width,canvas.height);gl.uniform4f(uniforms.uEffects,t,fx.flash||0,fx.damage||0,Math.max(0,Math.min(1,fx.pulse||0)));
       gl.activeTexture(gl.TEXTURE2);gl.bindTexture(gl.TEXTURE_2D,stats.shadows?shadowTarget.texture:whiteTexture);gl.uniform1i(uniforms.uShadowMap,2);
-      gl.uniformMatrix4fv(uniforms.uShadowMatrix,false,shadowMatrices);gl.uniform4f(uniforms.uShadowSettings,stats.shadows&&!sunOnly?shadowLights.length:0,shadowTarget?1/(shadowTarget.size*2):1,stats.shadows&&!sunOnly?1:0,stats.shadows&&environment?(sunOnly?2:1):0);
+      gl.uniformMatrix4fv(uniforms.uShadowMatrix,false,shadowMatrices);gl.uniform4f(uniforms.uShadowSettings,stats.shadows&&!sunOnly?shadowLights.length:0,shadowTarget?1/(shadowTarget.size*2):1,stats.shadows&&!sunOnly&&fx.torch!==false?1:0,stats.shadows&&environment?(sunOnly?2:1):0);
       // PDR : sans lampe torche (fx.torch === false), sa source est renvoyée assez loin pour ne plus rien éclairer.
       gl.uniform3fv(uniforms.uTorchPosition,fx.torch===false?[0,-1e5,0]:torchPosition);
       // PDR (voile) : fx.voile = { texture R8, origine [x0, z0], taille [largeur, profondeur], force } sur l'unité 4. Sans
@@ -1982,6 +2063,8 @@
         gl.depthMask(true);gl.disable(gl.BLEND);gl.activeTexture(gl.TEXTURE2);gl.bindTexture(gl.TEXTURE_2D,ombre.texture);
       }
       if(particles.length)renderEffects(particles,eye,t);
+      stats.reflections=!!(stats.bloom&&post.reflectSource&&post.reflection&&fx.reflections!==false);stats.reflectionSteps=stats.reflections?48:0;
+      if(stats.reflections){const target=msaa?msaa.framebuffer:post.scene.framebuffer;gl.bindFramebuffer(gl.READ_FRAMEBUFFER,target);gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER,post.reflectSource.framebuffer);gl.blitFramebuffer(0,0,canvas.width,canvas.height,0,0,canvas.width,canvas.height,gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT,gl.NEAREST);gl.bindFramebuffer(gl.FRAMEBUFFER,target);}
       if(overlay.length||overlayParticles.length) {
         if(blackout){selected.forEach(({light},i)=>{const c=light.color||[1,1,1],power=light.power===undefined?1:light.power;lightColors.set([c[0]*power,c[1]*power,c[2]*power],i*3);});gl.uniform3fv(uniforms.uLightColor,lightColors);}
         gl.clear(gl.DEPTH_BUFFER_BIT);if(overlay.length)renderBatch(pack(overlay,environment,true),overlayBuffer,true);
@@ -1992,7 +2075,7 @@
         gl.blitFramebuffer(0,0,canvas.width,canvas.height,0,0,canvas.width,canvas.height,gl.COLOR_BUFFER_BIT,gl.NEAREST);
         gl.bindFramebuffer(gl.FRAMEBUFFER,null);
       }
-      if(stats.bloom)postPass();
+      if(stats.reflections)reflectionsPass();if(stats.bloom)postPass();
     }
     function lost(event){event.preventDefault();stats.contextLost=true;}
     function restored(){if(!disposed){initialize();chargerNappes();chargerLots();}} // BITUME : nappes et lots rechargés
@@ -2007,8 +2090,8 @@
       for(const l of lots)for(const cle of ['tampon','tamponLoin'])if(l[cle])gl.deleteBuffer(l[cle]);
       // PDR (lots) : tampons des lots du jeu.
       for(const slot of pdrSlots)if(slot)gl.deleteBuffer(slot.buffer);pdrSlots=[];pdrLots.length=0;
-      freePost();deleteTarget(shadowTarget);gl.deleteTexture(whiteTexture);
-      gl.deleteVertexArray(vao);gl.deleteVertexArray(postVao);gl.deleteProgram(program);gl.deleteProgram(depthProgram);gl.deleteProgram(postProgram);gl.deleteProgram(skyProgram);gl.deleteProgram(fxProgram);
+      freePost();deleteTarget(shadowTarget);gl.deleteTexture(whiteTexture);for(const tex of pbrTextures)gl.deleteTexture(tex);pbrTextures=[];
+      gl.deleteVertexArray(vao);gl.deleteVertexArray(postVao);gl.deleteProgram(program);gl.deleteProgram(depthProgram);gl.deleteProgram(postProgram);gl.deleteProgram(skyProgram);gl.deleteProgram(fxProgram);gl.deleteProgram(ssrProgram);
     }
     // PDR (foule) : le jeu dessine la foule lui-même dans les passes du moteur. renderer.gl est le contexte WebGL 2 ;
     // renderer.pdr donne la bibliothèque d'éclairage (glsl), lier(programme) qui rend la fonction posant ses uniformes à
@@ -2028,10 +2111,10 @@
           gl.uniform3fv(u.uPdrCielHaut,v.cielHaut);gl.uniform3fv(u.uPdrCielBas,v.cielBas);
           gl.uniform4f(u.uPdrEnvironnement,1,v.densiteBrouillard,v.temps,0);gl.uniform2f(u.uPdrResolution,v.largeur,v.hauteur);
           const l=v.lumieres;gl.uniform3fv(u.uPdrLumierePosition,l.positions);gl.uniform3fv(u.uPdrLumiereCouleur,l.couleurs);
-          gl.uniform1fv(u.uPdrLumierePortee,l.portees);gl.uniform1i(u.uPdrLumieres,l.nombre);
+          gl.uniform3fv(u.uPdrLumiereDirection,l.directions);gl.uniform2fv(u.uPdrLumiereCone,l.cones);gl.uniform1fv(u.uPdrLumierePortee,l.portees);gl.uniform1i(u.uPdrLumieres,l.nombre);
         };
       }};
-    return {setWorld,updateWorld,draw,resize,dispose,stats,actorFilter,setNappes,setLots,gl,pdr};
+    return {setEnvironment(value){environment=environmentInfo(value);},setWorld,updateWorld,draw,resize,dispose,stats,actorFilter,setNappes,setLots,gl,pdr};
   }
-  window.FRender={create,foliageTriangles,forme};
+  globalThis.FRender={create,foliageTriangles,forme};
 })();

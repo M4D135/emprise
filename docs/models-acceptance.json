@@ -1,0 +1,26 @@
+{
+  "wardrobe": {
+    "people": 480,
+    "darkerToOlive": 359,
+    "headscarves": 96,
+    "capsAndCrossbodyBags": 144,
+    "independentFromGang": true
+  },
+  "headVertices": 4328,
+  "headTriangles": 8608,
+  "bodyVertices": 7340,
+  "bodyTriangles": 14200,
+  "crowdAtlasVertices": 189254,
+  "indices32bit": true,
+  "poses": [
+    "marche",
+    "assis",
+    "rampement",
+    "au sol"
+  ],
+  "checks": [
+    "Indices et normales valides",
+    "Influences articulaires bornées",
+    "Aucun nombre invalide dans les quatre poses"
+  ]
+}

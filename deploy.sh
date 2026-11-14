@@ -6,7 +6,7 @@ host=${RADE_HOST:-amiga}
 remote=/home/ddd/apps/rade
 vhost=/home/ddd/apps/caddy-shared/vhosts.d/gta.estrasse.fr.Caddyfile
 cd "$repo"
-[ -z "$(git status --porcelain -- src build.py dist SIZE.json deployment deploy.sh)" ] || { echo 'Commiter les sources et le build avant publication.' >&2; exit 1; }
+[ -z "$(git status --porcelain -- src assets tools build.py VERSION.json dist SIZE.json deployment deploy.sh)" ] || { echo 'Commiter les sources et le build avant publication.' >&2; exit 1; }
 python3 build.py
 [ -z "$(git status --porcelain -- dist SIZE.json)" ] || { echo 'Le build diffère du commit.' >&2; exit 1; }
 commit=$(git rev-parse HEAD)

@@ -1,0 +1,140 @@
+{
+  "scenario": {
+    "complete": true,
+    "time": 16.258333333333052,
+    "stage": "done",
+    "cash": 243.76249999999658,
+    "earned": 3.7625000000000366,
+    "owner": 0,
+    "hp": 100,
+    "shots": 8,
+    "wanted": 4,
+    "log": [
+      {
+        "stage": "approach",
+        "time": 5.07,
+        "hp": 100,
+        "position": [
+          60.67282262205854,
+          107.30022964108272
+        ]
+      },
+      {
+        "stage": "buy",
+        "time": 5.08,
+        "hp": 100,
+        "position": [
+          60.65163067541558,
+          107.26872533000639
+        ]
+      },
+      {
+        "stage": "contest",
+        "time": 5.08,
+        "hp": 100,
+        "position": [
+          60.63669696301834,
+          107.2465246172161
+        ]
+      },
+      {
+        "stage": "fight",
+        "time": 6.27,
+        "hp": 100,
+        "position": [
+          60.6011542502161,
+          107.19368621121761
+        ]
+      },
+      {
+        "stage": "occupy",
+        "time": 11.26,
+        "hp": 100,
+        "position": [
+          60.6011542502161,
+          107.19368621121761
+        ]
+      },
+      {
+        "stage": "income",
+        "time": 16.26,
+        "hp": 100,
+        "position": [
+          60.6011542502161,
+          107.19368621121761
+        ]
+      }
+    ]
+  },
+  "metrics": {
+    "frame": {
+      "n": 976,
+      "p50": 16.699999999999818,
+      "p95": 16.80000000000109
+    },
+    "cpu": {
+      "n": 975,
+      "p50": 3.600000023841858,
+      "p95": 7.400000035762787
+    },
+    "resolution": [
+      1440,
+      900
+    ],
+    "pedestrians": 480,
+    "traffic": 15,
+    "renderer": {
+      "drawCalls": 129,
+      "triangles": 7642440,
+      "instances": 156372,
+      "contextLost": false,
+      "webglVersion": 2,
+      "backend": "webgl2",
+      "bloom": true,
+      "shadows": true,
+      "pbrLayers": 2,
+      "staticTotal": 153498,
+      "biome": "ville",
+      "worldRevision": 0,
+      "renderScale": 1,
+      "pixelRatio": 1,
+      "width": 1440,
+      "height": 900,
+      "msaa": 4,
+      "viewDistance": 64,
+      "staticVisible": 153498,
+      "staticCulled": 0,
+      "dynamicLights": 8,
+      "blackoutLights": 0,
+      "shadowMaps": 1,
+      "shadowMode": "sun-atlas",
+      "uploadBytes": 153216,
+      "fxInstances": 15,
+      "crowdInstances": 0,
+      "pdrLotInstances": 0,
+      "lotsVisibles": 0,
+      "reflections": true,
+      "reflectionSteps": 48
+    },
+    "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/157.0.0.0 Safari/537.36"
+  },
+  "architecture": {
+    "facades": 240,
+    "windows": 4074,
+    "pieces": 91884
+  },
+  "errors": [],
+  "ui": {
+    "mapRequiresPurchase": true,
+    "paperMapWithM": true,
+    "noMinimap": true,
+    "worldRunsWhileReading": true,
+    "cityPlanBoard": true,
+    "persistenceOnReload": true,
+    "cashBefore": 246.97499999999366,
+    "cashAfter": 247.11674999999366
+  },
+  "buildSha256": "06a43731979a10f2fb824527da227ee7de7b803e803dcb84548159022b0ceca4",
+  "hardware": "MacBook Air Mac17,4, Apple M5, 24 Go",
+  "url": "file://dist/index.html"
+}

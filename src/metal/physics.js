@@ -282,6 +282,12 @@
       for(let k=0;k<boxes.length;k++){
         const b=boxes[k],name='boxes['+k+']';
         if(!b||typeof b!=='object')wrong(where,name+' must be an object');
+        // RADE: retain urban box orientation instead of filling its enclosing AABB.
+        if(b.center||b.half||b.rotation){
+          if(!Array.isArray(b.center)||b.center.length!==3||!b.center.every(finite)||!Array.isArray(b.half)||b.half.length!==3||!b.half.every(v=>finite(v)&&v>0)||!Array.isArray(b.rotation)||b.rotation.length!==9||!b.rotation.every(finite))wrong(where,name+' invalid oriented box');
+          const r=b.rotation;for(let i=0;i<3;i++)for(let j=i;j<3;j++){let dot=0;for(let k=0;k<3;k++)dot+=r[k*3+i]*r[k*3+j];if(Math.abs(dot-(i===j?1:0))>1e-5)wrong(where,name+' rotation must be orthonormal');}
+          obb(s++,b.center,b.half,r,...surface(b,name));continue;
+        }
         for(const a of ['X','Y','Z']){
           if(!finite(b['min'+a])||!finite(b['max'+a]))wrong(where,name+'.min'+a+' and max'+a+' must be finite numbers');
           if(!(b['min'+a]<=b['max'+a]))wrong(where,name+' needs min'+a+' <= max'+a);

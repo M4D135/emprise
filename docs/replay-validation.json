@@ -1,0 +1,69 @@
+[
+  {
+    "label": "Tir et conduite · clavier / souris réels",
+    "source": "tests/inputs.py / événements Chromium clavier et souris",
+    "ticks": 1427,
+    "duration": 11.891666666666667,
+    "recordingSha256": "981111d25dc5541aa897fc6d7f451c8c821c1f2cfee9caa470f819430ecdbaa1",
+    "expected": {
+      "shots": 10,
+      "mode": "foot",
+      "player": [
+        74.5,
+        130
+      ],
+      "car": [
+        77.77216745589763,
+        125.66642398541484
+      ],
+      "cash": 120
+    },
+    "validated": true
+  },
+  {
+    "label": "Commerce contesté · session de test validée",
+    "source": "tests/sandbox-browser.py / tests/sandbox-scenario.js",
+    "ticks": 1959,
+    "duration": 16.325,
+    "recordingSha256": "dd690488af7cb24fb090f549f54df4ed914303b10a43b98ab8bc05ef6255c8d6",
+    "expected": {
+      "shots": 8,
+      "mode": "foot",
+      "player": [
+        60.6011542502161,
+        107.19368621121761
+      ],
+      "car": [
+        78.3,
+        130
+      ],
+      "cash": 243.76249999999658,
+      "owner": 0,
+      "mapOwned": true
+    },
+    "validated": true
+  },
+  {
+    "label": "Véhicule sous le feu · test de destruction",
+    "source": "tests/explosion-browser.py (fixture préparée, puis tirs simulés réels)",
+    "ticks": 4059,
+    "duration": 33.825,
+    "recordingSha256": "4c196f5d8acdb0e44f0ff643257e4f1d8f851f43e138136dcd0f5a5df3922f5e",
+    "expected": {
+      "shots": 73,
+      "mode": "foot",
+      "player": [
+        61.5,
+        189
+      ],
+      "car": [
+        61.5,
+        181
+      ],
+      "cash": 200,
+      "exploded": true,
+      "explosions": 1
+    },
+    "validated": true
+  }
+]

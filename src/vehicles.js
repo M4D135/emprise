@@ -15,7 +15,7 @@ function model(type='gti',color='#bb2729'){
  function bar(a,b,w,c=paint,mat=17){const d=b.map((v,i)=>v-a[i]),len=Math.hypot(...d);return part('cylinder',a.map((v,i)=>(v+b[i])/2),[w,len,w],c,mat,[Math.acos(d[1]/len),Math.atan2(d[0],d[2]),0]);}
  function surface(name,polys,c=paint,mat=17,extra={}){
   const ts=[];for(const poly of polys)for(let i=1;i<poly.length-1;i++){const a=poly[0],b=poly[i],cc=poly[i+1],u=b.map((v,k)=>v-a[k]),v=cc.map((n,k)=>n-a[k]),n=[u[1]*v[2]-u[2]*v[1],u[2]*v[0]-u[0]*v[2],u[0]*v[1]-u[1]*v[0]],len=Math.hypot(...n)||1,nn=n.map(x=>x/len);ts.push([a,b,cc,nn,nn,nn]);if(extra.double)ts.push([cc,b,a,nn.map(x=>-x),nn.map(x=>-x),nn.map(x=>-x)]);}
-  const norm=BITUME.carene.normaliser(ts),shape='rade-'+type+'-'+name; // same geometry shared by every colour
+  const norm=BITUME.carene.normaliser(extra.smooth?BITUME.carene.lisser(ts.map(t=>t.slice(0,3)),38):ts),shape='rade-'+type+'-'+name; // same geometry shared by every colour
   if(GLOBAL_RENDER())FRender.forme(shape,norm.triangles);
   return part(shape,norm.centre,norm.taille,c,mat,[0,0,0],extra);
  }
@@ -29,12 +29,12 @@ function model(type='gti',color='#bb2729'){
  box([0,.27,0],[3.15,.18,1.34],DARK,7);
  const wb=spec.wheelbase/2,wr=r5?.277:.293,arch=r5?.348:.35;
  for(const side of [-1,1]){
-  const polys=[];for(let i=0;i<90;i++){
-   const x0=-L+(2*L)*i/90,x1=-L+(2*L)*(i+1)/90;
+  const polys=[];for(let i=0;i<120;i++){
+   const x0=-L+(2*L)*i/120,x1=-L+(2*L)*(i+1)/120;
    const low=x=>{let y=.29;for(const axle of [-wb,wb]){const d=x-axle;if(Math.abs(d)<arch)y=Math.max(y,wr+Math.sqrt(arch*arch-d*d));}return y;};
    const wide=x=>W-(Math.abs(x)>L-.25?(.25-(L-Math.abs(x)))*.15:0);
-   const p=[[x0,low(x0),side*wide(x0)],[x1,low(x1),side*wide(x1)],[x1,.84,side*wide(x1)],[x0,.84,side*wide(x0)]];polys.push(side>0?p:p.slice().reverse());
-  }surface('side'+side,polys);
+   for(let row=0;row<5;row++){const at=(x,t)=>{const y=low(x)+(.84-low(x))*t,bulge=.968+.032*Math.sin(t*Math.PI);return [x,y,side*wide(x)*bulge];},p=[at(x0,row/5),at(x1,row/5),at(x1,(row+1)/5),at(x0,(row+1)/5)];polys.push(side>0?p:p.slice().reverse());}
+  }surface('side'+side,polys,paint,17,{smooth:true});
   // Plastic arches (205) / body-colour extensions (Supercinq), continuous segments.
   for(const ax of [-wb,wb])for(let j=0;j<20;j++){const a=PI*j/20,b=PI*(j+1)/20;bar([ax+Math.cos(a)*arch,wr+Math.sin(a)*arch,side*(W+.012)],[ax+Math.cos(b)*arch,wr+Math.sin(b)*arch,side*(W+.012)],r5?.07:.055,r5?paint:DARK,r5?17:7);}
   box([0,.49,side*(W+.015)],[1.66,r5?.14:.09,.025],DARK,7);
@@ -50,11 +50,11 @@ function model(type='gti',color='#bb2729'){
  surface('hood',[[[.80,.85,-W+.04],[L-.02,.76,-W+.08],[L-.02,.76,W-.08],[.80,.85,W-.04]]],paint,17,{double:true});
  box([L-.025,.62,0],[.06,.25,1.45],paint);box([-L+.035,.64,0],[.07,.36,1.48],paint);
  const frontRoof=r5?.22:.27,rearRoof=r5?-1.18:-1.04,roofY=1.35,rearBottom=r5?-1.69:-1.72;
- surface('roof',[[[rearRoof,roofY,-.61],[rearRoof,roofY,.61],[frontRoof,roofY,.61],[frontRoof,roofY,-.61]]],paint,17,{double:true});
+ part('bevel',[(rearRoof+frontRoof)/2,roofY,0],[frontRoof-rearRoof+.045,.045,1.25],paint,17);box([(rearRoof+frontRoof)/2,roofY-.03,0],[frontRoof-rearRoof-.06,.018,1.17],[.35,.34,.31],7);for(const side of [-1,1])bar([rearRoof,roofY+.006,side*.622],[frontRoof,roofY+.006,side*.622],.015,DARK,7);
  const wind=[[.84,.86,-.70],[frontRoof,roofY-.015,-.60],[frontRoof,roofY-.015,.60],[.84,.86,.70]];
- surface('windshield',[wind],GLASS,8,{fx:true,alpha:.12,double:true,window:true});
+ surface('windshield',[wind],GLASS,8,{fx:true,alpha:.12,double:true,window:true});for(let j=0;j<wind.length;j++)bar(wind[j],wind[(j+1)%wind.length],.022,BLACK,7);
  const rear=[[rearBottom,.86,.69],[rearRoof,roofY-.015,.60],[rearRoof,roofY-.015,-.60],[rearBottom,.86,-.69]];
- surface('rear-window',[rear],GLASS,8,{fx:true,alpha:.22,double:true,window:true});
+ surface('rear-window',[rear],GLASS,8,{fx:true,alpha:.22,double:true,window:true});for(let j=1;j<9;j++){const t=j/10,x=rearBottom+(rearRoof-rearBottom)*t,y=.86+(roofY-.015-.86)*t;bar([x-.006,y,-.66+t*.06],[x-.006,y,.66-t*.06],.0025,[.34,.22,.12],0);}
  for(const side of [-1,1]){
   const A=[.84,.86,side*.70],B=[frontRoof,roofY,side*.61],C=[rearRoof,roofY,side*.61],D=[rearBottom,.86,side*.70];
   for(const [a,b,w]of [[A,B,.045],[B,C,.038],[C,D,r5?.085:.13],[D,A,.035]])bar(a,b,w,paint,17);
@@ -125,7 +125,7 @@ function render(car,out,options={}){
  for(const axle of [-1,1])for(const side of [-1,1]){
   const x=axle*mod.wb,z=side*.72,y=mod.wr,steer=axle>0?-(car.braquage||0):0,roll=(car.distance||0)/mod.wr;
   const base={p:[x,y,z],r:[PI/2,steer,0],shape:'cylinder',surface:'object'};
-  put({...base,s:[mod.wr*2,.185,mod.wr*2],mat:7,color:BLACK});
+  put({...base,s:[mod.wr*2,.185,mod.wr*2],mat:7,color:BLACK});put({...base,p:[x,y,z+side*.075],s:[mod.wr*1.42,.025,mod.wr*1.42],mat:0,color:[.25,.27,.28]});put({shape:'bevel',p:[x+.10,y,z+side*.084],s:[.08,.23,.055],mat:0,color:[.32,.32,.29]});for(let j=0;j<28;j++){const a=j*2*PI/28+roll;put({shape:'box',p:[x+Math.sin(a)*mod.wr*.992,y+Math.cos(a)*mod.wr*.992,z],s:[.010,.008,.16],r:[0,steer,-a],mat:7,color:[.009,.01,.011],surface:'object'});}
   put({...base,p:[x,y,z+side*.098],s:[mod.wr*1.50,.012,mod.wr*1.50],mat:0,color:SILVER});
   for(let j=0;j<(mod.type==='gti'?8:5);j++){
    const a=j*2*PI/(mod.type==='gti'?8:5)+roll,rad=mod.wr*.51;

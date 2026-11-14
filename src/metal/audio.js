@@ -193,6 +193,7 @@
       // back between rounds instead of burying it for a whole magazine.
       var DUCK_HOLD = {fracture: .22, rocket: .22, grenade: .22, grenadeLaunch: .22, shot: .18};
       var stats = {voices:0,peakVoices:0,fxSkipped:0,stolenVoices:0,duckGain:MUSIC_GAIN,preview:false,titlePlaying:false,outputCeiling:1,pcmBuffers:0,pcmBytes:0,pcmReady:false,windGain:0,machineryGain:0,steamGain:0};
+      Object.defineProperty(stats, "activeCues", {enumerable:true,get:function(){var result={};voices.forEach(function(v){result[v.cue]=(result[v.cue]||0)+1;});return result;}});
       function remember(node) { persistent.push(node); return node; }
       function random() {
         noiseSeed = (Math.imul(noiseSeed, 1664525) + 1013904223) | 0;
@@ -204,7 +205,7 @@
         stats.voices = voices.size;
       }
       function track(source, nodes, level) {
-        var entry = { source: source, nodes: nodes, priority:priority, level:level || 0, preview:preview && preview.id };
+        var entry = { source: source, nodes: nodes, cue:cue, priority:priority, level:level || 0, preview:preview && preview.id };
         voices.add(entry);
         stats.voices = voices.size; stats.peakVoices = Math.max(stats.peakVoices, voices.size);
         source.onended = function () { clean(entry); };
@@ -788,6 +789,9 @@
           var e = effectEvent('bossDeath',value,1.4); if (!e) return; var g = e.level;
           pcm('explosion',.62*g,e.pan,e.event,.87);pcm('break:metal',.33*g,e.pan,e.event,.8);
         },
+        thunder: function(value){if(!playing||!available())return;var e=effectEvent('thunder',value,1);if(e){pcm('explosion',.55*e.level,e.pan,e.event,.65);noise(2.2,.07*e.level,190,e.pan,.2,'lowpass');}},
+        setWeather: function(rain,wind,shelter){if(!available())return;var level=playing?(Math.max(0,rain)*.045+Math.max(0,wind)*.012)*(shelter?.25:1):0;approach(airFilter.frequency,900+Math.max(0,rain)*2400,ctx.currentTime,.25);approach(airVolume.gain,level,ctx.currentTime,.3);stats.windGain=level;},
+        policeSiren: function (value) { if(!playing||!available())return;var e=effectEvent('policeSiren',value,.7);if(!e)return;tone(620,980,.35,.10*e.level,'sine',0,e.pan);tone(980,620,.35,.10*e.level,'sine',.36,e.pan); },
         shot: function (value) {
           var pistol=!!value&&value.weapon===4;
           if(!playing&&!preview)return;

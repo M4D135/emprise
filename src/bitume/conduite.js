@@ -305,7 +305,7 @@
   }
 
   function dynamique(etat, cmd, monde, dt, gaz, frein, aide, ev) {
-    const dr = etat.derive, m = P.masse;
+    const dr = etat.derive, m = etat.mass || P.masse, IZ = m * P.giration * P.giration;
     const e=monde.surface(etat.x,etat.z), k=etat.omega/Math.max(etat.v,1), v=etat.v;
     let mu=e.mu, surf=e.type;
     const enPiste=surf==='piste', dg=null;

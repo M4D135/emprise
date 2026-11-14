@@ -229,7 +229,7 @@
         senseWait:0,thinkWait:i%4*.09,shareWait:0,alertWait:0,coverWait:0,holdTime:0,planWait:0,patrolIndex:0,searchIndex:0,
         goalX:e.x,goalZ:e.z,path:[],pathAt:0,stuck:0,moveSpeed:0,
         lastSeenY:(e.y??groundAt(e.x,e.z))+1.45,observedVX:0,observedVZ:0,observedAt:-1,sleeping:false,observedVY:0,dodgeWait:0,dodgeDelay:0,dodgeTime:0,dodgeX:0,dodgeZ:0,
-        deployed:!progression||e.deployed!==false,combatEnabled:!progression||e.encounterId===undefined,encounterReleased:!progression||e.encounterId===undefined,returning:false,deployAge:!progression||e.deployed!==false?2:0,quietTime:0,...(bossProgression?{entryGrace:0}:{}),
+        deployed:e.radeReserve?false:!progression||e.deployed!==false,combatEnabled:!progression||e.encounterId===undefined,encounterReleased:!progression||e.encounterId===undefined,returning:false,deployAge:!progression||e.deployed!==false?2:0,quietTime:0,...(bossProgression?{entryGrace:0}:{}),
         ...freshAir(),bossAwake:false,bossClock:0,bossStep:0,attackLabel:giant(e)?'Veille':'',weakPointOpen:false,weakTimer:0,bossReleased:!e.bossWave,squad:e.squadId??Math.floor(i/4),role:e.role||(e.type===1?'assault':e.type===2?'suppressor':i%3===0?'flanker':i%3===1?'assault':'suppressor')})),
       cores:world.cores.map(c=>({...c,taken:false})),pickups:world.pickups.map(c=>({...c,taken:false,remaining:Math.max(0,Math.floor(c.amount||0))})),
       hazards:(world.hazards||[]).map(h=>({...h,hot:false,warning:false})),
@@ -370,6 +370,7 @@
       return false;
     }
     function move(e,dx,dz,r=.28){
+      if(e!==p&&e.injury?.leg){dx*=.13;dz*=.13;}
       if(e.airborne||!present(e))return;if(giant(e))r=radius(e);const height=bodyHeight(e),free=(x,z,y)=>!blocked(x,z,r,y,doorBoxes,solids,trapBoxes,height)&&!actorBlocked(e,x,z,r,y);
       const count=Math.max(1,Math.ceil(Math.max(Math.abs(dx),Math.abs(dz))/.12));
       dx/=count;dz/=count;
@@ -500,7 +501,7 @@
       emit('dead',{reason:'fall'});
     }
     function checkPlayerBounds(){
-      if(!s.dead&&(!Number.isFinite(p.x)||!Number.isFinite(p.y)||!Number.isFinite(p.z)||p.x<b.minX||p.x>b.maxX||p.z<b.minZ||p.z>b.maxZ||p.y<-14||beneathTerrain(p.x,p.z,p.y)))fatalFall();
+      if(!s.dead&&(!Number.isFinite(p.x)||!Number.isFinite(p.y)||!Number.isFinite(p.z)||(world.spatial?.contains?!world.spatial.contains(p.x,p.z):(p.x<b.minX||p.x>b.maxX||p.z<b.minZ||p.z>b.maxZ))||p.y<-14||beneathTerrain(p.x,p.z,p.y)))fatalFall();
       return s.dead;
     }
     // Exact integral of a short smoothstep ramp, plateau, and smoothstep release.
@@ -916,7 +917,8 @@
         e.phase=1;e.cooldown=Math.min(e.cooldown,.65);emit('bossPhase',{id:e.id,phase:1});particles(e.x,e.y,e.z,6,24);
       }
     }
-    function damageEnemy(e,amount,source,weak=false){
+    function damageEnemy(e,amount,source,weak=false,zone){
+      if(e.radeCivil&&world.hurtCivil){world.hurtCivil(e,amount,zone);return;}if(world.injure)amount*=world.injure(e,zone);
       if(!alive(e))return;const origin=source||{x:p.x,y:p.y+1.45,z:p.z,credit:true};if(origin.credit)amount*=stats.damageMultiplier;if(giant(e))amount*=e.weakPointOpen&&weak?3.2:.30;if(e.bossWave)e.bossReleased=true;
       if(bossProgression)e.entryGrace=0;
       if(progression&&enemyEncounter.has(e.id)){e.encounterReleased=true;e.returning=false;e.quietTime=0;const encounter=enemyEncounter.get(e.id);if(encounter.status==='dormant')announceWave(encounter,0);}
@@ -943,6 +945,7 @@
       return {distance,weak};
     }
     function hitRay(origin,dir,far,assist){
+      if(world.traceActors)return world.traceActors(origin,dir,far);
       let distance=ray(origin,dir,far),victim=null,weak=false;
       for(const e of s.enemies)if(alive(e)){
         if(giant(e)){const h=giantHit(e,origin,dir,distance);if(h.distance<distance){distance=h.distance;victim=e;weak=h.weak;}continue;}
@@ -1009,7 +1012,7 @@
     function distanceBox(point,q){return Math.hypot(Math.max(q.minX-point[0],0,point[0]-q.maxX),Math.max(q.minY-point[1],0,point[1]-q.maxY),Math.max(q.minZ-point[2],0,point[2]-q.maxZ));}
     function damageScenery(point,power,r=0,direction,ignoreId){
       if(!(power>0))return;
-      const result=destruction&&(r>0?destruction.blast(point,r,power,ignoreId):destruction.hit(point,power,direction));sceneryResult(result,point,power);
+      const result=world.damage?world.damage(point,power,r,direction):destruction&&(r>0?destruction.blast(point,r,power,ignoreId):destruction.hit(point,power,direction));sceneryResult(result,point,power);
       for(let i=0;i<s.doors.length;i++){
         const d=s.doors[i];if(d.destroyed)continue;const distance=distanceBox(point,doorBoxes[i]);if(distance>(r||.18))continue;
         d.hp=Math.max(0,d.hp-power*(r?Math.max(.2,1-distance/r):1));
@@ -1061,6 +1064,7 @@
       particles(...point,5,22);
     }
     function castProjectile(o,d,far,r=.12){
+      if(world.spatial?.castProjectile)return world.spatial.castProjectile(o,d,far,r);
       let distance=far,normal=[0,1,0];
       const lifts=s.lifts.map(l=>({minX:l.x-l.w/2,maxX:l.x+l.w/2,minY:l.y-.2,maxY:l.y,minZ:l.z-l.d/2,maxZ:l.z+l.d/2}));
       for(const list of [solids,doorBoxes,trapBoxes,lifts])for(const q of list){
@@ -1225,7 +1229,7 @@
               if(q.bounces>=3||Math.hypot(q.vx,q.vy,q.vz)<1.4){q.resting=true;q.vx=q.vy=q.vz=0;}
             }
           }
-          if(q.y<-20||q.x<b.minX-10||q.x>b.maxX+10||q.z<b.minZ-10||q.z>b.maxZ+10)q.life=0;
+          if(q.y<-20||(world.spatial?.contains?!world.spatial.contains(q.x,q.z):(q.x<b.minX-10||q.x>b.maxX+10||q.z<b.minZ-10||q.z>b.maxZ+10)))q.life=0;
         }
       }
       s.projectiles=s.projectiles.filter(q=>q.life>0);
@@ -1268,7 +1272,7 @@
         const dir=base.map((v,k)=>v+right[k]*a+up[k]*c),n=Math.hypot(...dir);for(let k=0;k<3;k++)dir[k]/=n;
         if(muzzle.blocked){damageScenery(origin,shotgun?5:2,0,muzzle.direction);particles(...origin,5,1);continue;}
         const hit=hitRay(origin,dir,shotgun?24:75,assist),prop=destruction?.raycast?.(origin,dir,hit.distance);if(prop&&prop.distance<hit.distance){hit.distance=prop.distance;hit.victim=null;}
-        if(hit.victim){connected=true;damageEnemy(hit.victim,(shotgun?.82*clamp(1-(hit.distance-5)*.035,.45,1):handgun?1.2:1)*calibration.damageMultiplier,undefined,hit.weak);particles(...origin.map((v,k)=>v+dir[k]*hit.distance),5,shotgun?2:5);}
+        if(hit.victim){connected=true;damageEnemy(hit.victim,(shotgun?.82*clamp(1-(hit.distance-5)*.035,.45,1):handgun?1.2:1)*calibration.damageMultiplier,undefined,hit.weak,hit.zone);particles(...origin.map((v,k)=>v+dir[k]*hit.distance),5,shotgun?2:5);}
         else{const point=origin.map((v,k)=>v+dir[k]*hit.distance);particles(...point,5,shotgun?1:3);if(hit.distance<(shotgun?24:75)-.001)damageScenery(point,shotgun?5:2,0,dir);}
       }
       syncDestruction();if(hand==='left')s.leftFlash=1;else s.flash=1;s.shots++;emit(shotgun?'fracture':'shot',{weapon,hand,shells});hear(p.x,p.z,shotgun?24:18,p.y);reactToShot();
@@ -1294,7 +1298,7 @@
         const hit=hitRay(origin,dir,shotgun?24:75,assist);
         const prop=destruction?.raycast?.(origin,dir,hit.distance);if(prop&&prop.distance<hit.distance){hit.distance=prop.distance;hit.victim=null;}
         if(hit.victim){
-          connected=true;damageEnemy(hit.victim,shotgun?.82*clamp(1-(hit.distance-5)*.035,.45,1):1,undefined,hit.weak);
+          connected=true;damageEnemy(hit.victim,shotgun?.82*clamp(1-(hit.distance-5)*.035,.45,1):1,undefined,hit.weak,hit.zone);
           particles(origin[0]+dir[0]*hit.distance,origin[1]+dir[1]*hit.distance,origin[2]+dir[2]*hit.distance,5,shotgun?3:7);
         }else{const point=origin.map((v,k)=>v+dir[k]*hit.distance);particles(...point,5,shotgun?2:4);if(hit.distance<(shotgun?24:75)-.001)damageScenery(point,shotgun?5:2,0,dir);}
       }
@@ -1306,7 +1310,7 @@
     function melee(){
       if(s.dead||s.won||fireWait>0)return false;fireWait=.72;
       const cp=Math.cos(p.pitch),forward=[Math.sin(p.yaw)*cp,Math.sin(p.pitch),-Math.cos(p.yaw)*cp],origin=[p.x,p.y+1.45,p.z],hit=hitRay(origin,forward,1.8,true);
-      if(hit.victim){damageEnemy(hit.victim,.9,undefined,hit.weak);s.hitMarker=.15;particles(...origin.map((v,k)=>v+forward[k]*hit.distance),5,5);if(hit.victim.hp>0&&!giant(hit.victim)){hit.victim.stun=Math.max(hit.victim.stun,.18);hit.victim.windup=0;hit.victim.burstLeft=0;}}
+      if(hit.victim){damageEnemy(hit.victim,.9,undefined,hit.weak,hit.zone);s.hitMarker=.15;particles(...origin.map((v,k)=>v+forward[k]*hit.distance),5,5);if(hit.victim.hp>0&&!giant(hit.victim)){hit.victim.stun=Math.max(hit.victim.stun,.18);hit.victim.windup=0;hit.victim.burstLeft=0;}}
       hear(p.x,p.z,7,p.y);emit('melee',{hit:!!hit.victim,x:p.x,y:p.y+1.45,z:p.z});return true;
     }
     function pulse(){
@@ -1975,7 +1979,7 @@
           const lead=advanced?Math.min(.65,d/14):0;
           e.aimX=clamp(e.lastSeenX+e.observedVX*lead,b.minX+.1,b.maxX-.1);e.aimY=e.lastSeenY+(advanced?e.observedVY*lead*.45:0);e.aimZ=clamp(e.lastSeenZ+e.observedVZ*lead,b.minZ+.1,b.maxZ-.1);
           e.yaw=Math.atan2(e.aimX-e.x,e.z-e.aimZ);e.windupMax=hasOrdnance(e)?e.weapon==='grenade'?1.15:1.05:[advanced?.52:.65,advanced?.8:.9,advanced?.65:.75,e.phase?.9:1.15][e.type];
-          e.windup=e.windupMax;e.attackState='aim';continue;
+          if(e.injury?.arm)e.windupMax*=1.8;e.windup=e.windupMax;e.attackState='aim';continue;
         }
         e.attackState=e.cooldown>0?'recover':'idle';navigate(e,dt);
       }
@@ -2396,7 +2400,7 @@
       }catch(_){return false;}
     }
     if(!advanced)rebuildNav();else dist.fill(-1);rebuildNeighbors();for(const q of s.pipes)if(!pipeAnchored(q)){q.broken=true;stopLeak(q);}if(progression)encounterCounts();updateHazards(false);updateEnvironment(0,false);
-    return {state:s,get destruction(){return destruction;},get ammoCaps(){return ammoCaps.slice();},get stats(){return {...stats};},motionProfile:{...motionProfile},selectWeapon,selectLeftWeapon,exportInventory,exportLoadout,shopOffers,buy,setDifficulty,step,fire,fireLeft(assist=false){return arsenal?fire(assist,'left'):false;},melee,pulse,interact,nearestInteraction,ground,blocked,move,ray,sight,hurt,snapshot,restore,dispose(){brainDisposed=true;invalidateBrain();},nav:{cells:nav,edgeKnown,edgeOpen,get dist(){if(advanced)rebuildNav();return dist;},nx,nz,cell,coord,idx,rebuild:rebuildNav,canTraverse:segmentFree}};
+    return {state:s,relocate(x,z,yaw=0){stopMotion(true);Object.assign(p,{x,z,y:ground(x,z),yaw,pitch:0,dashing:0,...freshAir()});s.bullets=[];s.particles=[];s.flash=0;fireWait=0;},revive(x,z){stopMotion(true);Object.assign(p,{x,z,y:ground(x,z),hp:100,heat:0,overheated:false,...freshAir()});s.dead=false;s.damage=0;s.bullets=[];s.events=[];s.flash=0;fireWait=0;recovery=2;},detonate(point,radius=5,power=65){explode(point,radius,70,power,'environment',false,-1,undefined,'blast');},get destruction(){return destruction;},get ammoCaps(){return ammoCaps.slice();},get stats(){return {...stats};},motionProfile:{...motionProfile},selectWeapon,selectLeftWeapon,exportInventory,exportLoadout,shopOffers,buy,setDifficulty,step,fire,fireLeft(assist=false){return arsenal?fire(assist,'left'):false;},melee,pulse,interact,nearestInteraction,ground,blocked,move,ray,sight,hurt,snapshot,restore,dispose(){brainDisposed=true;invalidateBrain();},nav:{cells:nav,edgeKnown,edgeOpen,get dist(){if(advanced)rebuildNav();return dist;},nx,nz,cell,coord,idx,rebuild:rebuildNav,canTraverse:segmentFree}};
   }
   G.FSimulation={create,clamp,copyCampaign,campaignPolicy,copyArmor};
 })(typeof window!=='undefined'?window:globalThis);

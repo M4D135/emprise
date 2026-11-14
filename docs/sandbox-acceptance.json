@@ -1,0 +1,169 @@
+{
+  "checks": [
+    "Parcours sans téléportation : commerce, plan acheté, gardes vaincus par tirs, occupation, revenus",
+    "Progression, gardes vaincus, carte et 2 minutes de revenus hors ligne restaurés",
+    "Revenus hors ligne plafonnés à 8 heures",
+    "Interactions à distance refusées",
+    "Sauvegardes partielles ou corrompues sans plantage ni nombres invalides",
+    "120 secondes de trafic : 12 civils, 3 policiers, voitures et TMAX, aucun chevauchement physique échantillonné",
+    "Un vrai tir déclenche la recherche, rapproche les patrouilles et aboutit à une interpellation avec saisie"
+  ],
+  "fixtureChecks": [
+    "Contre-attaque : déploiement, sauvegarde en cours, reprise du site et arrêt des revenus à expiration",
+    "Défense contre une équipe rivale : gardes éliminés par les armes METAL, site conservé et prime",
+    "Perte de vue prolongée sans nouvelle infraction : recherche abandonnée"
+  ],
+  "traffic": {
+    "seconds": 120,
+    "movingMean": 11.05,
+    "travel": [
+      {
+        "model": "tmax",
+        "police": false,
+        "metres": 62
+      },
+      {
+        "model": "r5",
+        "police": false,
+        "metres": 465
+      },
+      {
+        "model": "gti",
+        "police": false,
+        "metres": 240
+      },
+      {
+        "model": "tmax",
+        "police": false,
+        "metres": 500
+      },
+      {
+        "model": "gti",
+        "police": false,
+        "metres": 404
+      },
+      {
+        "model": "r5",
+        "police": false,
+        "metres": 430
+      },
+      {
+        "model": "tmax",
+        "police": false,
+        "metres": 771
+      },
+      {
+        "model": "r5",
+        "police": false,
+        "metres": 441
+      },
+      {
+        "model": "gti",
+        "police": false,
+        "metres": 351
+      },
+      {
+        "model": "tmax",
+        "police": false,
+        "metres": 488
+      },
+      {
+        "model": "gti",
+        "police": false,
+        "metres": 253
+      },
+      {
+        "model": "r5",
+        "police": false,
+        "metres": 525
+      },
+      {
+        "model": "tmax",
+        "police": true,
+        "metres": 92
+      },
+      {
+        "model": "gti",
+        "police": true,
+        "metres": 462
+      },
+      {
+        "model": "gti",
+        "police": true,
+        "metres": 413
+      }
+    ]
+  },
+  "police": {
+    "arrestTime": 9.70000000000009,
+    "minDistance": 1.499173584858304,
+    "cash": 120
+  },
+  "scenario": {
+    "complete": true,
+    "time": 16.258333333333052,
+    "stage": "done",
+    "cash": 243.75624999999658,
+    "earned": 3.7562500000000365,
+    "owner": 0,
+    "hp": 100,
+    "shots": 8,
+    "wanted": 4,
+    "log": [
+      {
+        "stage": "approach",
+        "time": 5.07,
+        "hp": 100,
+        "position": [
+          60.67282262205854,
+          107.30022964108272
+        ]
+      },
+      {
+        "stage": "buy",
+        "time": 5.08,
+        "hp": 100,
+        "position": [
+          60.65163067541558,
+          107.26872533000639
+        ]
+      },
+      {
+        "stage": "contest",
+        "time": 5.08,
+        "hp": 100,
+        "position": [
+          60.63669696301834,
+          107.2465246172161
+        ]
+      },
+      {
+        "stage": "fight",
+        "time": 6.27,
+        "hp": 100,
+        "position": [
+          60.6011542502161,
+          107.19368621121761
+        ]
+      },
+      {
+        "stage": "occupy",
+        "time": 11.26,
+        "hp": 100,
+        "position": [
+          60.6011542502161,
+          107.19368621121761
+        ]
+      },
+      {
+        "stage": "income",
+        "time": 16.26,
+        "hp": 100,
+        "position": [
+          60.6011542502161,
+          107.19368621121761
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,83 @@
+{
+  "shots": 73,
+  "explosions": 1,
+  "condition": {
+    "body": 0,
+    "engine": 0,
+    "tires": 0,
+    "steering": 0
+  },
+  "physics": 33,
+  "errors": [],
+  "audio": {
+    "voices": 0,
+    "peakVoices": 5,
+    "fxSkipped": 7,
+    "stolenVoices": 0,
+    "duckGain": 0.21280000000000002,
+    "preview": false,
+    "titlePlaying": false,
+    "outputCeiling": 0.94451504945755,
+    "pcmBuffers": 64,
+    "pcmBytes": 1892864,
+    "pcmReady": true,
+    "windGain": 0,
+    "machineryGain": 0,
+    "steamGain": 0,
+    "activeCues": {}
+  },
+  "metrics": {
+    "frame": {
+      "n": 2021,
+      "p50": 16.69999999999709,
+      "p95": 17
+    },
+    "cpu": {
+      "n": 2020,
+      "p50": 3.400000035762787,
+      "p95": 7.400000035762787
+    },
+    "resolution": [
+      1440,
+      900
+    ],
+    "pedestrians": 480,
+    "traffic": 15,
+    "renderer": {
+      "drawCalls": 108,
+      "triangles": 7474052,
+      "instances": 155201,
+      "contextLost": false,
+      "webglVersion": 2,
+      "backend": "webgl2",
+      "bloom": true,
+      "shadows": true,
+      "pbrLayers": 2,
+      "staticTotal": 153496,
+      "biome": "ville",
+      "worldRevision": 0,
+      "renderScale": 1,
+      "pixelRatio": 1,
+      "width": 1440,
+      "height": 900,
+      "msaa": 4,
+      "viewDistance": 64,
+      "staticVisible": 153496,
+      "staticCulled": 0,
+      "dynamicLights": 8,
+      "blackoutLights": 0,
+      "shadowMaps": 1,
+      "shadowMode": "sun-atlas",
+      "uploadBytes": 78400,
+      "fxInstances": 29,
+      "crowdInstances": 0,
+      "pdrLotInstances": 0,
+      "lotsVisibles": 0,
+      "reflections": true,
+      "reflectionSteps": 48
+    },
+    "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/157.0.0.0 Safari/537.36"
+  },
+  "duration": 33.825,
+  "buildSha256": "ca0d618d065927150a66b5c6e3107db0ce684b38197336370514672f0cd5a72f"
+}

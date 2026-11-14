@@ -1,0 +1,16 @@
+{
+  "delaySeconds": 5.377298332983628,
+  "recordings": [
+    "Tir et conduite \u00b7 clavier / souris r\u00e9els",
+    "Commerce contest\u00e9 \u00b7 session de test valid\u00e9e",
+    "V\u00e9hicule sous le feu \u00b7 test de destruction"
+  ],
+  "keysAndMouseReturnToTitle": true,
+  "liveSessionUnchanged": true,
+  "saveUnchanged": true,
+  "livePlayAfterDemo": true,
+  "explosionReplayValidated": true,
+  "errors": [],
+  "url": "file://dist/index.html",
+  "buildSha256": "c6e3935427e6a36e138ba67c45bf38299073cd6c9d82eac0d85d4e8ae6062e39"
+}

@@ -11,24 +11,24 @@ function create(world,n=480){
  }
  let tick=0,avoids=0;
  function update(dt,events=[]){
-  tick++;const car=world.car,cc=Math.cos(car.cap),ss=Math.sin(car.cap),nearCar=car.v>.3,hash=new Map();
+  tick++;const moving=world.fleet.filter(c=>c.v>.3),hash=new Map();
   for(let i=0;i<n;i++){const p=people[i],key=Math.floor(p.x/2)+','+Math.floor(p.z/2);if(!hash.has(key))hash.set(key,[]);hash.get(key).push(i);}
   for(let i=0;i<n;i++){
-   const p=people[i],cell=nav.caseDe(p.x*1000,p.z*1000),field=nav.champs[p.goal],code=field.dir[cell];
+   const p=people[i];if(p.hp<=0){packed[i*4]=p.x;packed[i*4+1]=p.z;packed[i*4+2]=p.cap;packed[i*4+3]=PDR.regles.coder(3,i%10,0,0,0);continue;}const cell=nav.caseDe(p.x*1000,p.z*1000),field=nav.champs[p.goal],code=field.dir[cell];
    if(code===PDR.nav.BUT||(code===PDR.nav.AUCUN&&tick%20===i%20)){p.goal=(p.goal+1+(i%3))%goals.length;}
    let vx=0,vz=0;if(code<128){vx=PDR.nav.DX[code*2]/1024;vz=PDR.nav.DZ[code*2]/1024;}
-   const dx=p.x-car.x,dz=p.z-car.z,u=dx*cc+dz*ss,v=-dx*ss+dz*cc;
+   let car=world.car,nearest=Infinity;for(const c of moving){const d=(p.x-c.x)**2+(p.z-c.z)**2;if(d<nearest){nearest=d;car=c;}}const cc=Math.cos(car.cap),ss=Math.sin(car.cap),nearCar=car.v>.3,dx=p.x-car.x,dz=p.z-car.z,u=dx*cc+dz*ss,v=-dx*ss+dz*cc;
    p.panic=Math.max(0,p.panic-dt);
    if(nearCar&&Math.abs(v)<4&&u*Math.sign(car.u||1)>-4&&Math.abs(u)<6+car.v*.7){const side=v>=0?1:-1;vx=-ss*side*3;vz=cc*side*3;p.panic=.8;avoids++;}
    for(const e of events)if(e.name==='shot'&&Math.hypot(p.x-e.x,p.z-e.z)<35){p.panic=3;vx=(p.x-e.x)/8;vz=(p.z-e.z)/8;}
    for(let zz=-1;zz<=1;zz++)for(let xx=-1;xx<=1;xx++)for(const j of hash.get((Math.floor(p.x/2)+xx)+','+(Math.floor(p.z/2)+zz))||[]){if(j===i)continue;const q=people[j],a=p.x-q.x,b=p.z-q.z,d=Math.hypot(a,b);if(d>0&&d<.8){vx+=a/d*(.8-d)*2;vz+=b/d*(.8-d)*2;}}
-   const d=Math.hypot(vx,vz)||1,speed=p.panic?3.1:p.speed,dx2=vx/d*speed*dt,dz2=vz/d*speed*dt,ox=p.x,oz=p.z;
+   const d=Math.hypot(vx,vz)||1,speed=p.injury?.leg?.35:p.panic?3.1:p.speed,dx2=vx/d*speed*dt,dz2=vz/d*speed*dt,ox=p.x,oz=p.z;
    const escape=world.blocked(p.x,p.z,.24);const move=()=>{if(!world.blocked(p.x+dx2,p.z,.24))p.x+=dx2;if(!world.blocked(p.x,p.z+dz2,.24))p.z+=dz2;};if(escape)world.withoutCar(move);else move();
    const moved=Math.hypot(p.x-ox,p.z-oz);p.blocked=moved<.002?p.blocked+dt:0;
    if(p.blocked>2){p.goal=(p.goal+1)%goals.length;p.blocked=0;}
    if(moved>.001)p.cap=Math.atan2(p.x-ox,p.z-oz);
    packed[i*4]=p.x;packed[i*4+1]=p.z;packed[i*4+2]=p.cap;
-   packed[i*4+3]=PDR.regles.coder(i%3,2,moved>.001?(p.panic?8:1):0,63,0);
+   packed[i*4+3]=PDR.regles.coder(p.injury?3:i%3,i%10,moved>.001?(p.panic?8:1):0,63,0);
   }
  }
  update(0);return {people,packed,nav,update,get avoids(){return avoids;},n,get version(){return tick;}};
