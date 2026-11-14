@@ -1,3 +1,11 @@
+# Correction des commandes — 14 novembre 2026
+
+Le premier banc utilisait un contrôleur injecté et ne vérifiait pas la fin des événements audio : les annonces de la première livraison étaient trop larges. Un tir demeurait dans `sim.state.events` et était rejoué 120 fois par seconde, son et recul compris. La session vide désormais cette file une seule fois après consommation. La foule reçoit une file distincte, vidée à 20 Hz.
+
+`python3 tests/inputs.py` pilote maintenant les vrais événements clavier/souris de Chromium sans `game.controller` : clic unique (1 tir, 0 événement restant, 0 voix après relâchement), rafale (8 tirs puis silence), Z et W, entrée, accélération, freinage, recul, sortie, souris après sortie et silence en pause. Rapport : `input-regression.json`. Aucun échec ni erreur JS sur cette passe. La voiture démarre désormais dès la montée ; auparavant F était obligatoire. Z/W et Q/A sont acceptés quelle que soit la disposition physique du clavier.
+
+---
+
 # Vérification du 14 novembre 2026
 
 ## Parcours complet

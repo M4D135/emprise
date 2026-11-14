@@ -22,7 +22,7 @@ Python 3 standard et Node suffisent. Aucun npm, téléchargement, CDN, serveur l
 | Marcher / conduire | ZQSD sur AZERTY, WASD sur QWERTY |
 | Courir / dérapage en voiture | Maj |
 | Monter dans le véhicule le plus proche / sortir à l’arrêt | E |
-| Démarrer / couper le moteur | F ; vélo et trottinette prêts dès la montée |
+| Démarrer / couper le moteur | Automatique à la montée ; F pour couper / rallumer |
 | Freiner puis reculer | S maintenu |
 | Frein / esquive à pied | Espace |
 | Cockpit ou poursuite | C |

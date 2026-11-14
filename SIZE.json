@@ -1,6 +1,6 @@
 {
-  "bytes": 1270259,
-  "sha256": "0c97bb4062703ae9d1ac4180daa3b55a053386a3ec9d8c71ac7e74e74a3c900a",
+  "bytes": 1270608,
+  "sha256": "0ea026352c401b4a937222ce1729a5fceb06d3d79560eb4718be438157bc0184",
   "modules": [
     "ferro/renderer",
     "metal/fmath",

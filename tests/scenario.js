@@ -9,7 +9,7 @@
  if(s.sim.state.dead||total>170){finished=true;return {};}
  if(stage==='walk'){if(clock>1.2){next('return-start');}return walk(initial.x,initial.z-6,true);}
  if(stage==='return-start'){if(Math.hypot(p.x-initial.x,p.z-initial.z)<.5){next('enter');return {};}return walk(initial.x,initial.z);}
- if(stage==='enter'){entered++;next('drive');return {interact:true,engine:true};}
+ if(stage==='enter'){entered++;next('drive');return {interact:true};}
  if(stage==='drive'){
   if(Math.hypot(route[way][0]-c.x,route[way][1]-c.z)<3){way++;if(way===route.length){next('brake');return {brake:true};}}
   const q=route[way],err=angle(Math.atan2(q[1]-c.z,q[0]-c.x)-c.cap),target=Math.abs(err)>.55?3:6;

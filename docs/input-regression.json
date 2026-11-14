@@ -1,0 +1,30 @@
+{
+  "date": "2026-11-14",
+  "checks": [
+    {
+      "singleShotAndRelease": {
+        "shots": 1,
+        "queue": 0,
+        "events": 0,
+        "voices": 0,
+        "kick": 2.698379633850726e-16
+      }
+    },
+    {
+      "burstShots": 8
+    },
+    {
+      "driving": {
+        "x": 77.67436426922669,
+        "z": 124.8634466990708,
+        "v": 7.241683105878102
+      },
+      "reverse": -4.768125206329661
+    },
+    {
+      "mouseAfterExit": true,
+      "pauseSilencesAudio": true
+    }
+  ],
+  "errors": []
+}
