@@ -1,0 +1,32 @@
+{
+  "checks": [
+    "Découpe exacte : anneaux concaves, trous, union d’eaux, rectangle tourné, surfaces vides/pleines",
+    "Oracle ville22a330f : même ordre/nombre d’objets, mêmes poses/matériaux ; ponts/pontons/voies et décor inchangés",
+    "Position photographiée du voilier libérée ; chaque dalle corrigée conserve toute sa partie terrestre"
+  ],
+  "syntheticProbes": 21576,
+  "realProbes": 9936,
+  "changedSlots": [
+    4296,
+    4297,
+    4298,
+    4299,
+    4339,
+    4362,
+    4363,
+    4364,
+    4365,
+    4366,
+    4445,
+    4447,
+    4448,
+    4449,
+    4450,
+    4452
+  ],
+  "emptySlots": 2,
+  "trianglesBefore": 192,
+  "trianglesAfter": 408,
+  "originalObjectsHash": "1f652153bdda0b7336a8c0934f4a2b16b9ea7a248a0067fcc0bd949277e7a896",
+  "normalizedObjectsHash": "1f652153bdda0b7336a8c0934f4a2b16b9ea7a248a0067fcc0bd949277e7a896"
+}

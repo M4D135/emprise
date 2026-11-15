@@ -8,8 +8,8 @@
   ],
   "measurements": {
     "sail": {
-      "speed": 1.1021667834480149,
-      "catch": 0.9571401948774007,
+      "speed": 3.8814416890236356,
+      "catch": 0.20633542064092256,
       "angle": 0.73,
       "deployment": 1,
       "audio": {
@@ -19,30 +19,30 @@
         "gainMoteur": 0,
         "frequenceMoteur": 0
       },
-      "hud": "Voile 100 % · tribord 42°"
+      "hud": "Voile 100 % · bâbord 42°"
     },
     "auxiliary": {
-      "speed": 1.674546855632881,
+      "speed": 1.8663971705768219,
       "engineRpm": 750,
       "audio": {
         "actif": true,
         "voix": 4,
         "musique": false,
-        "gainMoteur": 0.23101076483726501,
-        "frequenceMoteur": 25.005451202392578
+        "gainMoteur": 0.23100000619888306,
+        "frequenceMoteur": 25.003835678100586
       }
     },
     "motorboat": {
-      "speed": 5.805000000000006,
+      "speed": 5.876666666666673,
       "audio": {
         "actif": true,
         "voix": 4,
         "musique": false,
-        "gainMoteur": 0.23101076483726501,
-        "frequenceMoteur": 25.009737014770508
+        "gainMoteur": 0.2310207039117813,
+        "frequenceMoteur": 25.019794464111328
       },
       "x": -8000,
-      "z": 5005.780812499999
+      "z": 5005.8999583333325
     },
     "jetski": {
       "speed": 9.179999999999998,
@@ -59,13 +59,13 @@
   },
   "metrics": {
     "frame": {
-      "n": 1675,
+      "n": 1439,
       "p50": 16.69999999999709,
-      "p95": 17
+      "p95": 17.399999999997817
     },
     "cpu": {
-      "n": 1675,
-      "p50": 1.300000011920929,
+      "n": 1439,
+      "p50": 2.399999976158142,
       "p95": 6.299999952316284
     },
     "resolution": [
@@ -75,47 +75,69 @@
     "pedestrians": 480,
     "traffic": 15,
     "renderer": {
-      "drawCalls": 48,
-      "triangles": 32478,
-      "instances": 771,
+      "backend": "webgpu",
+      "webglVersion": 0,
+      "webgpu": true,
       "contextLost": false,
-      "webglVersion": 2,
-      "backend": "webgl2",
-      "bloom": true,
-      "shadows": true,
+      "deviceLost": false,
+      "drawCalls": 52,
+      "triangles": 51178,
+      "instances": 826,
+      "uploadBytes": 20480,
+      "errorEvents": [],
+      "gpuTimingAvailable": true,
+      "primitiveIndexing": true,
+      "primitiveIndexStats": {
+        "shapes": 7,
+        "references": 2352,
+        "vertices": 618,
+        "restored": 0
+      },
       "pbrLayers": 2,
-      "staticTotal": 224441,
-      "biome": "ville",
-      "worldRevision": 0,
-      "chunks": 7906,
-      "chunkBuildBytes": 14364224,
       "renderScale": 1,
       "pixelRatio": 1,
       "width": 1440,
       "height": 900,
       "msaa": 4,
+      "requestedBackend": "auto",
+      "fallbackReason": null,
+      "worldRevision": 1,
+      "staticTotal": 228112,
+      "biome": "ville",
+      "chunks": 7918,
+      "chunkBuildBytes": 776128,
+      "chunkUpdateIncremental": false,
+      "chunkEntriesVisited": 228111,
       "viewDistance": 64,
-      "staticVisible": 26,
-      "staticCulled": 224415,
+      "staticVisible": 25,
+      "staticCulled": 228086,
       "dynamicLights": 0,
       "blackoutLights": 0,
-      "shadowMaps": 1,
+      "fxInstances": 18,
+      "uniformUploadBytes": 2352,
+      "bloom": true,
+      "shadows": true,
       "shadowMode": "sun-atlas",
-      "uploadBytes": 16960,
-      "fxInstances": 16,
+      "shadowMaps": 1,
       "crowdInstances": 0,
       "pdrLotInstances": 0,
-      "shadowChunks": 3,
-      "shadowStatic": 7,
-      "visibleChunks": 22,
+      "shadowChunks": 2,
+      "shadowStatic": 6,
+      "backgroundWater": 1,
+      "backgroundDrawCalls": 1,
+      "visibleChunks": 21,
       "lotsVisibles": 0,
       "reflections": true,
-      "reflectionSteps": 48
+      "reflectionSteps": 48,
+      "gpuBuffers": 7935,
+      "gpuTextures": 15,
+      "pipelineCount": 16,
+      "uniformSlots": 9,
+      "meshDeltaApplied": false
     },
     "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/157.0.0.0 Safari/537.36"
   },
   "errors": [],
-  "fixture": "Positions en pleine mer préparées ; météo standard du jeu (le hook météo du script ne remplaçait pas tick lors de cette exécution). Clavier réel, Gamepad API virtuelle (aucune manette physique). Gain audio mesuré, aucune écoute humaine revendiquée. Calme plat et polaires de voile couverts séparément par tests/sailing.mjs.",
-  "buildSha256": "6ace258819d07eed4f086670e4f67a008f7fdbc703dd6e4b651e6f24cd3097d5",
-  "weatherFixtureApplied": false
+  "fixture": "Positions en pleine mer et météo contrôlées ; clavier réel, Gamepad API virtuelle (aucune manette physique). Gain audio mesuré, aucune écoute humaine revendiquée.",
+  "buildSha256": "d112e73ceff0afbfdea7406527d5427182a82c152c6fc3208a494af8a646ac9c"
 }

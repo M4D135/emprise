@@ -9,7 +9,7 @@ globalThis.GPUBufferUsage=constants('MAP_READ MAP_WRITE COPY_SRC COPY_DST INDEX 
 globalThis.GPUTextureUsage=constants('COPY_SRC COPY_DST TEXTURE_BINDING STORAGE_BINDING RENDER_ATTACHMENT');
 globalThis.GPUShaderStage=constants('VERTEX FRAGMENT COMPUTE');globalThis.GPUMapMode={READ:1};
 function fakeDevice(validationError=null){
- const allocated=[],submissions=[];let destroyed=false;
+ const allocated=[],submissions=[],writes=[];let destroyed=false;
  const resource=extra=>{const r={...extra,destroyed:false,destroy(){this.destroyed=true;}};allocated.push(r);return r;};
  const device={features:new Set(['timestamp-query']),lost:new Promise(()=>{}),addEventListener(){},pushErrorScope(){},async popErrorScope(){return validationError;},destroy(){destroyed=true;},
  createBuffer(d){return resource({descriptor:d,data:new ArrayBuffer(d.size),async mapAsync(){},getMappedRange(o=0,n=d.size){return this.data.slice(o,o+n);},unmap(){}});},
@@ -17,9 +17,9 @@ function fakeDevice(validationError=null){
  createSampler:d=>({descriptor:d}),createBindGroupLayout:d=>({descriptor:d}),createPipelineLayout:d=>({descriptor:d}),createBindGroup:d=>({descriptor:d}),createQuerySet:d=>resource({descriptor:d}),
  createShaderModule:d=>({descriptor:d,async getCompilationInfo(){return {messages:[]};}}),createRenderPipeline:d=>({descriptor:d,getBindGroupLayout(){return {};}}),
  createCommandEncoder(){const commands=[];return {beginRenderPass(d){const p={descriptor:d,pipeline:null,groups:[],draws:[],setViewport(...v){this.viewport=v;},setPipeline(v){this.pipeline=v;},setBindGroup(i,v){this.groups[i]=v;},setVertexBuffer(){},setIndexBuffer(){},draw(...args){this.draws.push({pipeline:this.pipeline,groups:this.groups.slice(),args});},drawIndexed(...args){this.draw(...args);},end(){}};commands.push(p);return p;},copyTextureToTexture(){},resolveQuerySet(q,first,count,b,offset){const a=new BigUint64Array(b.data,offset,2);a[0]=1000000n;a[1]=1400000n;},copyBufferToBuffer(a,o,b,d,n){new Uint8Array(b.data,d,n).set(new Uint8Array(a.data,o,n));},finish(){return commands;}};},
- queue:{writeBuffer(b,o,v){const a=v instanceof ArrayBuffer?new Uint8Array(v):new Uint8Array(v.buffer,v.byteOffset,v.byteLength);new Uint8Array(b.data,o,a.length).set(a);},writeTexture(){},copyExternalImageToTexture(){},submit(commands){submissions.push(commands.flat());}}
+ queue:{writeBuffer(b,o,v){const a=v instanceof ArrayBuffer?new Uint8Array(v):new Uint8Array(v.buffer,v.byteOffset,v.byteLength);new Uint8Array(b.data,o,a.length).set(a);writes.push({buffer:b,offset:o,size:a.length});},writeTexture(){},copyExternalImageToTexture(){},submit(commands){submissions.push(commands.flat());}}
  };
- return {device,allocated,submissions,get destroyed(){return destroyed;}};
+ return {device,allocated,submissions,writes,get destroyed(){return destroyed;}};
 }
 function install(fake){Object.defineProperty(globalThis,'navigator',{configurable:true,value:{gpu:{async requestAdapter(){return {features:new Set(['timestamp-query']),async requestDevice(){return fake.device;}};},getPreferredCanvasFormat(){return 'bgra8unorm';}}}});const context={configured:false,configure(){this.configured=true;},unconfigure(){this.configured=false;},getCurrentTexture(){return {createView(){return {};}};}};return {canvas:{clientWidth:800,clientHeight:600,width:800,height:600,getContext(name){assert.equal(name,'webgpu');return context;}},context};}
 const desc=FRenderWebGPUShaders.programs.world.uniforms,block=new ArrayBuffer(desc.byteLength),matrices=Array.from({length:48},(_,i)=>i+.25),positions=Array.from({length:36},(_,i)=>i+.5);
@@ -28,6 +28,8 @@ const field=n=>desc.fields.find(f=>f.name===n),ints=new Int32Array(block),floats
 assert.equal(ints[field('uLightCount').offset/4],7);assert.equal(floats[(field('uLightPosition').offset+16*3)/4],9.5);assert.equal(floats[field('uShadowMatrix').offset/4+16],16.25);assert.equal(floats[(field('uLightRange').offset+16*11)/4],13);
 const fake=fakeDevice(),{canvas,context}=install(fake),renderer=await FRenderWebGPU.create(canvas,{msaa:4,shadowMapScale:2,vignette:.9,bloomThreshold:[.9,.99]});
 assert.equal(renderer.gl,undefined);assert.equal(renderer.stats.backend,'webgpu');assert.equal(renderer.gpu.vignette,.9);
+assert.equal(renderer.stats.primitiveIndexing,false,'Index optimization is opt-in');
+assert.equal(renderer.setPrimitiveIndexing,undefined,'Diagnostic toggle exists only on opted-in instances');
 renderer.resize(1);renderer.setWorld([{shape:'box',p:[0,1,-8],s:[2,2,2],mat:8}], [{p:[2,4,-5],power:10}],{sunDirection:[.4,.8,.3]});
 const cam={pos:[0,1.6,0],yaw:0,pitch:0,near:.15,overlayNear:.035,far:180},models=[{shape:'box',p:[1,1,-6],s:[1,1,1],mat:10},{shape:'box',p:[0,1,-.1],s:[.1,.1,.1],overlay:true,mat:2},{shape:'sphere',p:[0,1,-4],s:[1,1,1],fx:true,alpha:.4}];
 const hooks=[];renderer.draw(cam,models,{time:4,foule:{gpuShadow(pass,v){hooks.push(['shadow',v.matrice.length]);return {appels:1,triangles:4};},gpuColor(pass,v){hooks.push(['color',v.msaa]);assert(v.ombre.textureView);return {appels:1,triangles:4,instances:1};}}});
@@ -57,4 +59,33 @@ const newWall={...wall,color:[.2,.3,.4]},afterScene=[newWall,remote];renderer.up
 assert.equal(renderer.stats.meshDeltaApplied,true,'Native updateWorld forwards explicit source deltas');assert.equal(renderer.stats.chunkBuildBytes,64);renderer.draw(cam,[],{time:4});assert.equal(renderer.stats.staticVisible,1);
 renderer.dispose();assert(fake.destroyed);assert.equal(context.configured,false);assert(fake.allocated.every(x=>x.destroyed));
 const broken=fakeDevice({message:'forced initialization validation failure'}),bad=install(broken);await assert.rejects(()=>FRenderWebGPU.create(bad.canvas,{}),/initialization/);assert(broken.destroyed);assert(broken.allocated.every(x=>x.destroyed));assert.equal(bad.context.configured,false);
+const reuse=fakeDevice(),reuseCanvas=install(reuse).canvas,indexedRenderer=await FRenderWebGPU.create(reuseCanvas,{indexPrimitives:true}),geometry=FRender.shared.geometry(),box=geometry.ranges.box;
+const nativeIndices=reuse.allocated.find(x=>x.descriptor.label==='FERRO indices'),nativeVertices=reuse.allocated.find(x=>x.descriptor.label==='FERRO geometry');
+assert.equal(indexedRenderer.stats.primitiveIndexing,true);assert.equal(new Set(new Uint32Array(nativeIndices.data,box.offset,box.count)).size,24);
+const firstIndices=new Uint32Array(nativeIndices.data,0,geometry.indices.length).slice(),toggleWrite=reuse.writes.length;
+assert.equal(indexedRenderer.setPrimitiveIndexing(false),false);assert.equal(indexedRenderer.stats.primitiveIndexing,false);assert.deepEqual(new Uint32Array(nativeIndices.data,0,geometry.indices.length),geometry.indices);
+assert.equal(indexedRenderer.setPrimitiveIndexing(false),false);assert.equal(reuse.writes.length,toggleWrite+1,'Unchanged toggle does not upload');
+assert.equal(indexedRenderer.setPrimitiveIndexing(true),true);assert.equal(indexedRenderer.stats.primitiveIndexing,true);assert.deepEqual(new Uint32Array(nativeIndices.data,0,geometry.indices.length),firstIndices);
+assert(reuse.writes.slice(toggleWrite).every(x=>x.buffer===nativeIndices),'Toggle touches only the IBO');
+const originalShape=geometry.vertices.slice(geometry.indices[box.offset/4]*6,geometry.indices[box.offset/4]*6+box.count*6),morph=originalShape.slice();morph[6]+=.125;
+const beforeWrite=reuse.writes.length;assert.throws(()=>indexedRenderer.updateShape('box',new Float32Array(6)),/count changed/);assert.equal(reuse.writes.length,beforeWrite,'Invalid update never restores or uploads');
+indexedRenderer.updateShape('box',morph);const changeWrites=reuse.writes.slice(beforeWrite);
+assert.deepEqual(changeWrites.map(x=>x.buffer),[nativeIndices,nativeVertices],'Restore IBO before uploading distinct mutable vertex occurrences');
+assert.equal(changeWrites[0].offset,box.offset);assert.equal(changeWrites[0].size,box.count*4);
+assert.deepEqual(new Uint32Array(nativeIndices.data,box.offset,box.count),geometry.indices.subarray(box.offset/4,box.offset/4+box.count));
+assert.deepEqual(new Uint8Array(nativeVertices.data,changeWrites[1].offset,morph.byteLength),new Uint8Array(morph.buffer));
+const nextWrite=reuse.writes.length;indexedRenderer.updateShape('box',originalShape);assert.deepEqual(reuse.writes.slice(nextWrite).map(x=>x.buffer),[nativeVertices],'Subsequent updates retain the normal expanded path');assert.equal(indexedRenderer.stats.primitiveIndexStats.restored,1);
+const sphere=geometry.ranges.sphere,sphereStart=geometry.indices[sphere.offset/4]*6,sphereMorph=geometry.vertices.slice(sphereStart,sphereStart+sphere.count*6);sphereMorph[6]+=.07;
+const sphereWrite=reuse.writes.length;indexedRenderer.updateShape('sphere',sphereMorph);assert.deepEqual(reuse.writes.slice(sphereWrite).map(x=>[x.buffer,x.offset,x.size]),[[nativeIndices,sphere.offset,sphere.count*4],[nativeVertices,sphereStart*4,sphereMorph.byteLength]],'Nonzero primitive ranges restore only their own indices');
+assert.deepEqual(new Uint32Array(nativeIndices.data,sphere.offset,sphere.count),geometry.indices.subarray(sphere.offset/4,sphere.offset/4+sphere.count));
+indexedRenderer.setPrimitiveIndexing(false);
+const cylinder=geometry.ranges.cylinder,cylinderStart=geometry.indices[cylinder.offset/4]*6,cylinderMorph=geometry.vertices.slice(cylinderStart,cylinderStart+cylinder.count*6);cylinderMorph[6]+=.11;
+const disabledWrite=reuse.writes.length;indexedRenderer.updateShape('cylinder',cylinderMorph);assert.deepEqual(reuse.writes.slice(disabledWrite).map(x=>x.buffer),[nativeVertices],'Editing while disabled keeps the already-expanded IBO');
+const expandedNative=()=>{const v=new Uint32Array(nativeVertices.data),i=new Uint32Array(nativeIndices.data,0,geometry.indices.length),out=new Uint32Array(i.length*6);for(let n=0;n<i.length;n++)out.set(v.subarray(i[n]*6,i[n]*6+6),n*6);return out;};
+const mutatedTriangles=expandedNative();indexedRenderer.setPrimitiveIndexing(true);assert.deepEqual(expandedNative(),mutatedTriangles,'Re-enabling preserves all mutated triangles exactly');
+for(const r of [box,sphere,cylinder])assert.deepEqual(new Uint32Array(nativeIndices.data,r.offset,r.count),geometry.indices.subarray(r.offset/4,r.offset/4+r.count),'Previously edited primitives never regain stale shared indices');
+assert.equal(indexedRenderer.stats.primitiveIndexStats.restored,3);
+indexedRenderer.setPrimitiveIndexing(false);assert.deepEqual(expandedNative(),mutatedTriangles);
+indexedRenderer.dispose();assert(reuse.allocated.every(x=>x.destroyed));
+const disposedWrites=reuse.writes.length;assert.equal(indexedRenderer.setPrimitiveIndexing(true),false);assert.equal(reuse.writes.length,disposedWrites,'Disposed instance does not upload');
 console.log('Native WebGPU contracts PASS: std140, independent pass UBOs, MSAA/SSR overlay depth, crowd hooks, bounded resize resources, timing ring, creation failure cleanup.');

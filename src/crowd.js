@@ -12,7 +12,7 @@ function create(world,n=480,{hurt=()=>{},notify=()=>{},allowAggression=false}={}
   people.push({hp:100,x:nav.centreX(cell)/1000,z:nav.centreZ(cell)/1000,cap:0,goal:i%goals.length,speed:.85+random()*.6,panic:0,fear:0,temperament:temperament(10000+i),hostility:0,aggression:0,encounter:0,provocationCooldown:8+(i%13),blocked:0,moveSpeed:0,walkDistance:0,gait:{phase:i*.618,amount:0},threat:null,turnWait:0,escapeX:0,escapeZ:0});
  }
  let tick=0,avoids=0;const angles=[0,.58,-.58,1.16,-1.16,1.8,-1.8,Math.PI];
- const turns=[-1,1].map(sign=>angles.map(a=>[Math.cos(a*sign),Math.sin(a*sign)])),noiseNames=['shot','enemyShot','explosion','vehicleExplosion'];
+ const turns=[-1,1].map(sign=>angles.map(a=>[Math.cos(a*sign),Math.sin(a*sign)])),noiseNames=['shot','enemyShot','explosion','vehicleExplosion'],pureQueries=world.collisionQueriesPure===true;
  // Scratch belongs to a single invocation. A callback can re-enter update;
  // its own depth slot must not overwrite the outer call's traffic or hash.
  let updateDepth=0;const scratch=[];
@@ -23,12 +23,23 @@ function create(world,n=480,{hurt=()=>{},notify=()=>{},allowAggression=false}={}
   let best=-Infinity,bx=0,bz=0;
   for(let k=0;k<angles.length;k++){
    const turn=turns[i%2][k],c=turn[0],s=turn[1],x=vx*c-vz*s,z=vx*s+vz*c;
+   // The production world promises side-effect-free collision queries. A
+   // losing direction needs no geometry probes; keep strict > and tie order.
+   // Custom worlds retain their original callback order unless they opt in.
+   let score;if(pureQueries){score=x*vx+z*vz+(x*p.escapeX+z*p.escapeZ)*.16;if(!(score>best))continue;}
    const tx=p.x+x*1.35,tz=p.z+z*1.35,cell=nav.caseDe(tx*1000,tz*1000);
    if(cell<0||cell>=nav.n||!nav.libre[cell]||world.blocked(p.x+x*.6,p.z+z*.6,.27)||world.blocked(tx,tz,.27))continue;
-   const score=x*vx+z*vz+(x*p.escapeX+z*p.escapeZ)*.16;
+   if(!pureQueries)score=x*vx+z*vz+(x*p.escapeX+z*p.escapeZ)*.16;
    if(score>best){best=score;bx=x;bz=z;}
   }
   return [bx,bz];
+ }
+ // Loading-only preparation of this crowd's actual route closure. No update,
+ // random draw, navigation edit, motion, or callback belongs in this pass.
+ function prewarmRouting(){
+  if(!pureQueries)return 0;let count=0;
+  for(let i=0;i<n;i++){const p=people[i];if(p.hp<=0)continue;const a=i*2.399963;route(p,Math.cos(a),Math.sin(a),i);count++;}
+  return count;
  }
  function update(dt,events=[]){
   dt=Number.isFinite(dt)?Math.max(0,Math.min(.2,dt)):0;tick++;
@@ -94,5 +105,5 @@ function create(world,n=480,{hurt=()=>{},notify=()=>{},allowAggression=false}={}
   }
   }finally{updateDepth--;}
  }
- update(0);return {people,packed,locomotion,nav,update,get avoids(){return avoids;},n,get version(){return tick;}};
+ update(0);return {people,packed,locomotion,nav,update,prewarmRouting,get avoids(){return avoids;},n,get version(){return tick;}};
 }R.crowd={create,temperament};})(globalThis.RADE=globalThis.RADE||{});

@@ -8,11 +8,14 @@ const SAVE='rade-solo-v2',SETTINGS='emprise-pad-v1',stored=JSON.stringify({versi
 function dom(){
  const ids=new Map();let document;
  class Element{
-  constructor(tag='div',attrs=''){this.tagName=tag.toUpperCase();this.children=[];this.parentElement=null;this.hidden=/\bhidden\b/.test(attrs);this.disabled=false;this.inert=false;this.style={};this.dataset={};this.classList={add(){},remove(){}};for(const m of attrs.matchAll(/([\w-]+)="([^"]*)"/g)){this[m[1]]=m[2];if(m[1]==='id')ids.set(m[2],this);if(m[1].startsWith('data-'))this.dataset[m[1].slice(5).replace(/-([a-z])/g,(_,a)=>a.toUpperCase())]=m[2];}}
+  constructor(tag='div',attrs=''){this.tagName=tag.toUpperCase();this.children=[];this.parentElement=null;this.hidden=/\bhidden\b/.test(attrs);this.disabled=false;this.inert=false;this.style={};this.dataset={};this.classList={add(){},remove(){},toggle(){}};this.listeners={};for(const m of attrs.matchAll(/([\w-]+)="([^"]*)"/g)){this[m[1]]=m[2];if(m[1]==='id')ids.set(m[2],this);if(m[1].startsWith('data-'))this.dataset[m[1].slice(5).replace(/-([a-z])/g,(_,a)=>a.toUpperCase())]=m[2];}}
+  addEventListener(type,fn){(this.listeners[type]??=[]).push(fn);}
+  removeEventListener(type,fn){this.listeners[type]=(this.listeners[type]||[]).filter(f=>f!==fn);}
+  contains(el){for(let e=el;e;e=e.parentElement)if(e===this)return true;return false;}
   append(...els){for(const e of els){e.parentElement=this;this.children.push(e);}}
   insertBefore(el,before){el.parentElement=this;const i=this.children.indexOf(before);this.children.splice(i<0?this.children.length:i,0,el);}
   replaceChildren(...els){this.children=[];this.append(...els);}
-  querySelectorAll(selector){const selectors=selector.split(',').map(s=>s.trim()),all=[];const matches=(e,s)=>s[0]==='#'?e.id===s.slice(1):s==='[data-sail-control]'?e.dataset.sailControl!==undefined:e.tagName===s.toUpperCase();const visit=e=>{for(const child of e.children){if(selectors.some(s=>matches(child,s)))all.push(child);visit(child);}};visit(this);return all;}
+  querySelectorAll(selector){const selectors=selector.split(',').map(s=>s.trim()),all=[];const matches=(e,s)=>s[0]==='#'?e.id===s.slice(1):/^\[data-[\w-]+\]$/.test(s)?e.dataset[s.slice(6,-1).replace(/-([a-z])/g,(_,a)=>a.toUpperCase())]!==undefined:e.tagName===s.toUpperCase();const visit=e=>{for(const child of e.children){if(selectors.some(s=>matches(child,s)))all.push(child);visit(child);}};visit(this);return all;}
   querySelector(s){return this.querySelectorAll(s)[0]||null;}
   closest(s){for(let e=this;e;e=e.parentElement)if(s==='[hidden]'&&e.hidden)return e;return null;}
   getClientRects(){return this.closest('[hidden]')?[]:[{}];}
@@ -30,7 +33,7 @@ async function fixture({fatal=false,clearFails=false}={}){
  const noop=()=>{},audio={start:noop,setMix:noop,setPlaying:noop},session={world:{scenery:[],navCity:{}},mode:'foot',player:{},campaign:{state:{offline:0}},sim:{state:{dead:false},dispose:noop},tell:noop,save:()=>({version:2,cash:999,sites:[]})};
  const context=vm.createContext({console:{error:e=>log.push(e),log:noop},URLSearchParams,performance:{now:()=>now},document,navigator:{getGamepads:()=>pad?[pad]:[]},localStorage:{getItem:k=>data.get(k)??null,setItem:(k,v)=>data.set(k,v),removeItem:k=>{if(clearFails)throw Error('storage denied');data.delete(k);}},location:{search:'',reload(){reloads++;for(const fn of listeners.pagehide||[])fn({});}},matchMedia:()=>({matches:false}),setTimeout:fn=>timers.push(fn),requestAnimationFrame:fn=>frames.push(fn),FInput:{create:()=>({clear:noop,keyDown:noop,keyUp:noop,button:noop}),glyph:k=>k},FMotion:{create:()=>({reset:noop})},FAudio:{create:()=>audio},BITUME:{son:{creer:()=>({suspendre:noop,demarrer:noop,reprendre:noop})}},PDR:{foule:{creerFoule:()=>({regler:noop,liberer:noop})}},FRenderBackends:{create:async canvas=>({canvas,renderer:{setWorld:noop,stats:{backend:'webgl2'}},activate:noop})},RADE:{camera:{create:()=>({reset:noop})},build:{id:'test'},replays:[],materials:{load:async()=>{}},session:{create:({saved})=>{assert(saved);if(fatal)throw Error('Aucun point libre près de '+saved.player.x+','+saved.player.z);return session;}}}});
  context.window={addEventListener:(type,fn)=>(listeners[type]??=[]).push(fn)};
- for(const name of ['replay.js','gamepad.js','game.js'])vm.runInContext(read(name),context,{filename:name});
+ for(const name of ['replay.js','gamepad.js','mobile.js','game.js'])vm.runInContext(read(name),context,{filename:name});
  timers.shift()();await new Promise(setImmediate);await new Promise(setImmediate);
  const key=(code,shiftKey=false)=>{const event={code,shiftKey,target:document.activeElement,preventDefault(){this.prevented=true;}};for(const fn of listeners.keydown||[])fn(event);return event;};
  const poll=(buttons=[])=>{pad={id:'Test standard',index:0,connected:true,axes:[0,0,0,0],buttons:Array.from({length:17},(_,i)=>({value:buttons.includes(i)?1:0}))};now+=16;const at=frames.findIndex(fn=>fn.name==='recoveryFrame');assert(at>=0,'Fatal gamepad loop exists without a game frame');frames.splice(at,1)[0](now);};

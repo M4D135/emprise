@@ -212,6 +212,9 @@
       if(parts.length<4096)return [].concat(...parts);
       const result=[];for(const part of parts)for(const m of part)result.push(m);return result;
     }
+    // Membership depends only on the fixed claimed indices and array length.
+    // The records themselves remain live and are copied at each publication.
+    let unclaimedIndices=[],unclaimedSourceLength=-1;
     function rebuild(next=states,full=false){
       let output;const before=meshGeneration?meshes:null,changedSlots=new Map();full=full||!meshGeneration;
       for(const g of [...geometryDirty].sort((a,b)=>a.rebuildOrder-b.rebuildOrder)){
@@ -253,7 +256,8 @@
       }
       // Snapshot unclaimed external records now, matching the eager API even
       // when a caller edits the original records before requesting colliders.
-      unclaimedBoxes=[];for(let i=0;i<originalColliders.length;i++)if(!claimed.has(i)){const c=originalColliders[i];unclaimedBoxes.push({...c,mesh:sourceStart(c.mesh)});}
+      if(unclaimedSourceLength!==originalColliders.length){unclaimedIndices=[];for(let i=0;i<originalColliders.length;i++)if(!claimed.has(i))unclaimedIndices.push(i);unclaimedSourceLength=originalColliders.length;}
+      unclaimedBoxes=[];for(const i of unclaimedIndices){const c=originalColliders[i];unclaimedBoxes.push({...c,mesh:sourceStart(c.mesh)});}
       meshes=output;colliders=null;lights=(world.lights||[]).filter(l=>!next.get(String(l.destructibleId))?.removed);
       meshDelta={before,after:meshes,generation:++meshGeneration,full,splices,removed,added};
     }

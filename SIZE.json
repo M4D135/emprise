@@ -1,8 +1,8 @@
 {
-  "version": "0.6.3",
-  "build": "702ff88469",
-  "bytes": 22699800,
-  "sha256": "28e5ca4e00ae4d852d3ce430588d6c0602cdf63ae848a964d0ff903d51e70bc3",
+  "version": "0.6.4",
+  "build": "39955b5b43",
+  "bytes": 22784553,
+  "sha256": "d112e73ceff0afbfdea7406527d5427182a82c152c6fc3208a494af8a646ac9c",
   "modules": [
     "ferro/renderer",
     "ferro/webgpu-shaders",
@@ -37,6 +37,7 @@
     "vehicles",
     "mobility",
     "marine",
+    "marine-water",
     "details",
     "architecture",
     "people",
@@ -68,6 +69,7 @@
     "phone",
     "session",
     "gamepad",
+    "mobile",
     "game"
   ]
 }

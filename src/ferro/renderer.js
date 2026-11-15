@@ -8,6 +8,27 @@
   // BITUME : champ de vision admis de 10 à 110° (FERRO : 40 à 110°), pour la caméra de télévision au téléobjectif.
   const FOV_MIN = 10;
 
+  // Same wave field as RADE.marine.seaHeight. Only the local navigation grid
+  // is displaced; a 16 m edge band meets the distant flat sea without a seam.
+  const SEA_GLSL = `
+  uniform vec4 uSeaOrigin;
+  uniform vec4 uSeaMotion;
+  vec3 seaField(vec2 p) {
+    float co=cos(uSeaMotion.y),si=sin(uSeaMotion.y),u=p.x*co+p.y*si,v=-p.x*si+p.y*co,t=uSeaMotion.x;
+    float a=.24*u-1.10*t,b=.41*u+.17*v-1.55*t+1.7,c=.63*v-.83*t+.4;
+    float amplitude=.035+.10*clamp(uSeaOrigin.w,0.,2.);
+    float h=amplitude*(.60*sin(a)+.27*sin(b)+.13*sin(c));
+    float du=amplitude*(.60*.24*cos(a)+.27*.41*cos(b));
+    float dv=amplitude*(.27*.17*cos(b)+.13*.63*cos(c));
+    vec2 grad=vec2(du*co-dv*si,du*si+dv*co),q=p-uSeaOrigin.xy;
+    float edge=max(abs(q.x),abs(q.y)),r=uSeaOrigin.z;
+    float f=clamp((r-edge)/16.,0.,1.),fade=f*f*(3.-2.*f);
+    float slope=f>0.&&f<1.?-6.*f*(1.-f)/16.:0.;
+    vec2 de=abs(q.x)>abs(q.y)?vec2(sign(q.x),0.):vec2(0.,sign(q.y));
+    return vec3(h*fade,grad*fade+h*slope*de);
+  }
+  `;
+
   const VERT = `#version 300 es
   precision highp float;
   layout(location=0) in vec3 aPosition;
@@ -18,6 +39,7 @@
   layout(location=5) in vec4 iColor;
   uniform mat4 uViewProjection;
   uniform vec2 uWindTime;
+  ${SEA_GLSL}
   out vec3 vWorld;
   out vec3 vNormal;
   out vec3 vSurface;
@@ -44,6 +66,10 @@
       vWorld.x+=sin(phase)*bend;vWorld.z+=cos(phase*.73)*bend*.6;
     }
     vNormal=normalize(rotation*(aNormal/max(abs(iScale.xyz),vec3(.0001))));
+    if(iPosition.w>11.5&&iPosition.w<12.5&&iPosition.y<0.) {
+      if(iPosition.w>12.1&&uSeaMotion.w>.5){vec3 w=seaField(vWorld.xz);vWorld.y=uSeaMotion.z+w.x;vNormal=normalize(vec3(-w.y,1.,-w.z));}
+      else vWorld.y=-1.25+(aPosition.y-.5)*abs(iScale.y);
+    }
     vAnchor=iPosition.xyz;vMaterial=iPosition.w;
     vEmission=iScale.w;
     vOverlay=mod(iRotation.w,2.);
@@ -84,6 +110,7 @@
   uniform vec2 uResolution;
   uniform vec4 uEffects;
   uniform vec2 uWindTime;
+  ${SEA_GLSL}
   // Explicit sampler precision keeps 24-bit depth from being quantized into bands.
   uniform highp sampler2D uShadowMap;
   uniform mat4 uShadowMatrix[3];
@@ -297,6 +324,14 @@
       organicHeight=clump*.014+leafShape*.007*fineDetail;
       roughness=.88;metalness=0.;
     } else if(m<12.5) {
+      // The distant ocean and the original 8 km port plane share a datum.
+      // Keep exactly one surface where they overlap, including away from a boat.
+      if(m>12.04&&m<12.06&&max(abs(vWorld.x),abs(vWorld.z))<=4000.)discard;
+      if(vAnchor.y<0.&&uSeaMotion.w>.5){
+        vec2 seaOffset=abs(vWorld.xz-uSeaOrigin.xy);
+        if(m<12.1&&max(seaOffset.x,seaOffset.y)<uSeaOrigin.z)discard;
+        if(m>12.1){vec3 w=seaField(vWorld.xz);n=normalize(vec3(-w.y,1.,-w.z));}
+      }
       base=vec3(.035,.12,.15)*(.9+sin(uv.x*9.+uEffects.x)*sin(uv.y*7.-uEffects.x*.7)*.1);
       roughness=.13;metalness=.35;
     } else if(m<13.5) {
@@ -382,7 +417,7 @@
       roughness=.13;metalness=.35;
       windowGlow=mix(vec3(1.,.58,.25),vec3(.92,.87,.66),step(.78,home))*night*occupied*1.7;
     }
-    if(vColor.w>.5&&m<12.5){
+    if(vColor.w>.5&&m<12.5&&!(m>11.5&&vAnchor.y<0.)){
       vec3 tint=vColor.rgb*(.88+grain*.2)*(1.-panel*.12)*(m<3.5?.65:1.);
       base=m>7.5?base*.35+tint*.65:tint;
     }
@@ -587,7 +622,8 @@
 
   const DEPTH_FRAG=`#version 300 es
   precision highp float;
-  void main() {}`;
+  flat in float vMaterial;
+  void main() {if(vMaterial>12.1&&vMaterial<12.4)discard;}`;
   const POST_VERT=`#version 300 es
   precision highp float;
   out vec2 vUV;
@@ -949,6 +985,27 @@
     return {vertices:new Float32Array(data),indices:new Uint32Array(indices),ranges};
   }
 
+  // Reuse only bit-identical primitive vertices. Keep expanded vertex storage,
+  // triangle order and public geometry snapshots intact: updateShape() can
+  // restore a primitive's original index range before editing any occurrence.
+  function indexPrimitiveVertices(source){
+    const indices=new Uint32Array(source.indices),words=new Uint32Array(source.vertices.buffer,source.vertices.byteOffset,source.vertices.length),ranges=new Map(),byName=new Map();
+    const stats={shapes:0,references:0,vertices:0,restored:0};
+    for(const name of ['box','sphere','foliage','cylinder','octa','ring','bevel','wedge']){
+      const range=source.ranges[name];if(!range||FORMES_LIBRES.has(name))continue;
+      const key=range.offset+':'+range.count;let record=ranges.get(key);
+      if(record){byName.set(name,record);continue;}
+      const first=range.offset/INDEX_OCTETS,original=source.indices.slice(first,first+range.count),seen=new Map();let changed=false;
+      for(let i=0;i<original.length;i++){
+        const vertex=original[i],at=vertex*6,key=words[at]+','+words[at+1]+','+words[at+2]+','+words[at+3]+','+words[at+4]+','+words[at+5];
+        let prior=seen.get(key);if(prior===undefined){prior=vertex;seen.set(key,vertex);}indices[first+i]=prior;if(prior!==vertex)changed=true;
+      }
+      record={offset:range.offset,indices:original,active:changed};ranges.set(key,record);byName.set(name,record);
+      stats.shapes+=changed?1:0;stats.references+=original.length;stats.vertices+=seen.size;
+    }
+    return {indices,stats,restore(name){const record=byName.get(name);if(!record?.active)return null;record.active=false;indices.set(record.indices,record.offset/INDEX_OCTETS);stats.restored++;return record;}};
+  }
+
   function environmentInfo(value){
     if(!value)return null;
     const color=(v,fallback)=>Array.isArray(v)&&v.length>=3?v.slice(0,3).map((x,i)=>Number.isFinite(x)?Math.max(0,x):fallback[i]):fallback;
@@ -1120,9 +1177,13 @@
     return before.length+shift===after.length&&changed<=Math.max(64,after.length/4)?delta.splices:null;
   }
   function spliceReferences(before,splices,length){
-    const after=new Array(length);let read=0,write=0;
-    for(const q of splices){while(read<q.start)after[write++]=before[read++];read+=q.deleteCount;for(const item of q.items)after[write++]=item;}
-    while(read<before.length)after[write++]=before[read++];return after;
+    // Preserve snapshot arrays, but let the native array copier move retained
+    // city ranges instead of visiting every object in JavaScript twice.
+    const ranges=[];let read=0;
+    for(const q of splices){if(read<q.start)ranges.push(before.slice(read,q.start));if(q.items.length)ranges.push(q.items[Symbol.isConcatSpreadable]===false?Array.from(q.items):q.items);read=q.start+q.deleteCount;}
+    if(read<before.length)ranges.push(before.slice(read));
+    if(ranges.length<4096)return [].concat(...ranges);
+    const after=new Array(length);let write=0;for(const range of ranges)for(const item of range)after[write++]=item;return after;
   }
   function partitionWorld(meshes,previous,options){
     const source=meshes||[],splices=options?.revisionedMeshes===true&&previous?.dense&&validatedMeshSplices(options.meshDelta,previous.source,source);
@@ -1157,7 +1218,12 @@
       for(const e of [...delta.added,...delta.changed]){const c=categoryFor(e);keys.add(c.key);let list=additions.get(c.key);if(!list){list=[];additions.set(c.key,list);}list.push(e);}
       const edited=[];
       for(const key of keys){
-        const old=chunks.get(key),added=additions.get(key)||[],entries=(old?.entries||[]).filter(e=>!erased.has(e));entries.push(...added);entries.sort((a,b)=>a.ordinal-b.ordinal);state.entriesVisited+=(old?.entries.length||0)+added.length;if(!entries.length)continue;
+        const old=chunks.get(key),added=additions.get(key)||[],retained=(old?.entries||[]).filter(e=>!erased.has(e));
+        // Retained occurrences are already ordered. Sort only the few new
+        // entries and merge them without sorting an entire facade chunk.
+        added.sort((a,b)=>a.ordinal-b.ordinal);const entries=[];let ai=0;
+        for(const e of retained){while(ai<added.length&&added[ai].ordinal<e.ordinal)entries.push(added[ai++]);entries.push(e);}while(ai<added.length)entries.push(added[ai++]);
+        state.entriesVisited+=(old?.entries.length||0)+added.length;if(!entries.length)continue;
         const c=old||{range:categoryFor(entries[0]).range,entries:[]};c.nextCount=entries.length;c.nextEntries=c.entries.length===entries.length&&entries.every((e,i)=>e===c.entries[i])?null:entries;edited.push([key,c,entries[0].ordinal]);
       }
       edited.sort((a,b)=>a[2]-b[2]);const next=new Map();let at=0;
@@ -1883,7 +1949,7 @@
     function initialize() {
       ssrProgram=link(POST_VERT,SSR_FRAG);ssrUniforms={};for(const name of ['uColor','uDepth','uProjection','uPixel'])ssrUniforms[name]=gl.getUniformLocation(ssrProgram,name);
       program=link(VERT,worldFrag);depthProgram=link(VERT,DEPTH_FRAG);postProgram=link(POST_VERT,postFrag);skyProgram=link(POST_VERT,SKY_FRAG);fxProgram=link(FX_VERT,FX_FRAG);
-      uniforms={};for(const name of ['uViewProjection','uWindTime','uEye','uForward','uLightPosition','uLightColor','uLightRange','uLightDirection','uLightCone','uWeather','uCloudOffset','uPbrAlbedo','uPbrNormal','uPbrRough','uPbrReady','uLightCount','uResolution','uEffects','uShadowMap','uShadowMatrix','uShadowSettings','uTorchPosition','uSunDirection','uSunColor','uAmbient','uFogColor','uSkyTop','uSkyBottom','uEnvironment','uNightHour']) uniforms[name]=gl.getUniformLocation(program,name);
+      uniforms={};for(const name of ['uViewProjection','uWindTime','uSeaOrigin','uSeaMotion','uEye','uForward','uLightPosition','uLightColor','uLightRange','uLightDirection','uLightCone','uWeather','uCloudOffset','uPbrAlbedo','uPbrNormal','uPbrRough','uPbrReady','uLightCount','uResolution','uEffects','uShadowMap','uShadowMatrix','uShadowSettings','uTorchPosition','uSunDirection','uSunColor','uAmbient','uFogColor','uSkyTop','uSkyBottom','uEnvironment','uNightHour']) uniforms[name]=gl.getUniformLocation(program,name);
       postUniforms={};for(const name of ['uScene','uBloom','uReflection','uReflections','uTexel','uPass'])postUniforms[name]=gl.getUniformLocation(postProgram,name);
       skyUniforms={};for(const name of ['uSkyRight','uSkyUp','uSkyForward','uSkyTop','uSkyBottom','uSkyFog','uSunDirection','uSunColor','uSkyFov','uSkyMotion','uWeather','uCloudOffset'])skyUniforms[name]=gl.getUniformLocation(skyProgram,name);
       fxUniforms={};for(const name of ['uViewProjection','uWindTime','uEye','uAmbient','uSkyTop','uSkyBottom','uFogColor','uEnvironment','uTime'])fxUniforms[name]=gl.getUniformLocation(fxProgram,name);
@@ -2260,6 +2326,7 @@
       gl.bindFramebuffer(gl.FRAMEBUFFER,stats.bloom?(msaa?msaa.framebuffer:post.scene.framebuffer):null);gl.viewport(0,0,canvas.width,canvas.height);
       gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);if(environment)skyPass(axes,f,t,fx.weather,fx.cloudOffset);gl.useProgram(program);gl.bindVertexArray(vao);
       gl.uniformMatrix4fv(uniforms.uViewProjection,false,vp);gl.uniform3fv(uniforms.uEye,eye);gl.uniform3fv(uniforms.uForward,forward);
+      gl.uniform4fv(uniforms.uSeaOrigin,fx.sea?.origin||[0,0,0,0]);gl.uniform4fv(uniforms.uSeaMotion,fx.sea?.motion||[0,0,-1.25,0]);
       gl.uniform2fv(uniforms.uCloudOffset,fx.cloudOffset||[t*.0018,0]);gl.uniform2f(uniforms.uWindTime,environment?environment.wind:0,t);gl.uniform3fv(uniforms.uSunDirection,environment?environment.sunDirection:[.4,.8,.3]);gl.uniform3fv(uniforms.uSunColor,environment?environment.sunColor:[0,0,0]);
       gl.uniform3fv(uniforms.uAmbient,environment?environment.ambient:[.075,.10,.12]);gl.uniform3fv(uniforms.uFogColor,environment?environment.fog:[.009,.018,.024]);gl.uniform2f(uniforms.uEnvironment,environment?1:0,environment?environment.fogDensity:.014);
       gl.uniform2f(uniforms.uNightHour,environment?.night||0,environment?.hour??14);
@@ -2370,6 +2437,6 @@
   }
   // Both GPU backends share the procedural shapes, instance layout and visibility
   // rules. No rendering calls or GPU state are shared between the APIs.
-  const shared={geometry,pack,packEffects,instancePacker,effectsPacker,packIndexed,spatialIndex,partitionWorld,planChunks,visible,metadata,environmentInfo,outdoorMesh,surfaceFlags,transientLights,horrorLights,cameraAxes,multiply,detailRanges,extendedDistance,resolutionGovernor,settings,indoor:PDR_INDOOR,shapes:FORMES_LIBRES};
+  const shared={geometry,indexPrimitiveVertices,pack,packEffects,instancePacker,effectsPacker,packIndexed,spatialIndex,partitionWorld,planChunks,visible,metadata,environmentInfo,outdoorMesh,surfaceFlags,transientLights,horrorLights,cameraAxes,multiply,detailRanges,extendedDistance,resolutionGovernor,settings,indoor:PDR_INDOOR,shapes:FORMES_LIBRES};
   globalThis.FRender={create,foliageTriangles,forme,shared};
 })();

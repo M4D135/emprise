@@ -33,6 +33,12 @@ function smallFixtures(){
  const external=make([mesh(0,1,0,[2,2,2]),mesh(20,1,0,[2,2,2])],[{id:'solid',kind:'wall',strength:1,meshes:[0],colliders:[0]}]),eager=old.FDestruction.create(external),lazy=current(external);
  external.colliders[1].minX-=4;assert.equal(hash(lazy.colliders),hash(eager.colliders));const held=lazy.colliders,heldHash=hash(held);assert.equal(held,lazy.colliders);
  eager.blast([1,1,0],2,80);lazy.blast([1,1,0],2,80);external.colliders[1].maxX+=7;assert.equal(hash(lazy.colliders),hash(eager.colliders));assert.equal(hash(held),heldHash);assert.notEqual(lazy.colliders,held);
+ // Cached unclaimed membership still observes source-array append/shrink and
+ // replaced live records at the exact rebuild boundary, never at getter time.
+ const growing=make([mesh(0,1,0,[2,2,2]),mesh(20,1,0,[2,2,2]),mesh(40,1,0,[2,2,2])],[{id:'first',kind:'wall',strength:1,meshes:[0],colliders:[0]},{id:'second',kind:'wall',strength:1,meshes:[1],colliders:[1]}]);
+ const ga=old.FDestruction.create(growing),gb=current(growing),oldBoxes=gb.colliders,oldBoxHash=hash(oldBoxes);
+ growing.colliders.push({...growing.colliders[2],minX:38.25});ga.detach('first');gb.detach('first');assert.equal(hash(gb.colliders),hash(ga.colliders));assert.equal(hash(oldBoxes),oldBoxHash);
+ growing.colliders.pop();growing.colliders[2]={...growing.colliders[2],mesh:1,minX:39.25};ga.detach('second');gb.detach('second');growing.colliders[2].minX-=9;assert.equal(hash(gb.colliders),hash(ga.colliders));
  console.log('PASS: small exact differentials for pending damage, shared render slots, reverse queries, support chains, rejected/pristine restoration and redestruction');
 }
 smallFixtures();

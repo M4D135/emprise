@@ -6,8 +6,9 @@ import argparse,json,hashlib,tempfile,math
 def describe(values):
  values=sorted(values);n=len(values)
  return {'n':n,**{name:values[min(n-1,math.floor(n*q))] if n else None for name,q in [('p50',.5),('p95',.95),('p99',.99)]},'max':values[-1] if n else None,'over25':sum(v>25 for v in values),'over50':sum(v>50 for v in values)}
-p=argparse.ArgumentParser();p.add_argument('--html',type=Path,default=ROOT/'dist/index.html');p.add_argument('--label',required=True);p.add_argument('--backend',default='webgpu',choices=['webgpu','webgl2']);p.add_argument('--frames',type=int,default=600);p.add_argument('--fixture',type=Path,default=ROOT/'tests/outdoor-stress-scenes.js');p.add_argument('--expected-events',type=int,default=3);p.add_argument('--profile',action='store_true');p.add_argument('--realtime',action='store_true');p.add_argument('--production-save',action='store_true',help='Enable the ordinary production autosave path in an isolated browser profile; requires realtime and enough frames for two saves.');a=p.parse_args()
+p=argparse.ArgumentParser();p.add_argument('--html',type=Path,default=ROOT/'dist/index.html');p.add_argument('--label',required=True);p.add_argument('--backend',default='webgpu',choices=['webgpu','webgl2']);p.add_argument('--frames',type=int,default=600);p.add_argument('--fixture',type=Path,default=ROOT/'tests/outdoor-stress-scenes.js');p.add_argument('--expected-events',type=int,default=3);p.add_argument('--profile',action='store_true');p.add_argument('--realtime',action='store_true');p.add_argument('--production-save',action='store_true',help='Enable the ordinary production autosave path in an isolated browser profile; requires realtime and enough frames for two saves.');p.add_argument('--dpr',type=float,default=1,help='Browser device pixel ratio; production renderer resolution cap is unchanged.');a=p.parse_args()
 if a.production_save and not a.realtime:p.error('--production-save requires --realtime')
+if not math.isfinite(a.dpr) or not 0<a.dpr<=4:p.error('--dpr must be finite and in (0, 4]')
 save_probe=r'''(()=>{
  const g=RADE.game,s=g.session,sessionSave=s.save,storageSave=RADE.storage.save,records=[];
  let phase='prewarm',serial=0,lastSnapshotId=0,windowStart=null;
@@ -25,6 +26,7 @@ assert html.count(marker)==1,'Game init marker changed'
 with tempfile.TemporaryDirectory(prefix='emprise-outdoor-') as temp:
  target=Path(temp)/'index.html';target.write_text(html.replace(marker,hook+marker))
  with Browser() as b:
+  b.cmd('Emulation.setDeviceMetricsOverride',{'width':1440,'height':900,'deviceScaleFactor':a.dpr,'mobile':False})
   b.cmd('Page.navigate',{'url':target.as_uri()+('?' if a.production_save else '?test=1&')+'renderer='+a.backend});b.cmd('Page.bringToFront');b.wait('globalThis.RADE?.game?.drawCount>2',90);b.ev('RADE.game.testing=true;true')
   if a.production_save:b.ev(save_probe)
   b.ev(fixture)
@@ -37,6 +39,7 @@ with tempfile.TemporaryDirectory(prefix='emprise-outdoor-') as temp:
    profile=b.cmd('Profiler.stop')['profile'];(ROOT/'docs'/('outdoor-'+a.label+'.cpuprofile')).write_text(json.dumps(profile)+'\n');b.cmd('Profiler.disable')
   if a.production_save:
    saves=b.ev('outdoorSaveProbe.finish()');saves['measures']={phase:{kind:describe([q['ms'] for q in saves[phase] if q['kind']==kind]) for kind in ['snapshot','persist']} for phase in ['prewarm','measured','afterMeasurement']};report['productionSave']=saves
+  report['interiorPrewarm']=b.ev('RADE.game.session.urban?.interiorPrewarm??null')
   # game.samples uses the browser's rAF timestamps, whereas the historic
   # fixture frame samples use performance.now() at renderer.draw entry.
   # Keep both: moving simulation before draw changes submission intervals
@@ -63,7 +66,7 @@ with tempfile.TemporaryDirectory(prefix='emprise-outdoor-') as temp:
    pacing['clockAlignment']={'minimumDelayMs':min(delays),'maximumDelayMs':max(delays),'negativeCount':len(negative),'negativeFrameIndices':negative,'largeNegativeFrameIndices':anomalies,'negativeToleranceMs':1,'signedValuesPreserved':True,'note':'callbackDelay = performance.now() at callback entry minus browser rAF timestamp. Signed offsets down to -1 ms are retained as clock alignment/precision effects; larger negative offsets fail validation. No positive delay is clipped.'}
    assert not anomalies,{'timingError':'callbackDelay below -1 ms; investigate clock alignment','fields':fields,'rows':[rows[i] for i in anomalies[:12]],'anomalyCount':len(anomalies)}
   b.ev('document.getElementById("paused").hidden=true;true');b.capture('outdoor-'+a.label+'.png')
-report.update(label=a.label,fixture=a.fixture.name,buildSha256=hashlib.sha256(html.encode()).hexdigest(),fixtureSha256=hashlib.sha256((hook+fixture).encode()).hexdigest(),profiled=a.profile,productionSaveEnabled=a.production_save,protocol=report.get('protocol') or '960 pedestrians (360 positioned in legal quay cells), 36 civilian traffic requests plus 3 police, 3 real vehicle detonations. '+('Normal wall-clock accumulator, unmodified 1/120 simulation ticks.' if a.realtime else 'Two normal 1/120 simulation ticks per rendered frame, active AI and physics; same simulation work regardless of backend speed.')+' Graphics unchanged: 1440x900 DPR1 MSAA4 shadows SSR bloom. Signature sampled every60frames, outside separate render/simulation timers.')
+report.update(browserViewport={'width':1440,'height':900,'dpr':a.dpr},label=a.label,fixture=a.fixture.name,buildSha256=hashlib.sha256(html.encode()).hexdigest(),fixtureSha256=hashlib.sha256((hook+fixture).encode()).hexdigest(),profiled=a.profile,productionSaveEnabled=a.production_save,protocol=report.get('protocol') or '960 pedestrians (360 positioned in legal quay cells), 36 civilian traffic requests plus 3 police, 3 real vehicle detonations. '+('Normal wall-clock accumulator, unmodified 1/120 simulation ticks.' if a.realtime else 'Two normal 1/120 simulation ticks per rendered frame, active AI and physics; same simulation work regardless of backend speed.')+f' Graphics unchanged: CSS1440x900 DPR{a.dpr:g}, existing production pixel cap, MSAA4 shadows SSR bloom. Signature sampled every60frames, outside separate render/simulation timers.')
 (ROOT/'docs'/('outdoor-'+a.label+'.json')).write_text(json.dumps(report,ensure_ascii=False,indent=2)+'\n')
 assert not report['errors'] and not report['renderer'].get('errorEvents') and not report['backendEvents'],report['errors']
 assert (a.realtime or report['simulationTicks']==a.frames*2) and len(report['events'])==a.expected_events

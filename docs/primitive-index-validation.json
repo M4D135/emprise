@@ -1,0 +1,361 @@
+{
+  "test": "PASS native primitive indexing, identical paused frames",
+  "buildSha256": "2a6fb6f0de53a31bf7eac5f89fdeb4fecc58136ab3adaac01b97b86288108ffa",
+  "scene": {
+    "hash": "aa605138",
+    "pedestrians": 480,
+    "densePedestrians": 360,
+    "traffic": 15,
+    "fleet": 20,
+    "blastVehicles": [
+      1,
+      6,
+      7
+    ],
+    "camera": {
+      "pos": [
+        61.5,
+        6.2,
+        211
+      ],
+      "yaw": 0.5997171094178688,
+      "pitch": -0.1,
+      "fov": 74,
+      "near": 0.15,
+      "overlayNear": 0.035,
+      "far": 26000,
+      "allStatic": true,
+      "chunked": true,
+      "sun": {
+        "center": [
+          61.5,
+          0.08,
+          170
+        ],
+        "extent": 110,
+        "depth": 150
+      }
+    },
+    "staticMeshes": 226210,
+    "facade": {
+      "sourceId": "piece-11559",
+      "buildingId": "building-1748",
+      "name": "Immeuble",
+      "width": 44.17559742505419,
+      "depth": 4.0742346033176675,
+      "height": 20.022129374719224,
+      "normal": [
+        -0.9853716726941704,
+        0,
+        0.17041909121895019
+      ],
+      "center": [
+        108.93835658487899,
+        1.55,
+        190.99186209151537
+      ],
+      "points": [
+        [
+          108.08626112878424,
+          1.55,
+          186.06500372804453
+        ],
+        [
+          109.79045204097373,
+          1.55,
+          195.91872045498621
+        ]
+      ],
+      "sourceGeometry": {
+        "p": [
+          110.94567426788879,
+          10.011064687359612,
+          190.64469841226028
+        ],
+        "s": [
+          44.17559742505419,
+          20.022129374719224,
+          4.0742346033176675
+        ],
+        "r": [
+          0,
+          -1.3995413604599871,
+          0
+        ]
+      }
+    },
+    "schedule": [
+      {
+        "frame": 90,
+        "kind": "vehicleExplosion",
+        "count": 3
+      },
+      {
+        "frame": 210,
+        "kind": "buildingExplosion",
+        "power": 240,
+        "radius": 10
+      },
+      {
+        "frame": 330,
+        "kind": "buildingExplosion",
+        "power": 240,
+        "radius": 10
+      }
+    ]
+  },
+  "events": [
+    {
+      "frame": 90,
+      "simulationTick": 180,
+      "kind": "vehicleExplosion",
+      "id": 1
+    },
+    {
+      "frame": 90,
+      "simulationTick": 180,
+      "kind": "vehicleExplosion",
+      "id": 6
+    },
+    {
+      "frame": 90,
+      "simulationTick": 180,
+      "kind": "vehicleExplosion",
+      "id": 7
+    },
+    {
+      "frame": 210,
+      "simulationTick": 420,
+      "kind": "buildingExplosion",
+      "point": [
+        108.08626112878424,
+        1.55,
+        186.06500372804453
+      ],
+      "power": 240,
+      "radius": 10,
+      "buildingId": "building-1748",
+      "sourceId": "piece-11559",
+      "sourceAlive": true,
+      "projections": 1,
+      "furnishing": 25,
+      "collapsed": [
+        "piece-27565",
+        "piece-27566",
+        "piece-27568",
+        "piece-27572",
+        "piece-27573",
+        "piece-27569",
+        "piece-27567",
+        "piece-42567",
+        "piece-42568",
+        "piece-42569",
+        "piece-42570",
+        "piece-42572",
+        "piece-42573",
+        "piece-42574",
+        "piece-42575",
+        "piece-42576",
+        "piece-42577",
+        "piece-42578",
+        "piece-42579",
+        "piece-42580",
+        "piece-125722",
+        "piece-125723",
+        "piece-125724",
+        "piece-125725",
+        "piece-125726",
+        "piece-125727",
+        "piece-42571",
+        "piece-42581",
+        "piece-42582",
+        "piece-42583",
+        "piece-42584",
+        "piece-42585",
+        "piece-42586",
+        "piece-42587",
+        "piece-42588",
+        "piece-42589",
+        "piece-42590",
+        "piece-42591",
+        "piece-125858",
+        "piece-125859",
+        "piece-167858",
+        "piece-167859",
+        "piece-167860",
+        "piece-167861",
+        "piece-167862",
+        "piece-167863",
+        "piece-167864",
+        "piece-167865",
+        "piece-167866",
+        "piece-167867",
+        "piece-167868",
+        "piece-167869",
+        "piece-167870",
+        "piece-167871",
+        "piece-167872",
+        "piece-167873",
+        "piece-167874",
+        "piece-167875",
+        "piece-167876",
+        "piece-167877",
+        "piece-167878",
+        "piece-167879",
+        "piece-167880",
+        "piece-167881",
+        "piece-167882",
+        "piece-167883",
+        "piece-167884",
+        "piece-167885",
+        "piece-167886",
+        "piece-167887",
+        "piece-167888",
+        "piece-167889",
+        "piece-167890",
+        "piece-167891",
+        "piece-167892",
+        "piece-167893",
+        "piece-167894",
+        "piece-167895",
+        "piece-167896",
+        "piece-167897",
+        "piece-167898",
+        "piece-167899",
+        "piece-167900",
+        "piece-167901",
+        "piece-167902",
+        "piece-167903",
+        "piece-167904",
+        "piece-167905",
+        "piece-167906",
+        "piece-167907",
+        "piece-167908",
+        "piece-167909",
+        "piece-167910",
+        "piece-167911",
+        "piece-167912",
+        "piece-167913",
+        "piece-167914",
+        "piece-167915",
+        "piece-167916",
+        "piece-167917",
+        "piece-167918",
+        "piece-167919",
+        "piece-167920",
+        "piece-167921",
+        "piece-167922",
+        "piece-167923",
+        "piece-167924",
+        "piece-167925",
+        "piece-167926",
+        "piece-167927"
+      ],
+      "debris": 231
+    },
+    {
+      "frame": 330,
+      "simulationTick": 660,
+      "kind": "buildingExplosion",
+      "point": [
+        109.79045204097373,
+        1.55,
+        195.91872045498621
+      ],
+      "power": 240,
+      "radius": 10,
+      "buildingId": "building-1748",
+      "sourceId": "piece-11559",
+      "sourceAlive": true,
+      "projections": 1,
+      "furnishing": 24,
+      "collapsed": [],
+      "debris": 240
+    }
+  ],
+  "frozen": {
+    "time": 6.000000000000088,
+    "revision": 11
+  },
+  "captures": [
+    {
+      "dpr": 1,
+      "images": [
+        "primitive-index-dpr1-expanded.png",
+        "primitive-index-dpr1-indexed.png",
+        "primitive-index-dpr1-repeat.png"
+      ],
+      "pngSha256": "95954a3c5c676f0c126f06577a0f0ba48ad4384fd32702b3dee4317623928246",
+      "byteIdentical": true,
+      "stats": [
+        {
+          "enabled": false,
+          "width": 1440,
+          "height": 900,
+          "triangles": 3731650,
+          "instances": 53716,
+          "drawCalls": 1889
+        },
+        {
+          "enabled": true,
+          "width": 1440,
+          "height": 900,
+          "triangles": 3731650,
+          "instances": 53716,
+          "drawCalls": 1889
+        },
+        {
+          "enabled": false,
+          "width": 1440,
+          "height": 900,
+          "triangles": 3731650,
+          "instances": 53716,
+          "drawCalls": 1889
+        }
+      ]
+    },
+    {
+      "dpr": 2,
+      "images": [
+        "primitive-index-dpr2-expanded.png",
+        "primitive-index-dpr2-indexed.png",
+        "primitive-index-dpr2-repeat.png"
+      ],
+      "pngSha256": "a072a64c8dd4e6251b7ae396fcb014baa0b38747b890761f425d814921b30508",
+      "byteIdentical": true,
+      "stats": [
+        {
+          "enabled": false,
+          "width": 1697,
+          "height": 1061,
+          "triangles": 3966486,
+          "instances": 53716,
+          "drawCalls": 1893
+        },
+        {
+          "enabled": true,
+          "width": 1697,
+          "height": 1061,
+          "triangles": 3966486,
+          "instances": 53716,
+          "drawCalls": 1893
+        },
+        {
+          "enabled": false,
+          "width": 1697,
+          "height": 1061,
+          "triangles": 3966486,
+          "instances": 53716,
+          "drawCalls": 1893
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "backendEvents": [],
+  "notes": [
+    "Same renderer, same scene state and animation time; only IBO contents are toggled.",
+    "DPR 2 retains the existing production pixel cap.",
+    "Pixel equality is separate from timing measurements and does not establish a speedup."
+  ]
+}

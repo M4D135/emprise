@@ -3,10 +3,16 @@
 from browser_support import Browser,ROOT
 import time,json,hashlib
 with Browser() as b:
- b.cmd('Page.addScriptToEvaluateOnNewDocument',{'source':'''window.rumbles=[];window.virtualPad={id:'Xbox 360 Controller (STANDARD GAMEPAD)',index:0,connected:true,mapping:'standard',axes:[0,0,0,0],buttons:Array.from({length:17},()=>({value:0,pressed:false})),vibrationActuator:{playEffect:(t,o)=>{rumbles.push(o);return Promise.resolve('complete')},reset:()=>{rumbles.push({reset:true});return Promise.resolve()}}};Object.defineProperty(navigator,'getGamepads',{value:()=>virtualPad.connected?[virtualPad]:[]});'''})
+ b.cmd('Page.addScriptToEvaluateOnNewDocument',{'source':'''window.rumbles=[];window.virtualPadReads=0;window.virtualPad={id:'Xbox 360 Controller (STANDARD GAMEPAD)',index:0,connected:true,mapping:'standard',axes:[0,0,0,0],buttons:Array.from({length:17},()=>({value:0,pressed:false})),vibrationActuator:{playEffect:(t,o)=>{rumbles.push(o);return Promise.resolve('complete')},reset:()=>{rumbles.push({reset:true});return Promise.resolve()}}};Object.defineProperty(navigator,'getGamepads',{value:()=>{virtualPadReads++;return virtualPad.connected?[virtualPad]:[];}});'''})
  b.load();ev=b.ev
- def button(i,value=1):ev(f'virtualPad.buttons[{i}].value={value};virtualPad.buttons[{i}].pressed={str(value>.5).lower()};true')
- def tap(i):button(i);time.sleep(.10);button(i,0);time.sleep(.12)
+ def button(i,value=1):return ev(f'virtualPad.buttons[{i}].value={value};virtualPad.buttons[{i}].pressed={str(value>.5).lower()};virtualPadReads')
+ def tap(i):
+  # The Gamepad API is polled by frames. A cold first frame can exceed a
+  # fixed 100 ms sleep; release only after the actual reader saw the press.
+  # Observe the preceding neutral/held state too, including menu gates.
+  reads=ev('virtualPadReads');b.wait(f'virtualPadReads>{reads}',5)
+  reads=button(i);b.wait(f'virtualPadReads>{reads}',5)
+  reads=button(i,0);b.wait(f'virtualPadReads>{reads}',5);time.sleep(.12)
  def axis(i,value):ev(f'virtualPad.axes[{i}]={value};true')
  def neutral():ev('virtualPad.axes.fill(0);virtualPad.buttons.forEach(b=>{b.value=0;b.pressed=false});true');time.sleep(.12)
  checks=[]

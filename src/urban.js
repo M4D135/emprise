@@ -4,27 +4,60 @@
 const materials={metal:{density:7800,strength:20,fuel:.08},stone:{density:2200,strength:60,fuel:.10},wood:{density:550,strength:7,fuel:1},glass:{density:2500,strength:3,fuel:0},dirt:{density:1500,strength:12,fuel:0}};
 const material=m=>m.material||(m.mat>=8.5&&m.mat<=9.5||m.mat>12.5&&m.mat<13.5||m.mat>=2.5&&m.mat<=3.5?'stone':m.mat===19||m.window?'glass':m.mat===10||m.mat===7||m.shape==='foliage'?'wood':m.mat===8||m.mat===11?'dirt':'metal');
 function describe(m){const mat=material(m),v=m.s[0]*m.s[1]*m.s[2]*({sphere:.524,cylinder:.785,foliage:.12,ring:.05}[m.shape]||1),shell=m.s[0]>3&&m.s[1]>3&&m.s[2]>3?.18:mat==='metal'&&Math.min(...m.s)>.05?.08:1;return {material:mat,mass:Math.max(.035,v*materials[mat].density*shell),fuel:materials[mat].fuel};}
-function controller(meshes,boxes,seed){const index=new Map(meshes.map((m,i)=>[m,i])),colliders=boxes.filter(q=>index.has(q.mesh)).map(q=>({minX:q.minX??q.x-q.a,maxX:q.maxX??q.x+q.a,minY:q.minY,maxY:q.maxY,minZ:q.minZ??q.z-q.b,maxZ:q.maxZ??q.z+q.b,mesh:index.get(q.mesh)})),byMesh=new Map(colliders.map((c,i)=>[c.mesh,i])),definitions=[];
- for(let i=0;i<meshes.length;i++){const m=meshes[i];if(m.boundary||m.fx||m.ground||m.terrain||m.p[1]+m.s[1]/2<.15||m.s[1]<.45&&Math.max(m.s[0],m.s[2])>10)continue;const d=describe(m);m.material=d.material;m.mass=d.mass;
+function controller(meshes,boxes,seed,deferredProperties=null){const index=new Map(meshes.map((m,i)=>[m,i])),colliders=boxes.filter(q=>index.has(q.mesh)).map(q=>({minX:q.minX??q.x-q.a,maxX:q.maxX??q.x+q.a,minY:q.minY,maxY:q.maxY,minZ:q.minZ??q.z-q.b,maxZ:q.maxZ??q.z+q.b,mesh:index.get(q.mesh)})),byMesh=new Map(colliders.map((c,i)=>[c.mesh,i])),definitions=[];
+ for(let i=0;i<meshes.length;i++){const m=meshes[i];if(m.boundary||m.fx||m.ground||m.terrain||m.p[1]+m.s[1]/2<.15||m.s[1]<.45&&Math.max(m.s[0],m.s[2])>10)continue;const d=describe(m);if(deferredProperties)deferredProperties.push({mesh:m,material:d.material,mass:d.mass});else{m.material=d.material;m.mass=d.mass;}
   definitions.push({id:'piece-'+i,kind:m.shape==='foliage'||m.mat===10?'tree':m.s[1]>3&&m.s[0]>3&&m.s[2]>3?'wall':'decor',strength:Math.min(180,materials[d.material].strength+Math.sqrt(d.mass)*.035),meshes:[i],colliders:byMesh.has(i)?[byMesh.get(i)]:[]});
  }
  const pillars=definitions.filter(d=>d.kind==='wall').map(d=>({id:d.id,m:meshes[d.meshes[0]]})),grid=new Map();for(const q of pillars){const m=q.m,r=Math.hypot(m.s[0],m.s[2])/2+1;for(let x=Math.floor((m.p[0]-r)/8);x<=Math.floor((m.p[0]+r)/8);x++)for(let z=Math.floor((m.p[2]-r)/8);z<=Math.floor((m.p[2]+r)/8);z++){const key=x+','+z;if(!grid.has(key))grid.set(key,[]);grid.get(key).push(q);}}
  for(const d of definitions){if(d.kind==='wall')continue;const m=meshes[d.meshes[0]];if(m.p[1]<2.5)continue;const supports=[];for(const q of grid.get(Math.floor(m.p[0]/8)+','+Math.floor(m.p[2]/8))||[]){const b=q.m,c=Math.cos(-(b.r?.[1]||0)),ss=Math.sin(-(b.r?.[1]||0)),dx=m.p[0]-b.p[0],dz=m.p[2]-b.p[2],u=dx*c+dz*ss,v=-dx*ss+dz*c;if(Math.abs(u)<b.s[0]/2+1&&Math.abs(v)<b.s[2]/2+1&&m.p[1]<b.p[1]+b.s[1]/2+3)supports.push(q.id);}if(supports.length){d.kind='roof';d.supports=supports;d.supportRatio=.38;}}
  return FDestruction.create({seed,stage:0,generation:6,meshes,colliders,destructibles:definitions});
 }
-function create(world,sim,{saved=null,interiors,campaign,traffic,notify=()=>{}}={}){
+function create(world,sim,{saved=null,interiors,campaign,traffic,notify=()=>{},batchStreetExplosions=false}={}){
  const p=sim.state.player,roomStates=new Map(Object.entries(saved?.rooms||{})),charred=new Set(saved?.charred||[]),fires=[],bodies=[],dust=[],crew=[],report={breaches:0,ignitions:0,extinguished:0,dispatches:0,impacts:0,vehicleExplosions:0,crumbleVolume:0};let outdoor=null,indoor=null,roomKey=null,version=0,clock=0,fireClock=0,physicsClock=0,staticClock=0,held=null,truck=null,alarm=0,job=null;
  const baseMeshes=world.scenery.slice(),baseBoxes=world.boxes.slice(),physicsOptions={cell:8,ground:null,gravity:-9.81,capacity:256,maxStatics:8192,maxContacts:4096,maxAwake:96,maxJoints:0,massMin:.035,massMax:12000,iterations:4,maxSubsteps:4},engines=new Map(),ZONE=1024,PADDING=128,MAX_ZONES=24;
  const projectedRooms=new Map(),breaches=R.breaches?.create(world,interiors,baseMeshes,{saved:saved?.openings,legacyDamage:saved?.damage,onProject:prepareProjected});
- let projectionMembers=null,projectionRoom=null,projectedSyncDepth=0,projectedSyncPending=false;
+ let projectionMembers=null,projectionRoom=null,projectedSyncDepth=0,projectedSyncPending=false,streetPublicationPending=false;
  // Transient reads never escape this owner. Render/collider poses copy their
  // position; persistence and engine migration still request independent bodies.
  const bodyRead={};
  const readBody=q=>q.engine.bodyInto(q.handle,bodyRead);
+ const engineRecords=new WeakMap(),impactHandlers=new WeakMap();let engineSetScratch=new Set(),physicsReserve=null;
  const publishBodies=value=>{if(world.publishBodies)world.publishBodies(value);else world.dynamicBodies=value;};
  const currentScene=()=>world.room?(world.room.sceneId||world.room.building.id+':'+world.room.floor):'street';
  const sceneGround=(scene,x,z)=>scene==='street'?world.ground(x,z):.08,fireHeight=f=>{const c=f.vehicleId!==undefined?world.fleet.find(c=>c.id===f.vehicleId):null;return c?(c.y??world.ground(c.x,c.z)):sceneGround(f.scene,f.x,f.z);};
- function cleanEngines(){const used=new Set(bodies.map(q=>q.engine));for(const [key,record]of engines)if(!used.has(record.engine))engines.delete(key);}
+ function cleanEngines(){
+  // Borrow the private set exclusively. A reentrant caller gets its own set;
+  // no published array, body description or collision record is reused here.
+  const used=engineSetScratch||new Set();engineSetScratch=null;
+  try{const count=bodies.length;for(let i=0;i<count;i++)if(i in bodies)used.add(bodies[i].engine);for(const [key,record]of engines)if(!used.has(record.engine)){engines.delete(key);engineRecords.delete(record.engine);}}
+  finally{used.clear();engineSetScratch=used;}
+ }
+ function impactHandler(c){let handler=impactHandlers.get(c);if(!handler){handler=h=>vehicleImpact(c,h);impactHandlers.set(c,handler);}return handler;}
+ const streetBounds=(ix,iz)=>({minX:ix*ZONE-PADDING,maxX:(ix+1)*ZONE+PADDING,minZ:iz*ZONE-PADDING,maxZ:(iz+1)*ZONE+PADDING});
+ function prewarmPhysics(){
+  // Loading may reserve one pristine solver, but it is not an active zone.
+  // Only the live session's caller opts in; demos and updates never call here.
+  if(world.room||!Number.isFinite(p.x)||!Number.isFinite(p.z))return false;
+  const ix=Math.floor(p.x/ZONE),iz=Math.floor(p.z/ZONE);if(!Number.isSafeInteger(ix)||!Number.isSafeInteger(iz))return false;
+  const key='street:'+ix+','+iz;if(engines.has(key))return false;
+  for(const record of engines.values()){const b=record.bounds;if(record.scene==='street'&&p.x>b.minX+32&&p.x<b.maxX-32&&p.z>b.minZ+32&&p.z<b.maxZ-32)return false;}
+  if(physicsReserve?.key===key)return true;if(engines.size>=MAX_ZONES)return false;
+  const bounds=streetBounds(ix,iz);if(!Object.values(bounds).every(Number.isFinite)||!(bounds.minX<bounds.maxX&&bounds.minZ<bounds.maxZ))return false;
+  const engine=FPhysics.create({...physicsOptions,bounds}),pristine=engine.snapshot(),initialStats={...engine.stats},initialPhases=engine.phaseMs.slice();
+  // Warm the actual reserved closures, not a throwaway solver. Nothing from
+  // this synthetic contact scene is registered in the live world or saved.
+  const cx=(bounds.minX+bounds.maxX)/2,cz=(bounds.minZ+bounds.maxZ)/2;
+  try{
+   engine.setStatics([],[{x:cx,z:cz,w:64,d:64,y:0}]);
+   for(let i=0;i<96;i++)engine.addBody({shape:'box',size:[.55,.45,.7],pos:[cx-2+(i%8)*.6,.23+Math.floor(i/32)*.45,cz-2+Math.floor(i/8)%4*.7],rot:[.02*(i%3),.07*(i%5),-.015*(i%4)],vel:[(i%3-1)*.3,-.1,((i+1)%3-1)*.2],ang:[.1,.2,-.1],mass:20+i,material:'stone'});
+   for(let i=0;i<8;i++)engine.step(1/60);
+  }finally{
+   // restore resets bodies/generations, accumulator and impulse cache, and
+   // invalidates the grids. Diagnostics are deliberately outside its snapshot.
+   engine.setStatics([],[]);engine.restore(pristine);Object.assign(engine.stats,initialStats);engine.phaseMs.set(initialPhases);
+  }
+  physicsReserve={key,bounds,engine};return true;
+ }
  function physicsFor(scene,pos=[p.x,p.y,p.z],exclude=null){
   const ix=Math.floor(pos[0]/ZONE),iz=Math.floor(pos[2]/ZONE),key=scene==='street'?'street:'+ix+','+iz:'room:'+scene;
   const direct=engines.get(key);if(direct&&direct.engine!==exclude)return direct.engine;
@@ -32,21 +65,22 @@ function create(world,sim,{saved=null,interiors,campaign,traffic,notify=()=>{}}=
   // neighbouring pieces still collide instead of living in two separate solvers.
   if(scene==='street')for(const record of engines.values()){const b=record.bounds;if(record.scene==='street'&&record.engine!==exclude&&pos[0]>b.minX+32&&pos[0]<b.maxX-32&&pos[2]>b.minZ+32&&pos[2]<b.maxZ-32)return record.engine;}
   cleanEngines();if(engines.size>=MAX_ZONES)return null;
-  const bounds=scene==='street'?{minX:ix*ZONE-PADDING,maxX:(ix+1)*ZONE+PADDING,minZ:iz*ZONE-PADDING,maxZ:(iz+1)*ZONE+PADDING}:{minX:896,maxX:1104,minZ:896,maxZ:1104};
-  const engine=FPhysics.create({...physicsOptions,bounds});engines.set(key,{key,scene,bounds,engine});return engine;
+  const bounds=scene==='street'?streetBounds(ix,iz):{minX:896,maxX:1104,minZ:896,maxZ:1104};
+  const reserve=physicsReserve,match=scene==='street'&&reserve?.key===key&&['minX','maxX','minZ','maxZ'].every(k=>Object.is(reserve.bounds[k],bounds[k])),engine=match?reserve.engine:FPhysics.create({...physicsOptions,bounds});if(match)physicsReserve=null;
+  const record={key,scene,bounds,engine},previous=engines.get(key);if(previous)engineRecords.delete(previous.engine);engines.set(key,record);engineRecords.set(engine,record);return engine;
  }
  function addToEngine(engine,mesh,mass,velocity,spin,asleep=false){return engine.addBody({shape:mesh.shape==='sphere'?'sphere':'box',size:mesh.s,radius:mesh.s[0]/2,pos:mesh.p,rot:mesh.r||[0,0,0],vel:velocity,ang:spin,mass,material:material(mesh),asleep});}
  function rebuildEngine(record){
   const previous=record.engine,remaining=bodies.filter(q=>q.engine===previous),snapshots=remaining.map(q=>({q,b:previous.body(q.handle)})).filter(v=>v.b&&!v.b.lost);
-  if(!snapshots.length){engines.delete(record.key);return;}
-  const next=FPhysics.create({...physicsOptions,bounds:record.bounds});record.engine=next;
+  if(!snapshots.length){const current=engines.get(record.key);if(current)engineRecords.delete(current.engine);engines.delete(record.key);engineRecords.delete(previous);return;}
+  const next=FPhysics.create({...physicsOptions,bounds:record.bounds});engineRecords.delete(previous);record.engine=next;if(engines.get(record.key)===record)engineRecords.set(next,record);
   for(const {q,b}of snapshots){q.handle=addToEngine(next,{...q.mesh,p:b.pos,r:FPhysics.quatToEuler(...b.quat)},q.mass,b.vel,b.ang,b.asleep);q.engine=next;}
   staticClock=0;
  }
  function migrateBodies(){
   const rebuild=new Set();
   for(let i=bodies.length-1;i>=0;i--){const q=bodies[i],b=readBody(q);if(!b||b.lost){if(held===q)held=null;for(const record of engines.values())if(record.engine===q.engine)rebuild.add(record);bodies.splice(i,1);continue;}
-   if(q.scene!=='street')continue;const record=[...engines.values()].find(r=>r.engine===q.engine),bounds=record?.bounds;if(!bounds)continue;
+   if(q.scene!=='street')continue;const record=engineRecords.get(q.engine),bounds=record?.bounds;if(!bounds)continue;
    if(b.pos[0]>bounds.minX+48&&b.pos[0]<bounds.maxX-48&&b.pos[2]>bounds.minZ+48&&b.pos[2]<bounds.maxZ-48)continue;
    const next=physicsFor(q.scene,b.pos,q.engine);
    if(!next){q.engine.setVelocity(q.handle,0,b.vel[1],0,...b.ang);continue;}
@@ -55,11 +89,66 @@ function create(world,sim,{saved=null,interiors,campaign,traffic,notify=()=>{}}=
   }
   for(const record of rebuild)rebuildEngine(record);cleanEngines();
  }
+ // Loading-only, bounded reservations. These are not active/projected rooms
+ // and never enter persistence or the physical world until actually consumed.
+ const warmRooms=new Map();let warmControllers=new WeakMap(),warmGeneration=0;
+ const warmStats={prepared:0,roomHits:0,controllerHits:0,invalidated:0,evicted:0,oversized:0};
+ const warmVectors=['p','s','r'];
+ const warmMeshFields=['shape','mat','material','mass','boundary','fx','ground','terrain','collision'];
+ const warmBoxFields=['x','z','a','b','c','s','cap','minX','maxX','minY','maxY','minZ','maxZ'];
+ const warmKey=(b,floor,placeIndex=0)=>{const places=(b.places||[]).filter(p=>p&&typeof p==='object'),index=places.length?Math.max(places.length>1?-1:0,Math.min(places.length-1,Number.isInteger(placeIndex)?placeIndex:0)):0;return b.id+':'+floor+':local-'+index+':v2';};
+ const warmSource=b=>JSON.stringify([b.id,b.index,b.type,b.floors,b.fixture,b.places,b.boxes]);
+ function warmReport(){let meshes=0,colliders=0,sourceBytes=0;for(const b of warmRooms.values()){meshes+=b.meshes.length;colliders+=b.boxes.length;sourceBytes+=b.sourceBytes;}return {...warmStats,generation:warmGeneration,rooms:warmRooms.size,meshes,colliders,sourceBytes,keys:[...warmRooms.keys()]};}
+ function takeWarmRoom(building,floor,placeIndex){
+  const key=warmKey(building,floor,placeIndex),bundle=warmRooms.get(key);if(!bundle)return null;warmRooms.delete(key);
+  if(bundle.generation!==warmGeneration||bundle.building!==building||bundle.factory!==interiors.roomFor||bundle.source!==warmSource(building)||!interiors.entries.includes(building)){warmStats.invalidated++;return null;}
+  warmStats.roomHits++;warmControllers.set(bundle.room,bundle);return bundle.room;
+ }
+ function takeWarmController(room){
+  const b=warmControllers.get(room);if(!b)return null;warmControllers.delete(room);
+  let valid=b.generation===warmGeneration&&b.building===room.building&&b.factory===interiors.roomFor&&b.source===warmSource(room.building)&&b.key===room.sceneId&&room.scenery===b.meshes&&room.colliders===b.boxes&&room.scenery.length===b.meshChecks.length&&room.colliders.length===b.boxChecks.length;
+  for(let i=0;valid&&i<b.meshChecks.length;i++){const q=b.meshChecks[i],m=room.scenery[i];valid=m===q.mesh;
+   for(let j=0;valid&&j<warmMeshFields.length;j++)valid=Object.is(m[warmMeshFields[j]],q.fields[j]);
+   for(let j=0;valid&&j<warmVectors.length;j++){const v=m[warmVectors[j]],old=q.vectors[j];valid=v?.length===old?.length;if(v)for(let k=0;valid&&k<v.length;k++)valid=Object.is(v[k],old[k]);}
+  }
+  for(let i=0;valid&&i<b.boxChecks.length;i++){const q=b.boxChecks[i],c=room.colliders[i];valid=c===q.box&&c.mesh===q.mesh;for(let j=0;valid&&j<warmBoxFields.length;j++)valid=Object.is(c[warmBoxFields[j]],q.fields[j]);}
+  if(!valid){warmStats.invalidated++;return null;}
+  // Match the normal constructor's mutation timing, not the loading phase.
+  for(const q of b.assignments){q.mesh.material=q.material;q.mesh.mass=q.mass;}
+  warmStats.controllerHits++;return b.dc;
+ }
+ function prewarmInteriors({maxRooms=64,maxMeshes=24000,radius=80}={}){
+  warmStats.evicted+=warmRooms.size;warmRooms.clear();warmControllers=new WeakMap();warmGeneration++;
+  maxRooms=Math.max(0,Math.min(64,Number.isFinite(maxRooms)?Math.floor(maxRooms):64));maxMeshes=Math.max(0,Math.min(24000,Number.isFinite(maxMeshes)?Math.floor(maxMeshes):24000));radius=Math.max(0,Math.min(80,Number.isFinite(radius)?radius:80));
+  if(!interiors?.roomFor||!interiors?.setPreparedRoomProvider||!maxRooms||!maxMeshes||!Number.isFinite(p.x)||!Number.isFinite(p.z))return warmReport();
+  // Closest façade volumes, including the storeys a normal blast can expose.
+  // This is geometry-driven and independent of benchmark targets or missions.
+  const candidates=[];
+  for(const building of interiors.entries){let distance=Infinity,base=0;
+   for(const q of building.boxes||[]){const c=Math.cos(q.lacet||0),sn=Math.sin(q.lacet||0),dx=p.x-q.x,dz=p.z-q.z,u=dx*c-dz*sn,v=dx*sn+dz*c,d=Math.hypot(Math.max(0,Math.abs(u)-q.lx/2),Math.max(0,Math.abs(v)-q.lz/2));if(d<distance){distance=d;base=world.ground(q.x,q.z);}}
+   if(!(distance<=radius))continue;
+   const eye=(p.y||0)+1.62,low=Math.max(0,Math.floor((eye-base-10)/3.1)),high=Math.min((building.floors||1)-1,Math.floor((eye-base+10)/3.1)),places=(building.places||[]).filter(q=>q&&typeof q==='object');
+   for(let floor=low;floor<=high;floor++){const locals=floor===0?(places.length>1?[-1,...places.map((_,i)=>i)]:[0]):[0],height=Math.max(0,base+floor*3.1-eye,eye-(base+(floor+1)*3.1));
+    for(const placeIndex of locals){const key=warmKey(building,floor,placeIndex);if(key===roomKey||key===world.room?.sceneId||projectedRooms.has(key))continue;candidates.push({building,floor,placeIndex,key,distance:distance*distance+height*height});}
+   }
+  }
+  candidates.sort((a,b)=>a.distance-b.distance||a.key.localeCompare(b.key));let meshes=0;
+  for(const q of candidates){if(warmRooms.size>=maxRooms)break;const room=interiors.roomFor(q.building,q.floor,q.placeIndex);if(room.sceneId!==q.key)continue;
+   if(meshes+room.scenery.length>maxMeshes){warmStats.oversized++;continue;}
+   const meshChecks=room.scenery.map(mesh=>({mesh,fields:warmMeshFields.map(k=>mesh[k]),vectors:['p','s','r'].map(k=>mesh[k]?.slice())})),boxChecks=room.colliders.map(box=>({box,mesh:box.mesh,fields:warmBoxFields.map(k=>box[k])}));
+   // Reserve construction without adding/deleting live mesh properties: even
+   // reversed deletes can force V8 objects into slower dictionary storage.
+   const assignments=[],dc=controller(room.scenery,room.colliders,room.sceneId,assignments);
+   const ids=new Map(room.scenery.map((m,i)=>[m,i])),serialized=JSON.stringify([room.scenery,room.colliders.map(c=>({...c,mesh:ids.get(c.mesh)??null}))]),sourceBytes=new TextEncoder().encode(serialized).byteLength;
+   warmRooms.set(q.key,{room,dc,key:q.key,building:q.building,factory:interiors.roomFor,source:warmSource(q.building),generation:warmGeneration,meshes:room.scenery,boxes:room.colliders,meshChecks,boxChecks,assignments,sourceBytes});meshes+=room.scenery.length;warmStats.prepared++;
+  }return warmReport();
+ }
+ interiors?.setPreparedRoomProvider?.(takeWarmRoom);
  function scorch(dc,scene){if(charred.size)world.invalidateSceneryRender?.();for(const value of charred){const [part,id]=value.split('|');if(part===scene)for(const m of dc.describe(id)?.meshes||[]){m.color=(m.color||[.4,.4,.4]).map(n=>n*.55);m.renderRevision=(m.renderRevision||0)+1;}}}
  function streetController(){if(!outdoor){outdoor=controller(baseMeshes,baseBoxes,135);if(saved?.damage&&outdoor.restore(saved.damage))sync(outdoor);scorch(outdoor,'street');}return outdoor;}
  function applyRoom(dc,room){room.scenery=dc.meshes;room.colliders.splice(0,room.colliders.length,...dc.colliders.map(q=>({x:(q.minX+q.maxX)/2,z:(q.minZ+q.maxZ)/2,a:(q.maxX-q.minX)/2,b:(q.maxZ-q.minZ)/2,c:1,s:0,cap:0,minY:q.minY,maxY:q.maxY,mesh:dc.meshes[q.mesh]})));}
- function prepareProjected(bridge){const room=bridge.room,key=room.sceneId;let record=projectedRooms.get(key);if(!record){let dc;if(indoor&&roomKey===key)dc=indoor;else{const source=roomStates.has(key)?interiors.roomFor(room.building,room.floor,room.placeIndex):room;dc=controller(source.scenery,source.colliders,key);if(roomStates.has(key))dc.restore(roomStates.get(key));scorch(dc,key);}record={dc,rooms:new Set()};projectedRooms.set(key,record);}record.rooms.add(room);applyRoom(record.dc,room);return record.dc;}
- function activeController(){if(world.room){const key=world.room.sceneId||world.room.building.id+':'+world.room.floor;if(key!==roomKey){if(indoor&&roomKey)roomStates.set(roomKey,indoor.snapshot());roomKey=key;const record=projectedRooms.get(key);if(record){indoor=record.dc;record.rooms.add(world.room);applyRoom(indoor,world.room);}else{indoor=controller(world.room.scenery,world.room.colliders,key);if(roomStates.has(key)&&indoor.restore(roomStates.get(key)))applyRoom(indoor,world.room);}scorch(indoor,key);held=null;}return indoor;}return streetController();}
+ function prepareProjected(bridge){const room=bridge.room,key=room.sceneId;let record=projectedRooms.get(key);if(!record){let dc;if(indoor&&roomKey===key)dc=indoor;else{dc=takeWarmController(room);if(!dc){const source=roomStates.has(key)?interiors.roomFor(room.building,room.floor,room.placeIndex):room;dc=controller(source.scenery,source.colliders,key);}if(roomStates.has(key))dc.restore(roomStates.get(key));scorch(dc,key);}record={dc,rooms:new Set()};projectedRooms.set(key,record);}record.rooms.add(room);applyRoom(record.dc,room);return record.dc;}
+ function activeController(){if(world.room){const key=world.room.sceneId||world.room.building.id+':'+world.room.floor;if(key!==roomKey){if(indoor&&roomKey)roomStates.set(roomKey,indoor.snapshot());roomKey=key;const record=projectedRooms.get(key);if(record){indoor=record.dc;record.rooms.add(world.room);applyRoom(indoor,world.room);}else{indoor=takeWarmController(world.room)||controller(world.room.scenery,world.room.colliders,key);if(roomStates.has(key)&&indoor.restore(roomStates.get(key)))applyRoom(indoor,world.room);}scorch(indoor,key);held=null;}return indoor;}return streetController();}
  function sync(dc){if(dc===outdoor){if(breaches)breaches.sync(dc,world.room?interiors?.outside:p);else world.replaceScenery(dc.meshes,{meshDelta:dc.meshDelta});}else{if(dc===indoor&&world.room)applyRoom(dc,world.room);for(const record of projectedRooms.values())if(record.dc===dc)for(const room of record.rooms){applyRoom(dc,room);breaches?.roomChanged(room);}if(!world.room&&outdoor&&breaches){if(projectedSyncDepth)projectedSyncPending=true;else breaches.update(1,p);}}version++;staticClock=0;}
  function exposedDamage(bridge,point,power,radius,direction){const dc=prepareProjected(bridge),local=bridge.toRoom(point),end=direction?bridge.toRoom(point.map((v,i)=>v+direction[i])):null,delta=end?.map((v,i)=>v-local[i]),length=delta?Math.hypot(...delta):1,result=radius>0?dc.blast(local,radius/Math.min(...bridge.scale),power):dc.hit(local,power,delta?.map(v=>v/(length||1)));if(result.changed)sync(dc);structuralDebris(result.debris,bridge.room.sceneId);return {...result,debris:[],events:result.events.map(e=>{const at=bridge.toWorld([e.x,e.y,e.z]);return {...e,x:at[0],y:at[1],z:at[2],sourceRoom:bridge.room.sceneId};})};}
 
@@ -122,14 +211,21 @@ function create(world,sim,{saved=null,interiors,campaign,traffic,notify=()=>{}}=
  }
  if(world.combatWorld.spatial)world.combatWorld.spatial.support=rubbleSupport;
  function damage(point,power,radius=0,direction){
+  // A nested damage query must see precisely the first exterior snapshot,
+  // not the already-damaged rooms which historically publish at loop exit.
+  if(streetPublicationPending){streetPublicationPending=false;breaches.publishPrepared();}
   if(!radius){const target=world.fleet.find(c=>{const q=world.carBox(c),dx=point[0]-q.x,dz=point[2]-q.z,u=dx*q.c+dz*q.s,v=-dx*q.s+dz*q.c;return Math.hypot(Math.max(0,Math.abs(u)-q.a),Math.max(0,Math.abs(v)-q.b),Math.max(0,q.minY-point[1],point[1]-q.maxY))<.32;});if(target){hitVehicle(target,power*.65,point);return {changed:false,debris:[],events:[]};}}
-  const scene=world.room?.contains(point[0],point[2])?currentScene():'street',dc=scene==='street'?streetController():activeController();const exposed=scene==='street'?breaches?.inside(point):null;if(exposed&&!radius)return exposedDamage(exposed,point,power,0,direction);const core=world.coreBounds||{minX:-550,maxX:550,minZ:-550,maxZ:550},outside=scene==='street'&&(point[0]<core.minX||point[0]>core.maxX||point[2]<core.minZ||point[2]>core.maxZ),streamed=outside?world.cityStream?.damage?.(point,power,radius,direction):null,result=streamed?.changed?streamed:radius>0?dc.blast(point,radius,power):dc.hit(point,power,direction);if(scene==='street'&&!streamed?.changed)breaches?.observe(result);if(result.changed){if(streamed?.changed){version++;staticClock=0;}else sync(dc);report.breaches++;}if(scene==='street'&&radius>0){
+  const scene=world.room?.contains(point[0],point[2])?currentScene():'street',dc=scene==='street'?streetController():activeController();const exposed=scene==='street'?breaches?.inside(point):null;if(exposed&&!radius)return exposedDamage(exposed,point,power,0,direction);const core=world.coreBounds||{minX:-550,maxX:550,minZ:-550,maxZ:550},outside=scene==='street'&&(point[0]<core.minX||point[0]>core.maxX||point[2]<core.minZ||point[2]>core.maxZ),streamed=outside?world.cityStream?.damage?.(point,power,radius,direction):null,result=streamed?.changed?streamed:radius>0?dc.blast(point,radius,power):dc.hit(point,power,direction);if(scene==='street'&&!streamed?.changed)breaches?.observe(result);if(result.changed){if(streamed?.changed){version++;staticClock=0;}else if(batchStreetExplosions&&world.collisionQueriesPure===true&&scene==='street'&&radius>0&&!world.room&&!outside&&!projectedSyncDepth&&breaches?.prepareSync&&breaches?.publishPrepared){
+   // Trusted production geometry/publishers only. Generic/custom worlds keep
+   // their synchronous publication and callback/exception semantics unchanged.
+   streetPublicationPending=breaches.prepareSync(dc,p);version++;staticClock=0;
+  }else sync(dc);report.breaches++;}if(scene==='street'&&radius>0){
    // Each room controller, collision set and debris stream changes in order.
    // Publish their projected street geometry once, before any outer impulses
    // or vehicle chain reactions can query it. Always flush completed changes.
    projectedSyncDepth++;
    try{for(const bridge of breaches?.projections||[]){const local=bridge.toRoom(point),r=radius/Math.min(bridge.scale[0],bridge.scale[2]),distance=Math.hypot(Math.max(0,Math.abs(local[0]-1000)-bridge.room.w/2),Math.max(0,Math.abs(local[2]-1000)-bridge.room.d/2));if(distance<r&&point[1]+radius>bridge.void.minY&&point[1]-radius<bridge.void.maxY){const interior=exposedDamage(bridge,point,power,radius,direction);result.changed||=interior.changed;result.events.push(...interior.events);}}}
-   finally{projectedSyncDepth--;if(!projectedSyncDepth&&projectedSyncPending){projectedSyncPending=false;breaches.update(1,p);}}
+   finally{projectedSyncDepth--;if(!projectedSyncDepth){const prepared=streetPublicationPending;streetPublicationPending=false;if(projectedSyncPending){projectedSyncPending=false;try{breaches.update(1,p);}catch(error){if(prepared)breaches.publishPrepared();throw error;}}else if(prepared)breaches.publishPrepared();}}
   }
   structuralDebris(result.debris,scene);
   for(const q of bodies){if(q.scene!==scene)continue;const b=readBody(q);if(!b||b.lost)continue;const d=Math.hypot(...b.pos.map((n,i)=>n-point[i]));if(d<Math.max(radius,1.2)){const dir=direction||b.pos.map((n,i)=>(n-point[i])/(d||1));const impulse=q.mesh.structural&&power>=25?Math.max(power*6,q.mass*Math.min(2.5,power*.018)):power*6;q.engine.impulse(q.handle,...point,...dir.map((n,i)=>n*impulse+(q.mesh.structural&&i===1&&power>=25?q.mass*.35:0)));}}
@@ -187,7 +283,7 @@ function create(world,sim,{saved=null,interiors,campaign,traffic,notify=()=>{}}=
    else{man.spray=null;let best=null;for(const off of [0,.5,-.5,1,-1,1.57,-1.57]){const a=Math.atan2(dz,dx)+off,x=man.x+Math.cos(a)*(man.injury?.leg?.35:2.4)*dt,z=man.z+Math.sin(a)*(man.injury?.leg?.35:2.4)*dt;if(!world.blocked(x,z,.27)&&(!best||Math.hypot(x-target.x,z-target.z)<best.d))best={x,z,d:Math.hypot(x-target.x,z-target.z)};}if(best){man.x=best.x;man.z=best.z;man.baseY=sceneGround(man.scene||'street',man.x,man.z);}}
   }
  }
- function update(dt,events=[]){clock+=dt;for(let i=dust.length-1;i>=0;i--){dust[i].age+=dt;if(dust[i].age>=3.5)dust.splice(i,1);}for(const c of world.fleet)vehicleFireStep(c,dt);for(const c of world.fleet)c.impactHandler=h=>vehicleImpact(c,h);if(world.room)activeController();else if(roomKey){if(indoor)roomStates.set(roomKey,indoor.snapshot());roomKey=null;indoor=null;held=null;}
+ function update(dt,events=[]){clock+=dt;for(let i=dust.length-1;i>=0;i--){dust[i].age+=dt;if(dust[i].age>=3.5)dust.splice(i,1);}for(const c of world.fleet)vehicleFireStep(c,dt);for(const c of world.fleet)c.impactHandler=impactHandler(c);if(world.room)activeController();else if(roomKey){if(indoor)roomStates.set(roomKey,indoor.snapshot());roomKey=null;indoor=null;held=null;}
   if(breaches?.update(dt,world.room?interiors?.outside:p)){version++;staticClock=0;}if(breaches&&(projectionMembers!==breaches.projections||projectionRoom!==world.room)){projectionMembers=breaches.projections;projectionRoom=world.room;const exposedKeys=new Set(projectionMembers.map(b=>b.room.sceneId)),retainedRooms=new Set(projectionMembers.map(b=>b.room));if(world.room)retainedRooms.add(world.room);for(const [key,record]of projectedRooms){if(!exposedKeys.has(key)&&key!==roomKey){roomStates.set(key,record.dc.snapshot());projectedRooms.delete(key);}else for(const room of record.rooms)if(!retainedRooms.has(room))record.rooms.delete(room);}}
   if(held){const b=readBody(held),{origin,dir}=aim(3),want=origin.map((v,i)=>v+dir[i]*1.8);if(b){const force=want.map((v,i)=>(v-b.pos[i])*18-b.vel[i]*6);held.engine.impulse(held.handle,...b.pos,...force.map(v=>v*held.mass*dt));if(Math.hypot(...b.pos.map((v,i)=>v-want[i]))>3)held=null;}}
   physicsClock+=dt;if(bodies.length&&physicsClock>=1/60){
@@ -219,7 +315,7 @@ function create(world,sim,{saved=null,interiors,campaign,traffic,notify=()=>{}}=
  // Campaign restores horizontal position before urban bodies exist. Preserve a
  // legitimate saved foot support only after those exact solids are available.
  if(saved?.playerSupport&&world.combatWorld.spatial){const q=saved.playerSupport;if(q.scene===currentScene()&&[q.x,q.y,q.z].every(Number.isFinite)&&Math.hypot(p.x-q.x,p.z-q.z)<.05){publishBodies(bodies.filter(b=>b.scene===currentScene()).map(bodyBox).filter(Boolean));const y=rubbleSupport(p.x,p.z,q.y,.28,sceneGround(q.scene,p.x,p.z),.06);if(Math.abs(y-q.y)<.06&&!world.blocked(p.x,p.z,.28,y,1.8))p.y=y;}}
- return {prepare(){const dc=streetController();world.prepareSceneryDelta?.(dc.meshes);},get physicsZones(){return [...engines.values()].map(r=>({key:r.key,scene:r.scene,bounds:{...r.bounds},bodies:bodies.filter(q=>q.engine===r.engine).length}));},crossBreach(previous,current){return breaches?.cross(previous,current)||false;},get breachProjections(){return breaches?.projections||[];},get breachLights(){return breaches?.lights||[];},materials,describe,damage,grab,throwHeld,ignite,igniteAhead,repair,hitVehicle,detonateVehicle,spawnBody,get physics(){return physicsFor(currentScene());},bodies,fires,crew,report,geometry,save,update,get held(){return held;},get truck(){return truck;},get revision(){return version;},get controller(){return activeController();}};
+ return {prepare(){const dc=streetController();world.prepareSceneryDelta?.(dc.meshes);},prewarmPhysics,prewarmInteriors,get interiorPrewarm(){return warmReport();},get physicsZones(){return [...engines.values()].map(r=>({key:r.key,scene:r.scene,bounds:{...r.bounds},bodies:bodies.filter(q=>q.engine===r.engine).length}));},crossBreach(previous,current){return breaches?.cross(previous,current)||false;},get breachProjections(){return breaches?.projections||[];},get breachLights(){return breaches?.lights||[];},materials,describe,damage,grab,throwHeld,ignite,igniteAhead,repair,hitVehicle,detonateVehicle,spawnBody,get physics(){return physicsFor(currentScene());},bodies,fires,crew,report,geometry,save,update,get held(){return held;},get truck(){return truck;},get revision(){return version;},get controller(){return activeController();}};
 }
 R.urban={create,describe,materials};
 })(globalThis.RADE);

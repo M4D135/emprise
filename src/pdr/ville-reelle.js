@@ -117,6 +117,34 @@
     for (let k = 0; k < p.length; k += 2) { x += p[k]; z += p[k + 1]; }
     return [x / n, z / n];
   }
+  /** Cut a thin ground box against actual water rings, in its unit coordinates.
+   * Some OSM stop/pedestrian areas themselves overlap the port. Their former
+   * rectangles became solid paving through boats, despite the water mask. A
+   * segment sweep preserves exact banks/holes, without a raster approximation.
+   * null means unchanged; [] keeps an empty shape at a fully submerged slot. */
+  function decouperDalleEau(m, eaux) {
+    const cap=-m.r[1],c=Math.cos(cap),s=Math.sin(cap),sx=m.s[0],sz=m.s[2],cx=m.p[0],cz=m.p[2],eps=1e-10;
+    const toWorld=(x,z)=>[cx+x*sx*c-z*sz*s,cz+x*sx*s+z*sz*c],toLocal=(x,z)=>{const dx=x-cx,dz=z-cz;return [(dx*c+dz*s)/sx,(-dx*s+dz*c)/sz];};
+    const hx=(Math.abs(c)*sx+Math.abs(s)*sz)/2,hz=(Math.abs(s)*sx+Math.abs(c)*sz)/2;
+    const candidates=eaux.filter(e=>{let x0=Infinity,x1=-Infinity,z0=Infinity,z1=-Infinity;for(let i=0;i<e.points.length;i+=2){x0=Math.min(x0,e.points[i]);x1=Math.max(x1,e.points[i]);z0=Math.min(z0,e.points[i+1]);z1=Math.max(z1,e.points[i+1]);}return x1>cx-hx&&x0<cx+hx&&z1>cz-hz&&z0<cz+hz;});
+    if(!candidates.length)return null;
+    const wet=(x,z)=>{const p=toWorld(x,z);return candidates.some(e=>dansAnneau(e.points,...p)&&!(e.trous||[]).some(h=>dansAnneau(h,...p)));};
+    const edges=[],levels=[-.5,.5];
+    const clip=(a,b)=>{let lo=0,hi=1;for(let k=0;k<2;k++){const d=b[k]-a[k];if(Math.abs(d)<eps){if(a[k]<-.5||a[k]>.5)return;continue;}let p=(-.5-a[k])/d,q=(.5-a[k])/d;if(p>q)[p,q]=[q,p];lo=Math.max(lo,p);hi=Math.min(hi,q);if(hi<lo)return;}
+      const x0=a[0]+(b[0]-a[0])*lo,z0=a[1]+(b[1]-a[1])*lo,x1=a[0]+(b[0]-a[0])*hi,z1=a[1]+(b[1]-a[1])*hi;levels.push(z0,z1);if(Math.abs(z1-z0)>eps)edges.push({x0,z0,x1,z1,at:z=>x0+(x1-x0)*(z-z0)/(z1-z0)});
+    };
+    for(const e of candidates)for(const ring of [e.points,...(e.trous||[])])for(let i=0,j=ring.length-2;i<ring.length;j=i,i+=2)clip(toLocal(ring[j],ring[j+1]),toLocal(ring[i],ring[i+1]));
+    // Overlapping water polygons can reorder segments between their vertices.
+    for(let i=0;i<edges.length;i++)for(let j=i+1;j<edges.length;j++){const a=edges[i],b=edges[j],dx=a.x1-a.x0,dz=a.z1-a.z0,ex=b.x1-b.x0,ez=b.z1-b.z0,den=dx*ez-dz*ex;if(Math.abs(den)<eps)continue;const px=b.x0-a.x0,pz=b.z0-a.z0,t=(px*ez-pz*ex)/den,u=(px*dz-pz*dx)/den;if(t>0&&t<1&&u>0&&u<1)levels.push(a.z0+t*dz);}
+    levels.sort((a,b)=>a-b);const cuts=levels.filter((v,i)=>i===0||v-levels[i-1]>eps),cells=[];let area=0;
+    for(let i=1;i<cuts.length;i++){const z0=cuts[i-1],z1=cuts[i],mid=(z0+z1)/2;if(z1-z0<eps)continue;const bounds=[{at:()=>-.5},{at:()=>.5},...edges.filter(e=>mid>Math.min(e.z0,e.z1)&&mid<Math.max(e.z0,e.z1))];bounds.sort((a,b)=>a.at(mid)-b.at(mid));
+      for(let j=1;j<bounds.length;j++){const a=bounds[j-1],b=bounds[j],l=a.at(mid),r=b.at(mid);if(r-l<eps||wet((l+r)/2,mid))continue;const x0=borner(a.at(z0),-.5,.5),x1=borner(b.at(z0),-.5,.5),x2=borner(b.at(z1),-.5,.5),x3=borner(a.at(z1),-.5,.5);area+=((x1-x0)+(x2-x3))*(z1-z0)/2;cells.push([[x0,z0],[x1,z0],[x2,z1],[x3,z1]]);}
+    }
+    if(area>=1-eps)return null;
+    const triangles=[],tri=(a,b,d)=>{const u=b.map((v,i)=>v-a[i]),v=d.map((n,i)=>n-a[i]),n=[u[1]*v[2]-u[2]*v[1],u[2]*v[0]-u[0]*v[2],u[0]*v[1]-u[1]*v[0]],l=Math.hypot(...n);if(l<eps)return;const normal=n.map(v=>v/l);triangles.push([a,b,d,normal,normal,normal]);};
+    for(const cell of cells){const top=cell.map(([x,z])=>[x,.5,z]),bottom=cell.map(([x,z])=>[x,-.5,z]);tri(top[0],top[2],top[1]);tri(top[0],top[3],top[2]);tri(bottom[0],bottom[1],bottom[2]);tri(bottom[0],bottom[2],bottom[3]);for(let i=0;i<4;i++){const j=(i+1)%4;tri(top[i],top[j],bottom[j]);tri(top[i],bottom[j],bottom[i]);}}
+    return triangles;
+  }
   /** Enveloppe convexe (chaîne monotone). */
   function enveloppe(p) {
     const n = p.length / 2, idx = [];
@@ -1326,7 +1354,12 @@
       if (A < 20) continue;
       const liste = e.trous.length ? decomposerTrame(e.points, e.trous, 6) : decomposer(e.points, A > 3000 ? 6 : 4).map(boiteDe).filter(Boolean);
       const y = cParc ? Y_PLACE + 0.004 : Y_PLACE;
-      for (const bx of liste) poser('box', bx.x, y - 0.015, bx.z, 2 * bx.a, 0.03, 2 * bx.b, 0, lacetDe(bx.ux, bx.uz), 0, cParc ? MAT.HERBE : MAT.PAVE, cParc || cPlace);
+      for (const bx of liste) {
+        const m=poser('box', bx.x, y - 0.015, bx.z, 2 * bx.a, 0.03, 2 * bx.b, 0, lacetDe(bx.ux, bx.uz), 0, cParc ? MAT.HERBE : MAT.PAVE, cParc || cPlace);
+        if(nom==='marseille'&&e.sorte!=='pont'&&typeof FRender!=='undefined'&&typeof FRender.forme==='function'){
+          const triangles=decouperDalleEau(m,eaux);if(triangles!==null){m.shape='emprise-port-ground-'+ilots+'-'+(objets.length-1);FRender.forme(m.shape,triangles);}
+        }
+      }
     }
     marquer('places');
     // Pontons du port : des passerelles de bois sur l'eau.
@@ -2327,5 +2360,5 @@
 
   const villes = () => Object.keys(AMENAGEMENTS).filter(k => PDR.plans && PDR.plans[k]);
   PDR.villeReelle = Object.freeze({ creerVille, villes, hasard, MAT, CASSABLES, SORTES_CASSABLES, STOCK, AMENAGEMENTS,
-    outils: Object.freeze({ sinus, cosinus, angle, aire, dansAnneau, rectangleMinimal, decomposer, boiteDe, decomposerTrame, distSegRect, retailler, distance2 }) });
+    outils: Object.freeze({ sinus, cosinus, angle, aire, dansAnneau, rectangleMinimal, decomposer, boiteDe, decomposerTrame, distSegRect, retailler, distance2, decouperDalleEau }) });
 })(globalThis.PDR = globalThis.PDR || {});

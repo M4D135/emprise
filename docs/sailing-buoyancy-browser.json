@@ -1,0 +1,81 @@
+{
+  "test": "PASS native sailing, departure and waves",
+  "buildSha256": "d112e73ceff0afbfdea7406527d5427182a82c152c6fc3208a494af8a646ac9c",
+  "runs": [
+    {
+      "backend": "webgpu",
+      "departure": {
+        "distance": 14.738732799766382,
+        "speed": 0.9982997685382825,
+        "blocked": false,
+        "engineOn": false,
+        "load": 0.9980457421514974,
+        "sea": {
+          "origin": [
+            40,
+            176,
+            64,
+            0.28
+          ],
+          "motion": [
+            19.999999999999506,
+            0.2914567944778671,
+            -1.25,
+            1
+          ]
+        },
+        "marineTime": 19.999999999999506,
+        "sessionTime": 0
+      },
+      "waves": {
+        "level": -1.221735664443827,
+        "hull": -1.2631753508664547,
+        "roll": -0.12727167914662052,
+        "pitch": 0.00899628412160335,
+        "load": 0.9490101276178182,
+        "force": 3,
+        "errors": [],
+        "backendEvents": [],
+        "renderer": "webgpu"
+      }
+    },
+    {
+      "backend": "webgl2",
+      "departure": {
+        "distance": 14.738732799766382,
+        "speed": 0.9982997685382825,
+        "blocked": false,
+        "engineOn": false,
+        "load": 0.9980457421514974,
+        "sea": {
+          "origin": [
+            40,
+            176,
+            64,
+            0.28
+          ],
+          "motion": [
+            19.999999999999506,
+            0.2914567944778671,
+            -1.25,
+            1
+          ]
+        },
+        "marineTime": 19.999999999999506,
+        "sessionTime": 0
+      },
+      "waves": {
+        "level": -1.221735664443827,
+        "hull": -1.2631753508664547,
+        "roll": -0.12727167914662052,
+        "pitch": 0.00899628412160335,
+        "load": 0.9490101276178182,
+        "force": 3,
+        "errors": [],
+        "backendEvents": [],
+        "renderer": "webgl2"
+      }
+    }
+  ],
+  "limits": "Simulation stepped at 120Hz for reproducible capture; this test is not a frame pacing benchmark or physical phone test."
+}

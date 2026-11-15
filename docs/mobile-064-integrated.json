@@ -1,0 +1,804 @@
+{
+  "htmlSha256": "03a5092520b492396384536a9802be80fca7bb2f2ad7faaf4910e0a86f781720",
+  "checks": [
+    {
+      "layout": "portrait",
+      "width": 390,
+      "height": 844,
+      "buttons": [
+        {
+          "name": "actions",
+          "rect": [
+            18,
+            627,
+            45,
+            43
+          ],
+          "reachable": true,
+          "inside": true
+        },
+        {
+          "name": "phone",
+          "rect": [
+            70,
+            627,
+            45,
+            43
+          ],
+          "reachable": true,
+          "inside": true
+        },
+        {
+          "name": "touch-camera",
+          "rect": [
+            122,
+            627,
+            45,
+            43
+          ],
+          "reachable": true,
+          "inside": true
+        },
+        {
+          "name": "touch-interact",
+          "rect": [
+            247.359375,
+            574,
+            124.640625,
+            46
+          ],
+          "reachable": true,
+          "inside": true
+        },
+        {
+          "name": "touch-cycle",
+          "rect": [
+            232,
+            682,
+            58,
+            56
+          ],
+          "reachable": true,
+          "inside": true
+        },
+        {
+          "name": "dash",
+          "rect": [
+            232,
+            748,
+            58,
+            56
+          ],
+          "reachable": true,
+          "inside": true
+        },
+        {
+          "name": "touch-fire",
+          "rect": [
+            300,
+            682,
+            72,
+            122
+          ],
+          "reachable": true,
+          "inside": true
+        },
+        {
+          "name": "pause",
+          "rect": [
+            16,
+            54,
+            44,
+            44
+          ],
+          "reachable": true,
+          "inside": true
+        }
+      ]
+    },
+    {
+      "layout": "portrait-driving",
+      "width": 390,
+      "height": 844,
+      "buttons": [
+        {
+          "name": "actions",
+          "rect": [
+            18,
+            627,
+            45,
+            43
+          ],
+          "reachable": true,
+          "inside": true
+        },
+        {
+          "name": "phone",
+          "rect": [
+            70,
+            627,
+            45,
+            43
+          ],
+          "reachable": true,
+          "inside": true
+        },
+        {
+          "name": "touch-camera",
+          "rect": [
+            122,
+            627,
+            45,
+            43
+          ],
+          "reachable": true,
+          "inside": true
+        },
+        {
+          "name": "touch-engine",
+          "rect": [
+            174,
+            627,
+            66.1328125,
+            43
+          ],
+          "reachable": true,
+          "inside": true
+        },
+        {
+          "name": "touch-interact",
+          "rect": [
+            250,
+            574,
+            122,
+            46
+          ],
+          "reachable": true,
+          "inside": true
+        },
+        {
+          "name": "touch-back",
+          "rect": [
+            232,
+            682,
+            58,
+            64.5
+          ],
+          "reachable": true,
+          "inside": true
+        },
+        {
+          "name": "touch-forward",
+          "rect": [
+            300,
+            682,
+            72,
+            122
+          ],
+          "reachable": true,
+          "inside": true
+        },
+        {
+          "name": "touch-brake",
+          "rect": [
+            232,
+            756.5,
+            58,
+            47.5
+          ],
+          "reachable": true,
+          "inside": true
+        },
+        {
+          "name": "pause",
+          "rect": [
+            16,
+            54,
+            44,
+            44
+          ],
+          "reachable": true,
+          "inside": true
+        }
+      ]
+    },
+    "Real CONTACT touch held across pause/resume DOM-button activation is rejected on late release; secondary-finger native Pause click was not emitted by CDP",
+    "Keyboard Enter activates focused touch camera while preserving the touch interface",
+    {
+      "driving": {
+        "mode": "car",
+        "shots": 0,
+        "x": 77.72750180624662,
+        "z": 125.29971300829453,
+        "yaw": -0.12120367320510339,
+        "v": 5.943878313372186,
+        "u": 5.943878313372186,
+        "weapon": 0,
+        "pointers": 0,
+        "errors": [],
+        "command": {
+          "moveX": 0,
+          "moveY": 0,
+          "lookX": 0,
+          "lookY": 0,
+          "left": false,
+          "right": false,
+          "back": 0,
+          "forward": 0,
+          "sprint": false,
+          "brake": false,
+          "paint": false,
+          "melee": false,
+          "pulse": false,
+          "weapon1": false,
+          "weapon2": false,
+          "weapon3": false,
+          "grab": false,
+          "throw": false,
+          "ignite": false,
+          "repair": false,
+          "fire": false,
+          "dash": false,
+          "steer": 0,
+          "drift": false
+        }
+      },
+      "reverse": {
+        "mode": "car",
+        "shots": 0,
+        "x": 77.34004642831162,
+        "z": 122.11865236453187,
+        "yaw": -0.12120367320510339,
+        "v": 3.898744969900696,
+        "u": -3.898744969900696,
+        "weapon": 0,
+        "pointers": 0,
+        "errors": [],
+        "command": {
+          "moveX": 0,
+          "moveY": 0,
+          "lookX": 0,
+          "lookY": 0,
+          "left": false,
+          "right": false,
+          "back": 0,
+          "forward": 0,
+          "sprint": false,
+          "brake": false,
+          "paint": false,
+          "melee": false,
+          "pulse": false,
+          "weapon1": false,
+          "weapon2": false,
+          "weapon3": false,
+          "grab": false,
+          "throw": false,
+          "ignite": false,
+          "repair": false,
+          "fire": false,
+          "dash": false,
+          "steer": 0,
+          "drift": false
+        }
+      },
+      "exit": "foot"
+    },
+    {
+      "multitouchMoveAimFire": {
+        "mode": "foot",
+        "shots": 3,
+        "x": 76.01359060103108,
+        "z": 122.48415953030892,
+        "yaw": -0.06918983024249961,
+        "v": 0,
+        "u": 0,
+        "weapon": 0,
+        "pointers": 3,
+        "errors": [],
+        "command": {
+          "moveX": 0,
+          "moveY": 1,
+          "lookX": 0,
+          "lookY": 0,
+          "left": false,
+          "right": false,
+          "back": 0,
+          "forward": 1,
+          "sprint": false,
+          "brake": false,
+          "paint": false,
+          "melee": false,
+          "pulse": false,
+          "weapon1": false,
+          "weapon2": false,
+          "weapon3": false,
+          "grab": false,
+          "throw": false,
+          "ignite": false,
+          "repair": false,
+          "fire": true,
+          "steer": 0,
+          "drift": false
+        }
+      },
+      "released": {
+        "mode": "foot",
+        "shots": 3,
+        "x": 75.99849141819148,
+        "z": 122.26627952308745,
+        "yaw": -0.06918983024249961,
+        "v": 0,
+        "u": 0,
+        "weapon": 0,
+        "pointers": 0,
+        "errors": [],
+        "command": {
+          "moveX": 0,
+          "moveY": 0,
+          "lookX": 0,
+          "lookY": 0,
+          "left": false,
+          "right": false,
+          "back": 0,
+          "forward": 0,
+          "sprint": false,
+          "brake": false,
+          "paint": false,
+          "melee": false,
+          "pulse": false,
+          "weapon1": false,
+          "weapon2": false,
+          "weapon3": false,
+          "grab": false,
+          "throw": false,
+          "ignite": false,
+          "repair": false,
+          "fire": false,
+          "steer": 0,
+          "drift": false
+        }
+      }
+    },
+    "CDP touchCancel stops held firing without stuck pointers",
+    "Touch phone, close, action sheet and rocket selection use actual DOM buttons",
+    "Browser blur event clears ownership (testing mode suppresses automatic game pause)",
+    "Sound toggle remains reachable in mobile pause; unmuting while paused does not restart audio",
+    "Touch Commandes sheet, sensitivity slider persistence and close return to pause",
+    {
+      "layout": "landscape",
+      "width": 844,
+      "height": 390,
+      "buttons": [
+        {
+          "name": "actions",
+          "rect": [
+            18,
+            175,
+            45,
+            43
+          ],
+          "reachable": true,
+          "inside": true
+        },
+        {
+          "name": "phone",
+          "rect": [
+            70,
+            175,
+            45,
+            43
+          ],
+          "reachable": true,
+          "inside": true
+        },
+        {
+          "name": "touch-camera",
+          "rect": [
+            122,
+            175,
+            45,
+            43
+          ],
+          "reachable": true,
+          "inside": true
+        },
+        {
+          "name": "touch-interact",
+          "rect": [
+            635.2109375,
+            164,
+            190.7890625,
+            46
+          ],
+          "reachable": true,
+          "inside": true
+        },
+        {
+          "name": "touch-cycle",
+          "rect": [
+            686,
+            228,
+            58,
+            56
+          ],
+          "reachable": true,
+          "inside": true
+        },
+        {
+          "name": "dash",
+          "rect": [
+            686,
+            294,
+            58,
+            56
+          ],
+          "reachable": true,
+          "inside": true
+        },
+        {
+          "name": "touch-fire",
+          "rect": [
+            754,
+            228,
+            72,
+            122
+          ],
+          "reachable": true,
+          "inside": true
+        },
+        {
+          "name": "pause",
+          "rect": [
+            16,
+            54,
+            44,
+            44
+          ],
+          "reachable": true,
+          "inside": true
+        }
+      ]
+    },
+    "Pause/resume and viewport rotation discard held pointers",
+    {
+      "layout": "motorboat",
+      "width": 844,
+      "height": 390,
+      "buttons": [
+        {
+          "name": "actions",
+          "rect": [
+            18,
+            175,
+            45,
+            43
+          ],
+          "reachable": true,
+          "inside": true
+        },
+        {
+          "name": "phone",
+          "rect": [
+            70,
+            175,
+            45,
+            43
+          ],
+          "reachable": true,
+          "inside": true
+        },
+        {
+          "name": "touch-camera",
+          "rect": [
+            122,
+            175,
+            45,
+            43
+          ],
+          "reachable": true,
+          "inside": true
+        },
+        {
+          "name": "touch-engine",
+          "rect": [
+            174,
+            175,
+            66.1328125,
+            43
+          ],
+          "reachable": true,
+          "inside": true
+        },
+        {
+          "name": "touch-interact",
+          "rect": [
+            693.171875,
+            164,
+            132.828125,
+            46
+          ],
+          "reachable": true,
+          "inside": true
+        },
+        {
+          "name": "touch-back",
+          "rect": [
+            686,
+            228,
+            58,
+            64
+          ],
+          "reachable": true,
+          "inside": true
+        },
+        {
+          "name": "touch-forward",
+          "rect": [
+            754,
+            228,
+            72,
+            122
+          ],
+          "reachable": true,
+          "inside": true
+        },
+        {
+          "name": "pause",
+          "rect": [
+            16,
+            54,
+            44,
+            44
+          ],
+          "reachable": true,
+          "inside": true
+        }
+      ]
+    },
+    "Motorboat boarding and throttle through touch controls",
+    {
+      "layout": "sailboat",
+      "width": 844,
+      "height": 390,
+      "buttons": [
+        {
+          "name": "actions",
+          "rect": [
+            18,
+            175,
+            45,
+            43
+          ],
+          "reachable": true,
+          "inside": true
+        },
+        {
+          "name": "phone",
+          "rect": [
+            70,
+            175,
+            45,
+            43
+          ],
+          "reachable": true,
+          "inside": true
+        },
+        {
+          "name": "touch-camera",
+          "rect": [
+            122,
+            175,
+            52.5078125,
+            43
+          ],
+          "reachable": true,
+          "inside": true
+        },
+        {
+          "name": "touch-engine",
+          "rect": [
+            181.5078125,
+            175,
+            45,
+            43
+          ],
+          "reachable": true,
+          "inside": true
+        },
+        {
+          "name": "touch-interact",
+          "rect": [
+            693.171875,
+            164,
+            132.828125,
+            46
+          ],
+          "reachable": true,
+          "inside": true
+        },
+        {
+          "name": "touch-back",
+          "rect": [
+            686,
+            228,
+            58,
+            64
+          ],
+          "reachable": true,
+          "inside": true
+        },
+        {
+          "name": "touch-forward",
+          "rect": [
+            754,
+            228,
+            72,
+            122
+          ],
+          "reachable": true,
+          "inside": true
+        },
+        {
+          "name": "pause",
+          "rect": [
+            16,
+            54,
+            44,
+            44
+          ],
+          "reachable": true,
+          "inside": true
+        }
+      ]
+    },
+    "Swimming sprint, sail station switch, sail orientation and hoisting all through touch",
+    {
+      "layout": "small-portrait-sailing",
+      "width": 320,
+      "height": 568,
+      "buttons": [
+        {
+          "name": "actions",
+          "rect": [
+            12,
+            357,
+            40,
+            43
+          ],
+          "reachable": true,
+          "inside": true
+        },
+        {
+          "name": "phone",
+          "rect": [
+            57,
+            357,
+            40,
+            43
+          ],
+          "reachable": true,
+          "inside": true
+        },
+        {
+          "name": "touch-camera",
+          "rect": [
+            102,
+            357,
+            47.1171875,
+            43
+          ],
+          "reachable": true,
+          "inside": true
+        },
+        {
+          "name": "touch-engine",
+          "rect": [
+            12,
+            307,
+            40,
+            43
+          ],
+          "reachable": true,
+          "inside": true
+        },
+        {
+          "name": "touch-interact",
+          "rect": [
+            175.171875,
+            304,
+            132.828125,
+            46
+          ],
+          "reachable": true,
+          "inside": true
+        },
+        {
+          "name": "touch-back",
+          "rect": [
+            187,
+            406,
+            50,
+            64
+          ],
+          "reachable": true,
+          "inside": true
+        },
+        {
+          "name": "touch-forward",
+          "rect": [
+            244,
+            406,
+            64,
+            122
+          ],
+          "reachable": true,
+          "inside": true
+        },
+        {
+          "name": "pause",
+          "rect": [
+            16,
+            54,
+            44,
+            44
+          ],
+          "reachable": true,
+          "inside": true
+        }
+      ]
+    }
+  ],
+  "screenshots": [
+    "mobile-064-integrated-portrait-title.png",
+    "mobile-064-integrated-portrait.png",
+    "mobile-064-integrated-phone.png",
+    "mobile-064-integrated-actions.png",
+    "mobile-064-integrated-pause.png",
+    "mobile-064-integrated-settings.png",
+    "mobile-064-integrated-landscape.png",
+    "mobile-064-integrated-motorboat.png",
+    "mobile-064-integrated-sailboat.png",
+    "mobile-064-integrated-small-portrait.png"
+  ],
+  "limitations": "Chrome mobile viewport and real CDP touch events on Mac; not a physical phone or Safari touch validation.",
+  "final": {
+    "mode": "boat",
+    "shots": 4,
+    "x": 36.20187822636046,
+    "z": 158.92328879448024,
+    "yaw": 3.141592653589793,
+    "v": 0,
+    "u": 0,
+    "weapon": 2,
+    "pointers": 0,
+    "errors": [],
+    "command": {
+      "moveX": 0,
+      "moveY": 0,
+      "lookX": 0,
+      "lookY": 0,
+      "left": false,
+      "right": false,
+      "back": 0,
+      "forward": 0,
+      "sprint": false,
+      "brake": false,
+      "paint": false,
+      "melee": false,
+      "pulse": false,
+      "weapon1": false,
+      "weapon2": false,
+      "weapon3": false,
+      "grab": false,
+      "throw": false,
+      "ignite": false,
+      "repair": false,
+      "fire": false,
+      "dash": false,
+      "sailHoist": 0,
+      "steer": 0,
+      "drift": false
+    }
+  },
+  "backend": "webgpu"
+}

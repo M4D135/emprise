@@ -1,0 +1,115 @@
+{
+  "referenceCommit": "22a330f2dbbdc7ee359ce03da785e0cbeca495d4",
+  "publishedReferenceSha256": "28e5ca4e00ae4d852d3ce430588d6c0602cdf63ae848a964d0ff903d51e70bc3",
+  "referenceGeometryOverrides": [
+    {
+      "path": "src/pdr/ville-reelle.js",
+      "sha256": "f0105e8beddfeab0493e5773f34d8e5545c9f18f1908c555bcdb8d81bba1b251"
+    },
+    {
+      "path": "src/coast.js",
+      "sha256": "9fc9421ab75e962ce3976badc72ca3f04f1f48114a0c0a417e64ac31756a70b3"
+    },
+    {
+      "path": "src/marine.js",
+      "sha256": "902cc345b6c217372342edbd0a6390dc06f34c398808fe926fc46fbf0021f50d"
+    }
+  ],
+  "referenceSha256": "8babff9d4cb22202374206447b73a597f5043cb2f303776b0cad086650f68acb",
+  "candidateSha256": "d112e73ceff0afbfdea7406527d5427182a82c152c6fc3208a494af8a646ac9c",
+  "pairedRepetitions": 3,
+  "medianOfRuns": {
+    "before": {
+      "callbackCpu": {
+        "p50": 4,
+        "p95": 9.800000011920929,
+        "p99": 12.599999964237213,
+        "max": 39.39999997615814,
+        "over25": 2,
+        "over50": 0
+      },
+      "simulation": {
+        "p50": 0.8999999761581421,
+        "p95": 6.600000023841858,
+        "p99": 7.900000035762787,
+        "max": 35.80000001192093,
+        "over25": 2,
+        "over50": 0
+      },
+      "observedRaf": {
+        "p50": 16.69999999999891,
+        "p95": 17.399999999999636,
+        "p99": 17.600000000000364,
+        "max": 33.100000000000364,
+        "over25": 1,
+        "over50": 0
+      },
+      "drawSubmission": {
+        "p50": 16.69999998807907,
+        "p95": 17.5,
+        "p99": 17.80000001192093,
+        "max": 48,
+        "over25": 2,
+        "over50": 0
+      }
+    },
+    "after": {
+      "callbackCpu": {
+        "p50": 4.199999988079071,
+        "p95": 8.800000011920929,
+        "p99": 12.700000047683716,
+        "max": 29.5,
+        "over25": 1,
+        "over50": 0
+      },
+      "simulation": {
+        "p50": 0.9000000357627869,
+        "p95": 5.300000011920929,
+        "p99": 6.5,
+        "max": 25.5,
+        "over25": 1,
+        "over50": 0
+      },
+      "observedRaf": {
+        "p50": 16.69999999999891,
+        "p95": 17.5,
+        "p99": 17.600000000002183,
+        "max": 17.700000000000728,
+        "over25": 0,
+        "over50": 0
+      },
+      "drawSubmission": {
+        "p50": 16.69999998807907,
+        "p95": 17.5,
+        "p99": 17.900000035762787,
+        "max": 34.5,
+        "over25": 2,
+        "over50": 0
+      }
+    }
+  },
+  "reports": [
+    "outdoor-motion-before-1.json",
+    "outdoor-motion-after-1.json",
+    "outdoor-motion-after-2.json",
+    "outdoor-motion-before-2.json",
+    "outdoor-motion-before-3.json",
+    "outdoor-motion-after-3.json",
+    "outdoor-motion-webgl2.json",
+    "outdoor-motion-retina.json",
+    "outdoor-motion-production-before.json",
+    "outdoor-motion-production-after.json"
+  ],
+  "equivalence": "Identical initial identity, scheduled impacts, 1200 ticks, periodic physical states and all six SHA final hashes (destruction, world meshes, world colliders, bodies, urban report, projections); population, debris and graphics settings unchanged.",
+  "visualChanges": [
+    "Traffic poses are interpolated between 30Hz simulation steps.",
+    "Both versions receive the same quay clipping, coastal datum and boat geometry/physics. Performance algorithms remain their respective versions.",
+    "The local wave grid is inactive in this terrestrial scenario."
+  ],
+  "limits": [
+    "The control is 0.6.3 with the three listed procedural geometry/nautical modules updated for scene equivalence; it is not the byte-identical published 0.6.3.",
+    "CPU callback, simulation, rAF and draw submission intervals are distinct metrics. None measures actual display presentation.",
+    "Realtime runs use the normal accumulator and ordinary autosave; their tick totals need not match and they are excluded from paired medians.",
+    "Three paired trials on one Mac/Chrome configuration do not guarantee frame times on every device."
+  ]
+}

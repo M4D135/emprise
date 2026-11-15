@@ -1,0 +1,24 @@
+{
+  "checks": [
+    "Contours OSM, nombre de triangles, dimensions horizontales et quais urbains inchangés ; relief naturel décalé exactement de−1,21m",
+    "Vraie rive insulaire : nage à hauteur d’eau puis sortie au sol réel, avec contrôles eau/collisions/passage conservés"
+  ],
+  "counts": {
+    "naturalChunks": 685,
+    "urbanChunks": 1178,
+    "triangles": 134968
+  },
+  "bank": {
+    "water": {
+      "x": -1711.023887230517,
+      "z": 900.8690008687429
+    },
+    "landing": {
+      "x": -1710.2814251102711,
+      "z": 901.6114629889887,
+      "y": -0.855467506536332
+    }
+  },
+  "attempts": 1,
+  "seaLevel": -1.25
+}

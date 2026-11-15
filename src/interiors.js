@@ -202,7 +202,7 @@ function roomFor(b,floor,world,placeIndex=0){
 }
 // A bounded bridge between the portal room and its actual, oriented building box.
 // The façade and floor slabs belong to urban.js; projections contain furnishing only.
-function breachBridges(entries,world,sim,getActive,activate,setOutside){
+function breachBridges(entries,world,sim,getActive,activate,setOutside,makeRoom){
  const cache=new Map(),rooms=new Map(),grid=new Map(),limit=8,point=v=>Array.isArray(v)?v:[v?.x,v?.y??.08,v?.z],finite=v=>v?.length===3&&v.every(Number.isFinite);
  for(const building of entries)(building.boxes||[]).forEach((q,index)=>{const key=Math.floor(q.x/16)+','+Math.floor(q.z/16);if(!grid.has(key))grid.set(key,[]);grid.get(key).push({building,q,index});});
  function match(mesh,id){if(!mesh?.p||!mesh?.s||mesh.shape!=='box'||mesh.s.some(n=>!Number.isFinite(n)||n<=3)||Math.abs(mesh.r?.[0]||0)>.01||Math.abs(mesh.r?.[2]||0)>.01)return null;
@@ -219,7 +219,7 @@ function breachBridges(entries,world,sim,getActive,activate,setOutside){
   if(finite(normal)&&Math.hypot(normal[0],normal[2])>.4)face=fs.reduce((a,b)=>b.nx*normal[0]+b.nz*normal[2]>a.nx*normal[0]+a.nz*normal[2]?b:a);
   const key=building.id+':box-'+index+':'+floor+':'+placeIndex+':face-'+face.index;
   if(cache.has(key)){const result=cache.get(key);cache.delete(key);cache.set(key,result);return result;}
-  const roomKey=building.id+':'+floor+':'+placeIndex;let room=getActive();if(!room||room.building!==building||room.floor!==floor||room.placeIndex!==placeIndex)room=rooms.get(roomKey)||roomFor(building,floor,world,placeIndex);rooms.set(roomKey,room);
+  const roomKey=building.id+':'+floor+':'+placeIndex;let room=getActive();if(!room||room.building!==building||room.floor!==floor||room.placeIndex!==placeIndex)room=rooms.get(roomKey)||makeRoom(building,floor,placeIndex);rooms.set(roomKey,room);
   // Orient once from the mapped street entrance, never from the latest impact.
   const front=fs.reduce((a,b)=>b.nx*(building.nx||0)+b.nz*(building.nz||0)>a.nx*(building.nx||0)+a.nz*(building.nz||0)?b:a),nx=front.nx,nz=front.nz,tx=nz,tz=-nx,inset=.30;
   const scale=[(front.width-2*inset)/room.w,.82,(front.depth-2*inset)/room.d],y0=baseY+floor*3.1+.08-.08*scale[1],yaw=Math.atan2(nx,nz);
@@ -228,7 +228,20 @@ function breachBridges(entries,world,sim,getActive,activate,setOutside){
   const vector=v=>[tx*v[0]*scale[0]+nx*v[2]*scale[2],v[1]*scale[1],tz*v[0]*scale[0]+nz*v[2]*scale[2]];
   const toRoomYaw=a=>{const x=Math.sin(a),z=-Math.cos(a);return Math.atan2((x*tx+z*tz)/scale[0],-(x*nx+z*nz)/scale[2]);};
   const toWorldYaw=a=>{const v=vector([Math.sin(a),0,-Math.cos(a)]);return Math.atan2(v[0],-v[2]);};
-  function transformMesh(m){const e=BITUME.voiture.euler(...(m.r||[0,0,0])),axes=e.map(vector),lengths=axes.map(a=>Math.hypot(...a)),rotation=BITUME.voiture.angles(axes.map((a,i)=>a.map(n=>n/lengths[i])));return {...m,p:toWorld(m.p),s:m.s.map((n,i)=>n*lengths[i]),r:rotation,room:false,outdoor:true,breachInterior:true,sourceRoom:room.sceneId,collision:false};}
+  // Furniture often shares the same few rotations. Cache only their immutable
+  // projection basis, never a mesh, its live fields or its published arrays.
+  const bases=new Map(),zeroRotation=[0,0,0];let lastBasis=null,basisScale=scale.slice(),basisEuler=BITUME.voiture.euler,basisAngles=BITUME.voiture.angles;
+  function projectionBasis(r){
+   if(!Object.is(basisScale[0],scale[0])||!Object.is(basisScale[1],scale[1])||!Object.is(basisScale[2],scale[2])||basisEuler!==BITUME.voiture.euler||basisAngles!==BITUME.voiture.angles){bases.clear();lastBasis=null;basisScale=scale.slice();basisEuler=BITUME.voiture.euler;basisAngles=BITUME.voiture.angles;}
+   const x=r[0],y=r[1],z=r[2],cacheable=Number.isFinite(x)&&Number.isFinite(y)&&Number.isFinite(z);
+   if(cacheable&&lastBasis&&Object.is(lastBasis.x,x)&&Object.is(lastBasis.y,y)&&Object.is(lastBasis.z,z))return lastBasis;
+   // Number.toString is exact for finite numbers; preserve signed zero too.
+   const key=cacheable?(Object.is(x,-0)?'-0':x)+','+(Object.is(y,-0)?'-0':y)+','+(Object.is(z,-0)?'-0':z):null;
+   let basis=key===null?null:bases.get(key);
+   if(!basis){const e=BITUME.voiture.euler(...r),axes=e.map(vector),lengths=axes.map(a=>Math.hypot(...a)),rotation=BITUME.voiture.angles(axes.map((a,i)=>a.map(n=>n/lengths[i])));basis={x,y,z,lengths,rotation};}
+   if(cacheable){bases.delete(key);bases.set(key,basis);if(bases.size>32)bases.delete(bases.keys().next().value);lastBasis=basis;}return basis;
+  }
+  function transformMesh(m){const {lengths,rotation}=projectionBasis(m.r||zeroRotation);return {...m,p:toWorld(m.p),s:m.s.map((n,i)=>n*lengths[i]),r:rotation.slice(),room:false,outdoor:true,breachInterior:true,sourceRoom:room.sceneId,collision:false};}
   const projected={id:key,buildingId:building.id,building,footprint:q,boxIndex:index,mesh,room,floor,placeIndex,floorHeight:3.1,scale,yaw,baseY,toWorld,toRoom,toRoomYaw,toWorldYaw,face:{...face,normal:[face.nx,0,face.nz],tangent:[face.nz,0,-face.nx],center:[face.x,baseY+floor*3.1,face.z],threshold:.35},void:{center:[q.x,baseY+floor*3.1+1.55,q.z],size:[q.lx-.6,2.94,q.lz-.6],r:[0,q.lacet,0],minY:baseY+floor*3.1+.08,maxY:baseY+(floor+1)*3.1-.08,inset},scenery:[],colliders:[],lights:[],refresh(){
    this.scenery=room.scenery.filter(m=>!m.interiorShell&&!m.destroyed).map(transformMesh);const bySource=new Map(room.scenery.filter(m=>!m.interiorShell&&!m.destroyed).map((m,i)=>[m,this.scenery[i]]));
    this.colliders=room.colliders.filter(c=>!c.destroyed&&!c.mesh?.interiorShell).map(c=>{const pos=toWorld([c.x,0,c.z]),a=c.a*scale[0],b=c.b*scale[2];return {...c,x:pos[0],z:pos[2],a,b,c:tx,s:tz,cap:-yaw,minY:y0+c.minY*scale[1],maxY:y0+c.maxY*scale[1],mesh:bySource.get(c.mesh)||null,breachInterior:true};});
@@ -257,10 +270,14 @@ function breachBridges(entries,world,sim,getActive,activate,setOutside){
 
 function stableHash(value){let h=2166136261;for(const c of String(value))h=Math.imul(h^c.charCodeAt(0),16777619);return h>>>0;}
 function create(world,sim,{saved=null,notify=()=>{}}={}){const data=world.addresses||catalog(world),entries=data.entries,p=sim.state.player,visits=new Set(Array.isArray(saved?.visited)?saved.visited.filter(id=>entries.some(b=>b.id===id)):[]),purchased=new Set(Array.isArray(saved?.purchased)?saved.purchased.filter(id=>typeof id==='string').slice(0,200):[]);let active=null,outside=null,revision=0;const serviceHandlers=new Map();
- const bridges=breachBridges(entries,world,sim,()=>active,load,value=>{outside=value;});
+ // Reservations are detached and single-use. They never populate the live
+ // bridge LRU, visited places or active-room state before an actual entry.
+ let preparedRoomProvider=null;
+ const makeRoom=(b,floor,placeIndex=0)=>preparedRoomProvider?.(b,floor,placeIndex)||roomFor(b,floor,world,placeIndex);
+ const bridges=breachBridges(entries,world,sim,()=>active,load,value=>{outside=value;},makeRoom);
  function near(){let best=null;for(const b of entries){const distance=Math.hypot(p.x-b.x,p.z-b.z);if(distance<1.85&&(!best||distance<best.distance))best={kind:'building',target:b,label:'E · '+(b.passage?'Passage vers ':'Entrer · ')+b.name,distance};}return best;}
  function context(){if(!active)return near();const q=active,items=[];const add=(v,label,extra)=>{const distance=Math.hypot(p.x-v.x,p.z-v.z);if(distance<1.65)items.push({kind:'interior',distance,label:'E · '+label,...extra});};add(q.exit,q.floor?'Rejoindre le rez-de-chaussée':'Sortir dans la rue',{action:q.floor?'lobby':'exit'});if(q.floor<q.building.floors-1)add(q.stairs.up,'Escalier · étage '+(q.floor+1),{action:'up'});if(q.floor>0)add(q.stairs.down,q.floor===1?'Escalier · rez-de-chaussée':'Escalier · étage '+(q.floor-1),{action:'down'});for(const s of q.services)add(s,s.label+(s.price?' ('+s.price+' €)':''),{action:'service',service:s,placeIndex:q.placeIndex});for(const portal of q.portals)if(portal.placeIndex!==q.placeIndex)add(portal,'Changer · '+portal.label,{action:'local',placeIndex:portal.placeIndex,portal});return items.sort((a,b)=>a.distance-b.distance)[0]||null;}
- function load(b,floor=0,placeIndex=0,room=null,position=null){active=room||roomFor(b,floor,world,placeIndex);world.room=active;revision++;visits.add(b.id);const q=position||active.spawn;sim.relocate(q.x,q.z,q.yaw);notify(b.name+' · '+(floor?'étage '+floor:'rez-de-chaussée')+(active.place&&active.place.name?' · '+active.place.name:''));}
+ function load(b,floor=0,placeIndex=0,room=null,position=null){active=room||makeRoom(b,floor,placeIndex);world.room=active;revision++;visits.add(b.id);const q=position||active.spawn;sim.relocate(q.x,q.z,q.yaw);notify(b.name+' · '+(floor?'étage '+floor:'rez-de-chaussée')+(active.place&&active.place.name?' · '+active.place.name:''));}
  function enter(b,placeIndex=null){if(active||!entries.includes(b)||Math.hypot(p.x-b.x,p.z-b.z)>1.85)return false;outside={x:p.x,z:p.z,yaw:p.yaw};load(b,0,Number.isInteger(placeIndex)?placeIndex:b.places?.length>1?-1:0);return true;}
  function respawnPolice(){for(const b of entries){const placeIndex=(b.places||[]).findIndex(place=>place.kind==='police'&&sourcedPlace(b,place));if(placeIndex<0)continue;outside={x:b.x,z:b.z,yaw:Math.atan2(b.nx,-b.nz)};load(b,0,placeIndex);notify('Commissariat · '+active.place.name+' · '+(active.place.address||b.address||''));return true;}return false;}
  function leave(){if(!active)return false;const b=active.building;active=null;world.room=null;revision++;const q=world.freeNear(outside?.x??b.x,outside?.z??b.z,.36);sim.relocate(q[0],q[1],outside?.yaw??Math.atan2(b.nx,-b.nz));notify('Rue · '+(b.address||b.name));return true;}
@@ -276,5 +293,5 @@ function create(world,sim,{saved=null,notify=()=>{}}={}){const data=world.addres
  function interact(campaign){const target=context();if(!target)return false;if(!active)return enter(target.target);switch(target.action){case'exit':return leave();case'lobby':load(active.building,0,active.placeIndex);return true;case'up':load(active.building,active.floor+1,active.placeIndex);return true;case'down':load(active.building,active.floor-1,active.placeIndex);return true;case'service':return useService(target.service?.id,campaign);case'local':if(Number.isInteger(target.placeIndex)){load(active.building,0,target.placeIndex);return true;}return false;}return false;}
  function save(){return {visited:[...visits],purchased:[...purchased],active:active?{id:active.building.id,floor:active.floor,placeIndex:active.placeIndex,x:p.x,z:p.z,yaw:p.yaw,outside}:null};}
  if(saved?.active){const v=saved.active,b=entries.find(b=>b.id===v.id);if(b&&Number.isInteger(v.floor)&&v.floor>=0&&v.floor<b.floors){const placeIndex=Number.isInteger(v.placeIndex)?v.placeIndex:0;outside=v.outside?.breach&&[v.outside.x,v.outside.z,v.outside.yaw].every(Number.isFinite)&&Math.abs(v.outside.x)<900&&Math.abs(v.outside.z)<900?{...v.outside}:{x:b.x,z:b.z,yaw:Math.atan2(b.nx,-b.nz)};load(b,v.floor,placeIndex);if(Number.isFinite(v.x)&&Number.isFinite(v.z)&&!active.blocked(v.x,v.z,.35))sim.relocate(v.x,v.z,Number.isFinite(v.yaw)?v.yaw:0);}}
- return {entries,shared:data.shared,visits,purchased,near,context,interact,useService,setServiceHandler(kind,handler){if(typeof handler==='function')serviceHandlers.set(kind,handler);},respawnPolice,enter,leave,save,breachProjection:bridges.project,breachFootprint:bridges.match,enterBreach:bridges.enter,get breachCacheSize(){return bridges.size;},get active(){return active;},get outside(){return outside;},get revision(){return revision;},roomFor:(b,f=0,placeIndex=0)=>roomFor(b,f,world,placeIndex)};}
+ return {entries,shared:data.shared,visits,purchased,near,context,interact,useService,setPreparedRoomProvider(provider){preparedRoomProvider=typeof provider==='function'?provider:null;},setServiceHandler(kind,handler){if(typeof handler==='function')serviceHandlers.set(kind,handler);},respawnPolice,enter,leave,save,breachProjection:bridges.project,breachFootprint:bridges.match,enterBreach:bridges.enter,get breachCacheSize(){return bridges.size;},get active(){return active;},get outside(){return outside;},get revision(){return revision;},roomFor:(b,f=0,placeIndex=0)=>roomFor(b,f,world,placeIndex)};}
 R.interiors={create,roomFor,catalog,types,names,colors};})(globalThis.RADE);

@@ -1,5 +1,32 @@
 /* RADE — one owner of simulation time, transitions, traffic and the solo campaign. */
 (function(R){'use strict';
+// Presentation only: stable live views, never collision or save snapshots.
+// Own pose fields are private interpolation output; visual attributes refresh
+// from simulation on every read. Never make a physics object a prototype:
+// V8 can normalize its properties and invalidate hot simulation accesses.
+function trafficPresentation(){
+ const fields=['x','y','z','cap','tangage','roulis','distance','braquage','volant'],angular=new Set(['cap','tangage','roulis','braquage']);let records=new WeakMap();
+ const visual=['id','model','color','police','siren','driver','emergency','condition','glassBroken','fireAge','burned','burning','exploded','moteur','regime','gaz','v','arriere','rapport','hidden','ai','uncontrolled','policeStolen'];
+ const finite=n=>Number.isFinite(n)?Math.abs(n):0,turn=d=>Math.atan2(Math.sin(d),Math.cos(d));
+ const eligible=c=>!!c.ai&&!c.hidden&&!c.exploded&&!c.uncontrolled&&(!c.driver||c.driver.inside&&c.driver.hp>0)&&Number.isFinite(c.x)&&Number.isFinite(c.z)&&Number.isFinite(c.cap);
+ function control(c,out){out[0]=c.ai;out[1]=c.driver;out[2]=c.driver?.inside;out[3]=c.driver?.hp>0;out[4]=c.model;out[5]=c.hidden;out[6]=c.exploded;out[7]=c.uncontrolled;out[8]=c.policeStolen;return out;}
+ function sameControl(c,a){return c.ai===a[0]&&c.driver===a[1]&&c.driver?.inside===a[2]&&(c.driver?.hp>0)===a[3]&&c.model===a[4]&&c.hidden===a[5]&&c.exploded===a[6]&&c.uncontrolled===a[7]&&c.policeStolen===a[8];}
+ function copy(c,out){for(let i=0;i<fields.length;i++)out[i]=c[fields[i]];return out;}
+ function samePose(c,a){for(let i=0;i<fields.length;i++)if(!Object.is(c[fields[i]],a[i]))return false;return true;}
+ function record(c){let q=records.get(c);if(!q){q={view:{...c},previous:[],current:[],control:[],beforeControl:[],ready:false,pending:false,blend:false};records.set(c,q);}return q;}
+ function snap(c,q=record(c)){copy(c,q.previous);copy(c,q.current);control(c,q.control);q.ready=true;q.pending=q.blend=false;return q;}
+ function before(fleet){for(const c of fleet){const q=record(c);q.continuous=q.ready&&samePose(c,q.current)&&sameControl(c,q.control);q.eligible=eligible(c);q.speed=Math.max(finite(c.v),finite(c.u),finite(c.w));q.spin=finite(c.omega);copy(c,q.previous);control(c,q.beforeControl);q.pending=true;}}
+ function after(fleet,dt){for(const c of fleet){const q=record(c);if(!q.pending){snap(c,q);continue;}q.pending=false;copy(c,q.current);control(c,q.control);
+  const a=q.previous,b=q.current,limit=1+Math.max(q.speed,finite(c.v),finite(c.u),finite(c.w))*Math.max(0,dt)*3,dx=b[0]-a[0],dz=b[2]-a[2],dy=Number.isFinite(a[1])&&Number.isFinite(b[1])?b[1]-a[1]:0;
+  q.blend=q.continuous&&q.eligible&&eligible(c)&&sameControl(c,q.beforeControl)&&Math.hypot(dx,dy,dz)<=limit&&Math.abs(turn(b[3]-a[3]))<=Math.max(.65,Math.max(q.spin,finite(c.omega))*Math.max(0,dt)*3)&&(!(Number.isFinite(a[6])&&Number.isFinite(b[6]))||b[6]>=a[6]&&b[6]-a[6]<=limit);
+  q.ready=true;if(!q.blend)for(let i=0;i<fields.length;i++)a[i]=b[i];
+ }}
+ function view(c,alpha=1,direct=false){if(direct||!eligible(c)){if(records.has(c))snap(c);return c;}let q=records.get(c);if(!q||!q.ready||!samePose(c,q.current)||!sameControl(c,q.control))q=snap(c,q);const a=q.previous,b=q.current,t=q.blend&&Number.isFinite(alpha)?Math.max(0,Math.min(1,alpha)):1;
+  Object.assign(q.view,c);for(const name of visual)q.view[name]=c[name];
+  for(let i=0;i<fields.length;i++){const name=fields[i],start=a[i],end=b[i];q.view[name]=t===1||!Number.isFinite(start)||!Number.isFinite(end)?end:t===0?start:start+(angular.has(name)?turn(end-start):end-start)*t;}return q.view;
+ }
+ return {before,after,view,reset(c){if(c)snap(c);else records=new WeakMap();}};
+}
 function create({pedestrians=480,expanded=!!R.campaign,saved=null,now=Date.now()}={}){
  const storedAmmo=saved?.ammunition,ammoValid=storedAmmo?.version===1&&Array.isArray(storedAmmo.ammo)&&storedAmmo.ammo.length===3&&storedAmmo.ammo.every((v,i)=>Number.isInteger(v)&&v>=0&&v<=[180,36,12][i]);
  const world=R.world.create({savedCity:saved?.city}),weather=R.weather?R.weather.create(saved?.weather):null,layout=expanded?R.campaign.layout(world):null,addresses=expanded&&R.interiors?(world.addresses=R.interiors.catalog(world)):null,sim=(expanded&&R.business?.prepare(world),FSimulation.create(world.combatWorld,{finiteAmmo:expanded,...(ammoValid?{inventory:{weapons:[true,true,true],ammo:storedAmmo.ammo.slice()}}:{})})),player=sim.state.player;
@@ -7,10 +34,11 @@ function create({pedestrians=480,expanded=!!R.campaign,saved=null,now=Date.now()
  let loot;
  let car=world.car,mode='foot',time=0,crowdClock=0,trafficClock=0,message='',messageTime=0,phase=0,returned=false,lastEvents=[],nearObjective=false,crowdEvents=[];const history=(Array.isArray(saved?.journal)?saved.journal:[]).filter(e=>e&&Number.isFinite(e.time)&&typeof e.text==='string'&&e.text.length<=400).slice(-80).map(e=>({time:e.time,text:e.text}));
  const tell=(s,{remember=true}={})=>{message=s;messageTime=5;if(s.startsWith('SMS ·'))lastEvents.push({name:'phoneMessage'});if(remember&&history.at(-1)?.text!==s){history.push({time,text:s});if(history.length>80)history.shift();}};
- const traffic=expanded?R.traffic.create(world):null,campaign=expanded?R.campaign.create(world,sim,layout,{saved,now,notify:tell}):null,crowd=R.crowd.create(world,pedestrians,{allowAggression:expanded&&!!R.injuries,hurt:(amount,e)=>sim.hurt(amount,false,{x:e.x,y:1,z:e.z}),notify:tell});world.player=player;world.pedestrians=crowd.people;world.weather=weather?.state||null;const interiors=expanded&&R.interiors?R.interiors.create(world,sim,{saved:saved?.interiors,notify:tell}):null;const urban=expanded&&R.urban?R.urban.create(world,sim,{saved:saved?.urban,interiors,campaign,traffic,notify:tell}):null;const marine=R.marine?R.marine.create(world,{saved:saved?.marine,notify:tell}):null;const business=expanded&&R.business?R.business.create(world,sim,{interiors,campaign,saved:saved?.business,notify:tell}):null;const injuries=expanded&&R.injuries?R.injuries.create(world,sim,crowd,{interiors,urban,campaign,saved:saved?.injuries,notify:tell,onReclaim:ownerReclaim}):null;
+ const traffic=expanded?R.traffic.create(world):null,campaign=expanded?R.campaign.create(world,sim,layout,{saved,now,notify:tell}):null,crowd=R.crowd.create(world,pedestrians,{allowAggression:expanded&&!!R.injuries,hurt:(amount,e)=>sim.hurt(amount,false,{x:e.x,y:1,z:e.z}),notify:tell});world.player=player;world.pedestrians=crowd.people;world.weather=weather?.state||null;const interiors=expanded&&R.interiors?R.interiors.create(world,sim,{saved:saved?.interiors,notify:tell}):null;const urban=expanded&&R.urban?R.urban.create(world,sim,{saved:saved?.urban,interiors,campaign,traffic,notify:tell,batchStreetExplosions:true}):null;const marine=R.marine?R.marine.create(world,{saved:saved?.marine,notify:tell}):null;const business=expanded&&R.business?R.business.create(world,sim,{interiors,campaign,saved:saved?.business,notify:tell}):null;const injuries=expanded&&R.injuries?R.injuries.create(world,sim,crowd,{interiors,urban,campaign,saved:saved?.injuries,notify:tell,onReclaim:ownerReclaim}):null;
  const police=expanded&&R.police?R.police.create(world,sim,{traffic,campaign,saved:saved?.police,notify:tell}):null;
  loot=expanded&&R.loot?R.loot.create(world,sim,{campaign,business,interiors,saved:saved?.loot,notify:tell}):null;
  const phone=expanded&&R.phone?R.phone.create(world,sim,{campaign,business,interiors,traffic,saved:saved?.phone,notify:tell}):null;
+ const trafficRender=trafficPresentation();
  marine?.restore(player);if(marine&&marine.mode!=='foot')mode=marine.mode;
  interiors?.setServiceHandler('repair',()=>urban?.repair(car));
  function ownerReclaim(c,e,door){if(mode==='car'&&car===c){if(c.v>=.7)return false;const co=Math.cos(c.cap),si=Math.sin(c.cap),q={x:door.x-co*.9,z:door.z-si*.9};if(world.blocked(q.x,q.z,.28))return false;mode='foot';world.playerSeated=false;Object.assign(player,{x:q.x,z:q.z,y:world.ground(q.x,q.z)});sim.hurt(5,false,{x:e.x,y:1,z:e.z});}return true;}
@@ -36,6 +64,7 @@ function create({pedestrians=480,expanded=!!R.campaign,saved=null,now=Date.now()
   Object.assign(player,{x:car.x,z:car.z,y:car.y,yaw:car.cap+Math.PI/2,pitch:0});if(phase===0)phase=1;if(phase===3)returned=true;tell('Moteur démarré · Z / W accélérer · S freiner / reculer.');return true;
  }
  function respawn(arrested=false){
+  trafficRender.reset();
   marine?.leave();interiors?.leave();
   if(campaign&&!arrested){const fee=Math.min(campaign.state.cash,Math.max(60,campaign.state.cash*.15));campaign.state.cash-=fee;tell('Vous reprenez connaissance · '+Math.round(fee)+' € perdus.');}
   car.u=car.w=car.v=car.omega=0;mode='foot';const p=world.freeNear(world.combatWorld.spawn.x,world.combatWorld.spawn.z,.4);
@@ -59,7 +88,7 @@ function create({pedestrians=480,expanded=!!R.campaign,saved=null,now=Date.now()
   if(phase>=2&&sim.state.enemies.slice(0,3).every(e=>e.hp<=0)&&phase<3){phase=3;if(!expanded)tell('Zone sécurisée. Retrouvez votre véhicule.');}
   if(returned&&car.v>2&&phase===3){phase=4;if(!expanded)tell('MISSION ACCOMPLIE · La ville reste ouverte.');}
   world.playerSeated=mode!=='foot';
-  if(campaign){campaign.tick(dt,lastEvents);trafficClock+=dt;if(trafficClock>=1/30){traffic.update(trafficClock,campaign.law,player);trafficClock=0;}
+  if(campaign){campaign.tick(dt,lastEvents);trafficClock+=dt;if(trafficClock>=1/30){trafficRender.before(traffic.cars);traffic.update(trafficClock,campaign.law,player);trafficRender.after(traffic.cars,trafficClock);trafficClock=0;}
    const law=campaign.law,policeContext={seated:mode==='car',vehicle:car,speed:mode==='car'?car.v:sim.state.locomotion.speed,hidden:!!interiors?.active||mode==='swim'||mode==='boat'};
    police?.update(dt,policeContext);law.seen=!!law.seen||!!police?.seen;
    const status=police?police.arrestStatus(player,policeContext):traffic.arrestStatus(player,policeContext);
@@ -68,6 +97,6 @@ function create({pedestrians=480,expanded=!!R.campaign,saved=null,now=Date.now()
   }
   urban?.update(dt,lastEvents);if(mode==='foot'){world.resolveOverlap?.(player,dt);if(!interiors?.active)urban?.crossBreach(previous,player);}business?.update(dt,lastEvents);injuries?.update(dt,lastEvents);loot?.update();phone?.update(dt,lastEvents,{mode,car});lastEvents.push(...weatherEvents);crowdEvents.push(...lastEvents);crowdClock+=dt;if(crowdClock>=.05){crowd.update(crowdClock,crowdEvents);crowdClock=0;crowdEvents=[];}
  }
- return {world,sim,crowd,traffic,campaign,weather,interiors,urban,injuries,loot,police,phone,save(){const data=campaign.save();if(interiors?.active)data.player={...data.player,...interiors.outside};return {...data,city:world.cityStream?.save(),ammunition:{version:1,ammo:sim.state.inventory.ammo.slice(),weapon:sim.state.weapon},weather:weather?.save(),police:police?.save(),interiors:interiors?.save(),urban:urban?.save(),injuries:injuries?.save(),marine:marine?.save(),business:business?.save(),loot:loot?.save(),phone:phone?.save(),journal:history.slice(-80)};},expanded,marine,business,get car(){return car;},player,interact,exitCandidates,respawn,update,history,tell,get mode(){return mode;},get phase(){return phase;},get time(){return time;},get message(){return messageTime?message:'';},get events(){return lastEvents;},get crowdAlpha(){return crowdClock/.05;}};
+ return {world,sim,crowd,traffic,campaign,weather,interiors,urban,injuries,loot,police,phone,save(){const data=campaign.save();if(interiors?.active)data.player={...data.player,...interiors.outside};return {...data,city:world.cityStream?.save(),ammunition:{version:1,ammo:sim.state.inventory.ammo.slice(),weapon:sim.state.weapon},weather:weather?.save(),police:police?.save(),interiors:interiors?.save(),urban:urban?.save(),injuries:injuries?.save(),marine:marine?.save(),business:business?.save(),loot:loot?.save(),phone:phone?.save(),journal:history.slice(-80)};},expanded,marine,business,get car(){return car;},player,interact,exitCandidates,respawn,update,history,tell,trafficView(c,alpha=trafficClock*30){return trafficRender.view(c,alpha,mode==='car'&&c===car);},resetTrafficPresentation(){trafficRender.reset();},get trafficAlpha(){return trafficClock*30;},get mode(){return mode;},get phase(){return phase;},get time(){return time;},get message(){return messageTime?message:'';},get events(){return lastEvents;},get crowdAlpha(){return crowdClock/.05;}};
 }
-R.session={create};})(globalThis.RADE=globalThis.RADE||{});
+R.session={create,trafficPresentation};})(globalThis.RADE=globalThis.RADE||{});

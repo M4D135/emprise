@@ -1,8 +1,10 @@
-# EMPRISE — 0.6.3 « Cadence »
+# EMPRISE — 0.6.4 « Mouvement »
 
 Sandbox FPS solo persistant dans Marseille et ses eaux côtières, avec conduite et combat dans un seul renderer **FERRO**. Jouer : **[gta.estrasse.fr](https://gta.estrasse.fr)** · [Dépôt GitHub privé](https://github.com/M4D135/emprise).
 
-La version 0.6.3 réduit le travail de collision de la foule, les allocations de la physique et la reconstruction des façades détruites. Les personnages, véhicules, débris et réglages 3D sont conservés. [Comparaison avec la 0.6.2, cadence et limites](docs/FLUIDITY-PERFORMANCE.md).
+La version 0.6.4 ajoute les commandes tactiles inspirées de METAL, interpole l’affichage du trafic et réduit encore les calculs de collision et de destruction. Le voilier part réellement sous voile, prend le vent selon son réglage et suit une houle commune à la coque et à la surface visible. Les personnages, véhicules, débris et réglages 3D sont conservés. La fluidité parfaite dans toutes les explosions n’est pas acquise. [Mesures et limites](docs/MOVEMENT-PERFORMANCE.md) · [comparaison historique 0.6.2 / 0.6.3](docs/FLUIDITY-PERFORMANCE.md).
+
+Sur écran tactile : stick flottant à gauche (course au bord), regard libre et tir glissé à droite. Conduite, nage et postes de voile affichent leurs commandes propres ; téléphone, actions et réglages restent accessibles. Une pause, une rotation d’écran ou un changement de périphérique libère les appuis. La validation utilise de vrais événements tactiles CDP dans Chrome sur Mac, pas encore un téléphone physique. [Rapport tactile](docs/mobile-064-integrated.json) · [transitions tactile/manette/clavier](docs/hybrid-input-validation.json).
 
 **Nouvelle partie** est accessible au titre, dans la pause et après une interruption, avec confirmation. Les réglages de manette sont conservés. La reprise d’une sauvegarde en nage ou en bateau ne cherche plus un emplacement terrestre ; une ancienne position terrestre impraticable utilise un point libre vérifié en conservant la progression.
 

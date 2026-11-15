@@ -1,0 +1,23 @@
+import './load.mjs';
+import assert from 'node:assert/strict';import fs from 'node:fs';import vm from 'node:vm';import crypto from 'node:crypto';import {execFileSync} from 'node:child_process';
+const clip=PDR.villeReelle.outils.decouperDalleEau,inRing=PDR.villeReelle.outils.dansAnneau,hash=v=>crypto.createHash('sha256').update(JSON.stringify(v)).digest('hex'),ring=(x0,z0,x1,z1)=>[x0,z0,x1,z0,x1,z1,x0,z1];
+const wet=(waters,x,z)=>waters.some(e=>inRing(e.points,x,z)&&!e.trous?.some(h=>inRing(h,x,z)));
+const world=(m,p)=>{const cap=-m.r[1],c=Math.cos(cap),s=Math.sin(cap);return [m.p[0]+p[0]*m.s[0]*c-p[2]*m.s[2]*s,m.p[2]+p[0]*m.s[0]*s+p[2]*m.s[2]*c];};
+function topCovers(tris,x,z){return tris.some(t=>{if(t[3][1]<.9)return false;const [a,b,c]=t,cross=(p,q)=>(q[0]-p[0])*(z-p[2])-(q[2]-p[2])*(x-p[0]),u=cross(a,b),v=cross(b,c),w=cross(c,a);return (u>=-1e-10&&v>=-1e-10&&w>=-1e-10)||(u<=1e-10&&v<=1e-10&&w<=1e-10);});}
+const topArea=t=>t.filter(q=>q[3][1]>.9).reduce((sum,[a,b,c])=>sum+Math.abs((b[0]-a[0])*(c[2]-a[2])-(b[2]-a[2])*(c[0]-a[0]))/2,0),box={p:[0,.035,0],s:[2,.03,2],r:[0,0,0]};
+const cases=[{waters:[{points:ring(3,3,5,5)}],area:1},{waters:[{points:ring(-3,-3,3,3)}],area:0},{waters:[{points:ring(0,-3,3,3)}],area:.5},{waters:[{points:ring(-3,-3,3,3),trous:[ring(-.5,-.5,.5,.5)]}],area:.25},{waters:[{points:ring(-3,-3,0,3)},{points:ring(-3,0,3,3)}],area:.25},{waters:[{points:[-3,-3,3,-3,3,0,0,0,0,3,-3,3]}],area:.25}];
+let probes=0;
+for(const [i,test]of cases.entries())for(const rotation of [0,.42,Math.PI/2,2.7]){const m={...box,r:[0,rotation,0]},triangles=clip(m,test.waters);if(rotation===0)assert(Math.abs((triangles===null?1:topArea(triangles))-test.area)<1e-8,`case${i} area`);for(let z=0;z<29;z++)for(let x=0;x<31;x++){const u=(x+.317)/31-.5,v=(z+.417)/29-.5,p=world(m,[u,0,v]);assert.equal(triangles===null||topCovers(triangles,u,v),!wet(test.waters,...p),`case${i} rotated${rotation} coverage ${u},${v}`);probes++;}}
+// Full-city oracle: do not reorder pieces or change any physical/geographic
+// data. Only the sixteen surface shape names may differ from the old source.
+RADE.coreHeights.apply(PDR.plans.marseille);
+const previous=execFileSync('git',['show','22a330f:src/pdr/ville-reelle.js'],{encoding:'utf8'}),sandbox={PDR:{plans:PDR.plans,regles:PDR.regles},performance};vm.createContext(sandbox);vm.runInContext(previous,sandbox);const before=sandbox.PDR.villeReelle.creerVille('marseille',{ilots:15});
+const shapes=new Map(),forme=FRender.forme;FRender.forme=(name,t)=>{if(name.startsWith('emprise-port-ground'))shapes.set(name,t);return forme(name,t);};const after=PDR.villeReelle.creerVille('marseille',{ilots:15});FRender.forme=forme;
+assert.equal(after.objets.length,before.objets.length);assert.equal(hash(after.mesures.comptes.parSection),hash(before.mesures.comptes.parSection));
+const restored=after.objets.map(m=>m.shape.startsWith('emprise-port-ground')?{...m,shape:'box'}:m);assert.equal(hash(restored),hash(before.objets),'All other shapes, indices, poses, materials, colliders and decorations remain byte-equivalent');
+let realProbes=0,empty=0,triangles=0,changed=[];const waters=PDR.plans.marseille.eau.filter(e=>Math.abs(PDR.villeReelle.outils.aire(e.points))>=400);
+for(let i=0;i<after.objets.length;i++){const m=after.objets[i],t=shapes.get(m.shape);if(!t)continue;changed.push(i);triangles+=t.length;if(!t.length)empty++;for(let z=0;z<23;z++)for(let x=0;x<27;x++){const u=(x+.317)/27-.5,v=(z+.417)/23-.5,p=world(m,[u,0,v]);assert.equal(topCovers(t,u,v),!wet(waters,...p),`real piece ${i} coverage`);realProbes++;}}
+assert(changed.length>0&&changed.length<30);assert(empty>0);
+const index=4363,m=after.objets[index],cap=-m.r[1],dx=36.5-m.p[0],dz=174.74-m.p[2],u=(dx*Math.cos(cap)+dz*Math.sin(cap))/m.s[0],v=(-dx*Math.sin(cap)+dz*Math.cos(cap))/m.s[2];assert(wet(waters,36.5,174.74));assert(!topCovers(shapes.get(m.shape),u,v),'The photographed sailing position has no paved slab over water');
+const report={checks:['Découpe exacte : anneaux concaves, trous, union d’eaux, rectangle tourné, surfaces vides/pleines','Oracle ville22a330f : même ordre/nombre d’objets, mêmes poses/matériaux ; ponts/pontons/voies et décor inchangés','Position photographiée du voilier libérée ; chaque dalle corrigée conserve toute sa partie terrestre'],syntheticProbes:probes,realProbes,changedSlots:changed,emptySlots:empty,trianglesBefore:changed.length*12,trianglesAfter:triangles,originalObjectsHash:hash(before.objets),normalizedObjectsHash:hash(restored)};
+fs.writeFileSync(new URL('../docs/port-ground-validation.json',import.meta.url),JSON.stringify(report,null,2)+'\n');console.log(JSON.stringify(report,null,2));

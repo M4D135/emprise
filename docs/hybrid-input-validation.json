@@ -1,0 +1,11 @@
+{
+  "checks": [
+    "A starts the title on a coarse-pointer device without pointer lock, switching touch UI to pad",
+    "Pad takeover cancels held touch fire and the late touch release cannot reactivate it",
+    "Touch to keyboard pause clears touch, then Start resumes with pad"
+  ],
+  "buildSha256": "2a6fb6f0de53a31bf7eac5f89fdeb4fecc58136ab3adaac01b97b86288108ffa",
+  "hardware": "Chrome touch emulation and virtual standard Gamepad API; no physical phone/controller.",
+  "backend": "webgpu",
+  "errors": []
+}

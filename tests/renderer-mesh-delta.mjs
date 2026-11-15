@@ -31,6 +31,8 @@ change('insertion before first background water',[{start:0,deleteCount:0,items:[
 change('local replacement',[{start:14,deleteCount:2,items:[make(1001),make(1002),make(1003)]}]);
 change('two local splices around water',[{start:55,deleteCount:1,items:[]},{start:105,deleteCount:1,items:[make(1004)]}]);
 change('appended foreground',[{start:meshes.length,deleteCount:0,items:[make(1005)]}]);
+const nonspreadable=[make(5010),make(5011)];nonspreadable[Symbol.isConcatSpreadable]=false;
+change('ordinary element copies ignore concat opt-out',[{start:30,deleteCount:1,items:nonspreadable}]);
 change('unchanged source with fresh array',[]);
 change('stale before reference',[{start:5,deleteCount:1,items:[make(1006)]}],{fast:false},d=>({...d,before:d.before.slice()}));
 change('wrong after reference',[{start:7,deleteCount:1,items:[make(1007)]}],{fast:false},d=>({...d,after:d.after.slice()}));
@@ -60,3 +62,11 @@ for(const key of ['backgroundWater','renderRevision','s'])Object.defineProperty(
 const replacement=make(5002),after=[retained,replacement],delta={before:source,after,full:false,splices:[{start:1,deleteCount:1,items:[replacement]}]},options={revisionedMeshes:true,meshDelta:delta};
 const patched=S.partitionWorld(after,partition,options);S.spatialIndex(patched.world,env,index,{revisionedMeshes:true,meshDelta:patched.meshDelta});assert.equal(index.delta.fast,true);
 console.log('PASS explicit mesh delta: '+checked+' stages against 76e5ed7; exact partition/index/query/chunk bytes and order, strict fallbacks, retained fields never inspected.');
+
+// Thousands of separated edits must take the bounded-argument fallback while
+// preserving the original snapshot and every retained occurrence.
+const manyBefore=Array.from({length:30000},(_,i)=>make(6000+i)),manyPartition=S.partitionWorld(manyBefore),manyAfter=[],manySplices=[];
+for(let i=0;i<manyBefore.length;i++){if(i%10===5){const item=make(40000+i);manyAfter.push(item);manySplices.push({start:i,deleteCount:1,items:[item]});}else manyAfter.push(manyBefore[i]);}
+const manyPatched=S.partitionWorld(manyAfter,manyPartition,{revisionedMeshes:true,meshDelta:{before:manyBefore,after:manyAfter,full:false,splices:manySplices}});
+assert(manyPatched.meshDelta,'Many-splice test must use the direct delta path');assert(manyPatched.world.every((m,i)=>m===manyAfter[i]));assert(manyPartition.world.every((m,i)=>m===manyBefore[i]));
+console.log('PASS native/fallback array copying: 6001 ranges, independent unchanged snapshots.');

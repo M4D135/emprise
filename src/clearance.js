@@ -5,9 +5,10 @@ function basis(q){let b=cache.get(q);if(b)return b;const m=q.mesh;
  if(!m?.p||!m?.s)return null;
  b={p:m.p,h:m.s.map(v=>Math.abs(v)/2),axes:BITUME.voiture.euler(...(m.r||[0,0,0]))};cache.set(q,b);return b;
 }
-function contact(q,x,z,r,y,height){
- if(q.maxY<=y+.22||q.minY>=y+height||Math.abs(x-q.x)>q.a+r||Math.abs(z-q.z)>q.b+r)return 0;
- const box=basis(q);if(!box)return 0;const bottom=y+Math.min(r,height/2),length=Math.max(0,height-2*r),v=[x-box.p[0],bottom-box.p[1],z-box.p[2]],a=box.axes.map(n=>n[0]*v[0]+n[1]*v[1]+n[2]*v[2]),d=box.axes.map(n=>n[1]*length),h=box.h,knots=[0,1];
+// Only custom rotation providers with sparse/nonstandard axes need the old
+// map semantics. The procedural rotation provider always returns three axes.
+function strictDistance(box,x,z,r,y,height){
+ const bottom=y+Math.min(r,height/2),length=Math.max(0,height-2*r),v=[x-box.p[0],bottom-box.p[1],z-box.p[2]],a=box.axes.map(n=>n[0]*v[0]+n[1]*v[1]+n[2]*v[2]),d=box.axes.map(n=>n[1]*length),h=box.h,knots=[0,1];
  // Squared distance to an OBB is piecewise quadratic along the capsule axis.
  for(let i=0;i<3;i++)if(Math.abs(d[i])>1e-10)for(const sign of [-1,1]){const t=(sign*h[i]-a[i])/d[i];if(t>0&&t<1)knots.push(t);}
  knots.sort((a,b)=>a-b);let best=Infinity;
@@ -15,6 +16,30 @@ function contact(q,x,z,r,y,height){
  for(let j=1;j<knots.length;j++){const lo=knots[j-1],hi=knots[j],mid=(lo+hi)/2;let aa=0,bb=0;
   for(let i=0;i<3;i++){const p=a[i]+d[i]*mid;if(Math.abs(p)>h[i]){const e=a[i]-Math.sign(p)*h[i];aa+=d[i]*d[i];bb+=d[i]*e;}}
   best=Math.min(best,squared(lo),squared(hi),squared(aa?clamp(-bb/aa,lo,hi):mid));
+ }
+ return best;
+}
+let contactDepth=0;const contactWork=[];
+function squaredDistance(a,d,h,t){let n=0;for(let i=0;i<3;i++){const e=Math.max(0,Math.abs(a[i]+d[i]*t)-h[i]);n+=e*e;}return n;}
+function contact(q,x,z,r,y,height){
+ if(q.maxY<=y+.22||q.minY>=y+height||Math.abs(x-q.x)>q.a+r||Math.abs(z-q.z)>q.b+r)return 0;
+ const box=basis(q);if(!box)return 0;const axes=box.axes;let best=Infinity;
+ if(axes.length!==3||!(0 in axes)||!(1 in axes)||!(2 in axes))best=strictDistance(box,x,z,r,y,height);
+ else{
+  // Eight knots suffice: both ends plus at most two intersections per axis.
+  // A depth slot prevents getters/reentrant probes from clobbering this call.
+  const depth=contactDepth++,work=contactWork[depth]||(contactWork[depth]={a:new Float64Array(3),d:new Float64Array(3),knots:new Float64Array(8)});
+  try{
+   const bottom=y+Math.min(r,height/2),length=Math.max(0,height-2*r),vx=x-box.p[0],vy=bottom-box.p[1],vz=z-box.p[2],a=work.a,d=work.d,h=box.h,knots=work.knots;
+   for(let i=0;i<3;i++){const n=axes[i];a[i]=n[0]*vx+n[1]*vy+n[2]*vz;}
+   for(let i=0;i<3;i++)d[i]=axes[i][1]*length;
+   let count=2;knots[0]=0;knots[1]=1;
+   for(let i=0;i<3;i++)if(Math.abs(d[i])>1e-10)for(let sign=-1;sign<=1;sign+=2){const t=(sign*h[i]-a[i])/d[i];if(t>0&&t<1){let j=count++;while(j>0&&t<knots[j-1]){knots[j]=knots[j-1];j--;}knots[j]=t;}}
+   for(let j=1;j<count;j++){const lo=knots[j-1],hi=knots[j],mid=(lo+hi)/2;let aa=0,bb=0;
+    for(let i=0;i<3;i++){const p=a[i]+d[i]*mid;if(Math.abs(p)>h[i]){const e=a[i]-Math.sign(p)*h[i];aa+=d[i]*d[i];bb+=d[i]*e;}}
+    best=Math.min(best,squaredDistance(a,d,h,lo),squaredDistance(a,d,h,hi),squaredDistance(a,d,h,aa?clamp(-bb/aa,lo,hi):mid));
+   }
+  }finally{contactDepth--;}
  }
  const penetration=r-Math.sqrt(best);if(penetration<=1e-5)return 0;
  // Inside a thick body, capsule distance alone is flat. This tiny tie-break

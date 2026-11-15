@@ -410,6 +410,9 @@ function create(world,{count=12}={}){
    if(dx*dx+dz*dz>625)return;
    const along=dx*dirX+dz*dirZ,across=dx*rightX+dz*rightZ;
    if(along<=.25||Math.abs(across)>=halfWidth+.43)return;
+   // Visibility cannot make a farther/equal candidate replace the existing
+   // winner. Keep the exact subtraction order and the original strict tie.
+   if(along-halfLength-.35>=best.distance)return;
    if(!clearLine(c,{x,z},.12))return;
    best=considerObstacle(c,{x,z},kind,best,dirX,dirZ,rightX,rightZ,halfWidth,halfLength,.35,.35);
   };
@@ -422,26 +425,26 @@ function create(world,{count=12}={}){
   if(direction>0){
    const look=clamp(3+c.v,4.5,16);
    for(let d=halfLength+.15;d<=halfLength+look;d+=.8){
+    const distance=d-halfLength;if(distance>=best.distance)break;
     for(const offset of [-halfWidth*.8,0,halfWidth*.8]){
      const x=c.x+Math.cos(c.cap)*d-Math.sin(c.cap)*offset;
      const z=c.z+Math.sin(c.cap)*d+Math.cos(c.cap)*offset;
      if(!staticFree(x,z,.32)){
-      const distance=d-halfLength;
       if(distance<best.distance)best={distance,kind:'static'};
-      break;
+      return best;
      }
     }
    }
   }else{
    const look=3.4;
    for(let d=halfLength+.1;d<=halfLength+look;d+=.7){
+    const distance=d-halfLength;if(distance>=best.distance)break;
     for(const offset of [-halfWidth*.7,0,halfWidth*.7]){
      const x=c.x-Math.cos(c.cap)*d-Math.sin(c.cap)*offset;
      const z=c.z-Math.sin(c.cap)*d+Math.cos(c.cap)*offset;
      if(!staticFree(x,z,.32)){
-      const distance=d-halfLength;
       if(distance<best.distance)best={distance,kind:'static'};
-      break;
+      return best;
      }
     }
    }
