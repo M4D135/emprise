@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Real Chrome WebGPU failures and WebGL2 recovery. CDP pipe, no server/port."""
 from browser_support import Browser,ROOT
-import argparse,json,time
-parser=argparse.ArgumentParser();parser.add_argument('--cases',nargs='+',default=['device-lost','validation-error','adapter-rejected','api-absent','installation-error']);args=parser.parse_args()
+import argparse,json,time,hashlib
+parser=argparse.ArgumentParser();parser.add_argument('--label',default='render-recovery');parser.add_argument('--cases',nargs='+',default=['device-lost','validation-error','adapter-rejected','api-absent','installation-error']);args=parser.parse_args()
 # Record the real first/live session before renderer creation. A later demo
 # preparation cannot replace this sentinel. No renderer/session test doubles.
 PRELUDE=r'''let recoveryNamespace;const recoveryNamespaces=new WeakSet();Object.defineProperty(globalThis,'RADE',{configurable:true,get(){return recoveryNamespace;},set(value){recoveryNamespace=value;if(recoveryNamespaces.has(value))return;recoveryNamespaces.add(value);let sessionAPI;Object.defineProperty(value,'session',{configurable:true,get(){return sessionAPI;},set(api){sessionAPI=api;const create=api.create;api.create=function(...args){const s=create.apply(this,args);if(!globalThis.__recoverySession){globalThis.__recoverySession=s;s.campaign.state.cash=4321.5;s.player.hp=73;s.sim.state.inventory.ammo.splice(0,3,71,17,6);globalThis.__recoverySnapshot=JSON.stringify({cash:s.campaign.state.cash,hp:s.player.hp,inventory:s.sim.state.inventory,weapon:s.sim.state.weapon});}return s;};}});}});'''
@@ -12,8 +12,8 @@ INJECT={
  'installation-error':r'''let nativeAPI;Object.defineProperty(globalThis,'FRenderWebGPU',{configurable:true,get(){return nativeAPI;},set(value){nativeAPI=value;const create=value.create;value.create=async function(...args){const r=await create.apply(this,args);r.setWorld=()=>{throw Error('Injected native installation failure');};return r;};}});'''
 }
 STATE=r'''(()=>{const g=RADE.game,s=g.session;return {backend:g.renderer.stats.backend,sameSession:s===__recoverySession,state:JSON.stringify({cash:s.campaign.state.cash,hp:s.player.hp,inventory:s.sim.state.inventory,weapon:s.sim.state.weapon}),before:__recoverySnapshot,errors:g.errors,events:g.backendEvents,reason:g.renderer.stats.fallbackReason,running:g.running,recovering:g.recoveringRenderer,canvasReplaced:!!globalThis.__oldCanvas&&__oldCanvas!==document.getElementById('scene'),pointerLocked:document.pointerLockElement===document.getElementById('scene'),loading:!document.getElementById('loading').hidden};})()'''
-report={'description':'Actual device loss, uncaptured GPU validation, adapter/API/init failure; same live session and replaced-canvas input','cases':[]}
-output=ROOT/'docs/render-recovery.json'
+report={'build':json.loads((ROOT/'SIZE.json').read_text()),'htmlSha256':hashlib.sha256((ROOT/'dist/index.html').read_bytes()).hexdigest(),'description':'Actual device loss, uncaptured GPU validation, adapter/API/init failure; same live session and replaced-canvas input','cases':[]}
+output=ROOT/'docs'/(args.label+'.json')
 def input_checks(b):
  # Keep simulation state frozen while recording the real commands assembled by
  # game input. testing=false deliberately exercises normal pointerlock release.
@@ -51,6 +51,6 @@ for case in args.cases:
   assert result['backend']=='webgl2',result;assert result['sameSession'],result;assert result['state']==result['before'],result;assert not result['errors'],result;assert not result['loading'],result
   inputs=input_checks(b);after=b.ev(STATE);assert after['state']==after['before'],after;assert not after['errors'],after
   record={'case':case,'state':result,'input':inputs,'framesAfter':b.ev('RADE.game.drawCount')};report['cases'].append(record);output.write_text(json.dumps(report,ensure_ascii=False,indent=2)+'\n')
-  if case=='device-lost':b.capture('render-recovered-webgl2.png')
+  if case=='device-lost':b.capture('render-recovered-webgl2.png' if args.label=='render-recovery' else args.label+'-webgl2.png')
   print('PASS recovery '+case,flush=True)
 print('PASS '+str(output),flush=True)

@@ -1,6 +1,6 @@
 # FERRO : WebGPU natif, secours WebGL2
 
-Les tableaux de migration ci-dessous sont ceux de la version 0.6.0. Les optimisations CPU et la validation de l’extérieur chargé en 0.6.1 figurent dans [OUTDOOR-PERFORMANCE.md](OUTDOOR-PERFORMANCE.md).
+Les tableaux de migration ci-dessous sont ceux de la version 0.6.0. Les optimisations CPU en 0.6.1 figurent dans [OUTDOOR-PERFORMANCE.md](OUTDOOR-PERFORMANCE.md). La passe 0.6.2 et ses mesures isolées d’explosions sont dans [EXPLOSION-PERFORMANCE.md](EXPLOSION-PERFORMANCE.md).
 
 EMPRISE 0.6.0 sélectionne WebGPU en priorité lorsque le navigateur fournit un adaptateur utilisable. WebGL2 reste disponible au démarrage et après une défaillance du périphérique natif. Le backend annoncé correspond à l’API qui dessine effectivement la scène.
 
@@ -38,6 +38,14 @@ La couleur avant l’arme et la profondeur du monde sont conservées pour les re
 Avec cette garantie, toute modification d’un champ de rendu doit soit créer un nouvel objet mesh, soit incrémenter son `renderRevision` avant `updateWorld`. Cela comprend le contenu ou le remplacement des tableaux `p`, `s`, `r` et `color`, ainsi que `shape`, `mat`, `emissive`, `detail`, `ground`, `backgroundWater` et les champs utilisés par `surfaceFlags`. Les métadonnées internes de l’index ne doivent pas être modifiées directement. Une identité ou une révision différente reconstruit complètement la ligne d’instance et ses métadonnées spatiales ; elle invalide les chunks concernés.
 
 EMPRISE active cette option uniquement sur la mise à jour du décor de sa frame : les destructions, ouvertures et projections d’intérieur produisent de nouveaux meshes ; les recolorations d’incendie incrémentent leur révision. Le contrat ne réduit ni le nombre d’objets, ni leurs détails, ni les effets. Les insertions, suppressions, doublons, réordonnancements et changements complets de scène restent pris en charge. `tests/renderer-revisioned.mjs` compare le chemin strict et ce chemin explicite, avec les octets du renderer de référence `3ac8e4c` reconstruits à neuf.
+
+### Deltas explicites de géométrie (0.6.2)
+
+Le producteur peut compléter le contrat par `{revisionedMeshes: true, meshDelta: {before, after, full: false, splices}}`. Chaque splice décrit `{start, deleteCount, items}` dans les indices du tableau `before` ; les splices sont triés, sans chevauchement. `before` et `after` sont les références exactes des listes précédente et nouvelle, et les objets conservés doivent être inchangés, y compris leurs révisions. Cette garantie est plus forte que `revisionedMeshes` seul : le chemin rapide ne relit pas les champs des objets conservés.
+
+Le renderer vérifie les bases, bornes, longueurs et identités insérées, puis met à jour les seuls groupes spatiaux concernés. Une scène étrangère, une base périmée, des doublons, des réinsertions d’identités, un delta trop large ou un changement d’eau de fond repasse par les vérifications générales. `stats.meshDeltaApplied` indique si le chemin direct a effectivement été utilisé. Les deux backends partagent cette logique.
+
+EMPRISE compose les modifications successives de la même frame. Une recoloration par le feu invalide explicitement cette garantie ; une transition de décor ou un historique incomplet utilise le repli. Les caches et historiques ne sont pas sérialisés. `renderer-mesh-delta.mjs`, `renderer-sparse-buckets.mjs` et `scene-delta-compose.mjs` vérifient les ordres, octets, doublons, bases périmées et compositions.
 
 ## Sélection et reprise
 

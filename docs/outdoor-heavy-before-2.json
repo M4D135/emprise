@@ -1,0 +1,756 @@
+{
+  "identity": {
+    "hash": "f25c5fde",
+    "pedestrians": 960,
+    "densePedestrians": 360,
+    "traffic": 39,
+    "fleet": 44,
+    "blastVehicles": [
+      1,
+      6,
+      7
+    ],
+    "camera": {
+      "pos": [
+        61.5,
+        6.2,
+        211
+      ],
+      "yaw": 0.5997171094178688,
+      "pitch": -0.1,
+      "fov": 74,
+      "near": 0.15,
+      "overlayNear": 0.035,
+      "far": 26000,
+      "allStatic": true,
+      "chunked": true,
+      "sun": {
+        "center": [
+          61.5,
+          0.08,
+          170
+        ],
+        "extent": 110,
+        "depth": 150
+      }
+    },
+    "staticMeshes": 226210,
+    "facade": {
+      "sourceId": "piece-11559",
+      "buildingId": "building-1748",
+      "name": "Immeuble",
+      "width": 44.17559742505419,
+      "depth": 4.0742346033176675,
+      "height": 20.022129374719224,
+      "normal": [
+        -0.9853716726941704,
+        0,
+        0.17041909121895019
+      ],
+      "center": [
+        108.93835658487899,
+        1.55,
+        190.99186209151537
+      ],
+      "points": [
+        [
+          108.08626112878424,
+          1.55,
+          186.06500372804453
+        ],
+        [
+          109.79045204097373,
+          1.55,
+          195.91872045498621
+        ]
+      ],
+      "sourceGeometry": {
+        "p": [
+          110.94567426788879,
+          10.011064687359612,
+          190.64469841226028
+        ],
+        "s": [
+          44.17559742505419,
+          20.022129374719224,
+          4.0742346033176675
+        ],
+        "r": [
+          0,
+          -1.3995413604599871,
+          0
+        ]
+      }
+    },
+    "schedule": [
+      {
+        "frame": 90,
+        "kind": "vehicleExplosion",
+        "count": 3
+      },
+      {
+        "frame": 210,
+        "kind": "buildingExplosion",
+        "power": 240,
+        "radius": 10
+      },
+      {
+        "frame": 330,
+        "kind": "buildingExplosion",
+        "power": 240,
+        "radius": 10
+      }
+    ]
+  },
+  "hashes": [
+    {
+      "frame": 0,
+      "hash": "70604c38",
+      "renderHash": "9693:6516814:60811:1899:226210:33325"
+    },
+    {
+      "frame": 60,
+      "hash": "4b28569",
+      "renderHash": "4062:4154224:55180:1908:226210:33325"
+    },
+    {
+      "frame": 120,
+      "hash": "27c4537d",
+      "renderHash": "2822:4101918:53936:1917:226206:33321"
+    },
+    {
+      "frame": 180,
+      "hash": "7d487ec5",
+      "renderHash": "2769:4038442:53883:1911:226206:33321"
+    },
+    {
+      "frame": 240,
+      "hash": "dc43b6f1",
+      "renderHash": "2860:4071576:54540:1912:226772:33476"
+    },
+    {
+      "frame": 300,
+      "hash": "330d3979",
+      "renderHash": "2860:4047830:54540:1913:226772:33476"
+    },
+    {
+      "frame": 360,
+      "hash": "388d454b",
+      "renderHash": "2876:4005922:54896:1912:227112:33496"
+    },
+    {
+      "frame": 420,
+      "hash": "6c62fe9c",
+      "renderHash": "2883:3980642:54895:1915:227112:33496"
+    },
+    {
+      "frame": 480,
+      "hash": "6650e5b0",
+      "renderHash": "2875:3896448:54895:1913:227112:33496"
+    },
+    {
+      "frame": 540,
+      "hash": "4f226b3f",
+      "renderHash": "2875:3819042:54891:1916:227112:33496"
+    }
+  ],
+  "counts": [
+    {
+      "frame": 0,
+      "models": 9693,
+      "triangles": 6516814,
+      "instances": 60811,
+      "drawCalls": 1899,
+      "pedestrians": 960,
+      "alive": 960,
+      "within100": 345,
+      "traffic": 39,
+      "debris": 0,
+      "debrisHash": "70604c38",
+      "staticMeshes": 226210,
+      "staticColliders": 33325,
+      "projections": 0,
+      "projectedMeshes": 0,
+      "projectedColliders": 0,
+      "explosions": 0,
+      "fires": 0,
+      "msaa": 4,
+      "shadows": true,
+      "reflections": true,
+      "bloom": true,
+      "resolution": [
+        1440,
+        900
+      ]
+    },
+    {
+      "frame": 60,
+      "models": 4062,
+      "triangles": 4154224,
+      "instances": 55180,
+      "drawCalls": 1908,
+      "pedestrians": 960,
+      "alive": 960,
+      "within100": 344,
+      "traffic": 39,
+      "debris": 0,
+      "debrisHash": "4b28569",
+      "staticMeshes": 226210,
+      "staticColliders": 33325,
+      "projections": 0,
+      "projectedMeshes": 0,
+      "projectedColliders": 0,
+      "explosions": 0,
+      "fires": 0,
+      "msaa": 4,
+      "shadows": true,
+      "reflections": true,
+      "bloom": true,
+      "resolution": [
+        1440,
+        900
+      ]
+    },
+    {
+      "frame": 120,
+      "models": 2822,
+      "triangles": 4101918,
+      "instances": 53936,
+      "drawCalls": 1917,
+      "pedestrians": 960,
+      "alive": 960,
+      "within100": 339,
+      "traffic": 39,
+      "debris": 95,
+      "debrisHash": "27c4537d",
+      "staticMeshes": 226206,
+      "staticColliders": 33321,
+      "projections": 0,
+      "projectedMeshes": 0,
+      "projectedColliders": 0,
+      "explosions": 3,
+      "fires": 3,
+      "msaa": 4,
+      "shadows": true,
+      "reflections": true,
+      "bloom": true,
+      "resolution": [
+        1440,
+        900
+      ]
+    },
+    {
+      "frame": 180,
+      "models": 2769,
+      "triangles": 4038442,
+      "instances": 53883,
+      "drawCalls": 1911,
+      "pedestrians": 960,
+      "alive": 960,
+      "within100": 327,
+      "traffic": 39,
+      "debris": 95,
+      "debrisHash": "7d487ec5",
+      "staticMeshes": 226206,
+      "staticColliders": 33321,
+      "projections": 0,
+      "projectedMeshes": 0,
+      "projectedColliders": 0,
+      "explosions": 3,
+      "fires": 3,
+      "msaa": 4,
+      "shadows": true,
+      "reflections": true,
+      "bloom": true,
+      "resolution": [
+        1440,
+        900
+      ]
+    },
+    {
+      "frame": 240,
+      "models": 2860,
+      "triangles": 4071576,
+      "instances": 54540,
+      "drawCalls": 1912,
+      "pedestrians": 960,
+      "alive": 960,
+      "within100": 316,
+      "traffic": 39,
+      "debris": 231,
+      "debrisHash": "dc43b6f1",
+      "staticMeshes": 226772,
+      "staticColliders": 33476,
+      "projections": 3,
+      "projectedMeshes": 648,
+      "projectedColliders": 144,
+      "explosions": 0,
+      "fires": 4,
+      "msaa": 4,
+      "shadows": true,
+      "reflections": true,
+      "bloom": true,
+      "resolution": [
+        1440,
+        900
+      ]
+    },
+    {
+      "frame": 300,
+      "models": 2860,
+      "triangles": 4047830,
+      "instances": 54540,
+      "drawCalls": 1913,
+      "pedestrians": 960,
+      "alive": 960,
+      "within100": 306,
+      "traffic": 39,
+      "debris": 231,
+      "debrisHash": "330d3979",
+      "staticMeshes": 226772,
+      "staticColliders": 33476,
+      "projections": 3,
+      "projectedMeshes": 648,
+      "projectedColliders": 144,
+      "explosions": 0,
+      "fires": 4,
+      "msaa": 4,
+      "shadows": true,
+      "reflections": true,
+      "bloom": true,
+      "resolution": [
+        1440,
+        900
+      ]
+    },
+    {
+      "frame": 360,
+      "models": 2876,
+      "triangles": 4005922,
+      "instances": 54896,
+      "drawCalls": 1912,
+      "pedestrians": 960,
+      "alive": 960,
+      "within100": 298,
+      "traffic": 39,
+      "debris": 240,
+      "debrisHash": "388d454b",
+      "staticMeshes": 227112,
+      "staticColliders": 33496,
+      "projections": 4,
+      "projectedMeshes": 979,
+      "projectedColliders": 157,
+      "explosions": 0,
+      "fires": 5,
+      "msaa": 4,
+      "shadows": true,
+      "reflections": true,
+      "bloom": true,
+      "resolution": [
+        1440,
+        900
+      ]
+    },
+    {
+      "frame": 420,
+      "models": 2883,
+      "triangles": 3980642,
+      "instances": 54895,
+      "drawCalls": 1915,
+      "pedestrians": 960,
+      "alive": 960,
+      "within100": 293,
+      "traffic": 39,
+      "debris": 240,
+      "debrisHash": "6c62fe9c",
+      "staticMeshes": 227112,
+      "staticColliders": 33496,
+      "projections": 4,
+      "projectedMeshes": 979,
+      "projectedColliders": 157,
+      "explosions": 0,
+      "fires": 5,
+      "msaa": 4,
+      "shadows": true,
+      "reflections": true,
+      "bloom": true,
+      "resolution": [
+        1440,
+        900
+      ]
+    },
+    {
+      "frame": 480,
+      "models": 2875,
+      "triangles": 3896448,
+      "instances": 54895,
+      "drawCalls": 1913,
+      "pedestrians": 960,
+      "alive": 960,
+      "within100": 285,
+      "traffic": 39,
+      "debris": 240,
+      "debrisHash": "6650e5b0",
+      "staticMeshes": 227112,
+      "staticColliders": 33496,
+      "projections": 4,
+      "projectedMeshes": 979,
+      "projectedColliders": 157,
+      "explosions": 0,
+      "fires": 5,
+      "msaa": 4,
+      "shadows": true,
+      "reflections": true,
+      "bloom": true,
+      "resolution": [
+        1440,
+        900
+      ]
+    },
+    {
+      "frame": 540,
+      "models": 2875,
+      "triangles": 3819042,
+      "instances": 54891,
+      "drawCalls": 1916,
+      "pedestrians": 960,
+      "alive": 960,
+      "within100": 281,
+      "traffic": 39,
+      "debris": 240,
+      "debrisHash": "4f226b3f",
+      "staticMeshes": 227112,
+      "staticColliders": 33496,
+      "projections": 4,
+      "projectedMeshes": 979,
+      "projectedColliders": 157,
+      "explosions": 0,
+      "fires": 5,
+      "msaa": 4,
+      "shadows": true,
+      "reflections": true,
+      "bloom": true,
+      "resolution": [
+        1440,
+        900
+      ]
+    }
+  ],
+  "events": [
+    {
+      "frame": 90,
+      "simulationTick": 180,
+      "kind": "vehicleExplosion",
+      "id": 1
+    },
+    {
+      "frame": 90,
+      "simulationTick": 180,
+      "kind": "vehicleExplosion",
+      "id": 6
+    },
+    {
+      "frame": 90,
+      "simulationTick": 180,
+      "kind": "vehicleExplosion",
+      "id": 7
+    },
+    {
+      "frame": 210,
+      "simulationTick": 420,
+      "kind": "buildingExplosion",
+      "point": [
+        108.08626112878424,
+        1.55,
+        186.06500372804453
+      ],
+      "power": 240,
+      "radius": 10,
+      "buildingId": "building-1748",
+      "sourceId": "piece-11559",
+      "sourceAlive": true,
+      "projections": 1,
+      "furnishing": 25,
+      "collapsed": [
+        "piece-27565",
+        "piece-27566",
+        "piece-27568",
+        "piece-27572",
+        "piece-27573",
+        "piece-27569",
+        "piece-27567",
+        "piece-42567",
+        "piece-42568",
+        "piece-42569",
+        "piece-42570",
+        "piece-42572",
+        "piece-42573",
+        "piece-42574",
+        "piece-42575",
+        "piece-42576",
+        "piece-42577",
+        "piece-42578",
+        "piece-42579",
+        "piece-42580",
+        "piece-125722",
+        "piece-125723",
+        "piece-125724",
+        "piece-125725",
+        "piece-125726",
+        "piece-125727",
+        "piece-42571",
+        "piece-42581",
+        "piece-42582",
+        "piece-42583",
+        "piece-42584",
+        "piece-42585",
+        "piece-42586",
+        "piece-42587",
+        "piece-42588",
+        "piece-42589",
+        "piece-42590",
+        "piece-42591",
+        "piece-125858",
+        "piece-125859",
+        "piece-167858",
+        "piece-167859",
+        "piece-167860",
+        "piece-167861",
+        "piece-167862",
+        "piece-167863",
+        "piece-167864",
+        "piece-167865",
+        "piece-167866",
+        "piece-167867",
+        "piece-167868",
+        "piece-167869",
+        "piece-167870",
+        "piece-167871",
+        "piece-167872",
+        "piece-167873",
+        "piece-167874",
+        "piece-167875",
+        "piece-167876",
+        "piece-167877",
+        "piece-167878",
+        "piece-167879",
+        "piece-167880",
+        "piece-167881",
+        "piece-167882",
+        "piece-167883",
+        "piece-167884",
+        "piece-167885",
+        "piece-167886",
+        "piece-167887",
+        "piece-167888",
+        "piece-167889",
+        "piece-167890",
+        "piece-167891",
+        "piece-167892",
+        "piece-167893",
+        "piece-167894",
+        "piece-167895",
+        "piece-167896",
+        "piece-167897",
+        "piece-167898",
+        "piece-167899",
+        "piece-167900",
+        "piece-167901",
+        "piece-167902",
+        "piece-167903",
+        "piece-167904",
+        "piece-167905",
+        "piece-167906",
+        "piece-167907",
+        "piece-167908",
+        "piece-167909",
+        "piece-167910",
+        "piece-167911",
+        "piece-167912",
+        "piece-167913",
+        "piece-167914",
+        "piece-167915",
+        "piece-167916",
+        "piece-167917",
+        "piece-167918",
+        "piece-167919",
+        "piece-167920",
+        "piece-167921",
+        "piece-167922",
+        "piece-167923",
+        "piece-167924",
+        "piece-167925",
+        "piece-167926",
+        "piece-167927"
+      ],
+      "debris": 231
+    },
+    {
+      "frame": 330,
+      "simulationTick": 660,
+      "kind": "buildingExplosion",
+      "point": [
+        109.79045204097373,
+        1.55,
+        195.91872045498621
+      ],
+      "power": 240,
+      "radius": 10,
+      "buildingId": "building-1748",
+      "sourceId": "piece-11559",
+      "sourceAlive": true,
+      "projections": 1,
+      "furnishing": 24,
+      "collapsed": [],
+      "debris": 240
+    }
+  ],
+  "worldUpdates": [
+    {
+      "frame": 91,
+      "ms": 31.399999976158142,
+      "meshes": 308268,
+      "revision": 3
+    },
+    {
+      "frame": 211,
+      "ms": 28.100000023841858,
+      "meshes": 308834,
+      "revision": 7
+    },
+    {
+      "frame": 331,
+      "ms": 23.5,
+      "meshes": 309174,
+      "revision": 11
+    }
+  ],
+  "realtime": false,
+  "finalStateHashes": {
+    "destruction": "9d91e421c58268b6990dcdabe8e809e30bf8c82b243252861ee5960258ec22c1",
+    "worldMeshes": "bb8643388975b6f72c51e45e5af329705791934bb1ef57fcb6b8e587cd7f9def",
+    "worldColliders": "b4e8837bba154cc00fa8b50166a1e1925378223373f54f249516a10b53f69f7a",
+    "urbanReport": "a9adcbadb17080027a233ce3b564a18e074070e8ed41b507940b93993f5b57b7",
+    "bodies": "95c95a7b157690b183e187012c10266d78d06b98c6ee12e5ded2b5eb6faec158",
+    "projections": "6f1a62be6550b04f9e09db2e40015e652f2fa937771121d752e9c121b369a9e8"
+  },
+  "protocol": "960 pedestrians, same legal quay placement and civilian/police traffic as outdoor stress. Three actual vehicle detonations in one simulation tick at frame90; real Marseille facade blasts power240/radius10 at frames210/330, revealing physical furnishing. Fixed camera. Two 1/120 simulation ticks per rendered frame. Graphics unchanged; simulation/debris and render counts sampled every60frames.",
+  "measures": {
+    "frame": {
+      "n": 599,
+      "p50": 16.69999998807907,
+      "p95": 17.69999998807907,
+      "p99": 19.80000001192093,
+      "max": 139,
+      "over25": 3,
+      "over50": 3
+    },
+    "render": {
+      "n": 600,
+      "p50": 1.0999999642372131,
+      "p95": 1.5,
+      "p99": 1.800000011920929,
+      "max": 2.5,
+      "over25": 0,
+      "over50": 0
+    },
+    "simulation": {
+      "n": 600,
+      "p50": 1.5,
+      "p95": 14.100000023841858,
+      "p99": 16.80000001192093,
+      "max": 102.39999997615814,
+      "over25": 3,
+      "over50": 3
+    },
+    "game": {
+      "n": 601,
+      "p50": 4.399999976158142,
+      "p95": 17.100000023841858,
+      "p99": 20.69999998807907,
+      "max": 106.10000002384186,
+      "over25": 6,
+      "over50": 3
+    }
+  },
+  "gpu": {
+    "available": true,
+    "dropped": 4,
+    "n": 596,
+    "p50": 10.289152,
+    "p95": 14.221312,
+    "p99": 16.71168,
+    "max": 20.97152,
+    "over25": 0,
+    "over50": 0
+  },
+  "renderer": {
+    "backend": "webgpu",
+    "webglVersion": 0,
+    "webgpu": true,
+    "contextLost": false,
+    "deviceLost": false,
+    "drawCalls": 1911,
+    "triangles": 3763738,
+    "instances": 54946,
+    "uploadBytes": 187264,
+    "errorEvents": [],
+    "gpuTimingAvailable": true,
+    "pbrLayers": 2,
+    "renderScale": 1,
+    "pixelRatio": 1,
+    "width": 1440,
+    "height": 900,
+    "msaa": 4,
+    "requestedBackend": "webgpu",
+    "fallbackReason": null,
+    "worldRevision": 3,
+    "staticTotal": 309174,
+    "biome": "ville",
+    "chunks": 9493,
+    "chunkBuildBytes": 146816,
+    "chunkUpdateIncremental": true,
+    "chunkEntriesVisited": 2964,
+    "viewDistance": 64,
+    "staticVisible": 51059,
+    "staticCulled": 258114,
+    "dynamicLights": 8,
+    "blackoutLights": 0,
+    "fxInstances": 79,
+    "uniformUploadBytes": 3824,
+    "bloom": true,
+    "shadows": true,
+    "shadowMode": "sun-atlas",
+    "shadowMaps": 1,
+    "crowdInstances": 0,
+    "pdrLotInstances": 0,
+    "shadowChunks": 258,
+    "shadowStatic": 36284,
+    "backgroundWater": 1,
+    "backgroundDrawCalls": 1,
+    "visibleChunks": 657,
+    "lotsVisibles": 0,
+    "reflections": true,
+    "reflectionSteps": 48,
+    "gpuBuffers": 9514,
+    "gpuTextures": 15,
+    "pipelineCount": 16,
+    "uniformSlots": 9,
+    "gpuTimeMs": 12.845056
+  },
+  "errors": [],
+  "backendEvents": [],
+  "simulationTicks": 1200,
+  "build": {
+    "version": "0.6.1",
+    "name": "Ville active",
+    "engine": "FERRO",
+    "title": "EMPRISE",
+    "id": "f5b5cb7682"
+  },
+  "label": "heavy-before-2",
+  "fixture": "explosion-heavy-scenes.js",
+  "buildSha256": "b6641fc16d61894c12af1ff0f5be4506ade18de670d1e8b841129bacafa514d3",
+  "fixtureSha256": "1a522712e66e826e4bd98598cb93253e7a15059f6236215e2ad9d7f6f418b2c1",
+  "profiled": false
+}

@@ -126,7 +126,7 @@
   }
   function create(world){
     const originalMeshes=world.meshes||[],originalColliders=world.colliders||[],groups=new Map(),meshOwner=new Map(),states=new Map(),leaked=new Set();
-    let meshes=originalMeshes.slice(),colliders=originalColliders.map(c=>({...c})),lights=(world.lights||[]).slice(),revision=0;
+    let meshes=originalMeshes.slice(),colliders=null,unclaimedBoxes=[],lights=(world.lights||[]).slice(),revision=0,meshGeneration=0,meshDelta=null;
     const definitions=world.destructibles||originalMeshes.map((m,i)=>m.ground||m.terrain?null:{id:'mesh-'+i,kind:'prop',strength:5,meshes:[i],colliders:originalColliders.flatMap((c,j)=>c.mesh===i?[j]:[])}).filter(Boolean);
     const foliage=originalMeshes.some(m=>m.shape==='foliage')?sharedFoliage():null;
     const entries=originalMeshes.map((mesh,source)=>({mesh,source,bounds:bounds(mesh),rotation:rotation(mesh.r),triangles:mesh.shape==='foliage'?foliage:null}));
@@ -139,9 +139,28 @@
     // group's exact volume when its solids change, instead of rebuilding the
     // support graph and summing every unchanged fragment after every blast.
     const supported=[...groups.values()].filter(g=>g.supports?.length);
-    for(const g of supported){g.supportNodes=g.supports.map(id=>groups.get(String(id))).filter(Boolean);g.supportVolume=g.supportNodes.reduce((n,q)=>n+q.originalVolume,0);}
+    for(let i=0;i<supported.length;i++){const g=supported[i];g.supportNodes=g.supports.map(id=>groups.get(String(id))).filter(Boolean);g.supportVolume=g.supportNodes.reduce((n,q)=>n+q.originalVolume,0);for(const node of g.supportNodes)(node.supportedBy||(node.supportedBy=[])).push(i);}
+    const supportPending=new Set(),supportQueued=new Uint8Array(supported.length);let supportQueue=null,supportCursor=-1;
+    function dirtySupport(i){
+      // The old pass visits each roof once in definition order. A dependency
+      // changed after that visit belongs to the next changed damage operation.
+      if(!supportQueue||i<=supportCursor){supportPending.add(i);return;}
+      if(supportQueued[i])return;supportQueued[i]=1;let at=supportQueue.length;supportQueue.push(i);
+      while(at){const parent=(at-1)>>1;if(supportQueue[parent]<=i)break;supportQueue[at]=supportQueue[parent];at=parent;}supportQueue[at]=i;
+    }
+    function nextSupported(){
+      const i=supportQueue[0],last=supportQueue.pop();supportQueued[i]=0;
+      if(supportQueue.length){let at=0;while(at*2+1<supportQueue.length){let child=at*2+1;if(child+1<supportQueue.length&&supportQueue[child+1]<supportQueue[child])child++;if(supportQueue[child]>=last)break;supportQueue[at]=supportQueue[child];at=child;}supportQueue[at]=last;}
+      supportCursor=i;return supported[i];
+    }
+    function supportFails(g){return g.supportVolume>0&&g.supportNodes.reduce((n,q)=>n+q.solidVolume,0)/g.supportVolume<(g.supportRatio||.38);}
+    function seedSupports(){
+      // Initialization/restoration may contain already unsupported roofs or a
+      // ratio above one. Record them now, without eagerly collapsing anything.
+      supportPending.clear();for(let i=0;i<supported.length;i++)if(isAlive(supported[i].id)&&supportFails(supported[i]))supportPending.add(i);
+    }
     let solidCount=0;
-    function geometryFor(g,built){geometryDirty.add(g);solidCount+=built.solids.length-g.solids.length;g.active=built.active;g.solids=built.solids;g.solidVolume=g.solids.reduce((n,q)=>n+volume(q.bounds),0);}
+    function geometryFor(g,built){geometryDirty.add(g);solidCount+=built.solids.length-g.solids.length;g.active=built.active;g.solids=built.solids;const before=g.solidVolume;g.solidVolume=g.solids.reduce((n,q)=>n+volume(q.bounds),0);if(!Object.is(before,g.solidVolume))for(const i of g.supportedBy||[])dirtySupport(i);g.pendingBuilt=built;g.pendingRecord=states.get(g.id);}
     const cells=new Map(),size=8;
     for(const g of groups.values())for(let x=Math.floor(g.bounds.minX/size);x<=Math.floor(g.bounds.maxX/size);x++)for(let z=Math.floor(g.bounds.minZ/size);z<=Math.floor(g.bounds.maxZ/size);z++){
       const key=x+','+z;if(!cells.has(key))cells.set(key,[]);cells.get(key).push(g);
@@ -180,27 +199,55 @@
     // Only touched groups need recompilation; their original order remains
     // significant when definitions share a render slot. Restores mark all groups.
     const geometryDirty=new Set(groups.values()),ownerIds=originalMeshes.map((_,i)=>meshOwner.get(i)),renderSlots=new Array(originalMeshes.length),firstIndex=new Uint32Array(originalMeshes.length),claimed=new Set(definitions.flatMap(d=>d.colliders||[]));
-    function rebuild(next=states){
-      const output=[],boxes=[];
+    function rebuild(next=states,full=false){
+      const output=[],before=meshGeneration?meshes:null,changedSlots=new Map();full=full||!meshGeneration;
       for(const g of [...geometryDirty].sort((a,b)=>a.rebuildOrder-b.rebuildOrder)){
         const record=next.get(g.id),count=record?.cuts.length||0,removed=!!record?.removed;
         if(g.cacheRecord===record&&g.cacheCount===count&&g.cacheRemoved===removed)continue;
-        const built=compile(g,record);geometryFor(g,built);g.cacheRecord=record;g.cacheCount=count;g.cacheRemoved=removed;
-        for(const i of g.meshes)renderSlots[i]=[];
+        // Damage already compiled this exact record for support checks and
+        // debris. Reuse it; no caller can observe the interim render arrays.
+        let built=g.pendingBuilt&&g.pendingRecord===record?g.pendingBuilt:null;
+        if(!built){built=compile(g,record);geometryFor(g,built);}
+        g.pendingBuilt=null;g.pendingRecord=null;g.cacheRecord=record;g.cacheCount=count;g.cacheRemoved=removed;
+        for(const i of g.meshes){if(!full&&!changedSlots.has(i))changedSlots.set(i,renderSlots[i]||[]);renderSlots[i]=[];}
         for(const e of g.active)renderSlots[e.source].push(e);
       }
       geometryDirty.clear();
+      // Splice starts refer to the previous flat array. Preserve occurrences
+      // and source ordering, including zero-length slots and shared meshes.
+      const splices=[],removed=[],added=[];
+      for(const [i,previous]of [...changedSlots].sort((a,b)=>a[0]-b[0])){
+        if(!ownerIds[i])continue;const nextSlot=renderSlots[i]||[];
+        if(previous.length===nextSlot.length&&previous.every((e,j)=>e.mesh===nextSlot[j].mesh))continue;
+        const items=nextSlot.map(e=>e.mesh),start=firstIndex[i],last=splices[splices.length-1];
+        if(last&&start===last.start+last.deleteCount){last.deleteCount+=previous.length;for(const m of items)last.items.push(m);}
+        else splices.push({start,deleteCount:previous.length,items});
+        for(const e of previous)removed.push(e.mesh);for(const m of items)added.push(m);
+      }
       // Preserve original mesh ordering, including coplanar decorative surfaces.
       // Only a changed original mesh is replaced by its local surviving pieces.
       for(let i=0;i<originalMeshes.length;i++){
         const id=ownerIds[i];firstIndex[i]=output.length;
         if(!id){output.push(originalMeshes[i]);continue;}
-        for(const e of renderSlots[i]||[]){const index=output.length;output.push(e.mesh);if(e.solid)boxes.push({...e.solid.bounds,mesh:index,destructibleId:id});}
+        for(const e of renderSlots[i]||[])output.push(e.mesh);
       }
-      for(let i=0;i<originalColliders.length;i++)if(!claimed.has(i)){const c=originalColliders[i];boxes.push({...c,mesh:firstIndex[c.mesh]});}
-      meshes=output;colliders=boxes;lights=(world.lights||[]).filter(l=>!next.get(String(l.destructibleId))?.removed);
+      // Snapshot unclaimed external records now, matching the eager API even
+      // when a caller edits the original records before requesting colliders.
+      unclaimedBoxes=[];for(let i=0;i<originalColliders.length;i++)if(!claimed.has(i)){const c=originalColliders[i];unclaimedBoxes.push({...c,mesh:firstIndex[c.mesh]});}
+      meshes=output;colliders=null;lights=(world.lights||[]).filter(l=>!next.get(String(l.destructibleId))?.removed);
+      meshDelta={before,after:meshes,generation:++meshGeneration,full,splices,removed,added};
     }
-    rebuild();
+    function collisionGeometry(){
+      // Outdoor EMPRISE derives oriented world boxes from the visible meshes;
+      // it never reads this optional FERRO collision array. Indoor callers and
+      // other games still receive the exact ordered, revision-local snapshot.
+      if(colliders)return colliders;
+      const boxes=[];
+      for(let i=0;i<originalMeshes.length;i++){const id=ownerIds[i];if(!id)continue;let index=firstIndex[i];for(const e of renderSlots[i]||[]){if(e.solid)boxes.push({...e.solid.bounds,mesh:index,destructibleId:id});index++;}}
+      for(const box of unclaimedBoxes)boxes.push(box);
+      return colliders=boxes;
+    }
+    rebuild();seedSupports();
     function raycast(origin,direction,maxDistance=100){
       if(!validPoint(origin)||!validPoint(direction)||!finite(maxDistance)||maxDistance<=0)return null;
       const length=Math.hypot(...direction);if(length<EPS)return null;const dir=direction.map(v=>v/length),end=origin.map((v,i)=>v+dir[i]*Math.min(300,maxDistance));
@@ -278,15 +325,15 @@
         for(const p of world.pipes||[])if(p.destructibleId===g.id&&!leaked.has(p.id)){leaked.add(p.id);result.pipeLeaks.push(p.id);}
       }
       if(result.changed){
-        for(const roof of supported)if(isAlive(roof.id)){
-          const original=roof.supportVolume,remaining=roof.supportNodes.reduce((v,g)=>v+g.solidVolume,0);
-          if(original>0&&remaining/original<(roof.supportRatio||.38)){
+        supportQueue=[...supportPending].sort((a,b)=>a-b);supportPending.clear();supportCursor=-1;for(const i of supportQueue)supportQueued[i]=1;
+        while(supportQueue.length){const roof=nextSupported();if(isAlive(roof.id)){
+          if(supportFails(roof)){
             const point=[(roof.bounds.minX+roof.bounds.maxX)/2,roof.bounds.minY,(roof.bounds.minZ+roof.bounds.maxZ)/2];removedGeometry(roof,roof.active,[],point,45,undefined,fallen);
             states.set(roof.id,{damage:0,cuts:[],removed:true});geometryFor(roof,{active:[],solids:[]});result.collapsed.push(roof.id);
             for(const id of roof.dependents||[]){const g=groups.get(id);if(g&&isAlive(id)){removedGeometry(g,g.active,[],point,45,undefined,fallen);states.set(id,{damage:0,cuts:[],removed:true});geometryFor(g,{active:[],solids:[]});result.collapsed.push(id);}}
             result.events.push({name:'materialBreak',x:point[0],y:point[1],z:point[2],sourceId:roof.id,material:materialOf(entries[roof.meshes[0]].mesh),power:45,seed:roof.meshes[0]*977+(revision+1)*911});
           }
-        }
+        }}supportQueue=null;supportCursor=-1;
         // Collapse only a locally over-fragmented body; never erase unrelated
         // scenery to meet a global budget or emit blocking cosmetic debris.
         let total=solidCount,limit=Math.max(512,originalColliders.length+384);
@@ -312,9 +359,9 @@
       // Validation finishes before any live array or state is replaced.
       states.clear();for(const [id,s] of next)states.set(id,s);leaked.clear();for(const id of nextLeaks)leaked.add(id);
       for(const g of groups.values())geometryDirty.add(g);
-      rebuild();revision=options.exactRevision?value.revision:Math.max(revision+1,value.revision);return true;
+      rebuild(states,true);seedSupports();revision=options.exactRevision?value.revision:Math.max(revision+1,value.revision);return true;
     }
-    return {detach(id){const g=groups.get(id);if(!g||!isAlive(id))return [];const out=g.active.map(e=>e.mesh);states.set(id,{damage:0,cuts:[],removed:true});geometryDirty.add(g);rebuild();revision++;return out;},describe(id){const g=groups.get(id);return g?{id:g.id,meshes:g.active.map(e=>e.mesh),strength:g.strength,bounds:g.bounds}:null;},get meshes(){return meshes;},get colliders(){return colliders;},get lights(){return lights;},get revision(){return revision;},isAlive,raycast,
+    return {detach(id){const g=groups.get(id);if(!g||!isAlive(id))return [];const out=g.active.map(e=>e.mesh);states.set(id,{damage:0,cuts:[],removed:true});geometryDirty.add(g);rebuild();revision++;return out;},describe(id){const g=groups.get(id);return g?{id:g.id,meshes:g.active.map(e=>e.mesh),strength:g.strength,bounds:g.bounds}:null;},sourceSpan(index){return Number.isInteger(index)&&index>=0&&index<originalMeshes.length?{start:firstIndex[index],length:ownerIds[index]?(renderSlots[index]?.length||0):1}:null;},get meshes(){return meshes;},get meshDelta(){return meshDelta;},get colliders(){return collisionGeometry();},get lights(){return lights;},get revision(){return revision;},isAlive,raycast,
       hit:(point,power,direction)=>damage(point,.22,power,true,undefined,validPoint(direction)?direction:undefined),blast:(point,radius,power,ignoreId)=>damage(point,radius,power,false,ignoreId),snapshot,restore};
   }
   G.FDestruction={create,fragment};

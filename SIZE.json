@@ -1,8 +1,8 @@
 {
-  "version": "0.6.1",
-  "build": "f5b5cb7682",
-  "bytes": 22666138,
-  "sha256": "b6641fc16d61894c12af1ff0f5be4506ade18de670d1e8b841129bacafa514d3",
+  "version": "0.6.2",
+  "build": "6ed602edbe",
+  "bytes": 22690038,
+  "sha256": "365a85a73310a028f29d8d82556514b84e1b3b492a2557e4f1c0c7c7ad8d26a7",
   "modules": [
     "ferro/renderer",
     "ferro/webgpu-shaders",

@@ -1,4 +1,12 @@
-# EMPRISE 0.6.1 — extérieur chargé et récupération
+# EMPRISE 0.6.2 — grosses explosions
+
+Les comparaisons isolées, leurs limites et les empreintes du build sont dans [EXPLOSION-PERFORMANCE.md](EXPLOSION-PERFORMANCE.md). La charge lourde ajoute trois voitures détruites simultanément et deux explosions de façade, avec leurs intérieurs et débris physiques, aux 960 PNJ et 39 véhicules de trafic. Les réglages 3D sont inchangés.
+
+Les nouveaux contrôles couvrent les deltas de géométrie et leur composition, les seuls groupes spatiaux modifiés, la présélection des débris proches, les supports de destruction, les plages des sources et la publication groupée des pièces touchées. Les sorties sont comparées à l’implémentation précédente, y compris l’ordre, les géométries, les collisions, les événements, les sauvegardes et les octets GPU. Le test d’exception vérifie la publication des pièces déjà modifiées et la reprise normale au tir suivant.
+
+La perte réelle du périphérique et l’échec d’installation native passent aussi sur le build final, avec reprise de la même session et commandes sur le nouveau canvas : [rapport de récupération](explosion-render-recovery.json).
+
+## Historique 0.6.1 — extérieur chargé et récupération
 
 Les mesures à charge identique sont détaillées dans [OUTDOOR-PERFORMANCE.md](OUTDOOR-PERFORMANCE.md). Le scénario conserve 960 PNJ, 39 véhicules de trafic et trois explosions réelles, sans modifier les réglages graphiques. Chaque rapport porte l’empreinte du HTML et de la fixture effectivement exécutés.
 

@@ -14,6 +14,7 @@ const legacy=` const boxes=[],buckets=new Map(),key=(x,z)=>Math.floor(x/8)+','+M
   for(let z=Math.floor(q.minZ/8);z<=Math.floor(q.maxZ/8);z++)for(let x=Math.floor(q.minX/8);x<=Math.floor(q.maxX/8);x++){const k=x+','+z;if(!buckets.has(k))buckets.set(k,[]);buckets.get(k).push(q);}
   return q;
  }
+ function prepareSceneryDelta(){}
  function fromMesh(m){
   if(m.terrain||m.coast||m.collision===false)return;
   if(m.vegetationPart&&m.vegetationPart!=='trunk')return;
@@ -29,7 +30,7 @@ const legacy=` const boxes=[],buckets=new Map(),key=(x,z)=>Math.floor(x/8)+','+M
 const oldReplace=' function replaceScenery(value){scenery=value;boxes.length=0;buckets.clear();for(const m of scenery)if(m.collision)fromMesh(m);}';
 const source=fs.readFileSync(new URL('../src/world.js',import.meta.url),'utf8'),start=source.indexOf(' const boxes='),end=source.indexOf(' if(landmarks)scenery.push',start);
 assert(start>=0&&end>start);
-const replaceStart=source.indexOf(' function replaceScenery(value)'),replaceEnd=source.indexOf('\n // Port maintenance',replaceStart);assert(replaceStart>=0&&replaceEnd>replaceStart);
+const replaceStart=source.indexOf(' // Explicit producer fast path:'),replaceEnd=source.indexOf('\n // Port maintenance',replaceStart);assert(replaceStart>=0&&replaceEnd>replaceStart);
 const referenceSource=(source.slice(0,start)+legacy+source.slice(end)).replace(source.slice(replaceStart,replaceEnd),oldReplace),originalFactory=RADE.world;
 vm.runInThisContext(referenceSource,{filename:'world-collider-rebuild.baseline.js'});const reference=RADE.world;
 // Expose the actual private Map in this test only, so untouched bucket arrays
@@ -51,7 +52,7 @@ function probe(){
 }
 function rebuild(label){for(let i=0;i<2;i++)worlds[i].replaceScenery(scenes[i]);compareBoxes();probe();checks.push(label);}
 rebuild('Real Marseille initial rebuild: exact collider order, bounds, candidate order and ray hits');
-const originalCount=after.boxes.length,kept=after.boxes.slice();rebuild('Repeated identical scenery');assert(after.boxes.every((q,i)=>q===kept[i]),'Unchanged boxes must be reused');
+const originalCount=after.boxes.length,originalMeshCount=after.scenery.length,kept=after.boxes.slice();rebuild('Repeated identical scenery');assert(after.boxes.every((q,i)=>q===kept[i]),'Unchanged boxes must be reused');
 const tracked=after.boxes.find(q=>q.mesh?.fixtureId!==undefined),trackedId=tracked.mesh.fixtureId,priorSnapshot=snapshot(tracked);
 for(const w of worlds)for(const q of w.boxes.slice(0,120)){q.mesh.color=[.1,.1,.1];q.mesh.renderRevision=(q.mesh.renderRevision||0)+1;}
 rebuild('120 material/scorch revisions preserve exact geometry');assert(after.boxes.every((q,i)=>q===kept[i]),'Color-only edits must retain boxes');
@@ -79,7 +80,27 @@ for(let iteration=0;iteration<3;iteration++){
  compareBoxes();probe();rebuild('Bridge addBox records are removed and can be re-added on the next sync '+iteration);
 }
 const restored=scenes;scenes=[[],[]];rebuild('Empty scenery clears all old buckets');scenes=restored;rebuild('Full restoration after empty world has exact collision/candidate/ray ordering');
-const report={checks,originalMeshes:before.scenery.length,originalColliders:originalCount,finalColliders:after.boxes.length,retainedUnchangedColliders:kept.length,untouchedFrozenBuckets:frozen.length,source:'Exact old addBox/fromMesh/replaceScenery differential against the actual current Marseille world',timing:null};
+// Explicit immutable producer deltas: compare against the full legacy rebuild.
+// The initial controller owns a different array with the same occurrence order.
+scenes=worlds.map(w=>w.scenery.slice());after.prepareSceneryDelta(scenes[1]);
+function patch(label,edit,{invalid=false,full=false}={}){
+ const old=scenes;const operations=old.map((list,i)=>edit(list,i));
+ scenes=old.map((list,i)=>{const copy=list.slice();for(const q of operations[i].slice().reverse())copy.splice(q.start,q.deleteCount,...q.items);return copy;});
+ before.replaceScenery(scenes[0]);after.replaceScenery(scenes[1],{meshDelta:{before:invalid?old[1].slice():old[1],after:scenes[1],full,splices:operations[1]}});compareBoxes();probe();checks.push(label);
+}
+patch('Prepared immutable producer removes sparse mesh occurrences',(list)=>[{start:31,deleteCount:2,items:[]},{start:list.length-9,deleteCount:2,items:[]}]);
+patch('Delta insertion creates exact rotated collider and retains ordering',()=>[{start:54,deleteCount:0,items:[{shape:'box',p:[64,2,180],s:[4,3,.6],r:[.1,.4,.2],collision:true,fixtureId:900002}]}]);
+patch('Inserted duplicate identities receive distinct collider snapshots',(list)=>[{start:55,deleteCount:0,items:[list[54],list[54]]}]);
+const duplicated=after.boxes.filter(q=>q.mesh.fixtureId===900002);assert.equal(duplicated.length,3);assert.equal(new Set(duplicated).size,3);
+patch('Removing and reinserting same identity preserves distinct occurrences',(list)=>[{start:54,deleteCount:1,items:[list[54]]}]);
+patch('Incorrect base reference falls back to exact full validation',(list)=>[{start:42,deleteCount:3,items:[]}],{invalid:true});
+patch('Restore full flag falls back to exact validation',(list)=>[{start:12,deleteCount:1,items:[]}],{full:true});
+// Arbitrary standalone addBox records must still disappear on replacement.
+for(const w of worlds)w.addBox({x:63,z:181,a:1,b:1,cap:0,minY:0,maxY:3,kind:'manual'});
+patch('Delta replacement removes manual colliders as the old full rebuild did',()=>[]);
+patch('Delta clears entire scenery',(list)=>[{start:0,deleteCount:list.length,items:[]}]);
+patch('Delta restores a nonempty world after empty',()=>[{start:0,deleteCount:0,items:[{shape:'box',p:[64,2,180],s:[4,3,.6],r:[.1,.4,.2],collision:true,fixtureId:900003}]}]);
+const report={checks,originalMeshes:originalMeshCount,originalColliders:originalCount,finalColliders:after.boxes.length,retainedUnchangedColliders:kept.length,untouchedFrozenBuckets:frozen.length,source:'Exact old addBox/fromMesh/replaceScenery differential against the actual current Marseille world',timing:null};
 if(process.argv.includes('--bench')){
  const old=[],next=[];for(let trial=0;trial<5;trial++){const run=i=>{const t=performance.now();worlds[i].replaceScenery(scenes[i]);return performance.now()-t;};if(trial%2){next.push(run(1));old.push(run(0));}else{old.push(run(0));next.push(run(1));}}
  const median=a=>a.slice().sort((x,y)=>x-y)[a.length>>1];report.timing={beforeMs:old,afterMs:next,beforeMedianMs:median(old),afterMedianMs:median(next),ratio:median(next)/median(old),scope:'Alternating CPU collider rebuild microbenchmark; not total gameplay FPS'};

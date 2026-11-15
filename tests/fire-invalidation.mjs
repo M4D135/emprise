@@ -16,4 +16,6 @@ const prior=hit.urban.revision;hit.urban.ignite(x,z,'street',1);
 for(let i=0;i<4;i++)hit.urban.update(1,[]);
 assert(hit.urban.revision>prior,'Actual fire damage must invalidate rendering');
 assert(hit.world.scenery.some(m=>m.renderRevision>0),'Scorched material must invalidate its cached instance row');
+assert(hit.world.renderMutation>0,'In-place recolor must invalidate renderer delta trust');
+assert.equal(hit.world.sceneryDelta,null,'A geometry delta must not hide an in-place fire recolor');
 console.log('PASS fire: empty impact preserves static world; particles remain; actual scorch invalidates its mesh');

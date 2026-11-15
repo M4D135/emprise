@@ -24,6 +24,31 @@ function contact(q,x,z,r,y,height){
 }
 function create({bodies,staticBlocked}){
  const recovery=new WeakMap(),metrics={fallbackSearches:0,fallbackSamples:0,maxFallbackSamples:0,fallbackMoves:0,fallbackCancelled:0,failedSearches:0};
+ let prepared=null,preparedLength=0,grid=null,large=null,marks=null,stamp=0;const picked=[];
+ // Opt-in snapshot publication: the caller promises not to edit this list or
+ // its proxy bounds until publishing again. Unprepared lists keep the strict
+ // scan. Only boolean probes use the grid; recovery sums retain their order.
+ function prepareBodies(list){prepared=list;preparedLength=list?.length||0;grid=null;large=null;marks=null;stamp=0;}
+ function buildGrid(list){
+  grid=new Map();large=[];marks=new Uint32Array(list.length);
+  for(let i=0;i<list.length;i++){const q=list[i];
+   if(!q||!Number.isFinite(q.x)||!Number.isFinite(q.z)||!Number.isFinite(q.a)||!Number.isFinite(q.b)||q.a<0||q.b<0){large.push(i);continue;}
+   const px=(Math.abs(q.x)+q.a+1)*Number.EPSILON*8,pz=(Math.abs(q.z)+q.b+1)*Number.EPSILON*8,x0=Math.floor((q.x-q.a-px)/8),x1=Math.floor((q.x+q.a+px)/8),z0=Math.floor((q.z-q.b-pz)/8),z1=Math.floor((q.z+q.b+pz)/8);
+   if(!Number.isSafeInteger(x0)||!Number.isSafeInteger(x1)||!Number.isSafeInteger(z0)||!Number.isSafeInteger(z1)||(x1-x0+1)*(z1-z0+1)>4096){large.push(i);continue;}
+   for(let z=z0;z<=z1;z++)for(let x=x0;x<=x1;x++){const key=x+','+z;let bucket=grid.get(key);if(!bucket){bucket=[];grid.set(key,bucket);}bucket.push(i);}
+  }
+ }
+ function indexedBlocked(list,x,z,r,y,height){
+  if(list!==prepared||list.length!==preparedLength||!Number.isFinite(x)||!Number.isFinite(z)||!Number.isFinite(r)||r<0)return null;
+  const px=(Math.abs(x)+r+1)*Number.EPSILON*8,pz=(Math.abs(z)+r+1)*Number.EPSILON*8,x0=Math.floor((x-r-px)/8),x1=Math.floor((x+r+px)/8),z0=Math.floor((z-r-pz)/8),z1=Math.floor((z+r+pz)/8);
+  if(!Number.isSafeInteger(x0)||!Number.isSafeInteger(x1)||!Number.isSafeInteger(z0)||!Number.isSafeInteger(z1)||(x1-x0+1)*(z1-z0+1)>64)return null;
+  if(!grid)buildGrid(list);
+  if(x0===x1&&z0===z1&&!large.length){const bucket=grid.get(x0+','+z0);if(bucket)for(const i of bucket)if(contact(list[i],x,z,r,y,height)>0)return true;return false;}
+  picked.length=0;if(++stamp===4294967296){marks.fill(0);stamp=1;}
+  for(const i of large){marks[i]=stamp;picked.push(i);}
+  for(let zz=z0;zz<=z1;zz++)for(let xx=x0;xx<=x1;xx++)for(const i of grid.get(xx+','+zz)||[])if(marks[i]!==stamp){marks[i]=stamp;picked.push(i);}
+  picked.sort((a,b)=>a-b);for(const i of picked)if(contact(list[i],x,z,r,y,height)>0)return true;return false;
+ }
  const identity=q=>q.body||q;
  // 0 = forbidden wall/new fragment; 1 = original pile; 2 = completely free.
  function allowedAt(list,allowed,x,z,r,y,height){
@@ -54,7 +79,7 @@ function create({bodies,staticBlocked}){
   if(!allowedAt(list,goal.allowed,x,z,r,y,height)){state.goal=null;state.cooldown=.3;metrics.fallbackCancelled++;return false;}
   actor.x=x;actor.z=z;metrics.fallbackMoves++;if(travel>=d-1e-8)state.goal=null;return true;
  }
- function blocked(x,z,r=.28,y=0,height=1.8){if(staticBlocked(x,z,r,y,height))return true;for(const q of bodies())if(contact(q,x,z,r,y,height)>0)return true;return false;}
+ function blocked(x,z,r=.28,y=0,height=1.8){if(staticBlocked(x,z,r,y,height))return true;const list=bodies(),indexed=indexedBlocked(list,x,z,r,y,height);if(indexed!==null)return indexed;for(const q of list)if(contact(q,x,z,r,y,height)>0)return true;return false;}
  function moveBlocked(ax,az,x,z,r=.28,y=0,height=1.8){
   if(staticBlocked(x,z,r,y,height))return true;let oldSum=0,newSum=0;
   for(const q of bodies()){const old=contact(q,ax,az,r,y,height);oldSum+=old;const next=contact(q,x,z,r,y,height);if(!next)continue;if(!old||next>old+1e-7)return true;newSum+=next;}
@@ -71,6 +96,6 @@ function create({bodies,staticBlocked}){
   state.goal=exitPlan(actor,list,r,y,height);if(!state.goal){state.cooldown=.3;return false;}
   return advanceRecovery(actor,state,list,step,r,y,height);
  }
- return {blocked,moveBlocked,resolve,metrics};
+ return {blocked,moveBlocked,resolve,metrics,prepareBodies};
 }
 R.clearance={contact,create};})(globalThis.RADE);

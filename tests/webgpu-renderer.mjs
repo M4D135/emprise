@@ -53,6 +53,8 @@ renderer.draw(cam,[],{time:4});assert.equal(renderer.stats.staticVisible,2);
 renderer.updateWorld(scene,2,undefined,{revisionedMeshes:true});assert.equal(renderer.stats.chunkUpdateIncremental,false,'Prior duplicate occurrences require general reconciliation');assert.equal(renderer.stats.chunkBuildBytes,64,'Removing duplicate occurrence restores a single native row');
 renderer.draw(cam,[],{time:4});assert.equal(renderer.stats.staticVisible,1);
 renderer.updateWorld(scene,3);assert.equal(renderer.stats.chunkUpdateIncremental,true);assert.equal(renderer.stats.chunkBuildBytes,0);
+const newWall={...wall,color:[.2,.3,.4]},afterScene=[newWall,remote];renderer.updateWorld(afterScene,4,undefined,{revisionedMeshes:true,meshDelta:{before:scene,after:afterScene,full:false,splices:[{start:0,deleteCount:1,items:[newWall]}]}});
+assert.equal(renderer.stats.meshDeltaApplied,true,'Native updateWorld forwards explicit source deltas');assert.equal(renderer.stats.chunkBuildBytes,64);renderer.draw(cam,[],{time:4});assert.equal(renderer.stats.staticVisible,1);
 renderer.dispose();assert(fake.destroyed);assert.equal(context.configured,false);assert(fake.allocated.every(x=>x.destroyed));
 const broken=fakeDevice({message:'forced initialization validation failure'}),bad=install(broken);await assert.rejects(()=>FRenderWebGPU.create(bad.canvas,{}),/initialization/);assert(broken.destroyed);assert(broken.allocated.every(x=>x.destroyed));assert.equal(bad.context.configured,false);
 console.log('Native WebGPU contracts PASS: std140, independent pass UBOs, MSAA/SSR overlay depth, crowd hooks, bounded resize resources, timing ring, creation failure cleanup.');

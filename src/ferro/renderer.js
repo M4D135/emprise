@@ -1109,10 +1109,39 @@
   function metadata(mesh){
     return {mesh,renderRevision:mesh.renderRevision||0,p:mesh.p||[0,0,0],radius:Math.hypot(...(mesh.s||[1,1,1]))*.5,detail:Math.max(0,Math.min(2,Math.floor(mesh.detail||0))),software:null,softwareCoarse:null};
   }
-  function partitionWorld(meshes){
-    const world=[],background=[],source=meshes||[];
-    for(let i=0;i<source.length;i++){const mesh=source[i];if(mesh===undefined&&!(i in source))continue;(mesh.backgroundWater?background:world).push(mesh);}
-    return {world,background};
+  function validatedMeshSplices(delta,before,after){
+    if(!delta||delta.full||!Array.isArray(before)||!Array.isArray(after)||delta.before!==before||delta.after!==after||!Array.isArray(delta.splices))return null;
+    let end=0,shift=0,changed=0;
+    for(const q of delta.splices){
+      if(!q||!Number.isInteger(q.start)||!Number.isInteger(q.deleteCount)||q.start<end||q.deleteCount<0||q.start+q.deleteCount>before.length||!Array.isArray(q.items))return null;
+      for(let i=0;i<q.items.length;i++)if(!q.items[i]||typeof q.items[i]!=='object'||after[q.start+shift+i]!==q.items[i])return null;
+      end=q.start+q.deleteCount;shift+=q.items.length-q.deleteCount;changed+=q.items.length+q.deleteCount;
+    }
+    return before.length+shift===after.length&&changed<=Math.max(64,after.length/4)?delta.splices:null;
+  }
+  function spliceReferences(before,splices,length){
+    const after=new Array(length);let read=0,write=0;
+    for(const q of splices){while(read<q.start)after[write++]=before[read++];read+=q.deleteCount;for(const item of q.items)after[write++]=item;}
+    while(read<before.length)after[write++]=before[read++];return after;
+  }
+  function partitionWorld(meshes,previous,options){
+    const source=meshes||[],splices=options?.revisionedMeshes===true&&previous?.dense&&validatedMeshSplices(options.meshDelta,previous.source,source);
+    if(splices){
+      const foreground=[],positions=previous.backgroundPositions;let bg=0,shift=0,valid=true;
+      for(const q of splices){
+        while(bg<positions.length&&positions[bg]<q.start)bg++;
+        if((bg<positions.length&&positions[bg]<q.start+q.deleteCount)||q.items.some(m=>m.backgroundWater)){valid=false;break;}
+        foreground.push({start:q.start-bg,deleteCount:q.deleteCount,items:q.items});shift+=q.items.length-q.deleteCount;
+      }
+      if(valid){
+        const world=foreground.length?spliceReferences(previous.world,foreground,previous.world.length+shift):previous.world,backgroundPositions=[];let at=0,offset=0;
+        for(const position of positions){while(at<splices.length&&splices[at].start<=position){offset+=splices[at].items.length-splices[at].deleteCount;at++;}backgroundPositions.push(position+offset);}
+        return {source,world,background:previous.background,backgroundPositions,dense:true,meshDelta:{before:previous.world,after:world,full:false,splices:foreground}};
+      }
+    }
+    const world=[],background=[],backgroundPositions=[];
+    for(let i=0;i<source.length;i++){const mesh=source[i];if(mesh===undefined&&!(i in source))continue;if(mesh.backgroundWater){background.push(mesh);backgroundPositions.push(i);}else world.push(mesh);}
+    return {source,world,background,backgroundPositions,dense:world.length+background.length===source.length,meshDelta:null};
   }
   function sameChunkCategory(c,e){const m=e.mesh,p=e.p,s=m.s;return s.length===3&&c.x===p[0]&&c.y===p[1]&&c.z===p[2]&&c.sx===s[0]&&c.sy===s[1]&&c.sz===s[2]&&c.detail===m.detail&&c.ground===(m.ground===true)&&c.radius===e.radius;}
   function planChunks(index,chunks,categories,state){
@@ -1144,8 +1173,8 @@
   }
   function spatialIndex(meshes,environment,previous,options){
     if(previous?.reconcile)return previous.reconcile(meshes,environment,options);
-    const levels=[new Map(),new Map(),new Map()],large=[0,1,2].map(()=>({entries:[],epoch:0,count:0,next:null})),maxRadius=[0,0,0],byMesh=new WeakMap();let epoch=0;
-    const index={entries:[],query,byMesh,reconcile};
+    const levels=[new Map(),new Map(),new Map()],large=[0,1,2].map(level=>({entries:[],epoch:0,count:0,next:null,level,key:null})),maxRadius=[0,0,0],byMesh=new WeakMap();let epoch=0;
+    const index={entries:[],query,byMesh,reconcile};let sourceMeshes=null;
     function append(bucket,e){
       if(bucket.epoch!==epoch){bucket.epoch=epoch;bucket.count=0;bucket.next=null;}
       if(bucket.next)bucket.next.push(e);
@@ -1158,17 +1187,40 @@
       else if(bucket.count!==bucket.entries.length)bucket.entries=bucket.entries.slice(0,bucket.count);
       bucket.next=null;return true;
     }
+    function applyMeshDelta(list,env,options){
+      const splices=options?.revisionedMeshes===true&&!index.duplicates&&sourceMeshes?.length===index.entries.length&&validatedMeshSplices(options.meshDelta,sourceMeshes,list);
+      if(!splices)return false;
+      // Existing identities in insertions may be moves, revisions or duplicate
+      // occurrences. Preserve their general reconciliation semantics instead.
+      const unique=new Set();for(const q of splices)for(const mesh of q.items){if(byMesh.has(mesh)||unique.has(mesh))return false;unique.add(mesh);}
+      if(!splices.length){sourceMeshes=list;index.delta={fromEpoch:epoch,epoch,added:[],removed:[],changed:[],full:false,fast:true};return true;}
+      const priorEpoch=epoch++,removed=[],added=[],entrySplices=[],dirty=new Set(),insertions=new Map();
+      for(const q of splices){
+        for(let i=q.start;i<q.start+q.deleteCount;i++){const e=index.entries[i];removed.push(e);dirty.add(e.indexBucket);byMesh.delete(e.mesh);}
+        const items=[];for(const mesh of q.items){
+          const e=metadata(mesh),p=e.p,s=mesh.s||[1,1,1],r=mesh.r||[0,0,0],c=mesh.color||[0,0,0];
+          e.row=new Float32Array([p[0],p[1],p[2],mesh.mat||0,s[0],s[1],s[2],mesh.emissive||0,r[0],r[1],r[2],surfaceFlags(mesh,env),c[0],c[1],c[2],mesh.color?1:0]);
+          let bucket;if(e.radius>32)bucket=large[e.detail];else{const key=Math.floor(p[0]/8)+','+Math.floor(p[2]/8),map=levels[e.detail];bucket=map.get(key);if(!bucket){bucket={entries:[],epoch:0,count:0,next:null,level:e.detail,key};map.set(key,bucket);}maxRadius[e.detail]=Math.max(maxRadius[e.detail],e.radius);}
+          e.indexBucket=bucket;e.indexPX=p[0];e.indexPZ=p[2];e.indexRadius=e.radius;e.indexDetail=e.detail;dirty.add(bucket);let group=insertions.get(bucket);if(!group){group=[];insertions.set(bucket,group);}group.push(e);byMesh.set(mesh,e);items.push(e);added.push(e);
+        }entrySplices.push({start:q.start,deleteCount:q.deleteCount,items});
+      }
+      const entries=spliceReferences(index.entries,entrySplices,list.length);for(let i=0;i<entries.length;i++){const e=entries[i];e.indexEpoch=epoch;e.ordinal=i;}
+      for(const bucket of dirty){const next=bucket.entries.filter(e=>e.indexEpoch===epoch),add=insertions.get(bucket);if(add?.length){for(const e of add)next.push(e);next.sort((a,b)=>a.ordinal-b.ordinal);}bucket.entries=next;bucket.epoch=epoch;bucket.count=next.length;bucket.next=null;if(!next.length&&bucket.key!==null)levels[bucket.level].delete(bucket.key);}
+      sourceMeshes=list;index.entries=entries;index.duplicates=false;index.delta={fromEpoch:priorEpoch,epoch,added,removed,changed:[],full:false,fast:true};return true;
+    }
     function reconcile(list,env,options){
+      if(applyMeshDelta(list,env,options))return index;
       // Opt-in producer contract: retained identity + renderRevision guarantees
       // every render/spatial property (including p/s/r/color array contents)
       // is unchanged. A revised mesh always receives complete new metadata.
       const revisionedMeshes=options?.revisionedMeshes===true;
-      const priorEpoch=epoch++,priorDuplicates=index.duplicates,priorEntries=index.entries,entries=[],added=[],removed=[],changed=[];let lastOrdinal=-1,cursor=0,reordered=false,duplicates=false;
+      const priorEpoch=epoch++,priorDuplicates=index.duplicates,priorEntries=index.entries,entries=[],added=[],removed=[],changed=[],removalCandidates=[],dirtyBuckets=new Set(),bucketInsertions=new Map();let lastOrdinal=-1,cursor=0,reordered=false,duplicates=false;
+      const considerRemoval=e=>{if(e.removalEpoch!==epoch){e.removalEpoch=epoch;removalCandidates.push(e);}};
       for(const mesh of list||[]){
-        // Stable scene order permits a direct reference read. A changed list
-        // resynchronizes through the map; duplicates keep its original rules.
+        // Stable scene order permits a direct reference read. Gaps in that
+        // cursor identify the possible removals without rescanning every entry.
         const candidate=priorDuplicates?null:priorEntries[cursor],prior=candidate?.mesh===mesh&&candidate.indexEpoch===priorEpoch?candidate:byMesh.get(mesh);
-        if(prior?.indexEpoch===priorEpoch&&prior.ordinal>=cursor)cursor=prior.ordinal+1;
+        if(prior?.indexEpoch===priorEpoch&&prior.ordinal>=cursor){if(!priorDuplicates)for(let i=cursor;i<prior.ordinal;i++)considerRemoval(priorEntries[i]);cursor=prior.ordinal+1;}
         const duplicate=prior?.indexEpoch===epoch,retained=prior&&(prior.indexEpoch===priorEpoch||prior.retainedEpoch===epoch)&&prior.renderRevision===(mesh.renderRevision||0)?prior:null,e=retained||metadata(mesh);
         if(duplicate)duplicates=true;
         if(retained){
@@ -1176,21 +1228,36 @@
           e.retainedEpoch=epoch;if(!revisionedMeshes&&e.chunkCategory&&!sameChunkCategory(e.chunkCategory,e))changed.push(e);
         }
         else{
+          if(!priorDuplicates&&prior?.indexEpoch===priorEpoch)considerRemoval(prior);
           const p=e.p,s=mesh.s||[1,1,1],r=mesh.r||[0,0,0],c=mesh.color||[0,0,0];
           e.row=new Float32Array([p[0],p[1],p[2],mesh.mat||0,s[0],s[1],s[2],mesh.emissive||0,r[0],r[1],r[2],surfaceFlags(mesh,env),c[0],c[1],c[2],mesh.color?1:0]);
           byMesh.set(mesh,e);
           if(priorEpoch)added.push(e);
         }
-        if(!e.indexBucket||(!revisionedMeshes&&(e.indexPX!==e.p[0]||e.indexPZ!==e.p[2]||e.indexRadius!==e.radius||e.indexDetail!==e.detail))){
+        const oldBucket=e.indexBucket;
+        if(!oldBucket||(!revisionedMeshes&&(e.indexPX!==e.p[0]||e.indexPZ!==e.p[2]||e.indexRadius!==e.radius||e.indexDetail!==e.detail))){
           if(e.radius>32)e.indexBucket=large[e.detail];
-          else{const key=Math.floor(e.p[0]/8)+','+Math.floor(e.p[2]/8),map=levels[e.detail];let bucket=map.get(key);if(!bucket){bucket={entries:[],epoch:0,count:0,next:null};map.set(key,bucket);}e.indexBucket=bucket;maxRadius[e.detail]=Math.max(maxRadius[e.detail],e.radius);}
+          else{const key=Math.floor(e.p[0]/8)+','+Math.floor(e.p[2]/8),map=levels[e.detail];let bucket=map.get(key);if(!bucket){bucket={entries:[],epoch:0,count:0,next:null,level:e.detail,key};map.set(key,bucket);}e.indexBucket=bucket;maxRadius[e.detail]=Math.max(maxRadius[e.detail],e.radius);}
           e.indexPX=e.p[0];e.indexPZ=e.p[2];e.indexRadius=e.radius;e.indexDetail=e.detail;
         }
-        e.indexEpoch=epoch;e.ordinal=entries.length;append(e.indexBucket,e);entries.push(e);
+        if(priorEpoch&&!priorDuplicates&&e.indexBucket!==oldBucket){if(oldBucket)dirtyBuckets.add(oldBucket);dirtyBuckets.add(e.indexBucket);let list=bucketInsertions.get(e.indexBucket);if(!list){list=[];bucketInsertions.set(e.indexBucket,list);}list.push(e);}
+        e.indexEpoch=epoch;e.ordinal=entries.length;entries.push(e);
       }
-      for(const e of index.entries)if(e.indexEpoch!==epoch){removed.push(e);if(byMesh.get(e.mesh)===e)byMesh.delete(e.mesh);}
-      for(let level=0;level<3;level++){finish(large[level]);for(const [key,bucket] of levels[level])if(!finish(bucket))levels[level].delete(key);}
-      index.entries=entries;index.duplicates=duplicates;index.delta={fromEpoch:priorEpoch,epoch,added,removed,changed,full:!priorEpoch||reordered||duplicates||priorDuplicates||added.length+removed.length>Math.max(64,entries.length/4)};return index;
+      const threshold=Math.max(64,entries.length/4),scanAll=!priorEpoch||priorDuplicates||duplicates||reordered||added.length>threshold||removalCandidates.length+priorEntries.length-cursor>threshold;
+      if(!scanAll)for(let i=cursor;i<priorEntries.length;i++)considerRemoval(priorEntries[i]);
+      for(const e of scanAll?priorEntries:removalCandidates)if(e.indexEpoch!==epoch){removed.push(e);dirtyBuckets.add(e.indexBucket);if(byMesh.get(e.mesh)===e)byMesh.delete(e.mesh);}
+      const full=!priorEpoch||reordered||duplicates||priorDuplicates||added.length+removed.length>threshold;
+      if(full){
+        // Duplicates and order changes require the exact original traversal.
+        for(const e of entries)append(e.indexBucket,e);
+        for(let level=0;level<3;level++){finish(large[level]);for(const [key,bucket] of levels[level])if(!finish(bucket))levels[level].delete(key);}
+      }else for(const bucket of dirtyBuckets){
+        const next=bucket.entries.filter(e=>e.indexEpoch===epoch&&e.indexBucket===bucket),insertions=bucketInsertions.get(bucket);
+        if(insertions?.length){for(const e of insertions)next.push(e);next.sort((a,b)=>a.ordinal-b.ordinal);}
+        bucket.entries=next;bucket.epoch=epoch;bucket.count=next.length;bucket.next=null;
+        if(!next.length&&bucket.key!==null)levels[bucket.level].delete(bucket.key);
+      }
+      sourceMeshes=list;index.entries=entries;index.duplicates=duplicates;index.delta={fromEpoch:priorEpoch,epoch,added,removed,changed,full,fast:false};return index;
     }
     function query(eye,ranges){
       const result=[];
@@ -1720,7 +1787,7 @@
     const stats={drawCalls:0,triangles:0,instances:0,contextLost:false,webglVersion:2,backend:'webgl2',bloom:false,shadows:false};
     let program,depthProgram,postProgram,skyProgram,fxProgram,vao,postVao,vbo,ibo,worldBuffer,dynamicBuffer,overlayBuffer,fxBuffer,crowdBuffer,uniforms,postUniforms,skyUniforms,fxUniforms,depthMatrix,depthWind,ssrProgram,ssrUniforms;
     let post=null,shadowTarget=null,whiteTexture=null,pbrTextures=[],targetKey='',shadowKey='',shadowLight=null;
-    let world=[],worldIndex=spatialIndex([]),backgroundIndex=spatialIndex([]),lights=[],environment=null,worldBatch=pack([]),quality='auto',disposed=false,worldRevision=0;
+    let world=[],worldIndex=spatialIndex([]),backgroundIndex=spatialIndex([]),lights=[],environment=null,worldBatch=pack([]),quality='auto',disposed=false,worldRevision=0,partitionState=null;
     let staticCaches=[],lampCasters=[],actorLightPlan=null;
     const packDynamic=instancePacker(),packOverlay=instancePacker(),packFx=effectsPacker();
     const ordinary=[],overlay=[],particles=[],overlayParticles=[];
@@ -1933,7 +2000,7 @@
     }
     function drawChunks(accept,shadow=false){let objects=0,count=0;for(const c of chunks.values())if(accept(c)){renderBatch(c.batch,c.buffer,false,shadow);objects+=c.entries.length;count++;}if(shadow){stats.shadowChunks=count;stats.shadowStatic=objects;}else{stats.visibleChunks=count;stats.staticVisible=objects;stats.staticCulled=world.length-objects;}return count;}
     function setWorld(meshes,points,atmosphere) {
-      const partition=partitionWorld(meshes);environment=environmentInfo(atmosphere);world=partition.world;worldIndex=spatialIndex(world,environment);backgroundIndex=spatialIndex(partition.background,environment);lights=points||[];worldBatch=pack([]);shadowLight=null;actorLightPlan=null;stats.staticTotal=world.length+backgroundIndex.entries.length;stats.biome=environment?environment.biome:null;
+      const partition=partitionState=partitionWorld(meshes);environment=environmentInfo(atmosphere);world=partition.world;worldIndex=spatialIndex(world,environment);backgroundIndex=spatialIndex(partition.background,environment);lights=points||[];worldBatch=pack([]);shadowLight=null;actorLightPlan=null;stats.staticTotal=world.length+backgroundIndex.entries.length;stats.biome=environment?environment.biome:null;
       worldRevision=0;stats.worldRevision=0;rebuildChunks();
       lampCasters=[];for(const cache of staticCaches){cache.entries=[];cache.batch=pack([]);}
       governor.reset();autoScale=1;
@@ -1943,7 +2010,7 @@
     function updateWorld(meshes,revision,points,updateOptions){
       if(disposed||revision===worldRevision)return false;
       if(Array.isArray(points)&&(points.length!==lights.length||points.some((light,i)=>light!==lights[i]))){lights=points;if(!lights.includes(shadowLight))shadowLight=null;}
-      const partition=partitionWorld(meshes);world=partition.world;worldIndex=spatialIndex(world,environment,worldIndex,updateOptions);backgroundIndex=spatialIndex(partition.background,environment,backgroundIndex,updateOptions);worldBatch=pack([]);rebuildChunks();
+      const partition=partitionState=partitionWorld(meshes,partitionState,updateOptions),indexOptions=partition.meshDelta?{...updateOptions,meshDelta:partition.meshDelta}:updateOptions;world=partition.world;worldIndex=spatialIndex(world,environment,worldIndex,indexOptions);if(!partition.meshDelta)backgroundIndex=spatialIndex(partition.background,environment,backgroundIndex,updateOptions);stats.meshDeltaApplied=!!worldIndex.delta.fast;worldBatch=pack([]);rebuildChunks();
       // Every depth view must stop referencing removed walls immediately. GPU
       // storage is reused; only the affected instance lists upload next draw.
       lampCasters=[];actorLightPlan=null;for(const cache of staticCaches.slice(0,4)){cache.entries=[];cache.batch=pack([]);}

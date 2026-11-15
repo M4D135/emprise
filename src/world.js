@@ -2,6 +2,36 @@
 (function(G){
 'use strict';const R=G.RADE=G.RADE||{},clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const mesh=(p,s,color=[.2,.25,.27],mat=0,cap=0)=>({shape:'box',p,s,r:[0,-cap,0],color,mat,outdoor:true});
+// Exact identity difference for derived building shells. Bounded anchor search
+// avoids building a city-wide lookup; difficult edits use one exact tail splice.
+function diffScenery(before,after){
+ const splices=[];let a=0,b=0;
+ while(a<before.length&&b<after.length){
+  if(before[a]===after[b]){a++;b++;continue;}
+  const oldSeen=new Map(),newSeen=new Map();let ai=-1,bi=-1;
+  for(let k=0;k<4096&&(a+k<before.length||b+k<after.length);k++){
+   if(a+k<before.length){const m=before[a+k];if(newSeen.has(m)){ai=a+k;bi=newSeen.get(m);break;}if(!oldSeen.has(m))oldSeen.set(m,a+k);}
+   if(b+k<after.length){const m=after[b+k];if(oldSeen.has(m)){ai=oldSeen.get(m);bi=b+k;break;}if(!newSeen.has(m))newSeen.set(m,b+k);}
+  }
+  if(ai<0){splices.push({start:a,deleteCount:before.length-a,items:after.slice(b)});a=before.length;b=after.length;break;}
+  splices.push({start:a,deleteCount:ai-a,items:after.slice(b,bi)});a=ai;b=bi;
+ }
+ if(a<before.length||b<after.length)splices.push({start:a,deleteCount:before.length-a,items:after.slice(b)});
+ return {before,after,full:false,splices};
+}
+// Compose ordered producer splices without rescanning meshes. Ranges retain
+// original occurrences; inserted fragments carry their actual references.
+function composeSceneDeltas(before,changes){
+ if(!changes.length)return null;let current=before,parts=[{start:0,count:before.length}];
+ const split=position=>{let at=0;for(let i=0;i<parts.length;i++){const q=parts[i],count=q.items?q.items.length:q.count;if(position===at)return i;if(position<at+count){const offset=position-at;parts.splice(i,1,...(q.items?[{items:q.items.slice(0,offset)},{items:q.items.slice(offset)}]:[{start:q.start,count:offset},{start:q.start+offset,count:count-offset}]));return i+1;}at+=count;}return parts.length;};
+ for(const delta of changes){if(!delta||delta.full||delta.before!==current)return null;
+  for(let i=delta.splices.length-1;i>=0;i--){const q=delta.splices[i];split(q.start+q.deleteCount);const from=split(q.start),to=split(q.start+q.deleteCount);parts.splice(from,to-from,...(q.items.length?[{items:q.items}]:[]));}current=delta.after;
+ }
+ const splices=[];let cursor=0,items=[];
+ for(const q of parts){if(q.items){for(const m of q.items)items.push(m);continue;}if(q.start>cursor||items.length){splices.push({start:cursor,deleteCount:q.start-cursor,items});items=[];}cursor=q.start+q.count;}
+ if(cursor<before.length||items.length)splices.push({start:cursor,deleteCount:before.length-cursor,items});
+ return {before,after:current,full:false,splices};
+}
 function create({savedCity=null}={}){
  R.coreHeights?.apply(PDR.plans.marseille);
  const city=PDR.villeReelle.creerVille('marseille',{ilots:15});
@@ -12,7 +42,7 @@ function create({savedCity=null}={}){
  const inCore=(x,z)=>x>=-550&&x<=550&&z>=-550&&z<=550;
  // Replace complete source silhouettes before collision construction; keep foliage and overhead branches non-solid.
  const vegetation=R.details.prepareVegetation(scenery,city,coreBounds),clearedTrees=vegetation.removed;
- const boxes=[],buckets=new Map(),key=(x,z)=>Math.floor(x/8)+','+Math.floor(z/8),meshBoxes=new WeakMap(),boxIndex=new WeakMap(),taintedBoxes=new Set();let colliderGeneration=0,stagedBoxes=null;
+ const boxes=[],buckets=new Map(),key=(x,z)=>Math.floor(x/8)+','+Math.floor(z/8),meshBoxes=new WeakMap(),boxIndex=new WeakMap(),taintedBoxes=new Set();let colliderGeneration=0,stagedBoxes=null,colliderSource=null,colliderSourceWorld=null,colliderSlots=null,sceneryDelta=null,sceneryChanges=[],renderMutation=0;
  const boxFields=['x','z','a','b','c','s','cap','minY','maxY','minX','maxX','minZ','maxZ'];
  function cellsForBox(q){const cells=[];for(let z=Math.floor(q.minZ/8);z<=Math.floor(q.maxZ/8);z++)for(let x=Math.floor(q.minX/8);x<=Math.floor(q.maxX/8);x++)cells.push(x+','+z);return cells;}
  function appendBox(q){
@@ -33,7 +63,7 @@ function create({savedCity=null}={}){
   // not survive replaceScenery: the old implementation rebuilt from the mesh.
   for(let i=0;i<boxFields.length;i++)if(!Object.is(entry.box[boxFields[i]],v[i+9]))return false;return true;
  }
- function fromMesh(m){
+ function fromMesh(m,fresh=false){
   if(m.terrain||m.coast||m.collision===false)return;
   if(m.vegetationPart&&m.vegetationPart!=='trunk')return;
   if(m.fx||m.shape==='foliage'||m.shape==='ring'||m.s[1]<.12||m.p[1]+m.s[1]/2<.4)return;
@@ -42,7 +72,7 @@ function create({savedCity=null}={}){
   // Material/scorch revisions do not alter geometry. Keep unchanged boxes, but
   // create a new snapshot when a pose changes; previous contact records stay valid.
   // The generation guard also keeps duplicate mesh occurrences as distinct boxes.
-  if(previous&&previous.generation!==colliderGeneration&&sameMeshBox(previous,m,rx,ry,rz)){previous.generation=colliderGeneration;m.collision=true;appendBox(previous.box);return;}
+  if(!fresh&&previous&&previous.generation!==colliderGeneration&&sameMeshBox(previous,m,rx,ry,rz)){previous.generation=colliderGeneration;m.collision=true;appendBox(previous.box);return;}
   // Sloping roof pieces get a conservative envelope; vertical façades keep their exact yaw and dimensions.
   const h=Math.abs(Math.cos(rx)*Math.cos(rz)*s[1])+Math.abs(Math.sin(rx)*s[2])+Math.abs(Math.sin(rz)*s[0]);
   const sx=Math.abs(Math.cos(rz)*s[0])+Math.abs(Math.sin(rz)*s[1]);
@@ -124,8 +154,40 @@ function create({savedCity=null}={}){
  function roofHeight(x,z){if(roomRegion(x,z))return room.contains(x,z)?room.ceiling:0;let y=Math.max(ground(x,z),cityStream?.roofHeight(x,z)||0);for(const q of candidates(x,z,.1))if(disk(q,x,z,.05))y=Math.max(y,q.maxY);for(const c of fleet)if(disk(carBox(c),x,z,.05))y=Math.max(y,carBox(c).maxY);return y;}
  function freeNear(x,z,r=.4,{required=true}={}){for(let d=0;d<24;d+=.5)for(let i=0;i<(d?32:1);i++){const a=i*Math.PI/16,xx=x+Math.cos(a)*d,zz=z+Math.sin(a)*d;if(!blocked(xx,zz,r,ground(xx,zz)))return [xx,zz];}if(!required)return null;throw new Error('Aucun point libre près de '+x+','+z);}
  function addMesh(m){scenery.push(m);fromMesh(m);}
- function replaceScenery(value){
-  scenery=value;colliderGeneration++;const next=[];stagedBoxes=next;try{for(const m of scenery)if(m.collision)fromMesh(m);}finally{stagedBoxes=null;}
+ // Explicit producer fast path: retained meshes and their collision snapshots
+ // keep their geometry. Generic replaceScenery calls always validate all fields.
+ // Cache construction happens during loading, without replacing active colliders.
+ function prepareSceneryDelta(value){
+  colliderGeneration++;const slots=new Array(value.length),staged=[];stagedBoxes=staged;
+  try{for(let i=0;i<value.length;i++){const at=staged.length,m=value[i];if(m.collision)fromMesh(m);slots[i]=staged.length>at?staged[at]:null;}}
+  finally{stagedBoxes=null;}
+  // Rebind only an identical occurrence sequence; active collisions stay intact.
+  if(value.length===scenery.length&&value.every((m,i)=>m===scenery[i]))scenery=value;
+  colliderSource=value;colliderSourceWorld=scenery;colliderSlots=slots;
+ }
+ function patchedColliderSlots(value,delta){
+  if(!delta||delta.full||taintedBoxes.size||colliderSlots?.length!==delta.before?.length||delta.before!==colliderSource||delta.after!==value||colliderSourceWorld!==scenery||!colliderSlots||!Array.isArray(delta.splices))return null;
+  let end=0,length=colliderSource.length,offset=0;
+  for(const q of delta.splices){if(!q||!Number.isInteger(q.start)||!Number.isInteger(q.deleteCount)||q.start<end||q.deleteCount<0||q.start+q.deleteCount>colliderSource.length||!Array.isArray(q.items))return null;
+   for(let i=0;i<q.items.length;i++)if(q.items[i]!==value[q.start+offset+i])return null;
+   end=q.start+q.deleteCount;offset+=q.items.length-q.deleteCount;length+=q.items.length-q.deleteCount;
+  }if(length!==value.length)return null;
+  // Array copies retain occurrence order, including duplicate mesh references.
+  const slots=new Array(length);let read=0,write=0;const staged=[];stagedBoxes=staged;
+  try{for(const q of delta.splices){while(read<q.start)slots[write++]=colliderSlots[read++];read+=q.deleteCount;
+    for(const m of q.items){const at=staged.length;if(m.collision)fromMesh(m,true);slots[write++]=staged.length>at?staged[at]:null;}
+   }while(read<colliderSlots.length)slots[write++]=colliderSlots[read++];}
+  finally{stagedBoxes=null;}
+  return slots;
+ }
+ function replaceScenery(value,options){
+  colliderGeneration++;const next=[];let slots=patchedColliderSlots(value,options?.meshDelta);
+  sceneryDelta=slots?options.meshDelta:null;
+  if(sceneryDelta&&(!sceneryChanges.length||sceneryChanges.at(-1).after===sceneryDelta.before)&&sceneryChanges.length<16)sceneryChanges.push(sceneryDelta);else sceneryChanges=sceneryDelta?[sceneryDelta]:[];
+  if(slots){for(const q of slots)if(q)next.push(q);}else{
+   slots=new Array(value.length);stagedBoxes=next;try{for(let i=0;i<value.length;i++){const at=next.length,m=value[i];if(m.collision)fromMesh(m);slots[i]=next.length>at?next[at]:null;}}finally{stagedBoxes=null;}
+  }
+  scenery=value;colliderSource=value;colliderSourceWorld=value;colliderSlots=slots;
   if(!taintedBoxes.size&&next.length===boxes.length&&next.every((q,i)=>q===boxes[i]))return;
   const dirty=new Set(),added=new Map();let previousOrder=-1,reordered=false;
   for(let i=0;i<next.length;i++){const q=next[i];let index=boxIndex.get(q);if(!index){index={active:false,cells:[],order:0,seen:-1,nextOrder:0};boxIndex.set(q,index);}
@@ -173,9 +235,9 @@ function create({savedCity=null}={}){
  const combatWorld={seed:135,stage:0,generation:6,combat:true,navCell:2,bounds:coreBounds,spawn:{x:spawn[0],z:spawn[1],yaw:Math.atan2(car.x-spawn[0],spawn[1]-car.z)},enemies,cores:[],pickups:[],colliders:[],exit:{x:0,z:0},spatial:{ground:(x,z)=>water(x,z)?-3:ground(x,z),blocked,moveBlocked:clearance.moveBlocked,ray,castProjectile,coverBoxes:(x,z,r)=>candidates(x,z,r),contains:(x,z)=>(x>=bounds.minX&&x<=bounds.maxX&&z>=bounds.minZ&&z<=bounds.maxZ)||!!room?.contains(x,z)}};
  // The crowd's PDR grid is derived from exactly the same physical world, excluding only the moving car.
  const navCity={etendue:city.etendue,sol:ground,praticable:(x,z)=>{ignoreVehicle=true;const ok=!blocked(x,z,.34);ignoreVehicle=false;return ok;},surChaussee:city.surChaussee};
- const result={get dynamicBodies(){return dynamicBodies;},set dynamicBodies(v){dynamicBodies=v;},get room(){return room;},set room(v){room=v;},get weather(){return weather;},set weather(v){weather=v;},roofHeight,get player(){return actor;},set player(v){actor=v;},get playerSeated(){return actorSeated;},set playerSeated(v){actorSeated=!!v;},city,coast,landmarks,cityStream,streetLights:scenery.map((m,i)=>({m,id:'piece-'+i})).filter(({m})=>m.shape==='octa'&&m.p[1]>5.5&&m.p[1]<8&&m.s[0]<1.1&&m.color?.[0]>.7),coreBounds,navigationBounds:bounds,marineBuoys:[],expanded:!!cityStream,get scenery(){return scenery;},replaceScenery,candidates,clearedTrees,vegetation,bounds,boxes,fleet,get car(){return vehicle;},select(c){vehicle=c;},detailCount,architecture,mission,combatWorld,navCity,ground,blocked,resolveOverlap:clearance.resolve,ray,rayBox,carContact,moveVehicle,freeNear,addMesh,addBox,carBox,overlap,water,surface:(x,z)=>{const road=inCore(x,z)?city.surChaussee(x,z):!!cityStream?.roadAt(x,z);return {mu:(road?1.15:.9)*(1-.28*(weather?.wet||0)),type:road?'piste':'pave',pente:0,devers:0};},withoutCar(fn){const previous=ignoreVehicle;ignoreVehicle=true;try{return fn();}finally{ignoreVehicle=previous;}}};
+ const result={get dynamicBodies(){return dynamicBodies;},set dynamicBodies(v){dynamicBodies=v;clearance.prepareBodies?.(null);},publishBodies(v){dynamicBodies=v;clearance.prepareBodies?.(v);},get room(){return room;},set room(v){room=v;},get weather(){return weather;},set weather(v){weather=v;},roofHeight,get player(){return actor;},set player(v){actor=v;},get playerSeated(){return actorSeated;},set playerSeated(v){actorSeated=!!v;},city,coast,landmarks,cityStream,streetLights:scenery.map((m,i)=>({m,id:'piece-'+i})).filter(({m})=>m.shape==='octa'&&m.p[1]>5.5&&m.p[1]<8&&m.s[0]<1.1&&m.color?.[0]>.7),coreBounds,navigationBounds:bounds,marineBuoys:[],expanded:!!cityStream,get scenery(){return scenery;},get sceneryDelta(){return sceneryDelta;},get renderMutation(){return renderMutation;},invalidateSceneryRender(){renderMutation++;sceneryDelta=null;sceneryChanges=[];},takeSceneryDelta(before){const changes=sceneryChanges;sceneryChanges=[];if(!before)return null;const at=changes.findIndex(d=>d.before===before);return at<0?null:changes.length-at===1?changes[at]:composeSceneDeltas(before,changes.slice(at));},replaceScenery,prepareSceneryDelta,candidates,clearedTrees,vegetation,bounds,boxes,fleet,get car(){return vehicle;},select(c){vehicle=c;},detailCount,architecture,mission,combatWorld,navCity,ground,blocked,resolveOverlap:clearance.resolve,ray,rayBox,carContact,moveVehicle,freeNear,addMesh,addBox,carBox,overlap,water,surface:(x,z)=>{const road=inCore(x,z)?city.surChaussee(x,z):!!cityStream?.roadAt(x,z);return {mu:(road?1.15:.9)*(1-.28*(weather?.wet||0)),type:road?'piste':'pave',pente:0,devers:0};},withoutCar(fn){const previous=ignoreVehicle;ignoreVehicle=true;try{return fn();}finally{ignoreVehicle=previous;}}};
  if(coast){const mx=(bounds.minX+bounds.maxX)/2,mz=(bounds.minZ+bounds.maxZ)/2;result.landscape=[{shape:'box',p:[mx,-.22,mz],s:[bounds.maxX-bounds.minX,.12,bounds.maxZ-bounds.minZ],color:[.15,.31,.36],mat:12,outdoor:true,collision:false,backgroundWater:true},...coast.geometry.filter(m=>m.p[0]+m.s[0]/2<-550||m.p[0]-m.s[0]/2>550||m.p[2]+m.s[2]/2<-550||m.p[2]-m.s[2]/2>550)];}else result.landscape=[];
  if(R.boundaries)result.boundary=R.boundaries.add(result);return result;
 }
-R.world={create,mesh};
+R.world={create,mesh,composeSceneDeltas,diffScenery};
 })(globalThis);

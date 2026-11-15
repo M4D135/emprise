@@ -9,10 +9,11 @@ function subtract(a,b){const lo=a.lo.map((n,i)=>Math.max(n,b.lo[i])),hi=a.hi.map
  put([lo[0],lo[1],a.lo[2]],[hi[0],hi[1],lo[2]]);put([lo[0],lo[1],hi[2]],[hi[0],hi[1],a.hi[2]]);return out;
 }
 function create(world,interiors,baseMeshes,{saved=[],legacyDamage=null,onProject=()=>{}}={}){
- const openings=new Map(),indices=new WeakMap(baseMeshes.map((m,i)=>[m,i]));let selected=[],lights=[],lastX=Infinity,lastZ=Infinity,elapsed=1,revision=-1,selectionKey='',dirty=false,controller=null;const shellCache=new WeakMap();
+ const openings=new Map(),indices=new WeakMap();let uniqueSources=true;for(let i=0;i<baseMeshes.length;i++){if(indices.has(baseMeshes[i]))uniqueSources=false;indices.set(baseMeshes[i],i);}let selected=[],lights=[],lastX=Infinity,lastZ=Infinity,elapsed=1,revision=-1,selectionKey='',dirty=false,controller=null;const shellCache=new WeakMap();
+ let openingRevision=0,exteriorController=null,exteriorSource=null,exteriorOpeningRevision=-1,exteriorMeshes=null,combinedMeshes=null,combinedPrefix=null,deltaGeneration=0;
  function register(sourceId,point,floor){const match=/^piece-(\d+)$/.exec(sourceId||''),index=match?Number(match[1]):-1,mesh=baseMeshes[index];if(!mesh||!validPoint(point)||!interiors?.breachFootprint)return false;const found=interiors.breachFootprint(mesh);if(!found)return false;const base=mesh.p[1]-mesh.s[1]/2;
   floor=Number.isInteger(floor)?floor:Math.floor(Math.max(0,point[1]-base)/3.1);if(floor<0||floor>=found.building.floors||base+(floor+1)*3.1>mesh.p[1]+mesh.s[1]/2+.2)return false;const id=sourceId+':'+floor;if(openings.has(id)||openings.size>=256)return false;
-  openings.set(id,{id,sourceId,index,point:point.slice(),floor,buildingId:found.building.id,footprint:found.q});dirty=true;return true;
+  openings.set(id,{id,sourceId,index,point:point.slice(),floor,buildingId:found.building.id,footprint:found.q});openingRevision++;dirty=true;return true;
  }
  for(const o of Array.isArray(saved)?saved.slice(0,256):[])if(o&&validPoint(o.point))register(o.sourceId,o.point,o.floor);
  if(!saved?.length)for(const state of legacyDamage?.states||[])if(!state.removed)for(const cut of state.cuts||[]){const at=[(cut.minX+cut.maxX)/2,(cut.minY+cut.maxY)/2,(cut.minZ+cut.maxZ)/2];register(state.id,at);}
@@ -25,9 +26,29 @@ function create(world,interiors,baseMeshes,{saved=[],legacyDamage=null,onProject
   const records=[...openings.values()].filter(o=>!controller||controller.isAlive(o.sourceId)).map(o=>({o,d:Math.hypot(o.point[0]-x,o.point[2]-z)})).filter(q=>q.d<=80).sort((a,b)=>a.d-b.d||a.o.id.localeCompare(b.o.id)).slice(0,8),key=records.map(q=>q.o.id).sort().join('|');if(key===selectionKey)return false;
   selectionKey=key;selected=records.map(({o})=>interiors.breachProjection({mesh:baseMeshes[o.index],point:o.point,buildingId:o.buildingId,floor:o.floor})).filter(Boolean);for(const bridge of selected)onProject(bridge);dirty=true;return true;
  }
- function rebuild(dc){controller=dc;if(!dc)return false;const groups=new Map();for(const o of openings.values()){if(!groups.has(o.index))groups.set(o.index,[]);groups.get(o.index).push(o);}const meshes=groups.size?[]:dc.meshes.slice();
-  if(groups.size)for(const m of dc.meshes){const index=indices.get(m)??Number(/^piece-(\d+)$/.exec(m.destructibleId||'')?.[1]),records=groups.get(index);if(records&&m.shape==='box')meshes.push(...hollow(m,records));else meshes.push(m);}
-  lights=[];for(const bridge of selected){bridge.refresh();meshes.push(...bridge.scenery);lights.push(...bridge.lights);}world.replaceScenery(meshes);for(const bridge of selected)for(const collider of bridge.colliders)world.addBox({...collider});revision=dc.revision;dirty=false;return true;
+ function rebuild(dc){controller=dc;if(!dc)return false;
+  // Without a cutaway interior, the destruction output is already the exact
+  // visible street. Keep its array identity so world can apply the local delta.
+  if(!openings.size&&!selected.length){lights=[];deltaGeneration=Math.max(deltaGeneration,dc.meshDelta?.generation||0);world.replaceScenery(dc.meshes,{meshDelta:dc.meshDelta});revision=dc.revision;dirty=false;return true;}
+  // Damage inside a projected room does not change the street controller or
+  // its openings. Reuse that exact exterior instead of scanning the city once
+  // again for every room touched by the same explosion.
+  if(exteriorController!==dc||exteriorSource!==dc.meshes||exteriorOpeningRevision!==openingRevision){
+   const groups=new Map();for(const o of openings.values()){if(!groups.has(o.index))groups.set(o.index,[]);groups.get(o.index).push(o);}const exterior=[],source=dc.meshes,spans=[];
+   let spanMode=uniqueSources&&typeof dc.sourceSpan==='function';
+   if(spanMode){for(const index of groups.keys()){const q=dc.sourceSpan(index);if(!q||!Number.isInteger(q.start)||!Number.isInteger(q.length)||q.start<0||q.length<0||q.start+q.length>source.length){spanMode=false;break;}if(q.length)spans.push(q);}spans.sort((a,b)=>a.start-b.start);for(let i=1;i<spans.length;i++)if(spans[i].start<spans[i-1].start+spans[i-1].length)spanMode=false;}
+   const transform=m=>{const index=indices.get(m)??Number(/^piece-(\d+)$/.exec(m.destructibleId||'')?.[1]),records=groups.get(index);if(records&&m.shape==='box')exterior.push(...hollow(m,records));else exterior.push(m);};
+   if(spanMode){let at=0;for(const q of spans){while(at<q.start)exterior.push(source[at++]);const end=q.start+q.length;while(at<end)transform(source[at++]);}while(at<source.length)exterior.push(source[at++]);}
+   else for(const m of source)transform(m);
+   exteriorController=dc;exteriorSource=dc.meshes;exteriorOpeningRevision=openingRevision;exteriorMeshes=exterior;
+  }
+  const meshes=exteriorMeshes.slice(),suffix=[];lights=[];
+  for(const bridge of selected){bridge.refresh();meshes.push(...bridge.scenery);suffix.push(...bridge.scenery);lights.push(...bridge.lights);}
+  let meshDelta=null;deltaGeneration++;
+  if(combinedMeshes&&combinedPrefix===exteriorMeshes){const start=exteriorMeshes.length,removed=combinedMeshes.slice(start);meshDelta={before:combinedMeshes,after:meshes,generation:deltaGeneration,full:false,splices:removed.length||suffix.length?[{start,deleteCount:removed.length,items:suffix}]:[],removed,added:suffix};}
+  else if(R.world?.diffScenery)meshDelta=R.world.diffScenery(world.scenery,meshes);
+  world.replaceScenery(meshes,meshDelta?{meshDelta}:undefined);combinedMeshes=meshes;combinedPrefix=exteriorMeshes;
+  for(const bridge of selected)for(const collider of bridge.colliders)world.addBox({...collider});revision=dc.revision;dirty=false;return true;
  }
  function sync(dc,position){controller=dc;choose(position);return rebuild(dc);}
  function update(dt,position){elapsed+=dt;if(elapsed<.25&&!dirty)return false;elapsed=0;if(Math.hypot((position?.x??0)-lastX,(position?.z??0)-lastZ)>3||dirty){lastX=position?.x;lastZ=position?.z;choose(position);}if(dirty||controller&&controller.revision!==revision)return rebuild(controller);return false;}
