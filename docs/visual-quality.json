@@ -1,0 +1,11 @@
+{
+  "checks": [
+    "WebGL2 compile: shared CPU/GPU human gait",
+    "Three procedural identities: front/profile/walk/seated fixtures",
+    "Procedural trees and façades in actual city",
+    "Compact first-person weapon assembly"
+  ],
+  "fixture": "Actors and camera deliberately placed for visual inspection; not an end-to-end gameplay route.",
+  "errors": [],
+  "buildSha256": "8edd3af1189768753367cb596c365323f02851c417d649fcaeeabcc0df125622"
+}

@@ -278,7 +278,10 @@ function create(world,sim,{interiors,campaign,saved=null,notify=()=>{}}={}){
   }
  }
  update(0,[]);
- return {context,act,consume,update,save,geometry,registry,records,inventory,slots,get mission(){return missionView();},get income(){return income;},get earned(){return earned;},get time(){return clock;}};
+ function journal(){
+  return [...records].map(([key,data])=>{const q=registry.get(key);return {key,name:q.place.name||'Commerce',address:q.place.address||q.building.address||'',status:data.closed?'closed':data.status,gang:data.gang,rate:data.status==='protected'&&!data.closed?data.rate:0,earned:data.earned};});
+ }
+ return {context,act,consume,update,save,geometry,journal,registry,records,inventory,slots,get mission(){return missionView();},get income(){return income;},get earned(){return earned;},get time(){return clock;}};
 }
 R.business={prepare,create};
 })(globalThis.RADE);

@@ -1,0 +1,85 @@
+{
+  "version": "0.4.0",
+  "suites": [
+    {
+      "test": "acceptance",
+      "exit": 0,
+      "seconds": 2.81
+    },
+    {
+      "test": "sandbox",
+      "exit": 0,
+      "seconds": 28.32
+    },
+    {
+      "test": "police",
+      "exit": 0,
+      "seconds": 11.07
+    },
+    {
+      "test": "combat",
+      "exit": 0,
+      "seconds": 0.21
+    },
+    {
+      "test": "business",
+      "exit": 0,
+      "seconds": 2.73
+    },
+    {
+      "test": "injuries",
+      "exit": 0,
+      "seconds": 13.22
+    },
+    {
+      "test": "urban",
+      "exit": 0,
+      "seconds": 16.81
+    },
+    {
+      "test": "vehicle-explosion",
+      "exit": 0,
+      "seconds": 15.97
+    },
+    {
+      "test": "weather",
+      "exit": 0,
+      "seconds": 0.24
+    },
+    {
+      "test": "interiors",
+      "exit": 0,
+      "seconds": 7.97
+    },
+    {
+      "test": "places",
+      "exit": 0,
+      "seconds": 0.73
+    },
+    {
+      "test": "marine",
+      "exit": 0,
+      "seconds": 7.78
+    },
+    {
+      "test": "crowd",
+      "exit": 0,
+      "seconds": 0.03
+    },
+    {
+      "test": "loot",
+      "exit": 0,
+      "seconds": 0.02
+    },
+    {
+      "test": "environment",
+      "exit": 0,
+      "seconds": 1.27
+    }
+  ],
+  "additionalSuites": [
+    "models (final geometry)",
+    "replays (three recordings)"
+  ],
+  "notes": "Source simulations tested before the final shoulder/nose/collar shape adjustment; model validation, visual captures and frame pacing include that adjustment."
+}

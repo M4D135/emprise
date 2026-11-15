@@ -1,6 +1,6 @@
 # Génération procédurale
 
-EMPRISE 0.3.0 ne charge aucun asset graphique ou sonore externe : aucun modèle, squelette, animation, image, texture photographique, police ou enregistrement audio n'est embarqué. Les anciens fichiers MakeHuman et Poly Haven ont été retirés du projet et du build.
+EMPRISE 0.4.0 ne charge aucun asset graphique ou sonore externe : aucun modèle, squelette, animation, image, texture photographique, police ou enregistrement audio n'est embarqué. Les anciens fichiers MakeHuman et Poly Haven ont été retirés du projet et du build.
 
 - Corps, mains, visages et vêtements : surfaces paramétriques originales dans `human-data.js`, `body-data.js`, `human.js`. Articulations et poids calculés par le code, mêmes proportions CPU/GPU.
 - Véhicules et bateaux : panneaux, carènes, tubes, roues et instruments construits en triangles. Bâtiments et mobilier : volumes, profils, ouvertures et détails générés.

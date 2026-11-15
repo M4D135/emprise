@@ -1,8 +1,8 @@
 {
-  "version": "0.3.0",
-  "build": "e7e1550b58",
-  "bytes": 3736363,
-  "sha256": "0f99e612444e2d68db3d9b7ed6140986b98fc618ec96df10d5dbd35c3fe63ad8",
+  "version": "0.4.0",
+  "build": "7f69d7cada",
+  "bytes": 3770463,
+  "sha256": "8edd3af1189768753367cb596c365323f02851c417d649fcaeeabcc0df125622",
   "modules": [
     "ferro/renderer",
     "ferro/destruction",
@@ -50,6 +50,7 @@
     "urban",
     "injuries",
     "business",
+    "loot",
     "session",
     "gamepad",
     "game"

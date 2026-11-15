@@ -2,9 +2,11 @@
 (function(R){'use strict';
 function create({pedestrians=480,expanded=!!R.campaign,saved=null,now=Date.now()}={}){
  const world=R.world.create(),weather=R.weather?R.weather.create(saved?.weather):null,layout=expanded?R.campaign.layout(world):null,addresses=expanded&&R.interiors?(world.addresses=R.interiors.catalog(world)):null,sim=(expanded&&R.business?.prepare(world),FSimulation.create(world.combatWorld)),player=sim.state.player;
- let car=world.car,mode='foot',time=0,crowdClock=0,trafficClock=0,message='',messageTime=0,phase=0,returned=false,lastEvents=[],nearObjective=false,crowdEvents=[];const history=[];
- const tell=s=>{message=s;messageTime=5;history.push({time,text:s});if(history.length>80)history.shift();};
+ let loot;
+ let car=world.car,mode='foot',time=0,crowdClock=0,trafficClock=0,message='',messageTime=0,phase=0,returned=false,lastEvents=[],nearObjective=false,crowdEvents=[];const history=(Array.isArray(saved?.journal)?saved.journal:[]).filter(e=>e&&Number.isFinite(e.time)&&typeof e.text==='string'&&e.text.length<=400).slice(-80).map(e=>({time:e.time,text:e.text}));
+ const tell=(s,{remember=true}={})=>{message=s;messageTime=5;if(remember&&history.at(-1)?.text!==s){history.push({time,text:s});if(history.length>80)history.shift();}};
  const traffic=expanded?R.traffic.create(world):null,campaign=expanded?R.campaign.create(world,sim,layout,{saved,now,notify:tell}):null,crowd=R.crowd.create(world,pedestrians);world.player=player;world.pedestrians=crowd.people;world.weather=weather?.state||null;const interiors=expanded&&R.interiors?R.interiors.create(world,sim,{saved:saved?.interiors,notify:tell}):null;const urban=expanded&&R.urban?R.urban.create(world,sim,{saved:saved?.urban,interiors,campaign,traffic,notify:tell}):null;const marine=R.marine?R.marine.create(world,{saved:saved?.marine,notify:tell}):null;const business=expanded&&R.business?R.business.create(world,sim,{interiors,campaign,saved:saved?.business,notify:tell}):null;const injuries=expanded&&R.injuries?R.injuries.create(world,sim,crowd,{interiors,urban,campaign,saved:saved?.injuries}):null;
+ loot=expanded&&R.loot?R.loot.create(world,sim,{campaign,business,interiors,saved:saved?.loot,notify:tell}):null;
  marine?.restore(player);if(marine&&marine.mode!=='foot')mode=marine.mode;
  interiors?.setServiceHandler('repair',()=>urban?.repair(car));
  function exitCandidates(){const c=Math.cos(car.cap),s=Math.sin(car.cap);return [-1,1].map(side=>({x:car.x-s*side*(R.vehicles.SPECS[car.model].width/2+.66),z:car.z+c*side*(R.vehicles.SPECS[car.model].width/2+.66),side}));}
@@ -36,7 +38,7 @@ function create({pedestrians=480,expanded=!!R.campaign,saved=null,now=Date.now()
  }
  function update(dt,input={}){
   time+=dt;const weatherEvents=weather?.tick(dt,player)||[];messageTime=Math.max(0,messageTime-dt);lastEvents=[];
-  if(typeof input.businessAction==='string')business?.act(input.businessAction);if(input.interact)interact();if(input.grab)urban?.grab();if(input.ignite)urban?.igniteAhead();if(input.repair)urban?.repair(car);if(input.throw)urban?.throwHeld();if(input.engine&&mode==='car'){car.moteur=!car.moteur;tell(car.moteur?'Moteur démarré.':'Contact coupé.');}
+  if(input.loot)loot?.take();if(typeof input.businessAction==='string')business?.act(input.businessAction);if(input.interact)interact();if(input.grab)urban?.grab();if(input.ignite)urban?.igniteAhead();if(input.repair)urban?.repair(car);if(input.throw)urban?.throwHeld();if(input.engine&&mode==='car'){car.moteur=!car.moteur;tell(car.moteur?'Moteur démarré.':'Contact coupé.');}
   if(mode==='foot'&&!interiors?.active&&marine){const mx=input.moveX||0,my=input.moveY||0,n=Math.hypot(mx,my),yaw=player.yaw+(input.lookX||0);if(n>.05){const dx=(Math.cos(yaw)*mx+Math.sin(yaw)*my)/n,dz=(Math.sin(yaw)*mx-Math.cos(yaw)*my)/n,x=player.x+dx*.65,z=player.z+dz*.65;if(world.water(x,z)&&world.ray([player.x,.8,player.z],[dx,0,dz],.7)>.64){const ox=player.x,oz=player.z;player.x=x;player.z=z;if(marine.enterWater(player))mode='swim';else{player.x=ox;player.z=oz;}}}}
   nearObjective=Math.hypot(car.x-world.mission.x,car.z-world.mission.z)<43;
   if(mode==='car'){
@@ -57,8 +59,8 @@ function create({pedestrians=480,expanded=!!R.campaign,saved=null,now=Date.now()
    if(law.wanted>0&&status.eligible){law.arrest+=dt;if(law.arrest>4){campaign.arrest();respawn(true);}}else law.arrest=Math.max(0,law.arrest-dt*1.5);
    if(law.wanted&&Math.floor(time/.85)!==Math.floor((time-dt)/.85)&&traffic.cars.some(c=>c.police&&c.ai&&Math.hypot(c.x-player.x,c.z-player.z)<85))lastEvents.push({name:'policeSiren',level:.25});
   }
-  urban?.update(dt,lastEvents);business?.update(dt,lastEvents);injuries?.update(dt,lastEvents);lastEvents.push(...weatherEvents);crowdEvents.push(...lastEvents);crowdClock+=dt;if(crowdClock>=.05){crowd.update(crowdClock,crowdEvents);crowdClock=0;crowdEvents=[];}
+  urban?.update(dt,lastEvents);business?.update(dt,lastEvents);injuries?.update(dt,lastEvents);loot?.update();lastEvents.push(...weatherEvents);crowdEvents.push(...lastEvents);crowdClock+=dt;if(crowdClock>=.05){crowd.update(crowdClock,crowdEvents);crowdClock=0;crowdEvents=[];}
  }
- return {world,sim,crowd,traffic,campaign,weather,interiors,urban,injuries,save(){const data=campaign.save();if(interiors?.active)data.player={...data.player,...interiors.outside};return {...data,weather:weather?.save(),interiors:interiors?.save(),urban:urban?.save(),injuries:injuries?.save(),marine:marine?.save(),business:business?.save()};},expanded,marine,business,get car(){return car;},player,interact,exitCandidates,respawn,update,history,tell,get mode(){return mode;},get phase(){return phase;},get time(){return time;},get message(){return messageTime?message:'';},get events(){return lastEvents;},get crowdAlpha(){return crowdClock/.05;}};
+ return {world,sim,crowd,traffic,campaign,weather,interiors,urban,injuries,loot,save(){const data=campaign.save();if(interiors?.active)data.player={...data.player,...interiors.outside};return {...data,weather:weather?.save(),interiors:interiors?.save(),urban:urban?.save(),injuries:injuries?.save(),marine:marine?.save(),business:business?.save(),loot:loot?.save(),journal:history.slice(-80)};},expanded,marine,business,get car(){return car;},player,interact,exitCandidates,respawn,update,history,tell,get mode(){return mode;},get phase(){return phase;},get time(){return time;},get message(){return messageTime?message:'';},get events(){return lastEvents;},get crowdAlpha(){return crowdClock/.05;}};
 }
 R.session={create};})(globalThis.RADE=globalThis.RADE||{});

@@ -1,4 +1,11 @@
 {
+  "gait": {
+    "maxSoleError": 0.000010000000000038624,
+    "maxStepJump": 0.000003580897709580334,
+    "integratedShoes": true,
+    "sharedCPUAndGPU": true
+  },
+  "faceVariants": 3,
   "provenance": "original-parametric-runtime",
   "importedVisualAssets": 0,
   "wardrobe": {
@@ -8,15 +15,15 @@
     "capsAndCrossbodyBags": 144,
     "independentFromGang": true
   },
-  "headVertices": 2540,
-  "headTriangles": 4944,
-  "bodyVertices": 6644,
-  "bodyTriangles": 12688,
-  "crowdAtlasVertices": 146906,
+  "headVertices": 1892,
+  "headTriangles": 3648,
+  "bodyVertices": 5164,
+  "bodyTriangles": 9816,
+  "crowdAtlasVertices": 115378,
   "indices32bit": true,
   "sleeveDiameters": [
-    0.11652790319747836,
-    0.11775475504933014
+    0.1166688478405335,
+    0.1181410700627557
   ],
   "continuousSkinning": true,
   "sharedGarmentFit": true,
@@ -32,6 +39,9 @@
     "Aucun nombre invalide dans les quatre poses",
     "Manches amples et coupe cohérente CPU/GPU",
     "Déformation CPU à deux influences effectivement utilisée",
-    "Coiffe et drapé partagés, couronne couverte"
+    "Coiffe et drapé partagés, couronne couverte",
+    "Semelles au sol pendant appui, levée contrôlée, cycle continu",
+    "Cache de poses réutilisé et réinitialisé par renderer",
+    "Trois visages et seize teintes de vêtements bornés"
   ]
 }

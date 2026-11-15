@@ -1,0 +1,25 @@
+{
+  "checks": [
+    "Collisions spatiales réelles : tir bloqué puis route autour du mur, réacquisition et riposte",
+    "Visée télégraphiée : mur ajouté avant le tir annule le départ ; mémoire figée puis reprise visible",
+    "Rafale : chaque balle revérifie le mur et interrompt la rafale obstruée",
+    "Tir proche visible : pression, choix d’un couvert réel et maintien derrière le couvert",
+    "Checkpoint v4 : suppression/blessures conservées, continuation identique, reprise v3 acceptée",
+    "Jambe blessée : yeux bas, déplacement rampant, ni charge ni esquive ni faux blocage",
+    "16 adversaires et mur long : maximum 2 routes / 1536 expansions et 24 candidats de couvert par tick",
+    "Mémoire expirée après occultation prolongée : retour à la patrouille sans suivre le joueur caché"
+  ],
+  "routing": {
+    "expansions": 174,
+    "requests": 1,
+    "cover": 0
+  },
+  "stress": {
+    "expansions": 1536,
+    "requests": 2,
+    "cover": 0,
+    "milliseconds": 8,
+    "actors": 16,
+    "seconds": 3
+  }
+}

@@ -3,7 +3,7 @@
 from pathlib import Path
 import hashlib,json
 root=Path(__file__).resolve().parent
-modules=['ferro/renderer','ferro/destruction','metal/fmath','metal/physics','metal/input','metal/motion','metal/simulation','metal/actors','metal/effects','metal/audio','metal/audio-recipes','metal/weapon','bitume/carene','bitume/main','bitume/voiture','bitume/conduite','bitume/son','pdr/villes/marseille','pdr/ville-reelle','pdr/sim/nav','pdr/sim/regles','human-data','body-data','human','materials','pdr/foule','vehicles','mobility','marine','details','architecture','people','boundaries','world','crowd','traffic','campaign','replay','replays','weather','places-data','places','interiors','urban','injuries','business','session','gamepad','game']
+modules=['ferro/renderer','ferro/destruction','metal/fmath','metal/physics','metal/input','metal/motion','metal/simulation','metal/actors','metal/effects','metal/audio','metal/audio-recipes','metal/weapon','bitume/carene','bitume/main','bitume/voiture','bitume/conduite','bitume/son','pdr/villes/marseille','pdr/ville-reelle','pdr/sim/nav','pdr/sim/regles','human-data','body-data','human','materials','pdr/foule','vehicles','mobility','marine','details','architecture','people','boundaries','world','crowd','traffic','campaign','replay','replays','weather','places-data','places','interiors','urban','injuries','business','loot','session','gamepad','game']
 version=json.loads((root/'VERSION.json').read_text())
 page=(root/'src/index.html').read_text().replace('/*STYLE*/',(root/'src/style.css').read_text())
 code='\n'.join((root/'src'/f'{m}.js').read_text() for m in modules)

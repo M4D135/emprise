@@ -1,11 +1,15 @@
-/* RADE : extraction de drawGun, METAL game.js. */
-(function(G){G.FWeapon={build(s,camera,motion){const quality='high',p=s.player,out=[],paired=false,leftMotion=motion; const m=(shape,p,s,mat,r=[0,0,0],emissive=0)=>({shape,p,s,mat,r,emissive});
+/* EMPRISE — original compact procedural FPS assemblies, based on the FERRO mount. */
+(function(G){G.FWeapon={build(s,camera,motion){const quality='high',visualScale=.80,p=s.player,out=[],paired=false,leftMotion=motion; const m=(shape,p,s,mat,r=[0,0,0],emissive=0)=>({shape,p,s,mat,r,emissive});
       function drawGun(weapon,hand){
       const fracture=weapon===1,rocket=weapon===2,grenade=weapon===3,pistol=weapon===4,pose=(hand<0?leftMotion:motion).view.weapon,slide=pose.slide,flash=hand<0?(s.leftFlash||0):s.flash;
-      const grip=FMotion.mount(camera,[hand*.255*Math.min(1,Math.max(.45,(innerWidth/innerHeight)/1.2))+pose.offset[0]*hand,(paired?-.34:-.30)+pose.offset[1],(paired?-.70:-.62)+pose.offset[2]],[pose.rotation[0],pose.rotation[1]*hand,pose.rotation[2]*hand]);
+      const grip=FMotion.mount(camera,[hand*.255*Math.min(1,Math.max(.45,((globalThis.innerWidth||1440)/(globalThis.innerHeight||900))/1.2))+pose.offset[0]*hand,(paired?-.34:-.30)+pose.offset[1],(paired?-.70:-.62)+pose.offset[2]],[pose.rotation[0],pose.rotation[1]*hand,pose.rotation[2]*hand]);
       function gun(shape,x,y,z,siz,mat,rx=0,em=0,color){
-        const part=FMotion.place(grip,[x*hand,y,z],rx),a=m(shape,part.p,siz,mat,part.r,em);a.overlay=true;a.surface='object';
-        if(color)a.color=color;else if(mat===0)a.color=[.16,.19,.21];else if(mat===1)a.color=[.37,.35,.28];
+        const part=FMotion.place(grip,[x*hand*visualScale,y*visualScale,z*visualScale],rx);
+        // Small iron sights and warm status lamps; muzzle flash retains its own emission.
+        if(mat===4&&em<1){mat=0;em=0;color=[.63,.59,.46];}
+        if(mat===5&&em<1){color=[.63,.29,.07];em*=.3;}
+        const a=m(shape,part.p,siz.map(v=>v*visualScale),mat,part.r,em);a.overlay=true;a.surface='object';
+        if(color)a.color=color;else if(mat===0)a.color=[.105,.125,.14];else if(mat===1)a.color=[.25,.245,.21];
         out.push(a);
       }
       gun('bevel',0,-.09,.12,[.15,.24,.16],7,-.2);
@@ -61,7 +65,8 @@
         if(flash>.2)gun('octa',0,.035,-.67,[.17+flash*.1,.17+flash*.1,.23+flash*.2],5,0,2.2);
       }else if(fracture){
         gun('bevel',0,0,.01,[.255,.21,.53],0);gun('bevel',0,.124,.03+slide,[.24,.045,.3],1);
-        gun('box',0,-.07,-.3,[.29,.09,.22],7);
+        gun('bevel',0,-.07,-.3,[.255,.095,.23],7);
+        for(let j=0;j<5;j++)gun('ring',0,-.035,-.39+j*.035,[.21,.008,.21],0,Math.PI/2,0,[.08,.085,.09]);
         if(!paired){gun('bevel',-.06,-.13,-.26,[.2,.08,.2],7,.1);gun('box',-.06,-.17,-.24,[.19,.04,.18],0,.1);}
         for(const side of [-1,1]){
           gun('cylinder',side*.082,.01,-.33+slide*.35,[.135,.38,.135],0,Math.PI/2);
@@ -73,7 +78,14 @@
         }
         gun('box',0,.17,-.13,[.04,.04,.04],5,0,.25);
       }else{
-        gun('bevel',0,0,-.03,[.19,.175,.52],0);gun('bevel',0,.105,.04+slide,[.15,.04,.27],1);
+        gun('bevel',0,0,-.03,[.17,.15,.52],0);
+        gun('bevel',0,-.018,.255,[.13,.135,.16],7);
+        // Ventilated handguard, barrel collars and narrow support fingers.
+        gun('bevel',0,-.01,-.31,[.155,.13,.20],7);
+        for(const side of [-1,1])for(let j=0;j<4;j++)gun('bevel',side*.079,.018,-.375+j*.043,[.008,.035,.025],0,0,0,[.025,.03,.035]);
+        gun('sphere',-.05,-.097,-.285,[.115,.075,.16],7,.12);
+        for(let j=0;j<4;j++)gun('sphere',.008,-.075,-.34+j*.032,[.15,.04,.028],7,.08);
+        gun('bevel',-.099,-.053,-.28,[.04,.08,.075],7,.55);gun('bevel',0,.105,.04+slide,[.15,.04,.27],1);
         gun('box',-.098,.025,-.04,[.012,.021,.22],p.overheated?6:4,0,.4);gun('box',.098,.025,-.04,[.012,.025,.22],1);
         gun('cylinder',0,.01,-.34+slide*.3,[.112,.24,.112],0,Math.PI/2);gun('cylinder',0,.01,-.47+slide*.3,[.14,.045,.14],1,Math.PI/2);
         gun('cylinder',0,.01,-.497+slide*.3,[.085,.015,.085],7,Math.PI/2);gun('box',0,.14,-.13,[.035,.04,.035],4,0,.25);

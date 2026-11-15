@@ -2,19 +2,19 @@
   {
     "label": "Tir et conduite · clavier / souris réels",
     "source": "tests/inputs.py / événements Chromium clavier et souris",
-    "ticks": 1463,
-    "duration": 12.191666666666666,
-    "recordingSha256": "23156a75fe8edaa3f897a9313637c205825dc93a6e43c816684e2f8990121d59",
+    "ticks": 1471,
+    "duration": 12.258333333333333,
+    "recordingSha256": "d74defc8f5f0ce1862d12ecc6b9110dec40c2653e77d6df4fd5c457a4aade1ea",
     "expected": {
-      "shots": 10,
+      "shots": 11,
       "mode": "foot",
       "player": [
-        76.28520714572898,
-        125.4881739203713
+        76.32274657833733,
+        125.79637769933515
       ],
       "car": [
-        77.72903667527515,
-        125.31231448897664
+        77.76657610788351,
+        125.6205182679405
       ],
       "cash": 200
     },
@@ -25,19 +25,19 @@
     "source": "tests/sandbox-browser.py / tests/sandbox-scenario.js",
     "ticks": 1959,
     "duration": 16.325,
-    "recordingSha256": "dd690488af7cb24fb090f549f54df4ed914303b10a43b98ab8bc05ef6255c8d6",
+    "recordingSha256": "c4d0b30669bf4ea1c5c60449393f58de2db61dfbf21ee749dcdd7bdb3919b33e",
     "expected": {
       "shots": 8,
       "mode": "foot",
       "player": [
-        60.6011542502161,
-        107.19368621121761
+        60.5771302176176,
+        107.18693402018762
       ],
       "car": [
         78.3,
         130
       ],
-      "cash": 243.76249999999658,
+      "cash": 243.76874999999657,
       "owner": 0,
       "mapOwned": true
     },
@@ -46,9 +46,9 @@
   {
     "label": "Véhicule sous le feu · test de destruction",
     "source": "tests/explosion-browser.py (fixture préparée, puis tirs simulés réels)",
-    "ticks": 4059,
-    "duration": 33.825,
-    "recordingSha256": "4c196f5d8acdb0e44f0ff643257e4f1d8f851f43e138136dcd0f5a5df3922f5e",
+    "ticks": 4121,
+    "duration": 34.34166666666667,
+    "recordingSha256": "a055a84d577b74c3c5df45a69bdc26d61fb63b802ee5a779ed1fb27228ee7076",
     "expected": {
       "shots": 73,
       "mode": "foot",

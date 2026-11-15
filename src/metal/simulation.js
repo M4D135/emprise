@@ -13,6 +13,8 @@
   const AWARENESS=['patrol','investigate','engage','search'],TACTICS=['hold','advance','flank','cover'];
   const AI=['awareness','tactic','hasMemory','lastSeenX','lastSeenZ','memory','alert','seen','senseWait','thinkWait','shareWait','alertWait','coverWait','holdTime','planWait','patrolIndex','searchIndex','goalX','goalZ','pathAt','stuck','moveSpeed'];
   const AI3=['observedVY','dodgeWait','dodgeDelay','dodgeTime','dodgeX','dodgeZ'];
+  const AI4=['suppression'];
+  const gangActor=e=>Number.isInteger(e.gang)&&e.type!==3;
   const AI2=['lastSeenY','observedVX','observedVZ','observedAt','sleeping'];
   const ENCOUNTER_AI=['deployed','combatEnabled','encounterReleased','returning','deployAge','quietTime'];
   const ENCOUNTER_STATE=['status','wave','pendingWave','timer'];
@@ -228,7 +230,7 @@
         awareness:'patrol',tactic:'hold',hasMemory:false,lastSeenX:e.x,lastSeenZ:e.z,memory:0,alert:0,seen:false,
         senseWait:0,thinkWait:i%4*.09,shareWait:0,alertWait:0,coverWait:0,holdTime:0,planWait:0,patrolIndex:0,searchIndex:0,
         goalX:e.x,goalZ:e.z,path:[],pathAt:0,stuck:0,moveSpeed:0,
-        lastSeenY:(e.y??groundAt(e.x,e.z))+1.45,observedVX:0,observedVZ:0,observedAt:-1,sleeping:false,observedVY:0,dodgeWait:0,dodgeDelay:0,dodgeTime:0,dodgeX:0,dodgeZ:0,
+        lastSeenY:(e.y??groundAt(e.x,e.z))+1.45,observedVX:0,observedVZ:0,observedAt:-1,sleeping:false,observedVY:0,dodgeWait:0,dodgeDelay:0,dodgeTime:0,dodgeX:0,dodgeZ:0,suppression:0,
         deployed:e.radeReserve?false:!progression||e.deployed!==false,combatEnabled:!progression||e.encounterId===undefined,encounterReleased:!progression||e.encounterId===undefined,returning:false,deployAge:!progression||e.deployed!==false?2:0,quietTime:0,...(bossProgression?{entryGrace:0}:{}),
         ...freshAir(),bossAwake:false,bossClock:0,bossStep:0,attackLabel:giant(e)?'Veille':'',weakPointOpen:false,weakTimer:0,bossReleased:!e.bossWave,squad:e.squadId??Math.floor(i/4),role:e.role||(e.type===1?'assault':e.type===2?'suppressor':i%3===0?'flanker':i%3===1?'assault':'suppressor')})),
       cores:world.cores.map(c=>({...c,taken:false})),pickups:world.pickups.map(c=>({...c,taken:false,remaining:Math.max(0,Math.floor(c.amount||0))})),
@@ -264,7 +266,8 @@
     let solids=destruction?.colliders||world.colliders;
     const b=world.bounds,trapBoxes=[];let bossAttackSerial=0,explosionSerial=0,projectileSerial=0,rubbleSerial=0,terrainDirty=false,seenDestructionRevision=destruction?.revision||0;
     const doorBoxes=s.doors.map(d=>({minX:d.x-d.w/2,maxX:d.x+d.w/2,minZ:d.z-d.d/2,maxZ:d.z+d.d/2,minY:0,maxY:0}));
-    let navDirty=false,routeBudget=Infinity,routeSearches=0,routeDeferred=0;
+    let navDirty=false,routeBudget=Infinity,routeSearches=0,routeDeferred=0,coverBudget=24;
+    Object.assign(s.aiStats,{pathExpansions:0,maxPathExpansions:0,coverChecks:0,coverBoxes:0,shotBlocked:0,suppressed:0});
     // Local nav invalidation (SIM-01): [minX,maxX,minZ,maxZ] of what changed since the last refresh.
     const navRects=[],noTraps=[];
     function navMark(q){if(advanced&&q)navRects.push(q.minX,q.maxX,q.minZ,q.maxZ);}
@@ -275,7 +278,7 @@
     updateDoorBoxes();
     const powered=id=>id===undefined||s.mechanisms.some(m=>m.id===id&&m.active);
     const feet=e=>e===p?e.y:Number.isFinite(e.baseY)?e.baseY:groundAt(e.x,e.z);
-    function putHeight(e,y){if(e===p||e.type===undefined)e.y=y;else{e.baseY=y;e.y=y+HEIGHT[e.type]*scale(e);}}
+    function putHeight(e,y){if(e===p||e.type===undefined)e.y=y;else{e.baseY=y;e.y=y+(e.injury?.leg?.4:HEIGHT[e.type]*scale(e));}}
     function onLift(l,x,z,margin=0){return Math.abs(x-l.x)<=l.w/2-margin&&Math.abs(z-l.z)<=l.d/2-margin;}
     function support(x,z,previous,r=.28){
       let y=ground(x,z);
@@ -1330,9 +1333,10 @@
       s.bullets=s.bullets.filter(q=>{if(Math.hypot(q.x-p.x,q.y-(p.y+1),q.z-p.z)>7.5)return true;particles(q.x,q.y,q.z,4,3);return false;});
       hear(p.x,p.z,15,p.y);emit('pulse',{radius:6.5,hits});return true;
     }
-    function eyeHeight(e){return advanced&&(e.type===1||e.type===3)?e.baseY+(e.type===1?1.88:2.89)*scale(e):e.y;}
+    function eyeHeight(e){if(e.injury?.leg)return e.baseY+.45;return advanced&&(e.type===1||e.type===3)?e.baseY+(e.type===1?1.88:2.89)*scale(e):e.y;}
     function articulatedGun(e){return advanced&&(e.type===1||e.type===3);}
     function barrel(e,x=e.aimX,y=e.aimY,z=e.aimZ,side=1){
+      if(e.injury?.leg)return {point:[e.x,e.baseY+.36,e.z],blocked:false};
       if(!articulatedGun(e))return {point:[e.x,e.y,e.z],blocked:false};
       // Same nominal joint frames as FActors, without cosmetic gait/bob. The
       // heavy rifle has one offset barrel; each half of the boss fan uses an arm.
@@ -1386,6 +1390,9 @@
       return false;
     }
     function projectile(e,angle=0,speed=7,damage=8){
+      // Every committed shot checks its actual muzzle again. Moving cover or an
+      // ally arriving during a tell/burst cancels the shot; it never clips out.
+      if(advanced&&!canShoot(e,e.aimX,e.aimY,e.aimZ)){s.aiStats.shotBlocked++;return false;}
       const muzzle=barrel(e,e.aimX,e.aimY,e.aimZ,angle<0?-1:1);let source=muzzle.point;
       if(!muzzle.blocked&&!clearLane(e,e.aimX,e.aimY,e.aimZ,source))return;
       const horizontal=Math.hypot(e.aimX-source[0],e.aimZ-source[2]),pitch=Math.atan2(e.aimY-source[1],horizontal||.01),yaw=Math.atan2(e.aimX-source[0],source[2]-e.aimZ)+angle;
@@ -1397,19 +1404,21 @@
       }
       speed*=enemySpeed();s.bullets.push({x:source[0],y:source[1],z:source[2],dx:direction[0]*speed,dy:direction[1]*speed,dz:direction[2]*speed,life:5,damage,kind:e.type,owner:e.id});
       if(s.bullets.length>160)s.bullets.shift();
-      emit('enemyShot',{x:e.x,z:e.z,kind:e.type});
+      emit('enemyShot',{x:e.x,z:e.z,kind:e.type});return true;
     }
     function burst(e){
-      projectile(e,(e.burstLeft-2)*.055,7.7,6);e.burstLeft--;e.burstWait=.18;
+      if(projectile(e,(e.burstLeft-2)*.055,7.7,6)===false){e.burstLeft=0;e.attackState='recover';e.cooldown=.4;e.thinkWait=e.planWait=0;return;}
+      e.burstLeft--;e.burstWait=.18;
       if(!e.burstLeft)e.attackState='recover';
     }
     function attack(e){
+      if(advanced&&!canShoot(e,e.aimX,e.aimY,e.aimZ)){e.attackState='recover';e.cooldown=.4;e.thinkWait=e.planWait=0;s.aiStats.shotBlocked++;return;}
       e.attackState='recover';e.cooldown=([2.05,2.9,2.65,e.phase?2.15:2.85][e.type]-.08*(world.stage||0))*enemyCadence();
       if(hasOrdnance(e)){enemyOrdnance(e);return;}
       if(e.type===0)projectile(e,0,7.2,8);
       else if(e.type===1){
         const dx=e.aimX-e.x,dz=e.aimZ-e.z,d=Math.hypot(dx,dz);
-        if(!e.airborne&&d<11.5&&d>1&&Math.abs(e.aimY-1.45-e.baseY)<.65&&segmentFree(e.x,e.z,e.aimX,e.aimZ,.38)){e.attackState='rush';e.rushTime=.68;e.rushX=dx/d;e.rushZ=dz/d;e.rushHit=false;}
+        if(!e.airborne&&!e.injury?.leg&&d<11.5&&d>1&&Math.abs(e.aimY-1.45-e.baseY)<.65&&segmentFree(e.x,e.z,e.aimX,e.aimZ,.38)){e.attackState='rush';e.rushTime=.68;e.rushX=dx/d;e.rushZ=dz/d;e.rushHit=false;}
         else projectile(e,0,5.5,14);
       }else if(e.type===2){e.attackState='burst';e.burstLeft=3;burst(e);}
       else {
@@ -1454,10 +1463,18 @@
     function reactToShot(){
       if(!advanced)return;
       for(const e of nearby(p.x,p.z,28)){
-        if(e.hp<=0||e.type===3||e.airborne||!e.seen||e.dodgeWait>0||e.stun>0||!sight(e.x,e.z,p.x,p.z,eyeHeight(e),p.y+1.45))continue;
+        if(e.hp<=0||e.type===3||e.airborne||!e.seen||e.stun>0||!sight(e.x,e.z,p.x,p.z,eyeHeight(e),p.y+1.45))continue;
         const dx=e.x-p.x,dz=e.z-p.z,d=Math.hypot(dx,dz);if(d<2||d>28||(Math.sin(p.yaw)*dx-Math.cos(p.yaw)*dz)/d<.7)continue;
         // A dodge follows a visible shot; it cannot retroactively evade that hit.
         const side=(e.id+e.squad)%2?-1:1;
+        const lateral=Math.abs(Math.cos(p.yaw)*dx+Math.sin(p.yaw)*dz);
+        const along=Math.sin(p.yaw)*dx-Math.cos(p.yaw)*dz,shotY=p.y+1.62+Math.tan(p.pitch)*along;
+        if(gangActor(e)&&lateral<1.25&&shotY>e.baseY-.2&&shotY<e.baseY+2.2&&sight(p.x,p.z,p.x+Math.sin(p.yaw)*along,p.z-Math.cos(p.yaw)*along,p.y+1.62,shotY)){
+          e.suppression=Math.min(2.4,(e.suppression||0)+.85);
+          e.thinkWait=0;e.planWait=0;
+          if(e.suppression>=1.1){e.windup=e.burstLeft=0;e.attackState='recover';e.cooldown=Math.max(e.cooldown,.4);}
+        }
+        if(e.injury?.leg||e.dodgeWait>0)continue;
         e.dodgeX=-dz/d*side;e.dodgeZ=dx/d*side;e.dodgeDelay=.08+(e.id%4)*.035;e.dodgeTime=.32;e.dodgeWait=1.6+(e.id%3)*.3;
       }
     }
@@ -1498,7 +1515,16 @@
       // Static map only, like the walking cells (SIM-V1): trap poses never enter routes or the
       // edge cache; traps still block bodies in move() and still hurt.
       if(blocked(ax,az,r,ground(ax,az),doorBoxes,solids,noTraps)||blocked(bx,bz,r,ground(bx,bz),doorBoxes,solids,noTraps))return false;
-      const dx=bx-ax,dz=bz-az,ay=groundAt(ax,az),by=groundAt(bx,bz),lowY=Math.min(ay,by),highY=Math.max(ay,by),minX=Math.min(ax,bx)-r-1e-7,maxX=Math.max(ax,bx)+r+1e-7,minZ=Math.min(az,bz)-r-1e-7,maxZ=Math.max(az,bz)+r+1e-7;
+      const dx=bx-ax,dz=bz-az;
+      if(world.spatial?.blocked){
+        const steps=Math.ceil(Math.hypot(dx,dz)/.32);
+        if(steps>192)return false;
+        for(let i=1;i<steps;i++){
+          const x=ax+dx*i/steps,z=az+dz*i/steps;
+          if(blocked(x,z,r,ground(x,z),doorBoxes,solids,noTraps))return false;
+        }
+      }
+      const ay=groundAt(ax,az),by=groundAt(bx,bz),lowY=Math.min(ay,by),highY=Math.max(ay,by),minX=Math.min(ax,bx)-r-1e-7,maxX=Math.max(ax,bx)+r+1e-7,minZ=Math.min(az,bz)-r-1e-7,maxZ=Math.max(az,bz)+r+1e-7;
       // Sweep the body, not an eye ray: low crates and narrow wall ends still block feet.
       const short=Math.max(Math.abs(dx),Math.abs(dz))/2+r<=bucketRadius;
       const local=short?collisionBuckets[(Math.floor((az+bz)/2/bucketSize)-bucketZ)*bucketWidth+Math.floor((ax+bx)/2/bucketSize)-bucketX]||solids:solids;
@@ -1592,8 +1618,8 @@
       function pop(){const value=heap[0],last=heap.pop();if(heap.length){let at=0;while(at*2+1<heap.length){let child=at*2+1;if(child+1<heap.length&&heap[child+1][1]<heap[child][1])child++;if(heap[child][1]>=last[1])break;heap[at]=heap[child];at=child;}heap[at]=last;}return value[0];}
       routeStamp[start]=stamp;routeCost[start]=0;routePrev[start]=-1;push(start,heuristic(start));
       let explored=0,found=false;
-      while(heap.length&&explored++<2400){
-        const i=pop();if(routeClosed[i]===stamp)continue;routeClosed[i]=stamp;if(i===end){found=true;break;}
+      while(heap.length&&explored<768){
+        const i=pop();if(routeClosed[i]===stamp)continue;routeClosed[i]=stamp;explored++;if(i===end){found=true;break;}
         const ix=i%nx,neighbors=[ix?i-1:-1,ix<nx-1?i+1:-1,i-nx,i+nx];
         for(let k=0;k<4;k++){
           const j=neighbors[k];if(j<0||j>=nav.length||!nav[j]||routeClosed[j]===stamp)continue;
@@ -1604,6 +1630,7 @@
           routeStamp[j]=stamp;routeCost[j]=cost;routePrev[j]=i;push(j,cost+heuristic(j));
         }
       }
+      s.aiStats.pathExpansions+=explored;s.aiStats.maxPathExpansions=Math.max(s.aiStats.maxPathExpansions,explored);
       if(!found)return null;
       const raw=[];for(let i=end;i>=0;i=routePrev[i])raw.push(i);raw.reverse();
       // String-pull this bounded local route once, rather than trace many rays every frame.
@@ -1615,29 +1642,49 @@
     function setGoal(e,x,z,tactic,commit=0){
       const encounter=progression&&enemyEncounter.get(e.id);
       if(encounter&&!e.returning){const t=encounter.trigger,dx=x-t.x,dz=z-t.z,d=Math.hypot(dx,dz),limit=encounter.leashRadius||38;if(d>limit){x=t.x+dx/d*limit;z=t.z+dz/d*limit;}}
+      if(advanced&&gangActor(e)&&e.seen&&tactic!=='cover'&&nearby(x,z,2).some(q=>q!==e&&alive(q)&&q.gang===e.gang&&q.hasMemory&&q.tactic!=='hold'&&Math.hypot(q.goalX-x,q.goalZ-z)<1.25))return false;
       const path=route(e,x,z);if(!path)return false;
       e.goalX=x;e.goalZ=z;e.path=path;e.pathAt=0;e.tactic=tactic;e.planWait=commit;e.stuck=0;return true;
     }
     function reached(e){return Math.hypot(e.goalX-e.x,e.goalZ-e.z)<.16;}
     function protects(e,x,z){
-      const dx=x-e.lastSeenX,dz=z-e.lastSeenZ,dy=groundAt(x,z)+HEIGHT[e.type]+.3-e.lastSeenY,d=Math.hypot(dx,dy,dz);
+      const dx=x-e.lastSeenX,dz=z-e.lastSeenZ,dy=groundAt(x,z)+(e.injury?.leg?.6:HEIGHT[e.type]+.3)-e.lastSeenY,d=Math.hypot(dx,dy,dz);
       return d>.01&&ray([e.lastSeenX,e.lastSeenY,e.lastSeenZ],[dx/d,dy/d,dz/d],d)<d-.02;
     }
     function cover(e){
-      const choices=[],r=radius(e)+.18;
-      for(const q of solids){
-        if(q.maxY<e.baseY+1.35||q.minY>e.baseY+1.4||q.maxX-q.minX>12||q.maxZ-q.minZ>12)continue;
-        const x=(q.minX+q.maxX)/2,z=(q.minZ+q.maxZ)/2;
-        if(Math.hypot(x-e.x,z-e.z)>10)continue;
-        for(const [cx,cz] of [[q.minX-r,z],[q.maxX+r,z],[x,q.minZ-r],[x,q.maxZ+r]]){
-          const d=Math.hypot(cx-e.x,cz-e.z);
-          if(d<.35||d>10||blocked(cx,cz,.4)||Math.hypot(cx-e.lastSeenX,cz-e.lastSeenZ)<3||sight(e.lastSeenX,e.lastSeenZ,cx,cz,e.lastSeenY,groundAt(cx,cz)+HEIGHT[e.type])||!protects(e,cx,cz))continue;
-          const occupied=nearby(cx,cz,12).some(q=>q!==e&&q.hp>0&&q.tactic==='cover'&&Math.hypot(cx-q.goalX,cz-q.goalZ)<1.3);
-          choices.push({x:cx,z:cz,score:d+(occupied?8:0)});
+      if(coverBudget<=0)return false;
+      const choices=[],r=radius(e)+.22,local=[],seen=new Set();let inspected=0;
+      // Inspect a bounded prefix of local buckets, never all city colliders.
+      const supplied=world.spatial?.coverBoxes?.(e.x,e.z,10);
+      if(supplied){for(const q of supplied){if(inspected++>=64)break;local.push(q);}}
+      else{
+        const cx=Math.floor(e.x/bucketSize)-bucketX,cz=Math.floor(e.z/bucketSize)-bucketZ;
+        outer:for(let ring=0;ring<=2;ring++)for(let dz=-ring;dz<=ring;dz++)for(let dx=-ring;dx<=ring;dx++){
+          if(Math.max(Math.abs(dx),Math.abs(dz))!==ring)continue;
+          const x=cx+dx,z=cz+dz;if(x<0||z<0||x>=bucketWidth||z>=bucketDepth)continue;
+          for(const q of collisionBuckets[z*bucketWidth+x]){if(inspected++>=128)break outer;if(!seen.has(q)){seen.add(q);local.push(q);if(local.length>=64)break outer;}}
         }
       }
-      choices.sort((a,b)=>a.score-b.score);
-      for(const q of choices.slice(0,7))if(setGoal(e,q.x,q.z,'cover')){e.holdTime=[1.1,1.25,1.4][e.id%3];return true;}
+      const boxes=local.filter(q=>q.maxY>e.baseY+.8&&q.minY<e.baseY+1.5)
+        .map(q=>q.minX!==undefined?{x:(q.minX+q.maxX)/2,z:(q.minZ+q.maxZ)/2,a:(q.maxX-q.minX)/2,b:(q.maxZ-q.minZ)/2,c:1,s:0}:q)
+        .filter(q=>Math.max(0,Math.abs(e.x-q.x)-q.a)**2+Math.max(0,Math.abs(e.z-q.z)-q.b)**2<144)
+        .sort((a,b)=>Math.hypot(a.x-e.x,a.z-e.z)-Math.hypot(b.x-e.x,b.z-e.z)).slice(0,32);
+      s.aiStats.coverBoxes+=boxes.length;
+      for(const q of boxes){
+        const c=q.c??Math.cos(q.cap||0),sn=q.s??Math.sin(q.cap||0),dx=e.x-q.x,dz=e.z-q.z;
+        const u=clamp(dx*c+dz*sn,-q.a,q.a),v=clamp(-dx*sn+dz*c,-q.b,q.b);
+        for(const [a,b] of [[-q.a-r,v],[q.a+r,v],[u,-q.b-r],[u,q.b+r],[-q.a-r,0],[q.a+r,0],[0,-q.b-r],[0,q.b+r]]){
+          if(coverBudget<=0)break;
+          coverBudget--;s.aiStats.coverChecks++;
+          const cx=q.x+a*c-b*sn,cz=q.z+a*sn+b*c,d=Math.hypot(cx-e.x,cz-e.z);
+          if(d<.35||d>10||blocked(cx,cz,radius(e))||Math.hypot(cx-e.lastSeenX,cz-e.lastSeenZ)<3||sight(e.lastSeenX,e.lastSeenZ,cx,cz,e.lastSeenY,groundAt(cx,cz)+(e.injury?.leg?.45:HEIGHT[e.type]))||!protects(e,cx,cz))continue;
+          if(nearby(cx,cz,2).some(q=>q!==e&&alive(q)&&q.tactic==='cover'&&Math.hypot(cx-q.goalX,cz-q.goalZ)<1.3))continue;
+          choices.push({x:cx,z:cz,score:d});
+        }
+        if(coverBudget<=0)break;
+      }
+      choices.sort((a,b)=>a.score-b.score||a.x-b.x||a.z-b.z);
+      for(const q of choices.slice(0,4))if(setGoal(e,q.x,q.z,'cover')){e.holdTime=[1.1,1.25,1.4][e.id%3];return true;}
       return false;
     }
     function peek(e){
@@ -1701,7 +1748,7 @@
       if(e.airborne)return;
       const home=world.enemies[e.id];
       if(e.type===2&&!advanced){e.tactic='hold';e.path=[];e.pathAt=0;e.goalX=e.x;e.goalZ=e.z;return;}
-      if(advanced&&e.type!==3&&e.hasMemory&&e.padCooldown<=0){
+      if(advanced&&e.type!==3&&!e.injury?.leg&&e.hasMemory&&e.padCooldown<=0){
         const direct=Math.hypot(e.x-e.lastSeenX,e.z-e.lastSeenZ);
         for(const pad of s.jumpPads)if(pad.id!==e.padId&&Math.hypot(e.x-pad.x,e.z-pad.z)<12&&Math.abs(e.baseY-pad.y)<.6&&Math.hypot(pad.target.x-e.lastSeenX,pad.target.z-e.lastSeenZ)+5<direct){
           if(setGoal(e,pad.x,pad.z,'advance',2.4))return;
@@ -1711,7 +1758,11 @@
         const path=route(e,e.goalX,e.goalZ);e.planWait=0;e.path=path||[];e.pathAt=0;e.stuck=0;
         if(!path&&e.tactic==='cover'){e.tactic='hold';e.coverWait=1.5;e.holdTime=0;}
       }
+      if(e.hasMemory&&gangActor(e)&&e.tactic!=='cover'&&e.coverWait<=0&&(e.suppression>.1||e.injury?.arm||e.hp<=e.maxHp*.55)){
+        if(cover(e))return;e.coverWait=1;
+      }
       if(e.hasMemory&&e.tactic==='cover'){
+        if(e.suppression>.2){e.holdTime=Math.max(e.holdTime,.5);return;}
         if(!reached(e)||e.holdTime>0)return;
         if(peek(e))return;
         e.tactic='advance';
@@ -1803,7 +1854,7 @@
         if(e.pathAt<e.path.length)e.pathAt++;else break;
       }
       const actual=Math.hypot(e.x-ox,e.z-oz);
-      if(actual<speed*dt*.15&&!reached(e))e.stuck+=dt;else e.stuck=Math.max(0,e.stuck-dt*2);
+      if(actual<speed*(e.injury?.leg?.13:1)*dt*.15&&!reached(e))e.stuck+=dt;else e.stuck=Math.max(0,e.stuck-dt*2);
       if(!e.hasMemory&&actual>.0001)e.yaw=Math.atan2(e.x-ox,oz-e.z);
       if(e.tactic==='cover'&&reached(e))e.holdTime=Math.max(0,e.holdTime-dt);
     }
@@ -1920,7 +1971,7 @@
     }
     function updateEnemies(dt){
       let threat=0,awake=0,dormant=0,reserve=0;
-      routeBudget=advanced?2:Infinity;routeSearches=routeDeferred=0;updateEncounters(dt);rebuildNeighbors();const count=s.enemies.length;
+      routeBudget=advanced?2:Infinity;routeSearches=routeDeferred=0;coverBudget=24;s.aiStats.pathExpansions=s.aiStats.coverChecks=s.aiStats.coverBoxes=s.aiStats.suppressed=0;updateEncounters(dt);rebuildNeighbors();const count=s.enemies.length;
       if(enemyStarts.length<count*2)enemyStarts=new Float64Array(count*2);
       for(let i=0;i<count;i++){const e=s.enemies[i];enemyStarts[i*2]=e.x;enemyStarts[i*2+1]=e.z;}
       for(const e of s.enemies){
@@ -1942,6 +1993,8 @@
         // release small encounters and bound active combat before entering this loop.
         e.sleeping=advanced&&!e.airborne&&!(bossProgression&&e.entryGrace>0)&&d>68&&(!e.hasMemory||d>88)&&e.windup<=0&&e.rushTime<=0&&e.burstLeft<=0;
         if(e.sleeping)dormant++;else awake++;
+        e.suppression=Math.max(0,(e.suppression||0)-dt);if(e.suppression>.1)s.aiStats.suppressed++;
+        if(e.injury?.leg){e.rushTime=0;e.dodgeTime=e.dodgeDelay=0;e.y=e.baseY+.4;}
         e.hurt=Math.max(0,e.hurt-dt);e.cooldown=Math.max(0,e.cooldown-dt);e.burstWait=Math.max(0,e.burstWait-dt);e.dodgeWait=Math.max(0,e.dodgeWait-dt);e.dodgeDelay=Math.max(0,e.dodgeDelay-dt);bossPhase(e);
         e.senseWait=Math.max(-.05,e.senseWait-dt);e.thinkWait=Math.max(-.05,e.thinkWait-dt);e.shareWait=Math.max(-.05,e.shareWait-dt);
         e.alertWait=Math.max(-.05,e.alertWait-dt);e.coverWait=Math.max(-.05,e.coverWait-dt);e.planWait=Math.max(-.05,e.planWait-dt);
@@ -1975,7 +2028,7 @@
         if(e.thinkWait<=0){e.thinkWait+=.65+(e.id%3)*.05;plan(e);}
         if(e.hasMemory)e.yaw=Math.atan2(e.lastSeenX-e.x,e.z-e.lastSeenZ);
         else if(e.type===2){const home=world.enemies[e.id],yaw=Number.isFinite(home.yaw)?home.yaw:Math.atan2(world.spawn.x-home.x,home.z-world.spawn.z);e.yaw=yaw+Math.sin(s.time*.45+e.id)*.85;}
-        if(!introSafe()&&e.seen&&e.tactic!=='cover'&&d<(advanced?29:22)&&e.cooldown<=0&&(!hasOrdnance(e)||sensed)&&canShoot(e,e.lastSeenX,e.lastSeenY,e.lastSeenZ)){
+        if(!introSafe()&&e.seen&&e.tactic!=='cover'&&d<(advanced?29:22)&&e.cooldown<=0&&!(gangActor(e)&&e.suppression>1.1)&&(!hasOrdnance(e)||sensed)&&canShoot(e,e.lastSeenX,e.lastSeenY,e.lastSeenZ)){
           const lead=advanced?Math.min(.65,d/14):0;
           e.aimX=clamp(e.lastSeenX+e.observedVX*lead,b.minX+.1,b.maxX-.1);e.aimY=e.lastSeenY+(advanced?e.observedVY*lead*.45:0);e.aimZ=clamp(e.lastSeenZ+e.observedVZ*lead,b.minZ+.1,b.maxZ-.1);
           e.yaw=Math.atan2(e.aimX-e.x,e.z-e.aimZ);e.windupMax=hasOrdnance(e)?e.weapon==='grenade'?1.15:1.05:[advanced?.52:.65,advanced?.8:.9,advanced?.65:.75,e.phase?.9:1.15][e.type];
@@ -2128,7 +2181,7 @@
       // same routes as a freshly restored world. No actor or gameplay timer moves.
       if(navPending)pumpNav(nav.length);syncArmor();
       invalidateBrain();
-      return {version:1,aiVersion:3,systemsVersion:1,physicsVersion:1,directorVersion:1,bossVersion:1,destructionVersion:1,rubbleVersion:1,...(bossProgression?{reinforcementVersion:1}:{}),...(progression?{progressionVersion:1}:{}),...(economyEnabled?{economyVersion:bossProgression?2:1}:{}),...(arsenal?{arsenalVersion:pistol?2:1}:{}),...(campaign?{campaignVersion:bossProgression?2:1}:{}),...(armorEnabled?{armorVersion:1}:{}),destruction:destruction?.snapshot()||null,format:'FERRO',seed:world.seed,stage:world.stage||0,fingerprint,
+      return {version:1,aiVersion:4,systemsVersion:1,physicsVersion:1,directorVersion:1,bossVersion:1,destructionVersion:1,rubbleVersion:1,...(bossProgression?{reinforcementVersion:1}:{}),...(progression?{progressionVersion:1}:{}),...(economyEnabled?{economyVersion:bossProgression?2:1}:{}),...(arsenal?{arsenalVersion:pistol?2:1}:{}),...(campaign?{campaignVersion:bossProgression?2:1}:{}),...(armorEnabled?{armorVersion:1}:{}),destruction:destruction?.snapshot()||null,format:'FERRO',seed:world.seed,stage:world.stage||0,fingerprint,
         state:{...pick(s,NUMBERS),difficulty:s.difficulty,director:pick(s.director,DIRECTOR),won:s.won,dead:s.dead,bossAlive:s.bossAlive,player:pick(p,PLAYER),
           ...(economyEnabled?{economy:G.FEconomy.copy(s.economy)}:{}),
           ...(campaign?{campaign:{...exportCampaign(),trophies:s.campaign.trophies.map(t=>({...t}))}}:{}),
@@ -2136,7 +2189,7 @@
           ...(armorEnabled?{armor:{...s.armor},...(!progression?{armorPickupRemaining:s.pickups.map(q=>q.remaining)}:{})}:{}),
           ...(arsenal?{equipment:{...s.equipment}}:{}),
           ...(progression?{inventory:exportInventory(),encounters:s.encounters.map(q=>({id:q.id,...pick(q,ENCOUNTER_STATE)})),pickupRemaining:s.pickups.map(q=>q.remaining),loot:s.loot.map(q=>({...q,ammo:q.ammo.slice()}))}:{}),
-          enemies:s.enemies.map(e=>({...pick(e,ENEMY),...pick(e,AI),...pick(e,AI2),...pick(e,AI3),...pick(e,BOSS),...(progression?pick(e,ENCOUNTER_AI):{}),...(bossProgression?{entryGrace:e.entryGrace}:{}),path:e.path.slice()})),cores:s.cores.map(c=>c.taken),pickups:s.pickups.map(c=>c.taken),bullets:s.bullets.map(q=>({...q})),
+          enemies:s.enemies.map(e=>({...pick(e,ENEMY),injury:e.injury?{head:!!e.injury.head,leg:!!e.injury.leg,arm:!!e.injury.arm,dead:e.hp<=0}:null,...pick(e,AI),...pick(e,AI2),...pick(e,AI3),...pick(e,AI4),...pick(e,BOSS),...(progression?pick(e,ENCOUNTER_AI):{}),...(bossProgression?{entryGrace:e.entryGrace}:{}),path:e.path.slice()})),cores:s.cores.map(c=>c.taken),pickups:s.pickups.map(c=>c.taken),bullets:s.bullets.map(q=>({...q})),
           mechanisms:s.mechanisms.map(m=>m.active),doors:s.doors.map(d=>d.progress),lifts:s.lifts.map(l=>pick(l,['y','target','powered','moving','carrying'])),
           bossAttacks:s.bossAttacks.map(q=>({...q,hitEnemies:q.hitEnemies.slice()})),projectiles:s.projectiles.map(q=>({...q})),pipes:s.pipes.map(q=>pick(q,PIPE)),traps:s.traps.map(q=>pick(q,TRAP)),rubble:s.debris.filter(q=>q.structural).map(rubbleCopy),
           doorDamage:s.doors.map(d=>({hp:d.hp,destroyed:d.destroyed})),mechanismDamage:s.mechanisms.map(m=>({hp:m.shellHp,destroyed:m.destroyed}))},
@@ -2150,7 +2203,7 @@
         const integer=(v,min,max)=>number(v,min,max)&&Number.isInteger(v);
         const bool=v=>typeof v==='boolean',require=condition=>{if(!condition)throw new Error('Invalid checkpoint');};
         require(data.version===1&&data.format==='FERRO'&&data.seed===world.seed&&data.stage===(world.stage||0)&&data.fingerprint===fingerprint&&a&&t);
-        require(data.aiVersion===undefined||data.aiVersion===1||data.aiVersion===2||data.aiVersion===3);
+        require(data.aiVersion===undefined||data.aiVersion===1||data.aiVersion===2||data.aiVersion===3||data.aiVersion===4);
         require(data.systemsVersion===undefined||data.systemsVersion===1);
         require(data.physicsVersion===undefined||data.physicsVersion===1);
         require(data.destructionVersion===undefined||data.destructionVersion===1);
@@ -2293,15 +2346,17 @@
           if(bossProgression&&data.reinforcementVersion===1){require(number(e.entryGrace,0,60)&&(e.entryGrace===0||e.deployed&&e.encounterReleased&&!e.returning&&e.hp>0&&enemyEncounter.has(i)&&!giant(home)));encounterAI.entryGrace=e.entryGrace;}
           else{require(e.entryGrace===undefined);if(bossProgression)encounterAI.entryGrace=0;}
           if(e&&e.baseY===undefined&&data.systemsVersion===undefined)e.baseY=0;
-          require(e&&e.id===i&&e.type===type&&e.maxHp===actorHealth(home,savedBossFactor)&&number(e.hp,0,actorHealth(home,savedBossFactor))&&number(e.y,-1000,1000)&&Math.abs(e.y-e.baseY-HEIGHT[type]*scale(home))<1e-7);
+          let injury=null;
+          if(data.aiVersion===4){require(e.injury===null||e.injury&&['head','leg','arm','dead'].every(key=>bool(e.injury[key])));if(e.injury)injury={...e.injury};}
+          require(e&&e.id===i&&e.type===type&&e.maxHp===actorHealth(home,savedBossFactor)&&number(e.hp,0,actorHealth(home,savedBossFactor))&&number(e.y,-1000,1000)&&Math.abs(e.y-e.baseY-(injury?.leg?.4:HEIGHT[type]*scale(home)))<1e-7);
           require(number(e.x,b.minX,b.maxX)&&number(e.z,b.minZ,b.maxZ)&&(!encounterAI.deployed||!blocked(e.x,e.z,r,e.baseY,savedDoors,savedSolids,savedTrapBoxes,height)));validAir(e,e.x,e.z,e.baseY);
           require(bool(e.active)&&bool(e.rushHit)&&number(e.cooldown,0,30)&&number(e.hurt,0,.2));
-          require(number(e.windup,0,giant(home)?3.5:1.15)&&number(e.windupMax,0,giant(home)?3.5:1.15)&&e.windup<=e.windupMax&&ATTACKS.includes(e.attackState));
+          require(number(e.windup,0,giant(home)?3.5:2.07)&&number(e.windupMax,0,giant(home)?3.5:2.07)&&e.windup<=e.windupMax&&ATTACKS.includes(e.attackState));
           require(number(e.yaw,-1e6,1e6)&&number(e.stun,0,.85)&&integer(e.phase,0,giant(home)?2:type===3?1:0));
           require(number(e.aimX,b.minX,b.maxX)&&number(e.aimZ,b.minZ,b.maxZ)&&number(e.aimY,-1000,1000));
           require(integer(e.burstLeft,0,3)&&number(e.burstWait,0,.18)&&number(e.rushTime,0,.68)&&number(e.rushX,-1,1)&&number(e.rushZ,-1,1));
           let ai;
-          if(data.aiVersion===1||data.aiVersion===2||data.aiVersion===3){
+          if(data.aiVersion===1||data.aiVersion===2||data.aiVersion===3||data.aiVersion===4){
             require(AWARENESS.includes(e.awareness)&&TACTICS.includes(e.tactic)&&bool(e.hasMemory)&&bool(e.seen));
             require(number(e.lastSeenX,b.minX,b.maxX)&&number(e.lastSeenZ,b.minZ,b.maxZ)&&number(e.memory,0,8)&&number(e.alert,0,1));
             require(number(e.goalX,b.minX,b.maxX)&&number(e.goalZ,b.minZ,b.maxZ)&&!blocked(e.goalX,e.goalZ,r,ground(e.goalX,e.goalZ),savedDoors,savedSolids,[],height));
@@ -2319,23 +2374,24 @@
               memory:e.active?2:0,alert:e.active?.25:0,seen:false,senseWait:0,thinkWait:0,shareWait:0,alertWait:0,coverWait:0,holdTime:0,
               planWait:0,patrolIndex:0,searchIndex:0,goalX:e.x,goalZ:e.z,path:[],pathAt:0,stuck:0,moveSpeed:0};
           }
-          if(data.aiVersion===2||data.aiVersion===3){
+          if(data.aiVersion===2||data.aiVersion===3||data.aiVersion===4){
             require(number(e.lastSeenY,-1000,1000)&&number(e.observedVX,-6,6)&&number(e.observedVZ,-6,6)&&number(e.observedAt,-1,a.time)&&bool(e.sleeping));
             Object.assign(ai,pick(e,AI2));
           }else{
             require(AI2.every(key=>e[key]===undefined));
             Object.assign(ai,{lastSeenY:e.active?e.aimY:e.baseY+1.45,observedVX:0,observedVZ:0,observedAt:-1,sleeping:false});
           }
-          if(data.aiVersion===3){
+          if(data.aiVersion===3||data.aiVersion===4){
             require(number(e.observedVY,-18,18)&&number(e.dodgeWait,0,2.3)&&number(e.dodgeDelay,0,.2)&&number(e.dodgeTime,0,.32)&&number(e.dodgeX,-1,1)&&number(e.dodgeZ,-1,1)&&Math.hypot(e.dodgeX,e.dodgeZ)<=1.00001);
             Object.assign(ai,pick(e,AI3));
           }else{
             require(AI3.every(key=>e[key]===undefined));Object.assign(ai,{observedVY:0,dodgeWait:0,dodgeDelay:0,dodgeTime:0,dodgeX:0,dodgeZ:0});
           }
+          if(data.aiVersion===4){require(number(e.suppression,0,2.4));ai.suppression=e.suppression;}else{require(e.suppression===undefined);ai.suppression=0;}
           let boss;
           if(data.bossVersion===1){require(bool(e.bossAwake)&&number(e.bossClock,0,12)&&integer(e.bossStep,0,1e9)&&BOSS_LABELS.includes(e.attackLabel)&&bool(e.weakPointOpen)&&number(e.weakTimer,0,3)&&e.weakPointOpen===(e.weakTimer>0)&&bool(e.bossReleased));if(!giant(home))require(!e.bossAwake&&e.bossClock===0&&e.bossStep===0&&e.attackLabel===''&&!e.weakPointOpen&&e.weakTimer===0);if(!home.bossWave)require(e.bossReleased);if(giant(home))require(home.arena&&Math.hypot(e.x-home.arena.x,e.z-home.arena.z)<=Math.max(1,home.arena.r-2.1*scale(home)-5)+1e-6);boss=pick(e,BOSS);}
           else{require(BOSS.every(key=>e[key]===undefined)&&!giant(home)&&!home.bossWave);boss={bossAwake:false,bossClock:0,bossStep:0,attackLabel:'',weakPointOpen:false,weakTimer:0,bossReleased:true};}
-          return {...home,...pick(e,ENEMY),...ai,...boss,...encounterAI,encounterId:s.enemies[i].encounterId,encounterWave:s.enemies[i].encounterWave,role:s.enemies[i].role,squad:s.enemies[i].squad};
+          return {...home,...pick(e,ENEMY),injury,...ai,...boss,...encounterAI,encounterId:s.enemies[i].encounterId,encounterWave:s.enemies[i].encounterWave,role:s.enemies[i].role,squad:s.enemies[i].squad};
         });
         if(progression){
           require(enemies.filter(e=>alive(e)&&!giant(e)&&e.combatEnabled&&(!e.bossWave||e.bossReleased)).length<=savedCombat);

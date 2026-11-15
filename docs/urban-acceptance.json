@@ -27,7 +27,7 @@
     },
     {
       "test": "Feu, fourgon roulant, trois pompiers et extinction par jet",
-      "elapsed": 38.3083333333318,
+      "elapsed": 38.41666666666513,
       "report": {
         "breaches": 2,
         "ignitions": 2,

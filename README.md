@@ -1,10 +1,18 @@
-# EMPRISE — 0.3.0 « La ville ouverte »
+# EMPRISE — 0.4.0 « La rue réagit »
 
 Sandbox FPS solo persistant dans un secteur de Marseille, avec conduite et combat dans un seul renderer **FERRO**. Jouer : **[gta.estrasse.fr](https://gta.estrasse.fr)** · [Dépôt GitHub privé](https://github.com/M4D135/emprise).
 
 Cette version réunit le trafic civil et policier, les vols de véhicules, les gangs, les commerces et territoires à conquérir, les revenus passifs et les contre-attaques. Les conducteurs sont visibles et peuvent être extraits d’un véhicule arrêté. Les blessures distinguent tête, bras et jambes ; une blessure à la jambe impose une posture au sol et une mobilité très réduite.
 
 Les véhicules se dégradent au fil des impacts : moteur, pneus et direction affectent la conduite. Les chocs et les tirs provoquent déformations, fumée, puis un feu progressif. Une voiture brûle au moins 8,5 secondes avant une grosse explosion : capot, toit, portes, roues et fragments sont projetés ; une carcasse calcinée persistante remplace le véhicule. Les véhicules voisins peuvent prendre feu à leur tour. Les roquettes ouvrent des brèches dans le décor ; des débris physiques ont une masse selon leur matériau. Les feux se propagent et les marins-pompiers peuvent intervenir.
+
+## Nouveautés 0.4
+
+Les passants gardent la mémoire des tirs et explosions, cherchent une issue le long des murs et anticipent le trafic en marche arrière. Les gangs utilisent les collisions réelles de la ville pour contourner les obstacles, chercher un couvert et réserver des positions distinctes. Un tir ennemi est à nouveau vérifié au départ de chaque projectile ; une rafale peut être interrompue par un obstacle. Des tirs proches et visibles peuvent pousser un adversaire à se mettre à couvert.
+
+Un **carnet consultable avec J**, ou depuis LB/L1 → Actions, rassemble les commerces visités, protections, revenus, contrat en cours, inventaire et événements récents. Il n’ajoute pas de carte à l’ATH. Les adversaires vaincus peuvent laisser un petit sac physique : **E pour le fouiller**, avec argent, provision, bandage ou objet revendable. Le butin est sauvegardé et ne se récupère qu’une fois ; aucun revenu de ce type n’est associé aux civils.
+
+Le décor reçoit des arbres ramifiés, des couronnes découpées, des volets variés, des embrasures et du mobilier réparti dans le secteur agrandi. Les détails de façade sont regroupés pour réduire les instances à dessiner. Corps, visages, tenues et marche sont retravaillés avec chaussures intégrées au rig. Les armes FPS occupent moins l’écran, avec un garde-main et une main de soutien plus détaillés. Tous ces éléments restent générés par le code.
 
 ## Jouer hors ligne
 
@@ -13,7 +21,7 @@ python3 build.py
 open dist/index.html
 ```
 
-Python 3 standard pour construire ; Node et Chrome pour les tests. Le HTML autonome pèse environ **3,74 Mo**, textures comprises, sans CDN ni requête réseau à l’exécution. `SIZE.json` donne son empreinte. WebGL2 et un navigateur de bureau sont requis pour la configuration vérifiée.
+Python 3 standard pour construire ; Node et Chrome pour les tests. Le HTML autonome pèse environ **3,8 Mo**, textures comprises, sans CDN ni requête réseau à l’exécution. `SIZE.json` donne son empreinte. WebGL2 et un navigateur de bureau sont requis pour la configuration vérifiée.
 
 La version et l’identifiant du build apparaissent à l’écran titre. Après **5 secondes sans interaction**, des sessions de test enregistrées sont rejouées. Une touche ou un clic ramène au titre ; cette démonstration ne modifie pas la progression.
 
@@ -35,6 +43,7 @@ La version et l’identifiant du build apparaissent à l’écran titre. Après 
 | Allumer un feu à portée / réparer au garage | I / T |
 | Couleur du véhicule | H ; sélecteur RGB dans la pause |
 | Lire le plan acheté | M |
+| Carnet du réseau, inventaire et soins | J ; LB/L1 → Actions à la manette |
 | Pause / reprise | P ou Échap |
 
 **Aucune minimap à l’ATH.** Les quatre panneaux publics permettent de consulter le plan ; un exemplaire portable coûte 60 € dans un commerce. Le monde continue pendant sa consultation. L’objectif apparaît pendant une prise ou une défense, sans trajet GPS permanent.
@@ -66,7 +75,7 @@ Dans les commerces, acheter remplit le sac, voler ou racketter rapporte de l’a
 
 Socle renderer PDR pour ses passes de foule, complété par les formes libres et indices 32 bits de BITUME. Le contrôleur, les armes, les ennemis et les effets viennent de METAL. La dynamique automobile conserve les courbes de pneus, le transfert de charge, les freins et la boîte de BITUME ; son intégration de circuit est remplacée par des positions libres et des collisions urbaines. Les réglages sont adaptés à des compactes à traction. Les deux-roues utilisent un modèle plus simple.
 
-[Commerces et butin](docs/BUSINESS.md) · [Navigation](docs/MARINE.md) · [Lieux réels](docs/PLACES.md) · [Détails techniques](docs/INTEGRATION.md) · [Références et modèles](docs/VEHICULES.md) · [Vérification et performances](docs/VERIFICATION.md). Les copies de travail de EMPRISE sont indépendantes des trois dépôts sources. `ORIGINS.json` donne les empreintes de départ, avant adaptation des copies.
+[Combat et tactiques](docs/COMBAT.md) · [Commerces et butin](docs/BUSINESS.md) · [Navigation](docs/MARINE.md) · [Lieux réels](docs/PLACES.md) · [Détails techniques](docs/INTEGRATION.md) · [Références et modèles](docs/VEHICULES.md) · [Vérification et performances](docs/VERIFICATION.md). Les copies de travail de EMPRISE sont indépendantes des trois dépôts sources. `ORIGINS.json` donne les empreintes de départ, avant adaptation des copies.
 
 ## Validation et limites
 

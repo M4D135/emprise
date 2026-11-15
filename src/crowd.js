@@ -1,34 +1,65 @@
-/* RADE — civilian behaviour over Point de rupture's shared navigation and GPU protocol. */
+/* EMPRISE — persistent danger memory and local, bounded pedestrian steering. */
 (function(R){'use strict';
 function create(world,n=480){
  const nav=PDR.nav.creer(world.navCity,{capaciteChamps:16}),random=PDR.villeReelle.hasard(135),people=[],packed=new Float32Array(n*4),goals=[];
  const free=[];for(let i=0;i<nav.n;i++)if(nav.libre[i])free.push(i);
+ if(!free.length)throw new Error('La foule nécessite des cellules piétonnes libres.');
  for(let i=0;i<12;i++){const cell=free[Math.floor(random()*free.length)];goals.push(cell);const k=nav.demander(cell,0);nav.prendre(k);}nav.avancer(12);
  for(let i=0;i<n;i++){
-  let cell=free[Math.floor(random()*free.length)];if(i<140){const x=60+(random()-.5)*70,z=20+random()*180;cell=nav.caseProche(x*1000,z*1000);if(cell<0)cell=free[i];}
-  const x=nav.centreX(cell)/1000,z=nav.centreZ(cell)/1000;
-  people.push({x,z,cap:0,goal:i%goals.length,speed:.85+random()*.6,panic:0,blocked:0});
+  let cell=free[Math.floor(random()*free.length)];if(i<140){const x=60+(random()-.5)*70,z=20+random()*180;cell=nav.caseProche(x*1000,z*1000);if(cell<0)cell=free[i%free.length];}
+  people.push({x:nav.centreX(cell)/1000,z:nav.centreZ(cell)/1000,cap:0,goal:i%goals.length,speed:.85+random()*.6,panic:0,blocked:0,moveSpeed:0,walkDistance:0,threat:null,turnWait:0,escapeX:0,escapeZ:0});
  }
- let tick=0,avoids=0;
+ let tick=0,avoids=0;const angles=[0,.58,-.58,1.16,-1.16,1.8,-1.8,Math.PI];
+ function route(p,vx,vz,i){
+  const d=Math.hypot(vx,vz);if(d<.001)return [0,0];vx/=d;vz/=d;
+  let best=-Infinity,bx=0,bz=0;
+  for(let k=0;k<angles.length;k++){
+   const a=angles[k]*(i%2?1:-1),c=Math.cos(a),s=Math.sin(a),x=vx*c-vz*s,z=vx*s+vz*c;
+   const tx=p.x+x*1.35,tz=p.z+z*1.35,cell=nav.caseDe(tx*1000,tz*1000);
+   if(cell<0||cell>=nav.n||!nav.libre[cell]||world.blocked(p.x+x*.6,p.z+z*.6,.27)||world.blocked(tx,tz,.27))continue;
+   const score=x*vx+z*vz+(x*p.escapeX+z*p.escapeZ)*.16;
+   if(score>best){best=score;bx=x;bz=z;}
+  }
+  return [bx,bz];
+ }
  function update(dt,events=[]){
-  tick++;const moving=world.fleet.filter(c=>c.v>.3),hash=new Map();
-  for(let i=0;i<n;i++){const p=people[i],key=Math.floor(p.x/2)+','+Math.floor(p.z/2);if(!hash.has(key))hash.set(key,[]);hash.get(key).push(i);}
+  dt=Number.isFinite(dt)?Math.max(0,Math.min(.2,dt)):0;tick++;
+  const moving=world.fleet.filter(c=>!c.hidden&&c.v>.3).map(c=>({x:c.x,z:c.z,cc:Math.cos(c.cap),ss:Math.sin(c.cap),direction:c.u<0?-1:1,speed:c.v}));
+  const noises=events.filter(e=>['shot','enemyShot','explosion','vehicleExplosion'].includes(e.name)&&Number.isFinite(e.x)&&Number.isFinite(e.z));
+  const hash=new Map();for(let i=0;i<n;i++){const p=people[i];if(p.hp<=0)continue;const key=Math.floor(p.x/2)+','+Math.floor(p.z/2);if(!hash.has(key))hash.set(key,[]);hash.get(key).push(i);}
   for(let i=0;i<n;i++){
-   const p=people[i];if(p.hp<=0){packed[i*4]=p.x;packed[i*4+1]=p.z;packed[i*4+2]=p.cap;packed[i*4+3]=PDR.regles.coder(3,i%10,0,0,0);continue;}const cell=nav.caseDe(p.x*1000,p.z*1000),field=nav.champs[p.goal],code=field.dir[cell];
-   if(code===PDR.nav.BUT||(code===PDR.nav.AUCUN&&tick%20===i%20)){p.goal=(p.goal+1+(i%3))%goals.length;}
-   let vx=0,vz=0;if(code<128){vx=PDR.nav.DX[code*2]/1024;vz=PDR.nav.DZ[code*2]/1024;}
-   let car=world.car,nearest=Infinity;for(const c of moving){const d=(p.x-c.x)**2+(p.z-c.z)**2;if(d<nearest){nearest=d;car=c;}}const cc=Math.cos(car.cap),ss=Math.sin(car.cap),nearCar=car.v>.3,dx=p.x-car.x,dz=p.z-car.z,u=dx*cc+dz*ss,v=-dx*ss+dz*cc;
-   p.panic=Math.max(0,p.panic-dt);
-   if(nearCar&&Math.abs(v)<4&&u*Math.sign(car.u||1)>-4&&Math.abs(u)<6+car.v*.7){const side=v>=0?1:-1;vx=-ss*side*3;vz=cc*side*3;p.panic=.8;avoids++;}
-   for(const e of events)if(e.name==='shot'&&Math.hypot(p.x-e.x,p.z-e.z)<35){p.panic=3;vx=(p.x-e.x)/8;vz=(p.z-e.z)/8;}
-   for(let zz=-1;zz<=1;zz++)for(let xx=-1;xx<=1;xx++)for(const j of hash.get((Math.floor(p.x/2)+xx)+','+(Math.floor(p.z/2)+zz))||[]){if(j===i)continue;const q=people[j],a=p.x-q.x,b=p.z-q.z,d=Math.hypot(a,b);if(d>0&&d<.8){vx+=a/d*(.8-d)*2;vz+=b/d*(.8-d)*2;}}
-   const d=Math.hypot(vx,vz)||1,speed=p.injury?.leg?.35:p.panic?3.1:p.speed,dx2=vx/d*speed*dt,dz2=vz/d*speed*dt,ox=p.x,oz=p.z;
-   const escape=world.blocked(p.x,p.z,.24);const move=()=>{if(!world.blocked(p.x+dx2,p.z,.24))p.x+=dx2;if(!world.blocked(p.x,p.z+dz2,.24))p.z+=dz2;};if(escape)world.withoutCar(move);else move();
-   const moved=Math.hypot(p.x-ox,p.z-oz);p.blocked=moved<.002?p.blocked+dt:0;
+   const p=people[i];if(p.hp<=0){p.moveSpeed=0;packed[i*4]=p.x;packed[i*4+1]=p.z;packed[i*4+2]=p.cap;packed[i*4+3]=PDR.regles.coder(3,i%10,0,0,0);continue;}
+   const cell=nav.caseDe(p.x*1000,p.z*1000),field=nav.champs[p.goal],code=cell>=0&&cell<nav.n&&field?field.dir[cell]:PDR.nav.AUCUN;
+   if(code===PDR.nav.BUT||(code===PDR.nav.AUCUN&&tick%20===i%20))p.goal=(p.goal+1+(i%3))%goals.length;
+   let vx=0,vz=0;if(code>=0&&code<128){vx=PDR.nav.DX[code*2]/1024||0;vz=PDR.nav.DZ[code*2]/1024||0;}
+   p.panic=Math.max(0,p.panic-dt);p.turnWait=Math.max(0,p.turnWait-dt);
+   for(const e of noises){
+    const d=Math.hypot(p.x-e.x,p.z-e.z),blast=e.name==='explosion'||e.name==='vehicleExplosion';if(d>(blast?65:36))continue;
+    if(!p.threat||p.panic<2||d<Math.hypot(p.x-p.threat.x,p.z-p.threat.z)+5){p.threat={x:e.x,z:e.z};p.turnWait=0;}
+    p.panic=Math.max(p.panic,blast?7:4.5+(i%5)*.25);
+   }
+   let trafficDanger=false;
+   for(const car of moving){
+    const dx=p.x-car.x,dz=p.z-car.z,u=(dx*car.cc+dz*car.ss)*car.direction,v=-dx*car.ss+dz*car.cc;
+    if(u<-3||u>6+car.speed*.7||Math.abs(v)>2.4)continue;
+    const side=v===0?(i%2?1:-1):Math.sign(v);vx=-car.ss*side;vz=car.cc*side;
+    p.threat={x:car.x,z:car.z};p.panic=Math.max(p.panic,1.3);p.escapeX=vx;p.escapeZ=vz;p.turnWait=0;trafficDanger=true;avoids++;break;
+   }
+   if(p.panic>0&&p.threat){
+    if(!trafficDanger){vx=p.x-p.threat.x;vz=p.z-p.threat.z;if(Math.hypot(vx,vz)<.05){const a=i*2.399963;vx=Math.cos(a);vz=Math.sin(a);}}
+    if(p.turnWait<=0){const direction=route(p,vx,vz,i);p.escapeX=direction[0];p.escapeZ=direction[1];p.turnWait=.28+(i%5)*.035;}
+    vx=p.escapeX;vz=p.escapeZ;
+   }else{p.threat=null;if(p.blocked>.25){const direction=route(p,vx||Math.sin(p.cap),vz||Math.cos(p.cap),i);vx=direction[0];vz=direction[1];}}
+   const hx=Math.floor(p.x/2),hz=Math.floor(p.z/2);
+   for(let zz=-1;zz<=1;zz++)for(let xx=-1;xx<=1;xx++)for(const j of hash.get((hx+xx)+','+(hz+zz))||[]){if(j===i)continue;const q=people[j],a=p.x-q.x,b=p.z-q.z,d=Math.hypot(a,b);if(d>.001&&d<.78){vx+=a/d*(.78-d)*2;vz+=b/d*(.78-d)*2;}}
+   const length=Math.hypot(vx,vz),speed=p.injury?.leg?.35:p.panic?3.1:p.speed,scale=length>.001?speed*dt/Math.max(1,length):0,dx2=vx*scale,dz2=vz*scale,ox=p.x,oz=p.z;
+   const move=()=>{if(!world.blocked(p.x+dx2,p.z,.24))p.x+=dx2;if(!world.blocked(p.x,p.z+dz2,.24))p.z+=dz2;};
+   if(world.blocked(p.x,p.z,.24))world.withoutCar(move);else move();
+   const moved=Math.hypot(p.x-ox,p.z-oz);p.moveSpeed=dt?moved/dt:0;p.walkDistance+=moved;p.blocked=moved<.002?p.blocked+dt:0;
+   if(p.blocked>.4)p.turnWait=0;
    if(p.blocked>2){p.goal=(p.goal+1)%goals.length;p.blocked=0;}
-   if(moved>.001)p.cap=Math.atan2(p.x-ox,p.z-oz);
-   packed[i*4]=p.x;packed[i*4+1]=p.z;packed[i*4+2]=p.cap;
-   packed[i*4+3]=PDR.regles.coder(p.injury?3:i%3,i%10,moved>.001?(p.panic?8:1):0,63,0);
+   if(moved>.001){const target=Math.atan2(p.x-ox,p.z-oz),delta=Math.atan2(Math.sin(target-p.cap),Math.cos(target-p.cap));p.cap+=Math.max(-dt*9,Math.min(dt*9,delta));}
+   packed[i*4]=p.x;packed[i*4+1]=p.z;packed[i*4+2]=p.cap;packed[i*4+3]=PDR.regles.coder(p.injury?3:i%3,i%10,moved>.001?(p.panic?8:1):0,63,0);
   }
  }
  update(0);return {people,packed,nav,update,get avoids(){return avoids;},n,get version(){return tick;}};

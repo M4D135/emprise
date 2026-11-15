@@ -31,6 +31,7 @@ with Browser() as b:
  button(7);time.sleep(.08);tap(9);assert not ev('RADE.game.running');button(9);time.sleep(.1);button(9,0);time.sleep(.1);assert not ev('RADE.game.running'),'held RT must gate resume';neutral();tap(9);assert ev('RADE.game.running');time.sleep(.2);n=ev('RADE.game.session.sim.state.shots');time.sleep(.3);assert ev('RADE.game.session.sim.state.shots')==n
  ev('virtualPad.connected=false;true');time.sleep(.2);assert not ev('RADE.game.running');ev('virtualPad.connected=true;true');neutral();tap(9);assert ev('RADE.game.running');checks.append('Pause au débranchement et barrière de relâchement (aucun tir bloqué)')
  tap(4);assert ev('RADE.game.panel')=='actions';tap(13);tap(0);assert ev('RADE.game.panel') is None;assert ev('RADE.game.session.sim.state.weapon')==1;checks.append('Menu des actions, navigation et choix d’arme')
+ tap(4);tap(13);tap(13);tap(13);tap(0);assert ev('RADE.game.panel')=='notebook';assert ev('document.getElementById("cityplan").hidden');tap(1);assert ev('RADE.game.panel') is None;checks.append('Carnet via LB, navigation et A ; retour B sans carte permanente')
  tap(9);assert not ev('RADE.game.running');ev('document.getElementById("pause-controls").focus();true');tap(0);assert ev('RADE.game.panel')=='controls'
  ev('document.getElementById("pad-sensitivity").focus();true');old=ev('RADE.game.pad.settings.sensitivity');tap(15);assert ev('RADE.game.pad.settings.sensitivity')>old
  tap(1);assert ev('RADE.game.panel') is None

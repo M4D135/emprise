@@ -15,7 +15,7 @@
   ],
   "traffic": {
     "seconds": 120,
-    "movingMean": 11.008333333333333,
+    "movingMean": 10.808333333333334,
     "travel": [
       {
         "model": "tmax",
@@ -25,17 +25,17 @@
       {
         "model": "r5",
         "police": false,
-        "metres": 450
+        "metres": 415
       },
       {
         "model": "gti",
         "police": false,
-        "metres": 328
+        "metres": 310
       },
       {
         "model": "tmax",
         "police": false,
-        "metres": 445
+        "metres": 453
       },
       {
         "model": "gti",
@@ -45,37 +45,37 @@
       {
         "model": "r5",
         "police": false,
-        "metres": 400
+        "metres": 463
       },
       {
         "model": "tmax",
         "police": false,
-        "metres": 746
+        "metres": 763
       },
       {
         "model": "r5",
         "police": false,
-        "metres": 499
+        "metres": 490
       },
       {
         "model": "gti",
         "police": false,
-        "metres": 421
+        "metres": 405
       },
       {
         "model": "tmax",
         "police": false,
-        "metres": 678
+        "metres": 713
       },
       {
         "model": "gti",
         "police": false,
-        "metres": 401
+        "metres": 405
       },
       {
         "model": "r5",
         "police": false,
-        "metres": 477
+        "metres": 523
       },
       {
         "model": "tmax",
@@ -85,12 +85,12 @@
       {
         "model": "gti",
         "police": true,
-        "metres": 539
+        "metres": 533
       },
       {
         "model": "gti",
         "police": true,
-        "metres": 318
+        "metres": 73
       }
     ]
   },
@@ -115,8 +115,8 @@
         "time": 5.04,
         "hp": 100,
         "position": [
-          60.654318792359895,
-          107.3031696943755
+          60.647162621580414,
+          107.29455985521416
         ]
       },
       {
@@ -124,8 +124,8 @@
         "time": 5.05,
         "hp": 100,
         "position": [
-          60.63357600114136,
-          107.27136785745722
+          60.626454421716176,
+          107.2627354828355
         ]
       },
       {
@@ -133,8 +133,8 @@
         "time": 5.06,
         "hp": 100,
         "position": [
-          60.61895880322213,
-          107.24895748174973
+          60.61186159991233,
+          107.24030922665749
         ]
       },
       {
@@ -142,8 +142,8 @@
         "time": 6.24,
         "hp": 100,
         "position": [
-          60.58416940499371,
-          107.19562007130729
+          60.5771302176176,
+          107.18693402018762
         ]
       },
       {
@@ -151,8 +151,8 @@
         "time": 11.23,
         "hp": 100,
         "position": [
-          60.58416940499371,
-          107.19562007130729
+          60.5771302176176,
+          107.18693402018762
         ]
       },
       {
@@ -160,8 +160,8 @@
         "time": 16.23,
         "hp": 100,
         "position": [
-          60.58416940499371,
-          107.19562007130729
+          60.5771302176176,
+          107.18693402018762
         ]
       }
     ]

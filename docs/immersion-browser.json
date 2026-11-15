@@ -1,0 +1,9 @@
+{
+  "checks": [
+    "Carnet par J, lecture sans carte, soin consommé depuis le carnet",
+    "Ennemi vaincu par clic réel, sac physique puis E, aucun butin répété"
+  ],
+  "fixture": "Placement de la cible et du joueur préparé. Ouverture, soin, tir et fouille via événements clavier/souris réels.",
+  "errors": [],
+  "buildSha256": "c9dc3b4cdcc037c2327170257cbc6a8c713097c243e20cfead1e391eb69e27d6"
+}

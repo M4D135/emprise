@@ -187,10 +187,9 @@
   function humain(m,t,detail){
     const R=m.regler,T=TEINTE,M=MATIERE,lon=detail?12:7,lat=detail?8:4;
     if(detail&&globalThis.RADE?.human?.body){
-      m.corps(RADE.human.body,[2,5,7,9].includes(t));R(OS.TETE,T.PEAU,M.PEAU);m.maillage(RADE.human.head);if(t!==5&&t!==7){R(OS.TETE,T.CHEVEUX);m.maillage(RADE.human.hair);}
-      for(const eye of RADE.human.head.eyes){R(OS.TETE,T.BLANC);m.sphere(eye,[.009,.0045,.004],12,8);R(OS.TETE,T.SOMBRE);m.sphere([eye[0],eye[1],eye[2]+.005],[.0025,.0025,.0015],10,6);}
-      for(const [os,x]of [[16,-.105],[17,.105]]){R(os,T.SOMBRE);m.profil(x,.035,[[.022,.055,.111],[.047,.059,.124],[.086,.052,.112],[.142,.043,.052]],16);R(os,T.CLAIR);m.profil(x,.035,[[.015,.056,.116],[.032,.060,.125]],16);}
-      R(OS.CORPS,T.HAUT);m.cylindre([0,1.518,0],.066,.067,.025,20);
+      const face=RADE.human.headFor(t%3);m.corps(RADE.human.body,[2,5,7,9].includes(t));R(OS.TETE,T.PEAU,M.PEAU);m.maillage(face.head);if(t!==5&&t!==7){R(OS.TETE,T.CHEVEUX);m.maillage(face.hair);}
+      for(const eye of face.head.eyes){R(OS.TETE,T.BLANC);m.sphere(eye,[.009,.0045,.004],12,8);R(OS.TETE,T.SOMBRE);m.sphere([eye[0],eye[1],eye[2]+.005],[.0025,.0025,.0015],10,6);}for(const brow of face.head.brows){R(OS.TETE,T.CHEVEUX);m.sphere(brow,[.015,.002,.003],8,4);}
+      if(!RADE.human.body.feet)for(const [os,x]of [[16,-.105],[17,.105]]){R(os,T.SOMBRE);m.profil(x,.035,[[.022,.055,.111],[.047,.059,.124],[.086,.052,.112],[.142,.043,.052]],16);R(os,T.CLAIR);m.profil(x,.035,[[.015,.056,.116],[.032,.060,.125]],16);}
       R(OS.CORPS,T.SOMBRE);m.boite([0,1.035,.095],[.30,.027,.022]);R(OS.CORPS,T.METAL,M.METAL);m.boite([0,1.035,.112],[.038,.025,.006]);tenue(m,t,detail);return;
     }
     const wide=t===6?1.14:t===5?.88:1,short=t===1||t===8,dress=t===5;
@@ -198,8 +197,8 @@
     for(const [o,k,x]of [[OS.JAMBE_G,16,-.10],[OS.JAMBE_D,17,.10]]){
       R(o,T.BAS);m.profil(x,0,[[.48,.071,.078],[.62,.084,.093],[.83,.098*wide,.109],[1.02,.095*wide,.10]],lon);
       R(k,T.BAS);m.profil(x,0,[[.08,.064,.074],[.27,.071,.081],[.46,.077,.085],[.56,.074,.083]],lon);
-      R(k,T.SOMBRE);m.profil(x,.045,[[.022,.055,.111],[.047,.059,.124],[.086,.052,.112],[.142,.043,.052]],lon);
-      if(detail){R(k,T.BLANC);m.boite([x,.025,.045],[.118,.018,.25]);R(k,T.CLAIR);for(let j=0;j<3;j++)m.boite([x,.113,.055+j*.018],[.065,.006,.007]);}
+      R(k+4,T.SOMBRE);m.profil(x,.045,[[.022,.055,.111],[.047,.059,.124],[.086,.052,.112],[.142,.043,.052]],lon);
+      if(detail){R(k+4,T.BLANC);m.boite([x,.025,.045],[.118,.018,.25]);R(k+4,T.CLAIR);for(let j=0;j<3;j++)m.boite([x,.113,.055+j*.018],[.065,.006,.007]);}
     }
     R(OS.CORPS,T.BAS);m.profil(0,0,[[.88,.175*wide,.12],[1.04,.19*wide,.13]],lon);
     R(OS.CORPS,T.HAUT);m.profil(0,0,[[1.015,.18*wide,.13],[1.12,.18*wide,.14],[1.32,.205*wide,.142],[1.44,.21*wide,.12],[1.50,.075,.07]],lon);
@@ -428,16 +427,18 @@
   #endif
   const vec3 PIV_HANCHES=vec3(0.,.95,0.),PIV_COU=vec3(0.,1.52,0.),PIV_JAMBE_G=vec3(-.105,.97,0.),PIV_JAMBE_D=vec3(.105,.97,0.);
   const vec3 PIV_BRAS_G=vec3(-.235,1.43,0.),PIV_BRAS_D=vec3(.235,1.43,0.),PIV_BANDEROLE=vec3(.27,1.85,.05),PIV_TOURELLE=vec3(0.,3.12,.6);
-  struct Pose{float jg;float jd;float bg;float bd;float torse;float tete;float haut;float roulis;float tourelle;float bouclier;float banderole;float poutre;};
+  struct Pose{float jg;float jd;float bg;float bd;float torse;float tete;float haut;float roulis;float tourelle;float bouclier;float banderole;float poutre;float kg;float kd;float fg;float fd;};
+  ${globalThis.RADE?.human?.gaitGLSL||'vec4 humanGait(float phase,float amount){float a=sin(phase)*.30*amount;return vec4(a,-max(0.,a)*1.25,0.,0.);}'}
   vec3 tourneX(vec3 v,float a){float c=cos(a),s=sin(a);return vec3(v.x,v.y*c+v.z*s,-v.y*s+v.z*c);}
   void tourner(inout vec3 p,inout vec3 n,vec3 pivot,float a){p=pivot+tourneX(p-pivot,a);n=tourneX(n,a);}
   Pose poser(Unite u,bool cuivre){
-    Pose q=Pose(0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.);
+    Pose q=Pose(0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.);
     float t=uReglages.y,ph=float(u.h&1023u)*.0061419;
     uint e=u.etat;bool court=e==8u;bool marche=u.vitesse>.25||e==1u||court;
     float amp=court?.65:.32*clamp(max(u.vitesse,e==1u?1.1:0.)/1.4,0.,1.);
     float w=t*(court?1.55:.85)*6.2831853+ph,s=sin(w);
-    if(marche){q.jg=amp*s;q.jd=-amp*s;q.bg=-amp*.8*s;q.bd=amp*.8*s;q.haut=(1.-abs(cos(w)))*amp*.025;if(court)q.torse=.3;}
+    if(marche&&(e<2u||e==8u)){float cadence=court?2.2:1.1,amount=clamp(u.vitesse/(1.153846*cadence),0.,1.2),phase=t*cadence*6.28318530718+ph;vec4 left=humanGait(phase,amount),right=humanGait(phase+3.14159265359,amount);q.jg=left.x;q.jd=right.x;q.kg=left.y;q.kd=right.y;q.fg=left.z;q.fd=right.z;q.haut=left.w;q.bg=-sin(phase)*.23*amount;q.bd=-q.bg;q.torse=court?.12:.012*sin(phase);}
+    else if(marche){q.jg=amp*s;q.jd=-amp*s;q.bg=-amp*.8*s;q.bd=amp*.8*s;}
     else{q.torse=.025*sin(t*1.3+ph);q.bg=.05*sin(t*1.1+ph);q.bd=-q.bg;q.tete=.06*sin(t*.7+ph*1.7);}
     if(e==2u){float k=.5+.5*sin(t*7.5+ph);q.bd=1.25+.45*k;q.bg=1.05+.4*(1.-k);q.torse=.1+.18*k;if(!marche){q.jg=.3;q.jd=-.22;}}
     else if(e==3u){float k=.5+.5*sin(t*5.+ph);q.torse=.78;q.bg=.55+.5*k;q.bd=.55+.5*(1.-k);q.jg=q.jd=.15;q.haut=-.06;q.tete=-.3;}
@@ -462,10 +463,12 @@
       if(e==10u){q.roulis=u.type==11u?1.25:.05;q.haut=u.type==11u?-.05:-.08;}
     }
     if((u.drapeaux&2u)!=0u)q.torse-=.22;
+    if(!(marche&&(e<2u||e==8u))){q.kg=-max(0.,q.jg)*1.25;q.kd=-max(0.,q.jd)*1.25;}
     return q;
   }
   void poserOs(inout vec3 p,inout vec3 n,uint os,Pose q){
-    if(os==16u||os==17u){float a=os==16u?q.jg:q.jd;vec3 knee=vec3(os==16u?-.105:.105,.52,0.);tourner(p,n,knee,-max(0.,a)*1.25);tourner(p,n,os==16u?PIV_JAMBE_G:PIV_JAMBE_D,a);}
+    if(os==20u||os==21u){bool left=os==20u;float a=left?q.jg:q.jd;float x=left?-.105:.105;tourner(p,n,vec3(x,.145,0.),left?q.fg:q.fd);tourner(p,n,vec3(x,.52,0.),left?q.kg:q.kd);tourner(p,n,left?PIV_JAMBE_G:PIV_JAMBE_D,a);}
+    else if(os==16u||os==17u){float a=os==16u?q.jg:q.jd;vec3 knee=vec3(os==16u?-.105:.105,.52,0.);tourner(p,n,knee,os==16u?q.kg:q.kd);tourner(p,n,os==16u?PIV_JAMBE_G:PIV_JAMBE_D,a);}
     else if(os==18u||os==19u){float a=os==18u?q.bg:q.bd;vec3 elbow=vec3(os==18u?-.255:.255,1.19,0.);tourner(p,n,elbow,.13+max(0.,a)*.4);tourner(p,n,os==18u?PIV_BRAS_G:PIV_BRAS_D,a);}
     else if(os==4u)tourner(p,n,PIV_JAMBE_G,q.jg);
     else if(os==5u)tourner(p,n,PIV_JAMBE_D,q.jd);
@@ -476,7 +479,7 @@
     else if(os==13u)p.z+=q.poutre;
     else if(os==1u||os==14u)tourner(p,n,PIV_COU,-q.tete);
     else if(os==10u)tourner(p,n,PIV_TOURELLE,-q.tourelle);
-    if(os!=4u&&os!=5u&&os!=16u&&os!=17u&&os!=9u&&os!=10u&&os!=11u)tourner(p,n,PIV_HANCHES,-q.torse);
+    if(os!=4u&&os!=5u&&os!=16u&&os!=17u&&os!=20u&&os!=21u&&os!=9u&&os!=10u&&os!=11u)tourner(p,n,PIV_HANCHES,-q.torse);
   }
   void main(){
     Unite u=lireUnite(int(aUnite));

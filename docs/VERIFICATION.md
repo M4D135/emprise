@@ -1,59 +1,62 @@
-# EMPRISE 0.3.0 — vérification du 15 novembre 2026
+# EMPRISE 0.4.0 — vérification du 15 novembre 2026
 
-Les reçus JSON et les scripts sont livrés dans le dépôt. Les tests de composants, les fixtures de placement et les commandes réelles dans Chrome sont distingués ci-dessous. Aucun serveur ni port d'automatisation n'est nécessaire : Chrome est piloté par CDP sur un tube local.
+Version « La rue réagit », build `7f69d7cada`, HTML autonome de 3,770,463 octets. Les reçus conservent leurs propres empreintes. Les tests de simulation, les scènes préparées et les événements réels de navigateur sont distingués ci-dessous.
 
-## Jeu et commandes
+## Commandes et interactions
 
-- `tests/inputs.py` : véritables événements clavier/souris, AZERTY/WASD, marche, montée, accélération, freinage, recul et sortie. Dernière mesure : 7,33 m/s, recul −4,77 m/s. Un clic produit un tir ; relâcher termine son, recul et rafale. Pause silencieuse, aucune erreur JavaScript.
-- `tests/gamepad.py` : Gamepad API virtuelle Xbox standard dans Chrome, sans contrôleur de scénario. Sticks, gâchettes analogiques, tir, conduite, menus, réglages persistants, vibrations finies, pause au débranchement et relâchement obligatoire avant reprise. Aucune manette physique n'a été testée.
-- `tests/new-features.py` : positions initiales explicitement préparées, puis événements clavier/souris réels. Menu du vrai Shawarmax, achat d'une provision, plan payé, proposition de protection et adversaire METAL déployé ; étage d'un hôtel réel, occupants et butin ; échelle, nage, canot, voilier et jet-ski, accélération/freinage/sortie. Ce test ne prétend pas parcourir tout le trajet depuis le départ.
+- `tests/inputs.py` : événements Chromium clavier/souris réels, AZERTY/WASD, entrée, conduite, freinage, recul, sortie, clic unique et rafale. Aucun tir ni son de tir continu après relâchement. La visée après sortie utilise le glisser si Chrome refuse la capture du pointeur ; ce choix est indiqué dans le reçu. Pause silencieuse, aucune erreur JavaScript.
+- `tests/gamepad.py` : Gamepad API Xbox standard virtuelle, sticks/gâchettes, conduite, armes, menus, carnet, réglages, vibration finie et débranchement. Pas de manette physique testée.
+- `tests/immersion.py` : J ouvre le carnet sans carte permanente, un soin est consommé depuis son inventaire, un ennemi est vaincu par clic réel puis le sac se fouille avec E une seule fois. La cible et le joueur sont placés explicitement pour tester ces interactions ; le déplacement jusqu’au combat n’est pas testé par ce script.
+- `tests/new-features.py` : vrai Shawarmax, achat, plan payé, contrat de protection ; hôtel, étage, occupants et butin ; échelle, nage et trois embarcations. Positions initiales préparées puis clavier/souris réels.
+- `tests/sandbox-browser.py` : parcours de commerce avec commandes de simulation enregistrées, affrontement, prise, revenu, achat du plan, panneau et reprise de sauvegarde. Ce script utilise un contrôleur de scénario, contrairement au test clavier/souris.
 
-Rapports : `input-regression.json`, `gamepad-validation.json`, `new-features-browser.json`. Captures : `business-counter.png`, `hotel-room.png`, `swimming-port.png`, `marine-*.png`.
+Rapports : `input-regression.json`, `gamepad-validation.json`, `immersion-browser.json`, `new-features-browser.json`, `sandbox-browser.json`.
 
-## Régressions de simulation
+## Simulations
 
-| Test | Couverture |
-|---|---|
-| `acceptance.mjs` | Parcours marche/conduite/combat, sorties bloquées, rayons, collisions, vélo/trottinette/TMAX |
-| `sandbox.mjs` | Capture/défense, revenus, sauvegarde, trafic, interpellation |
-| `police.mjs` | Visibilité, mur réel, mémoire sans poursuite omnisciente, radio, retour en patrouille, cap A*320, recul, arrêt à distance et interpellation intégrée |
-| `business.mjs` | Acheter/voler/racketter, plan à60€ unique, chef combattu avec vrais tirs, retour au commerçant, revenus persistants, cache, loot hôtel unique, résidents collidants/blessables, fermeture après décès |
-| `interiors.mjs` | 3952 entrées, 633 passages, locaux et paliers, POI réels, appartements distincts, halls, services, sauvegarde et commissariat42LaCanebière |
-| `places.mjs` | Projection, rattachement aux empreintes et adresses sourcées, bornes dynamiques, données déterministes |
-| `marine.mjs` | Trois coques séparées, propulsion/vent,13échelles, nage, SAT obstacles/bateaux, mur empêchant l'embarquement, sauvegardes invalides et reprise |
-| `injuries.mjs` | Tête/bras/jambe, occultation, décès, carjacking, conducteur, commerçants persistants |
-| `urban.mjs` | Brèche et retrait de collision, masses/impulsions, objets, intérieurs isolés, chocs, incendie, pompiers |
-| `vehicle-explosion.mjs` | Dégradation/fumée/feu, délai de combustion, explosion unique, pièces projetées, chaîne et carcasse persistante |
-| `weather.mjs` | Cinq phases, vent, éclairs, abri, dérive continue des nuages et sauvegarde |
-| `models.mjs` | Générateurs originaux, indices/normales/poids, marche/assis/rampement/sol, vêtements CPU/GPU, skinning proche |
+Les 17 suites Node passent : acceptance, sandbox, police, combat, business, injuries, urban, vehicle-explosion, weather, interiors, places, marine, crowd, loot, environment, models et replays. `node-validation.json` donne les suites de la passe générale. Les tests de modèle et replays sont exécutés séparément.
 
-Ces suites passent. Les dernières vérifications business/police/interiors/acceptance/sandbox utilisent le raccordement final des nouveaux modules. Les validatrices tête/corps passent sans aucun fichier de modèle externe. Les tests de passage ne certifient pas chaque itinéraire extérieur de la ville.
+Les ajouts couvrent notamment :
 
-## Démonstrations
+- Navigation autour d’un mur fourni seulement par l’API spatiale, riposte après contournement, interruption d’une visée/rafale quand un obstacle ferme la ligne, pression, couvert et mémoire expirante. Budget A* de deux recherches et 1 536 expansions maximum par tick ; 24 essais de couvert partagés. Voir `COMBAT.md`.
+- Fuite qui se poursuit après le bruit, retour à la marche, issue latérale devant un mur, anticipation d’un véhicule qui recule, jambe blessée et déterminisme. Réactions aux tirs du joueur et des ennemis ainsi qu’aux explosions.
+- Sac créé à la mort d’un adversaire, récompense unique, contrôles de distance et d’occlusion, capacité d’inventaire, reprise et nouveau déploiement d’une réserve. Aucun sac de ce type pour les civils.
+- Arbres et leur couronne contrôlés hors chaussée, collisions limitées aux troncs, fenêtres écartées des angles et budgets géométriques. Le trajet de conduite complet passe après correction du raccord de végétation sans renderer dans les tests Node.
+- Profils, normales, poids, marche, contact des semelles, poses assises, cache CPU/GPU et proportions des épaules/col/nez. Corps de 9 816 triangles, tête de 3 648 triangles.
 
-Le nouvel enregistrement clavier remplace l'ancien dont le résultat dépendait de l'interpellation précédente. `node tests/replays.mjs` valide exactement les positions, tirs, argent et résultats des trois séquences : commandes réelles, commerce contesté, véhicule sous le feu. La séquence d'explosion garde son état initial préparé et73tirs ; son résultat correspond toujours à une seule explosion.
+Les suites de simulation et d’interaction précèdent uniquement la dernière retouche géométrique des épaules, du nez et du col. Le contrôle des modèles, les captures et la mesure de fluidité incluent cette retouche ; aucune logique de jeu n’a changé après leurs validations.
 
-`tests/attract.py` valide le départ après **5,14 secondes**, les trois séquences, leur silence, l'absence de modification de sauvegarde, retour au titre par touche/clic et reprise du jeu. La première session de démo est préparée avant l'affichage du titre : son constructeur ne retarde plus le départ. Reçus : `replay-validation.json`, `attract-validation.json` avec empreinte du build.
+## Captures 3D
 
-## Fluidité et rendu
+`tests/visual-quality.py` compile le shader WebGL2 et place trois identités procédurales, de face, de profil, en marche puis assises. Ces scènes sont des fixtures d’inspection, sans parcours de gameplay revendiqué. Captures examinées : `quality-people-front.png`, `quality-people-profile.png`, `quality-people-walk.png`, `quality-people-seated.png`, `quality-street.png` et `quality-fps.png`. La revue a conduit à arrondir les épaules et à réduire la saillie du nez avant le build final.
 
-Le profil initial a identifié une longue tâche d'environ331ms : la première collision construisait paresseusement les structures de destruction de toute la ville. Elles sont désormais préparées pendant le chargement. Les lots statiques sont conservés sur le GPU ; sélection par caméra et distance, ombres sélectionnées séparément, reconstruction des seuls lots modifiés. Les petites lames de volets/traverses ne sont plus classées comme du sol visible à l'infini. La coupe des corps est précalculée pour supprimer les allocations par sommet pendant l'animation.
+Les personnages et le décor restent stylisés. Il n’y a pas de promesse de photoréalisme, de motion capture ou de ray tracing matériel.
 
-La passe finale `tests/streaming.py` utilise Chrome157/WebGL2 sur Mac AppleM5, canevas1758×1024, MSAA4×, ombres, reflets et480passants ; autosauvegarde active, sans profileur d'échantillonnage. Elle dure40secondes, dont20secondes de rotation de caméra. Résultat :
+## Démonstrations enregistrées
 
-- 2398images ; médiane16,7ms, p9516,8ms, p9918ms.
-- Un seul intervalle au-delà de25ms :66,7ms. Aucun au-delà de100ms ; aucune saccade à cadence d'une seconde observée dans cette passe.
-- Vue finale :271942éléments statiques,25386dessinés et246556écartés ; environ2,58millions de triangles, ombres comprises.
-- Lots retenus entre images et restauration du contexte WebGL vérifiés ; aucune erreur JavaScript.
+Les trois séquences ont été recapturées avec cette version puis rejouées dans Node. Positions, tirs, argent, propriété et explosion correspondent exactement aux résultats enregistrés :
 
-Le reçu `frame-pacing.json` conserve les intervalles, longues tâches, mesures CPU, configuration et SHA-256. Ces valeurs décrivent cette passe locale, pas une garantie sur tous les appareils. Une passe précédente plafonnait à30Hz, y compris sur une page vide ; elle n'est pas utilisée pour revendiquer60FPS. Les captures/debug et transitions de pièce peuvent produire leurs propres pics, distincts de cette mesure continue.
+- Tir et conduite · clavier / souris réels : 12.26 s.
+- Commerce contesté · session de test validée : 16.32 s.
+- Véhicule sous le feu · test de destruction : 34.34 s.
+
+Le test `attract.py` mesure un départ à 5.12 s. Touches/clics ramènent au titre, le jeu peut reprendre, les démos restent silencieuses et ne changent ni la session réelle ni sa sauvegarde. `demo-cycle.py` valide aussi la fin naturelle du premier replay et une pause de titre de 5.19 s avant le suivant. Rapports : `replay-validation.json`, `attract-validation.json`, `demo-cycle.json`.
+
+## Fluidité du build final
+
+Mesure Chrome 157 / WebGL2 sur Mac Apple M5, rendu 1 758 × 1 024, MSAA 4×, ombres et reflets, 480 passants et trafic actif. Autosauvegarde activée, sans profileur d’échantillonnage ; 40 secondes dont 20 secondes de rotation de caméra.
+
+- 2400 images ; médiane 16.7 ms, p95 18.7 ms, p99 18.7 ms.
+- Maximum 18.8 ms ; 0 image au-delà de 25 ms et 0 au-delà de 100 ms.
+- Vue finale : 23 302 éléments statiques visibles, 202 695 écartés ; 1 214 appels de dessin et 2 536 556 triangles, ombres comprises.
+- Lots GPU conservés, restauration du contexte WebGL et absence d’erreurs JavaScript vérifiées.
+
+Le reçu `frame-pacing.json` contient les intervalles bruts et l’empreinte du build. Ces chiffres décrivent cette passe locale ; ils ne garantissent pas la même fluidité sur chaque appareil, lors d’un changement d’intérieur ou dans toutes les batailles. Les captures d’écran ne font pas partie de cette mesure continue.
+
+Le préchauffage urbain existant est conservé. Sans lui, une première collision de trafic peut construire des structures coûteuses ; le benchmark de combat préparé ne présente plus ce coût au milieu d’un tick. Aucune reconstruction globale de navigation par voiture n’a été ajoutée.
 
 ## Provenance et limites
 
-Aucun asset graphique ou sonore importé dans le build : géométrie, textures, animation et son générés par le code. Les données géographiques OpenStreetMap/BAN sont conservées ; les photographies sont des références de formes, non des textures du jeu. Aucun asset GTA n'est fourni.
+Aucun modèle, image, texture, police ou fichier sonore importé dans `src/` ou `assets/`, et aucune image encodée `data:image` dans le HTML. Géométrie, textures, animation et sons sont générés par le code. Les données OpenStreetMap/BAN sont géographiques ; les photos restent des références externes, les PNG de documentation des captures exclues du runtime.
 
-Le rendu est stylisé, pas photoréaliste ; pas de ray tracing matériel. Le jeu reste solo. Nage de surface, pas de plongée ; embarcations sans destruction/incendie complet. Les intérieurs sont des compositions de jeu, pas des relevés de pièces réelles. Aucun concessionnaire ni armurerie réel n'a été inventé dans la zone en l'absence de POI vérifié. Les anciennes captures/mesures0.2.0 sont des archives ; les reçus nommés ci-dessus décrivent cette version.
-
-La correction finale de l’enchaînement automatique conserve aussi une pause de titre de cinq secondes entre deux replays, afin que la prochaine session puisse être préparée hors de la frame de démarrage. La mesure de fluidité et les captures fonctionnelles précèdent uniquement cette modification de transition de démo ; leurs empreintes propres restent dans les reçus.
-
-`tests/demo-cycle.py` vérifie également la fin naturelle du premier replay et le passage au suivant : retour au titre, pause de 5,20 s, deuxième séquence et aucune erreur. Rapport `demo-cycle.json`.
+Le jeu reste solo. La police reste principalement motorisée. Nage de surface, pas de plongée ; destruction complète des embarcations non intégrée. Les intérieurs sont des compositions de jeu, pas des relevés de pièces réelles. La physique, les chutes et les silhouettes éloignées sont simplifiées. Les limites ancrées, le sol et l’eau ne sont pas destructibles. Les contrôles ne certifient pas chaque ruelle ni tous les navigateurs ; Safari et Firefox n’ont pas été retestés dans cette passe.

@@ -6,11 +6,9 @@ function create(){
  const city=PDR.villeReelle.creerVille('marseille',{ilots:15});
  // Remove only RTS headquarters and resource-site decoration; geographic city stays intact.
  let at=0;let scenery=[];for(const [section,n] of Object.entries(city.mesures.comptes.parSection)){if(section!=='qg'&&section!=='sites')scenery.push(...city.objets.slice(at,at+n));at+=n;}
- // RADE : the RTS tree placement can cross a junction. Clear complete trees from road centres.
- function roadCentre(x,z){return city.surChaussee(x,z)||city.surChaussee(x+.7,z)||city.surChaussee(x-.7,z)||city.surChaussee(x,z+.7)||city.surChaussee(x,z-.7);}
- let clearedTrees=0;
- for(let i=scenery.length-3;i>=0;i--){const m=scenery[i];if(m.shape==='cylinder'&&m.mat===10&&scenery[i+1]?.shape==='foliage'&&scenery[i+2]?.shape==='foliage'&&roadCentre(m.p[0],m.p[2])){scenery.splice(i,3);clearedTrees++;}}
  const bounds={minX:-550,maxX:550,minZ:-550,maxZ:550};
+ // Replace complete source silhouettes before collision construction; keep foliage and overhead branches non-solid.
+ const vegetation=R.details.prepareVegetation(scenery,city,bounds),clearedTrees=vegetation.removed;
  const boxes=[],buckets=new Map(),key=(x,z)=>Math.floor(x/8)+','+Math.floor(z/8);
  function addBox(q){
   q.c=Math.cos(q.cap);q.s=Math.sin(q.cap);
@@ -20,6 +18,7 @@ function create(){
   return q;
  }
  function fromMesh(m){
+  if(m.vegetationPart&&m.vegetationPart!=='trunk')return;
   if(m.fx||m.shape==='foliage'||m.shape==='ring'||m.s[1]<.12||m.p[1]+m.s[1]/2<.4)return;
   if(Math.abs(m.p[0])>580||Math.abs(m.p[2])>580)return;
   const rx=m.r?.[0]||0,rz=m.r?.[2]||0,s=m.s;
@@ -84,8 +83,8 @@ function create(){
  const goal=freeNear(-91,0,2.5);const mission={x:goal[0],z:goal[1],radius:24};
  for(const [dx,dz,w]of [[-9,-4,4],[8,-5,3],[-6,8,3]]){const p=freeNear(goal[0]+dx,goal[1]+dz,2);addMesh(mesh([p[0],.8,p[1]],[w,1.45,1.8],[.24,.32,.34],0));}
  addMesh(mesh([goal[0],2.2,goal[1]],[.16,4.4,.16],[.5,.53,.48],0));
- const detailCount=R.details.add({scenery,city,blocked,addMesh});
- const architecture=R.architecture?.add({scenery,city,blocked})||null;
+ const detailCount=R.details.add({scenery,city,blocked,addMesh,bounds,water});
+ const architecture=R.architecture?.add({scenery,city,blocked,bounds})||null;
  const types=['gti','r5','tmax','scooter','bike'];
  for(let i=0;i<types.length;i++){
   const c=BITUME.conduite.creer(78.3+i*1.4,130+i*7,-1.692);Object.assign(c,{model:types[i],color:R.vehicles.PALETTE[i],y:.08,id:i});
@@ -95,10 +94,10 @@ function create(){
  const car=fleet[0];vehicle=car;
  const spawn=freeNear(car.x-3.8,car.z, .4);
  const enemies=[[-8,-9],[7,-8],[2,11]].map(([dx,dz],i)=>{const p=freeNear(goal[0]+dx,goal[1]+dz,.8);return {x:p[0],z:p[1],type:i===1?1:0,y:ground(),yaw:0};});
- const combatWorld={seed:135,stage:0,generation:6,combat:true,navCell:2,bounds,spawn:{x:spawn[0],z:spawn[1],yaw:Math.atan2(car.x-spawn[0],spawn[1]-car.z)},enemies,cores:[],pickups:[],colliders:[],exit:{x:0,z:0},spatial:{ground:(x,z)=>water(x,z)?-3:ground(),blocked,ray,castProjectile,contains:(x,z)=>(x>=bounds.minX&&x<=bounds.maxX&&z>=bounds.minZ&&z<=bounds.maxZ)||!!room?.contains(x,z)}};
+ const combatWorld={seed:135,stage:0,generation:6,combat:true,navCell:2,bounds,spawn:{x:spawn[0],z:spawn[1],yaw:Math.atan2(car.x-spawn[0],spawn[1]-car.z)},enemies,cores:[],pickups:[],colliders:[],exit:{x:0,z:0},spatial:{ground:(x,z)=>water(x,z)?-3:ground(),blocked,ray,castProjectile,coverBoxes:(x,z,r)=>candidates(x,z,r),contains:(x,z)=>(x>=bounds.minX&&x<=bounds.maxX&&z>=bounds.minZ&&z<=bounds.maxZ)||!!room?.contains(x,z)}};
  // The crowd's PDR grid is derived from exactly the same physical world, excluding only the moving car.
  const navCity={etendue:city.etendue,sol:ground,praticable:(x,z)=>{ignoreVehicle=true;const ok=!blocked(x,z,.34);ignoreVehicle=false;return ok;},surChaussee:city.surChaussee};
- const result={get dynamicBodies(){return dynamicBodies;},set dynamicBodies(v){dynamicBodies=v;},get room(){return room;},set room(v){room=v;},get weather(){return weather;},set weather(v){weather=v;},roofHeight,get player(){return actor;},set player(v){actor=v;},get playerSeated(){return actorSeated;},set playerSeated(v){actorSeated=!!v;},city,get scenery(){return scenery;},replaceScenery,candidates,clearedTrees,bounds,boxes,fleet,get car(){return vehicle;},select(c){vehicle=c;},detailCount,architecture,mission,combatWorld,navCity,ground,blocked,ray,rayBox,carContact,moveVehicle,freeNear,addMesh,addBox,carBox,overlap,water,surface:(x,z)=>({mu:(city.surChaussee(x,z)?1.15:.9)*(1-.28*(weather?.wet||0)),type:city.surChaussee(x,z)?'piste':'pave',pente:0,devers:0}),withoutCar(fn){const previous=ignoreVehicle;ignoreVehicle=true;try{return fn();}finally{ignoreVehicle=previous;}}};
+ const result={get dynamicBodies(){return dynamicBodies;},set dynamicBodies(v){dynamicBodies=v;},get room(){return room;},set room(v){room=v;},get weather(){return weather;},set weather(v){weather=v;},roofHeight,get player(){return actor;},set player(v){actor=v;},get playerSeated(){return actorSeated;},set playerSeated(v){actorSeated=!!v;},city,get scenery(){return scenery;},replaceScenery,candidates,clearedTrees,vegetation,bounds,boxes,fleet,get car(){return vehicle;},select(c){vehicle=c;},detailCount,architecture,mission,combatWorld,navCity,ground,blocked,ray,rayBox,carContact,moveVehicle,freeNear,addMesh,addBox,carBox,overlap,water,surface:(x,z)=>({mu:(city.surChaussee(x,z)?1.15:.9)*(1-.28*(weather?.wet||0)),type:city.surChaussee(x,z)?'piste':'pave',pente:0,devers:0}),withoutCar(fn){const previous=ignoreVehicle;ignoreVehicle=true;try{return fn();}finally{ignoreVehicle=previous;}}};
  if(R.boundaries)result.boundary=R.boundaries.add(result);return result;
 }
 R.world={create,mesh};

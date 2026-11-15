@@ -35,7 +35,11 @@ with tempfile.TemporaryDirectory(prefix='rade-inputs-') as profile,tempfile.Temp
   assert one['shots']==1,one;assert one['queue']==0 and one['events']==0 and one['gunVoices']==0 and one['kick']<.001,one;checks.append({'singleShotAndRelease':one});print('single shot: quiet after release',flush=True)
   mouse(True);time.sleep(1.1);mouse(False);time.sleep(2)
   shots=ev('RADE.game.session.sim.state.shots');assert shots>=6;time.sleep(.4);assert ev('RADE.game.session.sim.state.shots')==shots;assert ev('RADE.game.audio.stats.activeCues.shot||0')==0;checks.append({'burstShots':shots});print('burst and release: passed',flush=True)
-  yaw=ev('RADE.game.session.player.yaw');cmd('Input.dispatchMouseEvent',{'type':'mouseMoved','x':780,'y':470});time.sleep(.2);assert abs(ev('RADE.game.session.player.yaw')-yaw)>.01
+  yaw=ev('RADE.game.session.player.yaw');dragFallback=ev('document.pointerLockElement===null');cmd('Input.dispatchMouseEvent',{'type':'mouseMoved','x':720,'y':450});
+  if dragFallback:mouse(True)
+  cmd('Input.dispatchMouseEvent',{'type':'mouseMoved','x':780,'y':470});time.sleep(.2)
+  if dragFallback:mouse(False)
+  assert abs(ev('RADE.game.session.player.yaw')-yaw)>.01,{'dragFallback':dragFallback,'yaw':yaw,'after':ev('RADE.game.session.player.yaw')};checks.append({'mouseDragFallbackUsed':dragFallback})
   mouse(True);time.sleep(.2);mouse(False);time.sleep(1);assert ev('RADE.game.audio.stats.activeCues.shot||0')==0
   tap('KeyP');assert not ev('RADE.game.running');assert ev('RADE.game.audio.stats.voices')==0;checks.append({'mouseAfterExit':True,'pauseSilencesAudio':True})
   tape=ev('RADE.game.recorder?.stop()');
@@ -43,5 +47,5 @@ with tempfile.TemporaryDirectory(prefix='rade-inputs-') as profile,tempfile.Temp
    tape['source']='tests/inputs.py / événements Chromium clavier et souris';tape['expected']=ev('({shots:RADE.game.session.sim.state.shots,mode:RADE.game.session.mode,player:[RADE.game.session.player.x,RADE.game.session.player.z],car:[RADE.game.session.car.x,RADE.game.session.car.z],cash:RADE.game.session.campaign.state.cash})')
    (root/'docs/input-recording.json').write_text(json.dumps(tape,separators=(',',':'))+'\n')
   errors=ev('RADE.game.errors');assert not errors,errors
-  report={'date':'2026-11-14','checks':checks,'errors':errors};(root/'docs/input-regression.json').write_text(json.dumps(report,indent=2)+'\n');print(json.dumps(report,indent=2),flush=True)
+  report={'date':'2026-11-15','checks':checks,'errors':errors};(root/'docs/input-regression.json').write_text(json.dumps(report,indent=2)+'\n');print(json.dumps(report,indent=2),flush=True)
  finally:c.fermer()

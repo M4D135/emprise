@@ -34,3 +34,12 @@ Les résidents utilisent `room.civil`, les personnages et hitboxes existants. Il
 `node tests/business.mjs` produit `docs/business-acceptance.json`. Les fixtures déterministes vérifient achat, argent, soins dehors, refus à distance, anti-répétition, sauvegarde d’une mission active, décès avec des tirs METAL normaux, retour au bon commerçant, revenus après sortie et restauration, loot indépendant par étage, occupants solides et blessures persistantes, cache intérieure et fermeture définitive.
 
 Le combat de référence emploie trois tirs ordinaires ; le test place explicitement le joueur à une position de tir accessible. Il s’agit d’un test de composant, pas d’un enregistrement présenté comme un parcours joué depuis la rue. La validation navigateur et les parcours complets appartiennent aux tests globaux de la session.
+
+
+## Carnet et récupération — 0.4.0
+
+J ouvre le carnet du réseau. Il est aussi accessible par le menu des actions à la manette et depuis la pause. Le carnet liste uniquement les commerces déjà rencontrés et les territoires possédés : statut, revenus, contrat et piste donnée par le commerçant. Il ne révèle pas les positions des adversaires et n’affiche aucune carte permanente. Le monde poursuit sa simulation pendant la lecture. Les bandages et provisions peuvent y être utilisés ; les événements récents sont conservés dans la sauvegarde.
+
+`loot.js` suit la mort des ennemis de combat, sans récompenser celle des civils. Un sac contient 12–40 € et un bandage, une provision ou un objet revendable. Il faut s’approcher à moins de 1,65 m et utiliser E/X ; deux rayons bloquent la fouille à travers une paroi. Les sacs ne tournent pas et ne brillent pas. Une poche pleine conserve l’objet dans le sac après la prise de l’argent. La réserve de sacs est plafonnée à 64, les plus anciens étant retirés à saturation. Chaque nouveau déploiement d’un emplacement d’ennemi peut produire un nouveau sac ; charger une sauvegarde ne produit pas de récompense supplémentaire.
+
+Tests : `tests/loot.mjs`, `tests/immersion.py` (cible et position préparées, puis tir et fouille avec vrais événements clavier/souris). Les butins des chambres d’hôtel restent distincts.

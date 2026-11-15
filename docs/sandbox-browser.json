@@ -1,10 +1,10 @@
 {
   "scenario": {
     "complete": true,
-    "time": 16.258333333333052,
+    "time": 16.233333333333054,
     "stage": "done",
-    "cash": 243.76249999999658,
-    "earned": 3.7625000000000366,
+    "cash": 243.76874999999657,
+    "earned": 3.7687500000000367,
     "owner": 0,
     "hp": 100,
     "shots": 8,
@@ -12,70 +12,70 @@
     "log": [
       {
         "stage": "approach",
-        "time": 5.07,
+        "time": 5.04,
         "hp": 100,
         "position": [
-          60.67282262205854,
-          107.30022964108272
+          60.647162621580414,
+          107.29455985521416
         ]
       },
       {
         "stage": "buy",
-        "time": 5.08,
+        "time": 5.05,
         "hp": 100,
         "position": [
-          60.65163067541558,
-          107.26872533000639
+          60.626454421716176,
+          107.2627354828355
         ]
       },
       {
         "stage": "contest",
-        "time": 5.08,
+        "time": 5.06,
         "hp": 100,
         "position": [
-          60.63669696301834,
-          107.2465246172161
+          60.61186159991233,
+          107.24030922665749
         ]
       },
       {
         "stage": "fight",
-        "time": 6.27,
+        "time": 6.24,
         "hp": 100,
         "position": [
-          60.6011542502161,
-          107.19368621121761
+          60.5771302176176,
+          107.18693402018762
         ]
       },
       {
         "stage": "occupy",
-        "time": 11.26,
+        "time": 11.23,
         "hp": 100,
         "position": [
-          60.6011542502161,
-          107.19368621121761
+          60.5771302176176,
+          107.18693402018762
         ]
       },
       {
         "stage": "income",
-        "time": 16.26,
+        "time": 16.23,
         "hp": 100,
         "position": [
-          60.6011542502161,
-          107.19368621121761
+          60.5771302176176,
+          107.18693402018762
         ]
       }
     ]
   },
   "metrics": {
     "frame": {
-      "n": 976,
+      "n": 978,
       "p50": 16.699999999999818,
-      "p95": 16.80000000000109
+      "p95": 18.600000000000364
     },
     "cpu": {
-      "n": 975,
-      "p50": 3.600000023841858,
-      "p95": 7.400000035762787
+      "n": 977,
+      "p50": 2.199999988079071,
+      "p95": 6.899999976158142
     },
     "resolution": [
       1440,
@@ -84,34 +84,39 @@
     "pedestrians": 480,
     "traffic": 15,
     "renderer": {
-      "drawCalls": 129,
-      "triangles": 7642440,
-      "instances": 156372,
+      "drawCalls": 1404,
+      "triangles": 2689072,
+      "instances": 33142,
       "contextLost": false,
       "webglVersion": 2,
       "backend": "webgl2",
       "bloom": true,
       "shadows": true,
       "pbrLayers": 2,
-      "staticTotal": 153498,
+      "staticTotal": 225997,
       "biome": "ville",
       "worldRevision": 0,
+      "chunks": 3607,
+      "chunkBuildBytes": 14463808,
       "renderScale": 1,
       "pixelRatio": 1,
       "width": 1440,
       "height": 900,
       "msaa": 4,
       "viewDistance": 64,
-      "staticVisible": 153498,
-      "staticCulled": 0,
-      "dynamicLights": 8,
+      "staticVisible": 29923,
+      "staticCulled": 196074,
+      "dynamicLights": 6,
       "blackoutLights": 0,
       "shadowMaps": 1,
       "shadowMode": "sun-atlas",
-      "uploadBytes": 153216,
-      "fxInstances": 15,
+      "uploadBytes": 175296,
+      "fxInstances": 22,
       "crowdInstances": 0,
       "pdrLotInstances": 0,
+      "shadowChunks": 253,
+      "shadowStatic": 38058,
+      "visibleChunks": 357,
       "lotsVisibles": 0,
       "reflections": true,
       "reflectionSteps": 48
@@ -120,8 +125,8 @@
   },
   "architecture": {
     "facades": 240,
-    "windows": 4074,
-    "pieces": 91884
+    "windows": 4462,
+    "pieces": 53966
   },
   "errors": [],
   "ui": {
@@ -131,10 +136,10 @@
     "worldRunsWhileReading": true,
     "cityPlanBoard": true,
     "persistenceOnReload": true,
-    "cashBefore": 246.97499999999366,
-    "cashAfter": 247.11674999999366
+    "cashBefore": 246.94374999999368,
+    "cashAfter": 247.10274999999368
   },
-  "buildSha256": "06a43731979a10f2fb824527da227ee7de7b803e803dcb84548159022b0ceca4",
+  "buildSha256": "781f53172ff57a22e635bef03bd33f2d13d05bcced394442d4d3a29ba365da74",
   "hardware": "MacBook Air Mac17,4, Apple M5, 24 Go",
   "url": "file://dist/index.html"
 }
