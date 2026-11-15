@@ -1,6 +1,10 @@
-# EMPRISE — 0.6.0 « Rendu natif »
+# EMPRISE — 0.6.1 « Ville active »
 
 Sandbox FPS solo persistant dans Marseille et ses eaux côtières, avec conduite et combat dans un seul renderer **FERRO**. Jouer : **[gta.estrasse.fr](https://gta.estrasse.fr)** · [Dépôt GitHub privé](https://github.com/M4D135/emprise).
+
+La version 0.6.1 réduit le travail CPU des collisions, du décor détruit et des lots de rendu, à population et qualité graphique constantes. [Mesures en extérieur chargé](docs/OUTDOOR-PERFORMANCE.md).
+
+**Nouvelle partie** est accessible au titre, dans la pause et après une interruption, avec confirmation. Les réglages de manette sont conservés. La reprise d’une sauvegarde en nage ou en bateau ne cherche plus un emplacement terrestre ; une ancienne position terrestre impraticable utilise un point libre vérifié en conservant la progression.
 
 Le rendu utilise maintenant **WebGPU natif avec secours WebGL2**. Le filtre des ombres solaires est continu, la correction de profondeur de la foule tient compte de la taille réelle de sa tuile, et la garniture arrière de la 205 suit son montant. [Mesures et validation](docs/WEBGPU.md) · [Correctifs visuels avant/après](docs/SHADOWS.md).
 

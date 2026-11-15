@@ -1,0 +1,513 @@
+{
+  "hardware": "Apple M5",
+  "os": "macOS 27.2.1",
+  "browser": "Chrome 157.0.8103.39",
+  "viewport": "1440×900, DPR1",
+  "protocol": "960 pedestrians (360 positioned in legal quay cells), 36 civilian traffic requests plus 3 police, 3 real vehicle detonations. Two normal 1/120 simulation ticks per rendered frame, active AI and physics; same simulation work regardless of backend speed. Graphics unchanged: 1440x900 DPR1 MSAA4 shadows SSR bloom. Signature sampled every60frames, outside separate render/simulation timers.",
+  "baselineSha256": "b699d747128015542c7bcf91d8774ccfb89fb705d153b72a188331134e7b1312",
+  "finalSha256": "b6641fc16d61894c12af1ff0f5be4506ade18de670d1e8b841129bacafa514d3",
+  "fixtureSha256": "d7f4832d3994e9ebec0474f12a646dccc8268375bf5d00d6b4b594b7609f8a0e",
+  "nativeScreenshotSha256": "cafe1ff41b1911488a75ba81fd0efe0296ed75901a24a9a4ace24b693d1cef9d",
+  "concurrentLoad": "Another Point de rupture browser session was active; variable CPU/GPU contention. Not an isolated frame-pacing measurement.",
+  "timingConclusion": "Diagnostic only: another game was active during the final trials; timing differences cannot be attributed solely to this patch.",
+  "equivalence": [
+    "Exact initial state",
+    "Exact simulation hashes every 60 frames",
+    "Exact model/triangle/instance/draw counts every 60 frames",
+    "Same rendering settings and resolution",
+    "Same detonation schedule and simulation ticks"
+  ],
+  "before": [
+    {
+      "label": "baseline-1",
+      "frame": {
+        "n": 599,
+        "p50": 17.400000035762787,
+        "p95": 84.69999998807907,
+        "p99": 331.2000000476837,
+        "max": 706,
+        "over25": 180,
+        "over50": 157
+      },
+      "simulation": {
+        "n": 600,
+        "p50": 4.5,
+        "p95": 70,
+        "p99": 82.90000003576279,
+        "max": 336.7000000476837,
+        "over25": 173,
+        "over50": 105
+      },
+      "render": {
+        "n": 600,
+        "p50": 5.700000047683716,
+        "p95": 7.700000047683716,
+        "p99": 9,
+        "max": 11.199999988079071,
+        "over25": 0,
+        "over50": 0
+      },
+      "gpu": {
+        "available": true,
+        "dropped": 61,
+        "n": 539,
+        "p50": 13.43488,
+        "p95": 19.136512,
+        "p99": 21.168128,
+        "max": 29.16352,
+        "over25": 2,
+        "over50": 0
+      },
+      "worldUpdates": [
+        {
+          "frame": 91,
+          "ms": 351.9000000357628,
+          "meshes": 308270,
+          "revision": 1
+        },
+        {
+          "frame": 211,
+          "ms": 358.69999998807907,
+          "meshes": 308269,
+          "revision": 2
+        },
+        {
+          "frame": 303,
+          "ms": 312.4000000357628,
+          "meshes": 308269,
+          "revision": 3
+        },
+        {
+          "frame": 331,
+          "ms": 326.80000001192093,
+          "meshes": 308268,
+          "revision": 4
+        },
+        {
+          "frame": 424,
+          "ms": 337.89999997615814,
+          "meshes": 308268,
+          "revision": 5
+        },
+        {
+          "frame": 545,
+          "ms": 322.39999997615814,
+          "meshes": 308268,
+          "revision": 7
+        }
+      ]
+    },
+    {
+      "label": "baseline-2",
+      "frame": {
+        "n": 599,
+        "p50": 17.19999998807907,
+        "p95": 73.60000002384186,
+        "p99": 289.19999998807907,
+        "max": 888.2000000476837,
+        "over25": 179,
+        "over50": 165
+      },
+      "simulation": {
+        "n": 600,
+        "p50": 4.5,
+        "p95": 58.39999997615814,
+        "p99": 70.30000001192093,
+        "max": 409.30000001192093,
+        "over25": 173,
+        "over50": 83
+      },
+      "render": {
+        "n": 600,
+        "p50": 5.299999952316284,
+        "p95": 8.199999988079071,
+        "p99": 9.700000047683716,
+        "max": 12.400000035762787,
+        "over25": 0,
+        "over50": 0
+      },
+      "gpu": {
+        "available": true,
+        "dropped": 79,
+        "n": 521,
+        "p50": 14.221312,
+        "p95": 19.529728,
+        "p99": 21.102592,
+        "max": 24.313856,
+        "over25": 0,
+        "over50": 0
+      },
+      "worldUpdates": [
+        {
+          "frame": 91,
+          "ms": 453.39999997615814,
+          "meshes": 308270,
+          "revision": 1
+        },
+        {
+          "frame": 211,
+          "ms": 398.5999999642372,
+          "meshes": 308269,
+          "revision": 2
+        },
+        {
+          "frame": 303,
+          "ms": 312.2999999523163,
+          "meshes": 308269,
+          "revision": 3
+        },
+        {
+          "frame": 331,
+          "ms": 275.5999999642372,
+          "meshes": 308268,
+          "revision": 4
+        },
+        {
+          "frame": 424,
+          "ms": 293.39999997615814,
+          "meshes": 308268,
+          "revision": 5
+        },
+        {
+          "frame": 545,
+          "ms": 275.4000000357628,
+          "meshes": 308268,
+          "revision": 7
+        }
+      ]
+    },
+    {
+      "label": "baseline-3",
+      "frame": {
+        "n": 599,
+        "p50": 20.900000035762787,
+        "p95": 90.59999996423721,
+        "p99": 376.5,
+        "max": 647.6000000238419,
+        "over25": 207,
+        "over50": 156
+      },
+      "simulation": {
+        "n": 600,
+        "p50": 5.400000035762787,
+        "p95": 75.10000002384186,
+        "p99": 91.80000001192093,
+        "max": 233,
+        "over25": 163,
+        "over50": 128
+      },
+      "render": {
+        "n": 600,
+        "p50": 6.5,
+        "p95": 7.900000035762787,
+        "p99": 9.400000035762787,
+        "max": 14.600000023841858,
+        "over25": 0,
+        "over50": 0
+      },
+      "gpu": {
+        "available": true,
+        "dropped": 90,
+        "n": 510,
+        "p50": 16.842752,
+        "p95": 26.607616,
+        "p99": 33.292288,
+        "max": 39.059456,
+        "over25": 31,
+        "over50": 0
+      },
+      "worldUpdates": [
+        {
+          "frame": 91,
+          "ms": 332.5,
+          "meshes": 308270,
+          "revision": 1
+        },
+        {
+          "frame": 211,
+          "ms": 423.9000000357628,
+          "meshes": 308269,
+          "revision": 2
+        },
+        {
+          "frame": 303,
+          "ms": 382.30000001192093,
+          "meshes": 308269,
+          "revision": 3
+        },
+        {
+          "frame": 331,
+          "ms": 389,
+          "meshes": 308268,
+          "revision": 4
+        },
+        {
+          "frame": 424,
+          "ms": 381.5,
+          "meshes": 308268,
+          "revision": 5
+        },
+        {
+          "frame": 545,
+          "ms": 357.9000000357628,
+          "meshes": 308268,
+          "revision": 7
+        }
+      ]
+    }
+  ],
+  "after": [
+    {
+      "label": "final-1",
+      "frame": {
+        "n": 599,
+        "p50": 19.599999964237213,
+        "p95": 73.80000001192093,
+        "p99": 84.19999998807907,
+        "max": 384.5999999642372,
+        "over25": 182,
+        "over50": 127
+      },
+      "simulation": {
+        "n": 600,
+        "p50": 5.300000011920929,
+        "p95": 59.10000002384186,
+        "p99": 69.19999998807907,
+        "max": 237.30000001192093,
+        "over25": 152,
+        "over50": 75
+      },
+      "render": {
+        "n": 600,
+        "p50": 6.5,
+        "p95": 7.800000011920929,
+        "p99": 8.899999976158142,
+        "max": 10.300000011920929,
+        "over25": 0,
+        "over50": 0
+      },
+      "gpu": {
+        "available": true,
+        "dropped": 76,
+        "n": 524,
+        "p50": 14.680064,
+        "p95": 20.31616,
+        "p99": 22.347776,
+        "max": 61.734912,
+        "over25": 3,
+        "over50": 1
+      },
+      "worldUpdates": [
+        {
+          "frame": 91,
+          "ms": 121.40000003576279,
+          "meshes": 308270,
+          "revision": 1
+        },
+        {
+          "frame": 211,
+          "ms": 108.80000001192093,
+          "meshes": 308269,
+          "revision": 2
+        },
+        {
+          "frame": 331,
+          "ms": 87.30000001192093,
+          "meshes": 308268,
+          "revision": 3
+        }
+      ]
+    },
+    {
+      "label": "final-2",
+      "frame": {
+        "n": 599,
+        "p50": 20.599999964237213,
+        "p95": 75.89999997615814,
+        "p99": 88.30000001192093,
+        "max": 398.10000002384186,
+        "over25": 184,
+        "over50": 160
+      },
+      "simulation": {
+        "n": 600,
+        "p50": 5.599999964237213,
+        "p95": 60.80000001192093,
+        "p99": 73.20000004768372,
+        "max": 233.4000000357628,
+        "over25": 174,
+        "over50": 90
+      },
+      "render": {
+        "n": 600,
+        "p50": 7.100000023841858,
+        "p95": 9.199999988079071,
+        "p99": 10.400000035762787,
+        "max": 16.69999998807907,
+        "over25": 0,
+        "over50": 0
+      },
+      "gpu": {
+        "available": true,
+        "dropped": 34,
+        "n": 566,
+        "p50": 13.828096,
+        "p95": 18.612224,
+        "p99": 20.64384,
+        "max": 28.573696,
+        "over25": 1,
+        "over50": 0
+      },
+      "worldUpdates": [
+        {
+          "frame": 91,
+          "ms": 141.39999997615814,
+          "meshes": 308270,
+          "revision": 1
+        },
+        {
+          "frame": 211,
+          "ms": 124.80000001192093,
+          "meshes": 308269,
+          "revision": 2
+        },
+        {
+          "frame": 331,
+          "ms": 101.79999995231628,
+          "meshes": 308268,
+          "revision": 3
+        }
+      ]
+    },
+    {
+      "label": "final-3",
+      "frame": {
+        "n": 599,
+        "p50": 19.30000001192093,
+        "p95": 71.30000001192093,
+        "p99": 85.09999996423721,
+        "max": 382.80000001192093,
+        "over25": 209,
+        "over50": 141
+      },
+      "simulation": {
+        "n": 600,
+        "p50": 5,
+        "p95": 57.30000001192093,
+        "p99": 71.89999997615814,
+        "max": 229.19999998807907,
+        "over25": 151,
+        "over50": 69
+      },
+      "render": {
+        "n": 600,
+        "p50": 5.899999976158142,
+        "p95": 7.200000047683716,
+        "p99": 7.800000011920929,
+        "max": 9.699999988079071,
+        "over25": 0,
+        "over50": 0
+      },
+      "gpu": {
+        "available": true,
+        "dropped": 99,
+        "n": 501,
+        "p50": 17.432576,
+        "p95": 24.576,
+        "p99": 31.064064,
+        "max": 36.569088,
+        "over25": 21,
+        "over50": 0
+      },
+      "worldUpdates": [
+        {
+          "frame": 91,
+          "ms": 131.80000001192093,
+          "meshes": 308270,
+          "revision": 1
+        },
+        {
+          "frame": 211,
+          "ms": 129.89999997615814,
+          "meshes": 308269,
+          "revision": 2
+        },
+        {
+          "frame": 331,
+          "ms": 103.60000002384186,
+          "meshes": 308268,
+          "revision": 3
+        }
+      ]
+    }
+  ],
+  "medianBefore": {
+    "frame": {
+      "p50": 17.400000035762787,
+      "p95": 84.69999998807907,
+      "p99": 331.2000000476837,
+      "max": 706,
+      "over25": 180,
+      "over50": 157
+    },
+    "simulation": {
+      "p50": 4.5,
+      "p95": 70,
+      "p99": 82.90000003576279,
+      "max": 336.7000000476837,
+      "over25": 173,
+      "over50": 105
+    },
+    "render": {
+      "p50": 5.700000047683716,
+      "p95": 7.900000035762787,
+      "p99": 9.400000035762787,
+      "max": 12.400000035762787,
+      "over25": 0,
+      "over50": 0
+    },
+    "game": {
+      "p50": 16.899999976158142,
+      "p95": 85.40000003576279,
+      "p99": 326.89999997615814,
+      "max": 459.89999997615814,
+      "over25": 181,
+      "over50": 156
+    }
+  },
+  "medianAfter": {
+    "frame": {
+      "p50": 19.599999964237213,
+      "p95": 73.80000001192093,
+      "p99": 85.09999996423721,
+      "max": 384.5999999642372,
+      "over25": 184,
+      "over50": 141
+    },
+    "simulation": {
+      "p50": 5.300000011920929,
+      "p95": 59.10000002384186,
+      "p99": 71.89999997615814,
+      "max": 233.4000000357628,
+      "over25": 152,
+      "over50": 75
+    },
+    "render": {
+      "p50": 6.5,
+      "p95": 7.800000011920929,
+      "p99": 8.899999976158142,
+      "max": 10.300000011920929,
+      "over25": 0,
+      "over50": 0
+    },
+    "game": {
+      "p50": 18.600000023841858,
+      "p95": 72.89999997615814,
+      "p99": 104.60000002384186,
+      "max": 250.60000002384186,
+      "over25": 177,
+      "over50": 139
+    }
+  },
+  "limits": "Fixed camera, controlled dense quay fixture, 600 rendered frames per trial. Two normal 1/120 simulation ticks per frame for equal workload; separate realtime test uses the production accumulator. Not a guarantee for every scene, machine, display size or browser."
+}

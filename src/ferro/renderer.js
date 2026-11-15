@@ -833,14 +833,15 @@
   })();
   function foliageTriangles(){return FOLIAGE.triangles;}
   const names = ['box','sphere','cylinder','octa','ring','bevel','foliage','wedge']; // BITUME : 'wedge'
+  const shapeIndices=new Map(names.map((name,i)=>[name,i]));
   // BITUME : formes libres (carènes, mains). Une forme libre est une liste de triangles [p0, p1, p2, n0, n1, n2] tenue
   // dans le cube unité (−0,5 à 0,5) ; l'instance porte sa vraie taille dans s. Les normales sont celles du cube : le
   // nuanceur les divise par s, ce qui rend la normale du volume à sa vraie taille. Enregistrer avant FRender.create.
   const FORMES_LIBRES=new Map();
   function forme(nom,triangles){
     if(typeof nom!=='string'||!Array.isArray(triangles))throw new TypeError('forme(nom, triangles)');
-    if(!FORMES_LIBRES.has(nom)&&names.includes(nom))throw new Error('forme déjà définie par le moteur : '+nom);
-    if(!names.includes(nom))names.push(nom);
+    if(!FORMES_LIBRES.has(nom)&&shapeIndices.has(nom))throw new Error('forme déjà définie par le moteur : '+nom);
+    if(!shapeIndices.has(nom)){shapeIndices.set(nom,names.length);names.push(nom);}
     FORMES_LIBRES.set(nom,triangles);
   }
   const INDEX_OCTETS=4; // BITUME : index sur 32 bits, les formes libres dépassent les 65 536 sommets
@@ -983,8 +984,8 @@
   function pack(meshes,environment,objects=false) {
     const grouped=names.map(()=>[]);
     for(const mesh of meshes||[]) {
-      const i=names.indexOf(mesh.shape||'box');
-      if(i>=0) grouped[i].push(mesh);
+      const i=shapeIndices.get(mesh.shape||'box');
+      if(i!==undefined) grouped[i].push(mesh);
     }
     const count=grouped.reduce((n,g)=>n+g.length,0),values=new Float32Array(count*16),groups=[];
     let offset=0;
@@ -999,9 +1000,27 @@
     }
     return {values,groups};
   }
+  // A renderer owns each workspace. Returned batches remain valid until its
+  // next call; the public pack() above still returns independent storage.
+  function instancePacker(){
+    let counts=new Uint32Array(0),next=new Uint32Array(0),storage=new Float32Array(0),active=new Float32Array(0);
+    const groups=[],records=[],batch={values:active,groups},zero=[0,0,0],one=[1,1,1];
+    return (meshes,environment,objects=false)=>{
+      if(counts.length<names.length){counts=new Uint32Array(names.length);next=new Uint32Array(names.length);}
+      else counts.fill(0);
+      let total=0;for(const mesh of meshes||[]){const i=shapeIndices.get(mesh.shape||'box');if(i!==undefined){counts[i]++;total++;}}
+      const required=total*16;if(storage.length<required)storage=new Float32Array(Math.max(required,storage.length*2,256));
+      if(active.buffer!==storage.buffer||active.length!==required)active=storage.subarray(0,required);batch.values=active;groups.length=0;
+      let offset=0;for(let i=0;i<names.length;i++){next[i]=offset;if(counts[i]){const group=records[i]||(records[i]={name:names[i],offset:0,count:0});group.offset=offset*4;group.count=counts[i];groups.push(group);offset+=counts[i]*16;}}
+      for(const mesh of meshes||[]){const i=shapeIndices.get(mesh.shape||'box');if(i===undefined)continue;const at=next[i];next[i]+=16;
+        const p=mesh.p||zero,s=mesh.s||one,r=mesh.r||zero,c=mesh.color||zero;
+        active[at]=p[0];active[at+1]=p[1];active[at+2]=p[2];active[at+3]=mesh.mat||0;active[at+4]=s[0];active[at+5]=s[1];active[at+6]=s[2];active[at+7]=mesh.emissive||0;active[at+8]=r[0];active[at+9]=r[1];active[at+10]=r[2];active[at+11]=surfaceFlags(mesh,environment,objects);active[at+12]=c[0];active[at+13]=c[1];active[at+14]=c[2];active[at+15]=mesh.color?1:0;
+      }return batch;
+    };
+  }
   function packEffects(meshes,environment,eye){
     const distance=m=>(m.p[0]-eye[0])**2+(m.p[1]-eye[1])**2+(m.p[2]-eye[2])**2;
-    const list=meshes.filter(m=>names.includes(m.shape||'sphere')&&m.alpha>.003).slice().sort((a,b)=>distance(b)-distance(a));
+    const list=meshes.filter(m=>shapeIndices.has(m.shape||'sphere')&&m.alpha>.003).sort((a,b)=>distance(b)-distance(a));
     const values=new Float32Array(list.length*16),groups=[];let offset=0;
     for(const mesh of list){
       const name=mesh.shape||'sphere',last=groups[groups.length-1];
@@ -1011,6 +1030,26 @@
       values[offset]=p[0];values[offset+1]=p[1];values[offset+2]=p[2];values[offset+3]=material;values[offset+4]=s[0];values[offset+5]=s[1];values[offset+6]=s[2];values[offset+7]=mesh.emissive||0;values[offset+8]=r[0];values[offset+9]=r[1];values[offset+10]=r[2];values[offset+11]=surfaceFlags(mesh,environment,true);values[offset+12]=c[0];values[offset+13]=c[1];values[offset+14]=c[2];values[offset+15]=Math.min(1,Math.max(0,mesh.alpha));offset+=16;
     }
     return {values,groups};
+  }
+  function effectsPacker(){
+    const order=[],records=[],groups=[],groupRecords=[],zero=[0,0,0],one=[1,1,1],gray=[.5,.5,.5];
+    let storage=new Float32Array(0),active=new Float32Array(0),previous=0;const batch={values:active,groups};
+    return (meshes,environment,eye)=>{
+      order.length=0;let count=0;
+      for(const mesh of meshes){if(!shapeIndices.has(mesh.shape||'sphere')||!(mesh.alpha>.003))continue;
+        const record=records[count]||(records[count]={mesh:null,distance:0,index:0});record.mesh=mesh;record.distance=(mesh.p[0]-eye[0])**2+(mesh.p[1]-eye[1])**2+(mesh.p[2]-eye[2])**2;record.index=count++;order.push(record);
+      }
+      for(let i=count;i<previous;i++)records[i].mesh=null;previous=count;
+      // The tie break preserves the input order of the original stable sort.
+      order.sort((a,b)=>(b.distance-a.distance)||a.index-b.index);
+      const required=count*16;if(storage.length<required)storage=new Float32Array(Math.max(required,storage.length*2,256));
+      if(active.buffer!==storage.buffer||active.length!==required)active=storage.subarray(0,required);batch.values=active;groups.length=0;let offset=0;
+      for(const record of order){const mesh=record.mesh,name=mesh.shape||'sphere',last=groups[groups.length-1];
+        if(last&&last.name===name)last.count++;else{const group=groupRecords[groups.length]||(groupRecords[groups.length]={name:'',offset:0,count:0});group.name=name;group.offset=offset*4;group.count=1;groups.push(group);}
+        const p=mesh.p,s=mesh.s||one,r=mesh.r||zero,c=mesh.color||gray,material=mesh.window?18:mesh.shape==='ring'&&Number.isFinite(mesh.innerRatio)?20+Math.min(.999,Math.max(0,mesh.innerRatio)):mesh.fxPriority==='hazard'?16:mesh.fxFire?14:mesh.fxSmoke?15:mesh.fxSpark?17:7;
+        active[offset]=p[0];active[offset+1]=p[1];active[offset+2]=p[2];active[offset+3]=material;active[offset+4]=s[0];active[offset+5]=s[1];active[offset+6]=s[2];active[offset+7]=mesh.emissive||0;active[offset+8]=r[0];active[offset+9]=r[1];active[offset+10]=r[2];active[offset+11]=surfaceFlags(mesh,environment,true);active[offset+12]=c[0];active[offset+13]=c[1];active[offset+14]=c[2];active[offset+15]=Math.min(1,Math.max(0,mesh.alpha));offset+=16;
+      }return batch;
+    };
   }
 
   function multiply(a,b,out) {
@@ -1068,33 +1107,107 @@
     };
   }
   function metadata(mesh){
-    return {mesh,p:mesh.p||[0,0,0],radius:Math.hypot(...(mesh.s||[1,1,1]))*.5,detail:Math.max(0,Math.min(2,Math.floor(mesh.detail||0))),software:null,softwareCoarse:null};
+    return {mesh,renderRevision:mesh.renderRevision||0,p:mesh.p||[0,0,0],radius:Math.hypot(...(mesh.s||[1,1,1]))*.5,detail:Math.max(0,Math.min(2,Math.floor(mesh.detail||0))),software:null,softwareCoarse:null};
   }
-  function spatialIndex(meshes,environment,previous){
-    const levels=[new Map(),new Map(),new Map()],large=[[],[],[]],maxRadius=[0,0,0],entries=[],byMesh=new WeakMap();
-    for(const mesh of meshes||[]){
-      // Destruction replaces changed meshes; retained immutable meshes keep
-      // their instance rows and expensive Canvas face/lighting caches.
-      const retained=previous&&previous.byMesh.get(mesh),e=retained||metadata(mesh),key=Math.floor(e.p[0]/8)+','+Math.floor(e.p[2]/8),map=levels[e.detail];
-      if(e.radius>32)large[e.detail].push(e);else{if(!map.has(key))map.set(key,[]);map.get(key).push(e);maxRadius[e.detail]=Math.max(maxRadius[e.detail],e.radius);}
-      if(!retained){const p=e.p,s=mesh.s||[1,1,1],r=mesh.r||[0,0,0],c=mesh.color||[0,0,0];
-        e.row=new Float32Array([p[0],p[1],p[2],mesh.mat||0,s[0],s[1],s[2],mesh.emissive||0,r[0],r[1],r[2],surfaceFlags(mesh,environment),c[0],c[1],c[2],mesh.color?1:0]);}
-      entries.push(e);byMesh.set(mesh,e);
+  function partitionWorld(meshes){
+    const world=[],background=[],source=meshes||[];
+    for(let i=0;i<source.length;i++){const mesh=source[i];if(mesh===undefined&&!(i in source))continue;(mesh.backgroundWater?background:world).push(mesh);}
+    return {world,background};
+  }
+  function sameChunkCategory(c,e){const m=e.mesh,p=e.p,s=m.s;return s.length===3&&c.x===p[0]&&c.y===p[1]&&c.z===p[2]&&c.sx===s[0]&&c.sy===s[1]&&c.sz===s[2]&&c.detail===m.detail&&c.ground===(m.ground===true)&&c.radius===e.radius;}
+  function planChunks(index,chunks,categories,state){
+    const categoryFor=e=>{let c=categories.get(e);if(!c||!sameChunkCategory(c,e)){
+      const m=e.mesh,p=e.p,s=m.s,size=Math.max(...s),ground=m.ground===true||(s[1]<.15&&p[1]+s[1]/2<.24),range=m.detail===2?65:m.detail===1?130:ground||size>4?6000:size<.65?75:180,cell=range<6000?32:128;
+      c={key:Math.floor(p[0]/cell)+','+Math.floor(p[2]/cell)+','+range+','+(e.radius>40?'large':'small'),range,x:p[0],y:p[1],z:p[2],sx:s[0],sy:s[1],sz:s[2],detail:m.detail,ground:m.ground===true,radius:e.radius};categories.set(e,c);
+    }e.chunkCategory=c;return c;};
+    const delta=index.delta,incremental=chunks.size&&delta&&!delta.full&&state.index===index&&state.epoch===delta.fromEpoch;
+    state.index=index;state.epoch=delta?.epoch;state.incremental=!!incremental;state.entriesVisited=0;
+    if(incremental){
+      const erased=new Set([...delta.removed,...delta.changed]),keys=new Set(),additions=new Map();
+      for(const e of erased){const c=categories.get(e);if(c)keys.add(c.key);}
+      for(const e of [...delta.added,...delta.changed]){const c=categoryFor(e);keys.add(c.key);let list=additions.get(c.key);if(!list){list=[];additions.set(c.key,list);}list.push(e);}
+      const edited=[];
+      for(const key of keys){
+        const old=chunks.get(key),added=additions.get(key)||[],entries=(old?.entries||[]).filter(e=>!erased.has(e));entries.push(...added);entries.sort((a,b)=>a.ordinal-b.ordinal);state.entriesVisited+=(old?.entries.length||0)+added.length;if(!entries.length)continue;
+        const c=old||{range:categoryFor(entries[0]).range,entries:[]};c.nextCount=entries.length;c.nextEntries=c.entries.length===entries.length&&entries.every((e,i)=>e===c.entries[i])?null:entries;edited.push([key,c,entries[0].ordinal]);
+      }
+      edited.sort((a,b)=>a[2]-b[2]);const next=new Map();let at=0;
+      // Unchanged chunks retain relative order. Merge only the affected chunks
+      // at their new first occurrence; even depth ties keep the original order.
+      for(const [key,c] of chunks){if(keys.has(key))continue;const ordinal=c.entries[0].ordinal;while(at<edited.length&&edited[at][2]<ordinal){next.set(edited[at][0],edited[at][1]);at++;}c.nextEntries=null;c.nextCount=c.entries.length;next.set(key,c);}
+      while(at<edited.length){next.set(edited[at][0],edited[at][1]);at++;}return next;
+    }
+    const next=new Map();for(const e of index.entries){state.entriesVisited++;const category=categoryFor(e);let c=next.get(category.key);
+      if(!c){c=chunks.get(category.key)||{range:category.range,entries:[]};c.nextEntries=null;c.nextCount=0;next.set(category.key,c);}
+      if(c.nextEntries)c.nextEntries.push(e);else if(c.entries[c.nextCount]!==e){c.nextEntries=c.entries.slice(0,c.nextCount);c.nextEntries.push(e);}c.nextCount++;
+    }return next;
+  }
+  function spatialIndex(meshes,environment,previous,options){
+    if(previous?.reconcile)return previous.reconcile(meshes,environment,options);
+    const levels=[new Map(),new Map(),new Map()],large=[0,1,2].map(()=>({entries:[],epoch:0,count:0,next:null})),maxRadius=[0,0,0],byMesh=new WeakMap();let epoch=0;
+    const index={entries:[],query,byMesh,reconcile};
+    function append(bucket,e){
+      if(bucket.epoch!==epoch){bucket.epoch=epoch;bucket.count=0;bucket.next=null;}
+      if(bucket.next)bucket.next.push(e);
+      else if(bucket.entries[bucket.count]!==e){bucket.next=bucket.entries.slice(0,bucket.count);bucket.next.push(e);}
+      bucket.count++;
+    }
+    function finish(bucket){
+      if(bucket.epoch!==epoch){bucket.entries=[];return false;}
+      if(bucket.next)bucket.entries=bucket.next;
+      else if(bucket.count!==bucket.entries.length)bucket.entries=bucket.entries.slice(0,bucket.count);
+      bucket.next=null;return true;
+    }
+    function reconcile(list,env,options){
+      // Opt-in producer contract: retained identity + renderRevision guarantees
+      // every render/spatial property (including p/s/r/color array contents)
+      // is unchanged. A revised mesh always receives complete new metadata.
+      const revisionedMeshes=options?.revisionedMeshes===true;
+      const priorEpoch=epoch++,priorDuplicates=index.duplicates,priorEntries=index.entries,entries=[],added=[],removed=[],changed=[];let lastOrdinal=-1,cursor=0,reordered=false,duplicates=false;
+      for(const mesh of list||[]){
+        // Stable scene order permits a direct reference read. A changed list
+        // resynchronizes through the map; duplicates keep its original rules.
+        const candidate=priorDuplicates?null:priorEntries[cursor],prior=candidate?.mesh===mesh&&candidate.indexEpoch===priorEpoch?candidate:byMesh.get(mesh);
+        if(prior?.indexEpoch===priorEpoch&&prior.ordinal>=cursor)cursor=prior.ordinal+1;
+        const duplicate=prior?.indexEpoch===epoch,retained=prior&&(prior.indexEpoch===priorEpoch||prior.retainedEpoch===epoch)&&prior.renderRevision===(mesh.renderRevision||0)?prior:null,e=retained||metadata(mesh);
+        if(duplicate)duplicates=true;
+        if(retained){
+          if(!duplicate){if(e.ordinal<=lastOrdinal)reordered=true;lastOrdinal=e.ordinal;}
+          e.retainedEpoch=epoch;if(!revisionedMeshes&&e.chunkCategory&&!sameChunkCategory(e.chunkCategory,e))changed.push(e);
+        }
+        else{
+          const p=e.p,s=mesh.s||[1,1,1],r=mesh.r||[0,0,0],c=mesh.color||[0,0,0];
+          e.row=new Float32Array([p[0],p[1],p[2],mesh.mat||0,s[0],s[1],s[2],mesh.emissive||0,r[0],r[1],r[2],surfaceFlags(mesh,env),c[0],c[1],c[2],mesh.color?1:0]);
+          byMesh.set(mesh,e);
+          if(priorEpoch)added.push(e);
+        }
+        if(!e.indexBucket||(!revisionedMeshes&&(e.indexPX!==e.p[0]||e.indexPZ!==e.p[2]||e.indexRadius!==e.radius||e.indexDetail!==e.detail))){
+          if(e.radius>32)e.indexBucket=large[e.detail];
+          else{const key=Math.floor(e.p[0]/8)+','+Math.floor(e.p[2]/8),map=levels[e.detail];let bucket=map.get(key);if(!bucket){bucket={entries:[],epoch:0,count:0,next:null};map.set(key,bucket);}e.indexBucket=bucket;maxRadius[e.detail]=Math.max(maxRadius[e.detail],e.radius);}
+          e.indexPX=e.p[0];e.indexPZ=e.p[2];e.indexRadius=e.radius;e.indexDetail=e.detail;
+        }
+        e.indexEpoch=epoch;e.ordinal=entries.length;append(e.indexBucket,e);entries.push(e);
+      }
+      for(const e of index.entries)if(e.indexEpoch!==epoch){removed.push(e);if(byMesh.get(e.mesh)===e)byMesh.delete(e.mesh);}
+      for(let level=0;level<3;level++){finish(large[level]);for(const [key,bucket] of levels[level])if(!finish(bucket))levels[level].delete(key);}
+      index.entries=entries;index.duplicates=duplicates;index.delta={fromEpoch:priorEpoch,epoch,added,removed,changed,full:!priorEpoch||reordered||duplicates||priorDuplicates||added.length+removed.length>Math.max(64,entries.length/4)};return index;
     }
     function query(eye,ranges){
       const result=[];
       for(let level=0;level<3;level++){
         const range=ranges[level];if(!(range>0))continue;
-        for(const e of large[level]){const d=(e.p[0]-eye[0])**2+(e.p[1]-eye[1])**2+(e.p[2]-eye[2])**2;if(d<=(range+e.radius)**2)result.push(e);}
+        for(const e of large[level].entries){const d=(e.p[0]-eye[0])**2+(e.p[1]-eye[1])**2+(e.p[2]-eye[2])**2;if(d<=(range+e.radius)**2)result.push(e);}
+        // Keeping the largest previous radius is conservative: the exact same
+        // distance test below rejects any extra buckets visited after removals.
         const radius=range+maxRadius[level];
         for(let x=Math.floor((eye[0]-radius)/8);x<=Math.floor((eye[0]+radius)/8);x++)for(let z=Math.floor((eye[2]-radius)/8);z<=Math.floor((eye[2]+radius)/8);z++){
           const bucket=levels[level].get(x+','+z);if(!bucket)continue;
-          for(const e of bucket){const d=(e.p[0]-eye[0])**2+(e.p[1]-eye[1])**2+(e.p[2]-eye[2])**2;if(d<=(range+e.radius)**2)result.push(e);}
+          for(const e of bucket.entries){const d=(e.p[0]-eye[0])**2+(e.p[1]-eye[1])**2+(e.p[2]-eye[2])**2;if(d<=(range+e.radius)**2)result.push(e);}
         }
       }
       return result;
     }
-    return {entries,query,byMesh};
+    return reconcile(meshes,environment,options);
   }
   function visible(e,eye,axes,horizontal,vertical,far){
     const x=e.p[0]-eye[0],y=e.p[1]-eye[1],d=e.p[2]-eye[2],f=axes.forward,right=axes.right,up=axes.up;
@@ -1102,7 +1215,7 @@
     return z+r>.04&&z-r<far&&Math.abs(x*right[0]+y*right[1]+d*right[2])<=z*horizontal+r*Math.sqrt(1+horizontal*horizontal)&&Math.abs(x*up[0]+y*up[1]+d*up[2])<=z*vertical+r*Math.sqrt(1+vertical*vertical);
   }
   function packIndexed(entries){
-    const buckets=names.map(()=>[]);for(const e of entries){const i=names.indexOf(e.mesh.shape||'box');if(i>=0)buckets[i].push(e);}
+    const buckets=names.map(()=>[]);for(const e of entries){const i=shapeIndices.get(e.mesh.shape||'box');if(i!==undefined)buckets[i].push(e);}
     const values=new Float32Array(entries.length*16),groups=[];let offset=0;
     for(let i=0;i<names.length;i++)if(buckets[i].length){groups.push({name:names[i],offset:offset*4,count:buckets[i].length});for(const e of buckets[i]){values.set(e.row,offset);offset+=16;}}
     return {values,groups};
@@ -1264,11 +1377,11 @@
       shadowGeometry=new WeakMap();staticCasterPlan=null;for(const e of world.entries)shadowGeometry.set(e.mesh,null);
       worldRevision=0;stats.worldRevision=0;stats.staticTotal=world.entries.length;stats.biome=environment?environment.biome:null;
     }
-    function updateWorld(meshes,revision,points){
+    function updateWorld(meshes,revision,points,updateOptions){
       if(disposed||revision===worldRevision)return false;
       const changedLights=Array.isArray(points)&&(points.length!==lights.length||points.some((light,i)=>light!==lights[i]));
       if(changedLights)lights=points;
-      const next=meshes||[],ground=next.some(mesh=>mesh.ground===true);world=spatialIndex(next,environment,world);
+      const next=meshes||[],ground=next.some(mesh=>mesh.ground===true);world=spatialIndex(next,environment,world,updateOptions);
       // Legacy scenes infer the floor. Switching that rule invalidates their
       // receiver classification, even for otherwise unchanged surfaces.
       if(ground!==explicitGround||changedLights)for(const e of world.entries)e.software=e.softwareCoarse=null;
@@ -1609,6 +1722,8 @@
     let post=null,shadowTarget=null,whiteTexture=null,pbrTextures=[],targetKey='',shadowKey='',shadowLight=null;
     let world=[],worldIndex=spatialIndex([]),backgroundIndex=spatialIndex([]),lights=[],environment=null,worldBatch=pack([]),quality='auto',disposed=false,worldRevision=0;
     let staticCaches=[],lampCasters=[],actorLightPlan=null;
+    const packDynamic=instancePacker(),packOverlay=instancePacker(),packFx=effectsPacker();
+    const ordinary=[],overlay=[],particles=[],overlayParticles=[];
     // BITUME : nappes (chaussée, accotements, terrain : triangles continus, matière et couleur par sommet) et lots
     // de décor (instances statiques groupées par portion de circuit, chacune avec sa version lointaine allégée).
     let nappes=[],nappeVao=null,nappeVbo=null,nappeIbo=null,lots=[];
@@ -1803,44 +1918,32 @@
     }
 
     function updateShape(name,vertices){const range=source.ranges[name];if(!range||vertices.length!==range.count*6)throw new Error('Shape vertex count changed: '+name);const start=source.indices[range.offset/INDEX_OCTETS]*6;source.vertices.set(vertices,start);if(!stats.contextLost){gl.bindBuffer(gl.ARRAY_BUFFER,vbo);gl.bufferSubData(gl.ARRAY_BUFFER,start*4,vertices);}}
-    let chunks=new Map();const chunkCategories=new WeakMap();
+    let chunks=new Map();const chunkCategories=new WeakMap(),chunkState={index:null,epoch:0};
     function rebuildChunks(){
-      const next=new Map();
-      for(const e of worldIndex.entries){
-        const m=e.mesh,p=e.p,s=m.s,groundFlag=m.ground===true;let category=chunkCategories.get(e);
-        // Scalar copies avoid aliasing mutable p/s arrays. Retained immutable
-        // entries skip the repeated grid arithmetic and string allocation.
-        if(!category||s.length!==3||category.x!==p[0]||category.y!==p[1]||category.z!==p[2]||category.sx!==s[0]||category.sy!==s[1]||category.sz!==s[2]||category.detail!==m.detail||category.ground!==groundFlag||category.radius!==e.radius){
-          const size=Math.max(...s),ground=groundFlag||(s[1]<.15&&p[1]+s[1]/2<.24),range=m.detail===2?65:m.detail===1?130:ground||size>4?6000:size<.65?75:180,cell=range<6000?32:128;
-          category={key:Math.floor(p[0]/cell)+','+Math.floor(p[2]/cell)+','+range+','+(e.radius>40?'large':'small'),range,x:p[0],y:p[1],z:p[2],sx:s[0],sy:s[1],sz:s[2],detail:m.detail,ground:groundFlag,radius:e.radius};chunkCategories.set(e,category);
-        }
-        let c=next.get(category.key);
-        if(!c){const previous=chunks.get(category.key);c={range:category.range,entries:[],previous,same:!!previous};next.set(category.key,c);}
-        if(c.same&&c.previous.entries[c.entries.length]!==e)c.same=false;c.entries.push(e);
-      }
+      const next=planChunks(worldIndex,chunks,chunkCategories,chunkState);
       let uploads=0;
-      for(const [key,group] of next){if(group.same&&group.previous.entries.length===group.entries.length){next.set(key,group.previous);continue;}
+      for(const [key,group] of next){if(!group.nextEntries&&group.nextCount===group.entries.length)continue;
         // Only changed chunks need fresh bounds and GPU data. The final object
         // has no link to the previous chunk, so replaced generations can die.
-        const c={range:group.range,entries:group.entries,min:[Infinity,Infinity,Infinity],max:[-Infinity,-Infinity,-Infinity]};
+        const c={range:group.range,entries:group.nextEntries||group.entries.slice(0,group.nextCount),min:[Infinity,Infinity,Infinity],max:[-Infinity,-Infinity,-Infinity]};
         for(const e of c.entries)for(let k=0;k<3;k++){c.min[k]=Math.min(c.min[k],e.p[k]-e.radius);c.max[k]=Math.max(c.max[k],e.p[k]+e.radius);}
         c.p=c.min.map((v,k)=>(v+c.max[k])/2);c.radius=Math.hypot(...c.max.map((v,k)=>(v-c.min[k])/2));c.batch=packIndexed(c.entries);c.buffer=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,c.buffer);gl.bufferData(gl.ARRAY_BUFFER,c.batch.values,gl.STATIC_DRAW);uploads+=c.batch.values.byteLength;next.set(key,c);
       }
-      for(const [key,c] of chunks)if(next.get(key)!==c)gl.deleteBuffer(c.buffer);chunks=next;stats.chunks=chunks.size;stats.chunkBuildBytes=uploads;
+      for(const [key,c] of chunks)if(next.get(key)!==c)gl.deleteBuffer(c.buffer);chunks=next;stats.chunks=chunks.size;stats.chunkBuildBytes=uploads;stats.chunkUpdateIncremental=chunkState.incremental;stats.chunkEntriesVisited=chunkState.entriesVisited;
     }
     function drawChunks(accept,shadow=false){let objects=0,count=0;for(const c of chunks.values())if(accept(c)){renderBatch(c.batch,c.buffer,false,shadow);objects+=c.entries.length;count++;}if(shadow){stats.shadowChunks=count;stats.shadowStatic=objects;}else{stats.visibleChunks=count;stats.staticVisible=objects;stats.staticCulled=world.length-objects;}return count;}
     function setWorld(meshes,points,atmosphere) {
-      environment=environmentInfo(atmosphere);world=(meshes||[]).filter(m=>!m.backgroundWater);worldIndex=spatialIndex(world,environment);backgroundIndex=spatialIndex((meshes||[]).filter(m=>m.backgroundWater),environment);lights=points||[];worldBatch=pack([]);shadowLight=null;actorLightPlan=null;stats.staticTotal=world.length+backgroundIndex.entries.length;stats.biome=environment?environment.biome:null;
+      const partition=partitionWorld(meshes);environment=environmentInfo(atmosphere);world=partition.world;worldIndex=spatialIndex(world,environment);backgroundIndex=spatialIndex(partition.background,environment);lights=points||[];worldBatch=pack([]);shadowLight=null;actorLightPlan=null;stats.staticTotal=world.length+backgroundIndex.entries.length;stats.biome=environment?environment.biome:null;
       worldRevision=0;stats.worldRevision=0;rebuildChunks();
       lampCasters=[];for(const cache of staticCaches){cache.entries=[];cache.batch=pack([]);}
       governor.reset();autoScale=1;
       if(stats.contextLost||disposed) return;
       gl.bindBuffer(gl.ARRAY_BUFFER,worldBuffer);gl.bufferData(gl.ARRAY_BUFFER,worldBatch.values,gl.STATIC_DRAW);
     }
-    function updateWorld(meshes,revision,points){
+    function updateWorld(meshes,revision,points,updateOptions){
       if(disposed||revision===worldRevision)return false;
       if(Array.isArray(points)&&(points.length!==lights.length||points.some((light,i)=>light!==lights[i]))){lights=points;if(!lights.includes(shadowLight))shadowLight=null;}
-      world=(meshes||[]).filter(m=>!m.backgroundWater);worldIndex=spatialIndex(world,environment,worldIndex);backgroundIndex=spatialIndex((meshes||[]).filter(m=>m.backgroundWater),environment,backgroundIndex);worldBatch=pack([]);rebuildChunks();
+      const partition=partitionWorld(meshes);world=partition.world;worldIndex=spatialIndex(world,environment,worldIndex,updateOptions);backgroundIndex=spatialIndex(partition.background,environment,backgroundIndex,updateOptions);worldBatch=pack([]);rebuildChunks();
       // Every depth view must stop referencing removed walls immediately. GPU
       // storage is reused; only the affected instance lists upload next draw.
       lampCasters=[];actorLightPlan=null;for(const cache of staticCaches.slice(0,4)){cache.entries=[];cache.batch=pack([]);}
@@ -1879,7 +1982,7 @@
       renderBatch(cache.batch,cache.buffer,!same,shadow);
     }
     function renderEffects(meshes,eye,time,clip=vp){
-      const batch=packEffects(meshes,environment,eye);stats.fxInstances+=batch.values.length/16;if(!batch.groups.length)return;
+      const batch=packFx(meshes,environment,eye);stats.fxInstances+=batch.values.length/16;if(!batch.groups.length)return;
       gl.useProgram(fxProgram);gl.uniformMatrix4fv(fxUniforms.uViewProjection,false,clip);gl.uniform2f(fxUniforms.uWindTime,0,time);
       gl.uniform3fv(fxUniforms.uSkyTop,environment?.skyTop||[.2,.3,.4]);gl.uniform3fv(fxUniforms.uSkyBottom,environment?.skyBottom||[.5,.6,.6]);gl.uniform3fv(fxUniforms.uEye,eye);gl.uniform3fv(fxUniforms.uAmbient,environment?environment.ambient:[.12,.15,.16]);
       gl.uniform3fv(fxUniforms.uFogColor,environment?environment.fog:[.009,.018,.024]);gl.uniform2f(fxUniforms.uEnvironment,environment?1:0,environment?environment.fogDensity:.018);gl.uniform1f(fxUniforms.uTime,time);
@@ -1922,8 +2025,8 @@
       gl.useProgram(depthProgram);gl.bindVertexArray(vao);gl.enable(gl.DEPTH_TEST);gl.enable(gl.CULL_FACE);gl.enable(gl.POLYGON_OFFSET_FILL);gl.polygonOffset(1.1,2);
       gl.uniformMatrix4fv(depthMatrix,false,shadowMatrix);gl.uniform2f(depthWind,environment.wind,time);
       const inside=e=>{
-        const d=e.p.map((v,k)=>v-p[k]),along=a=>d[0]*a[0]+d[1]*a[1]+d[2]*a[2],z=along(fw);
-        return Math.abs(along(r))<extent+e.radius&&Math.abs(along(u))<extent+e.radius&&z+e.radius>near&&z-e.radius<far;
+        const x=e.p[0]-p[0],y=e.p[1]-p[1],d=e.p[2]-p[2],z=x*fw[0]+y*fw[1]+d*fw[2];
+        return Math.abs(x*r[0]+y*r[1]+d*r[2])<extent+e.radius&&Math.abs(x*u[0]+y*u[1]+d*u[2])<extent+e.radius&&z+e.radius>near&&z-e.radius<far;
       };
       const casters=camera.chunked?[]:camera.allStatic?worldIndex.entries:worldIndex.query(center,[extent+24,26,0]).filter(inside);
       renderStatic(casters,2,true);if(camera.chunked)drawChunks(inside,true);
@@ -2057,8 +2160,8 @@
       const blackout=horrorLights(fx.horror,lights);stats.blackoutLights=blackout?.size||0;
       lightPositions.fill(0);lightColors.fill(0);lightRanges.fill(0);lightDirections.fill(0);lightCones.fill(0);
       selected.forEach(({light},i)=>{if(light.dir){lightDirections.set(light.dir,i*3);lightCones.set(light.cone||[.75,.94],i*2);}lightPositions.set(light.p,i*3);lightRanges[i]=light.range||0;const c=light.color||[1,1,1],power=(light.power===undefined?1:light.power)*(blackout?.get(light)??1);lightColors.set([c[0]*power,c[1]*power,c[2]*power],i*3);});
-      const ordinary=[],overlay=[],particles=[],overlayParticles=[];for(const mesh of dynamic||[]) (mesh.overlay?(mesh.fx?overlayParticles:overlay):mesh.fx?particles:ordinary).push(mesh);
-      const dynamicBatch=pack(ordinary,environment,true);
+      ordinary.length=overlay.length=particles.length=overlayParticles.length=0;for(const mesh of dynamic||[]) (mesh.overlay?(mesh.fx?overlayParticles:overlay):mesh.fx?particles:ordinary).push(mesh);
+      const dynamicBatch=packDynamic(ordinary,environment,true);
       const torchPosition=eye.map((v,i)=>v+right[i]*.16-up[i]*.08);
       stats.drawCalls=0;stats.triangles=0;stats.instances=0;stats.bloom=!!post&&fx.bloom!==false;stats.shadows=!!shadowTarget&&fx.shadows!==false;stats.shadowMaps=stats.shadows?shadowLights.length+1+(environment?1:0):0;stats.shadowMode=environment?'sun-atlas':'atlas';
       stats.uploadBytes=0;stats.fxInstances=0;
@@ -2147,7 +2250,7 @@
         let overlayClip=vp;
         if(overlayNear!==near){overlayProjection.set(projection);overlayProjection[10]=(far+overlayNear)/(overlayNear-far);overlayProjection[14]=2*far*overlayNear/(overlayNear-far);multiply(overlayProjection,view,overlayVP);overlayClip=overlayVP;gl.uniformMatrix4fv(uniforms.uViewProjection,false,overlayClip);}
         if(blackout){selected.forEach(({light},i)=>{const c=light.color||[1,1,1],power=light.power===undefined?1:light.power;lightColors.set([c[0]*power,c[1]*power,c[2]*power],i*3);});gl.uniform3fv(uniforms.uLightColor,lightColors);}
-        gl.clear(gl.DEPTH_BUFFER_BIT);if(overlay.length)renderBatch(pack(overlay,environment,true),overlayBuffer,true);
+        gl.clear(gl.DEPTH_BUFFER_BIT);if(overlay.length)renderBatch(packOverlay(overlay,environment,true),overlayBuffer,true);
         if(overlayParticles.length)renderEffects(overlayParticles,eye,t,overlayClip);
         if(overlayClip!==vp)gl.uniformMatrix4fv(uniforms.uViewProjection,false,vp);
       }
@@ -2200,6 +2303,6 @@
   }
   // Both GPU backends share the procedural shapes, instance layout and visibility
   // rules. No rendering calls or GPU state are shared between the APIs.
-  const shared={geometry,pack,packEffects,packIndexed,spatialIndex,visible,metadata,environmentInfo,outdoorMesh,surfaceFlags,transientLights,horrorLights,cameraAxes,multiply,detailRanges,extendedDistance,resolutionGovernor,settings,indoor:PDR_INDOOR,shapes:FORMES_LIBRES};
+  const shared={geometry,pack,packEffects,instancePacker,effectsPacker,packIndexed,spatialIndex,partitionWorld,planChunks,visible,metadata,environmentInfo,outdoorMesh,surfaceFlags,transientLights,horrorLights,cameraAxes,multiply,detailRanges,extendedDistance,resolutionGovernor,settings,indoor:PDR_INDOOR,shapes:FORMES_LIBRES};
   globalThis.FRender={create,foliageTriangles,forme,shared};
 })();

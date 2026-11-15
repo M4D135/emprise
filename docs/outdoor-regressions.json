@@ -1,0 +1,45 @@
+{
+  "date": "2026-11-15",
+  "tests": [
+    {
+      "test": "breach-urban",
+      "exitCode": 0,
+      "seconds": 4.62
+    },
+    {
+      "test": "urban",
+      "exitCode": 0,
+      "seconds": 33.0
+    },
+    {
+      "test": "vehicle-explosion",
+      "exitCode": 0,
+      "seconds": 28.69
+    },
+    {
+      "test": "fragmentation",
+      "exitCode": 0,
+      "seconds": 8.2
+    },
+    {
+      "test": "clearance",
+      "exitCode": 0,
+      "seconds": 4.48
+    },
+    {
+      "test": "fire-invalidation",
+      "exitCode": 0,
+      "seconds": 9.02
+    },
+    {
+      "test": "save-recovery",
+      "exitCode": 0,
+      "seconds": 0.16
+    },
+    {
+      "test": "fatal-recovery",
+      "exitCode": 0,
+      "seconds": 0.04
+    }
+  ]
+}

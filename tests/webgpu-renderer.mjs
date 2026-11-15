@@ -42,6 +42,17 @@ for(let i=0;i<12;i++){canvas.clientWidth=810+i;renderer.draw(cam,models,{time:4}
 assert.equal(fake.allocated.filter(x=>x.descriptor.usage&GPUBufferUsage.UNIFORM).length,buffers,'Resize reuses bounded uniform slots');
 renderer.draw(cam,models,{time:4,msaa:false});assert.equal(renderer.gpu.samples,1);renderer.draw(cam,models,{time:4,msaa:true});assert.equal(renderer.gpu.samples,4);
 await renderer.setProfiling(true);renderer.draw(cam,models,{time:4});const measured=await renderer.setProfiling(false);assert.equal(measured.available,true);assert.deepEqual(measured.samples,[.4]);
+const wall={shape:'box',p:[0,2,-8],s:[4,4,1],mat:8,color:[.8,.7,.6]},remote={shape:'box',p:[512,2,-8],s:[4,4,1],mat:8,color:[.6,.6,.6]},scene=[wall,remote];
+renderer.setWorld(scene,[],{sunDirection:[.4,.8,.3]});renderer.updateWorld(scene,1);assert.equal(renderer.stats.chunkBuildBytes,0,'Identical static rows retain every native chunk buffer');
+const start=fake.allocated.length;wall.color=[.08,.07,.06];wall.renderRevision=1;renderer.updateWorld(scene,2,undefined,{revisionedMeshes:true});
+const changed=fake.allocated.slice(start).filter(r=>r.descriptor.label==='FERRO instances');assert.equal(changed.length,1,'Burn recolors only the affected native chunk');assert.equal(renderer.stats.chunkBuildBytes,64);assert.equal(new Float32Array(changed[0].data)[12],Math.fround(.08),'Revision refreshes the actual GPU instance row');
+renderer.updateWorld([remote],3);assert(changed[0].destroyed,'Destroyed wall releases its native chunk buffer');assert.equal(renderer.stats.chunks,1);
+renderer.setWorld(scene,[],{sunDirection:[.4,.8,.3]});
+renderer.updateWorld([wall,wall,remote],1,undefined,{revisionedMeshes:true});assert.equal(renderer.stats.chunkUpdateIncremental,false);assert.equal(renderer.stats.chunkBuildBytes,128,'Duplicate occurrence uploads two complete native rows');
+renderer.draw(cam,[],{time:4});assert.equal(renderer.stats.staticVisible,2);
+renderer.updateWorld(scene,2,undefined,{revisionedMeshes:true});assert.equal(renderer.stats.chunkUpdateIncremental,false,'Prior duplicate occurrences require general reconciliation');assert.equal(renderer.stats.chunkBuildBytes,64,'Removing duplicate occurrence restores a single native row');
+renderer.draw(cam,[],{time:4});assert.equal(renderer.stats.staticVisible,1);
+renderer.updateWorld(scene,3);assert.equal(renderer.stats.chunkUpdateIncremental,true);assert.equal(renderer.stats.chunkBuildBytes,0);
 renderer.dispose();assert(fake.destroyed);assert.equal(context.configured,false);assert(fake.allocated.every(x=>x.destroyed));
 const broken=fakeDevice({message:'forced initialization validation failure'}),bad=install(broken);await assert.rejects(()=>FRenderWebGPU.create(bad.canvas,{}),/initialization/);assert(broken.destroyed);assert(broken.allocated.every(x=>x.destroyed));assert.equal(bad.context.configured,false);
 console.log('Native WebGPU contracts PASS: std140, independent pass UBOs, MSAA/SSR overlay depth, crowd hooks, bounded resize resources, timing ring, creation failure cleanup.');

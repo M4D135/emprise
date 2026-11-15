@@ -1,77 +1,149 @@
 {
-  "baseline": "509b2ec",
+  "baseline": "3ac8e4c",
   "steps": [
     {
       "label": "initial",
       "chunks": 378,
       "reused": 0,
-      "uploadedBytes": 156224
+      "uploadedBytes": 156224,
+      "incremental": false,
+      "entriesVisited": 2441
     },
     {
       "label": "unchanged references",
       "chunks": 378,
       "reused": 378,
-      "uploadedBytes": 0
+      "uploadedBytes": 0,
+      "incremental": true,
+      "entriesVisited": 152
     },
     {
       "label": "two removals",
       "chunks": 378,
       "reused": 376,
-      "uploadedBytes": 11520
+      "uploadedBytes": 11520,
+      "incremental": true,
+      "entriesVisited": 334
     },
     {
       "label": "replacement with retained neighbours",
       "chunks": 378,
       "reused": 377,
-      "uploadedBytes": 448
+      "uploadedBytes": 448,
+      "incremental": true,
+      "entriesVisited": 160
     },
     {
       "label": "new small and large chunks",
       "chunks": 379,
       "reused": 377,
-      "uploadedBytes": 8576
+      "uploadedBytes": 8576,
+      "incremental": true,
+      "entriesVisited": 286
+    },
+    {
+      "label": "insertions at first and middle positions",
+      "chunks": 379,
+      "reused": 377,
+      "uploadedBytes": 384,
+      "incremental": true,
+      "entriesVisited": 158
+    },
+    {
+      "label": "removing first chunk member reorders keys",
+      "chunks": 379,
+      "reused": 378,
+      "uploadedBytes": 64,
+      "incremental": true,
+      "entriesVisited": 154
+    },
+    {
+      "label": "duplicate occurrences force full path",
+      "chunks": 379,
+      "reused": 377,
+      "uploadedBytes": 960,
+      "incremental": false,
+      "entriesVisited": 2444
+    },
+    {
+      "label": "repeated duplicate list remains exact",
+      "chunks": 379,
+      "reused": 379,
+      "uploadedBytes": 0,
+      "incremental": false,
+      "entriesVisited": 2444
+    },
+    {
+      "label": "previous duplicates removed force full path",
+      "chunks": 379,
+      "reused": 377,
+      "uploadedBytes": 832,
+      "incremental": false,
+      "entriesVisited": 2442
+    },
+    {
+      "label": "unique list resumes incremental path",
+      "chunks": 379,
+      "reused": 379,
+      "uploadedBytes": 0,
+      "incremental": true,
+      "entriesVisited": 152
     },
     {
       "label": "reordered entries and chunk keys",
       "chunks": 379,
       "reused": 28,
-      "uploadedBytes": 154432
+      "uploadedBytes": 154496,
+      "incremental": false,
+      "entriesVisited": 2442
     },
     {
       "label": "in-place category changes invalidate scalar cache",
       "chunks": 380,
       "reused": 378,
-      "uploadedBytes": 9664
+      "uploadedBytes": 9664,
+      "incremental": true,
+      "entriesVisited": 153
     },
     {
       "label": "nonstandard size array remains uncached",
       "chunks": 380,
       "reused": 378,
-      "uploadedBytes": 9792
+      "uploadedBytes": 9856,
+      "incremental": true,
+      "entriesVisited": 155
     },
     {
       "label": "retained metadata radius threshold change",
       "chunks": 380,
       "reused": 378,
-      "uploadedBytes": 9792
+      "uploadedBytes": 9792,
+      "incremental": true,
+      "entriesVisited": 160
     },
     {
       "label": "fresh spatial metadata on setWorld",
       "chunks": 380,
       "reused": 0,
-      "uploadedBytes": 156224
+      "uploadedBytes": 156288,
+      "incremental": false,
+      "entriesVisited": 2442
     },
     {
       "label": "context restore uploads every chunk",
       "chunks": 380,
       "reused": 0,
-      "uploadedBytes": 156224
+      "uploadedBytes": 156288,
+      "incremental": false,
+      "entriesVisited": 2442
     },
     {
       "label": "empty world deletes all buffers",
       "chunks": 0,
       "reused": 0,
-      "uploadedBytes": 0
+      "uploadedBytes": 0,
+      "incremental": false,
+      "entriesVisited": 0
     }
   ],
   "benchmark": {
@@ -80,15 +152,15 @@
     "method": "CPU only, spatialIndex and GPU excluded; 3 warmups, 10 measured alternating-order rebuilds",
     "before": {
       "samples": 10,
-      "medianMs": 192.698,
-      "minMs": 186.138,
-      "maxMs": 202.364
+      "medianMs": 11.36,
+      "minMs": 10.848,
+      "maxMs": 14.689
     },
     "after": {
       "samples": 10,
-      "medianMs": 16.195,
-      "minMs": 14.947,
-      "maxMs": 26.447
+      "medianMs": 0.619,
+      "minMs": 0.543,
+      "maxMs": 6.022
     }
   },
   "checks": [

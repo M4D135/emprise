@@ -37,7 +37,7 @@
         "contextMenuPrevented": true,
         "testing": false
       },
-      "framesAfter": 50
+      "framesAfter": 94
     },
     {
       "case": "validation-error",
@@ -75,7 +75,7 @@
         "contextMenuPrevented": true,
         "testing": false
       },
-      "framesAfter": 51
+      "framesAfter": 101
     },
     {
       "case": "adapter-rejected",
@@ -106,7 +106,7 @@
         "contextMenuPrevented": true,
         "testing": false
       },
-      "framesAfter": 20
+      "framesAfter": 19
     },
     {
       "case": "api-absent",
@@ -175,13 +175,7 @@
         "contextMenuPrevented": true,
         "testing": false
       },
-      "framesAfter": 20
+      "framesAfter": 21
     }
-  ],
-  "validatedSources": {
-    "src/ferro/backends.js": "436cc5684ee3c8d950874489d4b267ae9e4a65e365771da434e70fe2e7ff518b",
-    "src/ferro/webgpu-renderer.js": "5fa9374d9c6a9125b6e5757700653b798dd8d4de0a9ce85481e63f613fb5d90e",
-    "src/game.js": "8cdccfa9b80ae2ae5208ea3ab2c31bb271c31f2496a2f627b84e2a262848754d"
-  },
-  "buildNote": "0.6.0 avant la correction du signe des dérivées WGSL. Le sélecteur, le renderer et le code de reprise sont inchangés depuis ce contrôle ; les shaders finaux sont validés séparément."
+  ]
 }

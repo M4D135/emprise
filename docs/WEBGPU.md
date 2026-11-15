@@ -1,5 +1,7 @@
 # FERRO : WebGPU natif, secours WebGL2
 
+Les tableaux de migration ci-dessous sont ceux de la version 0.6.0. Les optimisations CPU et la validation de l’extérieur chargé en 0.6.1 figurent dans [OUTDOOR-PERFORMANCE.md](OUTDOOR-PERFORMANCE.md).
+
 EMPRISE 0.6.0 sélectionne WebGPU en priorité lorsque le navigateur fournit un adaptateur utilisable. WebGL2 reste disponible au démarrage et après une défaillance du périphérique natif. Le backend annoncé correspond à l’API qui dessine effectivement la scène.
 
 Cette migration conserve le jeu procédural et sa simulation JavaScript. Elle n’ajoute ni ray tracing matériel, ni moteur physique GPU, ni modèles ou textures importés. Les reflets restent des réflexions d’environnement et des réflexions en espace écran (SSR).
@@ -28,6 +30,14 @@ L’ordre général des passes est :
 5. SSR à demi-résolution, puis bloom et composition finale.
 
 La couleur avant l’arme et la profondeur du monde sont conservées pour les reflets. Une arme proche ne remplace donc pas la géométrie utilisée par le SSR.
+
+### Contrat des mises à jour statiques
+
+`updateWorld(meshes, revision, points, {revisionedMeshes: true})` permet au producteur du décor de garantir qu’un objet conservant son identité et son `renderRevision` est inchangé. L’option vaut uniquement pour cet appel ; les appels sans option conservent les vérifications strictes des signatures spatiales et des catégories de chunks.
+
+Avec cette garantie, toute modification d’un champ de rendu doit soit créer un nouvel objet mesh, soit incrémenter son `renderRevision` avant `updateWorld`. Cela comprend le contenu ou le remplacement des tableaux `p`, `s`, `r` et `color`, ainsi que `shape`, `mat`, `emissive`, `detail`, `ground`, `backgroundWater` et les champs utilisés par `surfaceFlags`. Les métadonnées internes de l’index ne doivent pas être modifiées directement. Une identité ou une révision différente reconstruit complètement la ligne d’instance et ses métadonnées spatiales ; elle invalide les chunks concernés.
+
+EMPRISE active cette option uniquement sur la mise à jour du décor de sa frame : les destructions, ouvertures et projections d’intérieur produisent de nouveaux meshes ; les recolorations d’incendie incrémentent leur révision. Le contrat ne réduit ni le nombre d’objets, ni leurs détails, ni les effets. Les insertions, suppressions, doublons, réordonnancements et changements complets de scène restent pris en charge. `tests/renderer-revisioned.mjs` compare le chemin strict et ce chemin explicite, avec les octets du renderer de référence `3ac8e4c` reconstruits à neuf.
 
 ## Sélection et reprise
 

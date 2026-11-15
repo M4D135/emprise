@@ -25,8 +25,8 @@ function create(world,interiors,baseMeshes,{saved=[],legacyDamage=null,onProject
   const records=[...openings.values()].filter(o=>!controller||controller.isAlive(o.sourceId)).map(o=>({o,d:Math.hypot(o.point[0]-x,o.point[2]-z)})).filter(q=>q.d<=80).sort((a,b)=>a.d-b.d||a.o.id.localeCompare(b.o.id)).slice(0,8),key=records.map(q=>q.o.id).sort().join('|');if(key===selectionKey)return false;
   selectionKey=key;selected=records.map(({o})=>interiors.breachProjection({mesh:baseMeshes[o.index],point:o.point,buildingId:o.buildingId,floor:o.floor})).filter(Boolean);for(const bridge of selected)onProject(bridge);dirty=true;return true;
  }
- function rebuild(dc){controller=dc;if(!dc)return false;const groups=new Map();for(const o of openings.values()){if(!groups.has(o.index))groups.set(o.index,[]);groups.get(o.index).push(o);}const meshes=[];
-  for(const m of dc.meshes){const index=indices.has(m)?indices.get(m):Number(/^piece-(\d+)$/.exec(m.destructibleId||'')?.[1]),records=groups.get(index);if(records&&m.shape==='box')meshes.push(...hollow(m,records));else meshes.push(m);}
+ function rebuild(dc){controller=dc;if(!dc)return false;const groups=new Map();for(const o of openings.values()){if(!groups.has(o.index))groups.set(o.index,[]);groups.get(o.index).push(o);}const meshes=groups.size?[]:dc.meshes.slice();
+  if(groups.size)for(const m of dc.meshes){const index=indices.get(m)??Number(/^piece-(\d+)$/.exec(m.destructibleId||'')?.[1]),records=groups.get(index);if(records&&m.shape==='box')meshes.push(...hollow(m,records));else meshes.push(m);}
   lights=[];for(const bridge of selected){bridge.refresh();meshes.push(...bridge.scenery);lights.push(...bridge.lights);}world.replaceScenery(meshes);for(const bridge of selected)for(const collider of bridge.colliders)world.addBox({...collider});revision=dc.revision;dirty=false;return true;
  }
  function sync(dc,position){controller=dc;choose(position);return rebuild(dc);}

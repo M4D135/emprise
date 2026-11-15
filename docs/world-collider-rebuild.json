@@ -1,0 +1,30 @@
+{
+  "checks": [
+    "Real Marseille initial rebuild: exact collider order, bounds, candidate order and ray hits",
+    "Repeated identical scenery",
+    "120 material/scorch revisions preserve exact geometry",
+    "Sparse removal never touches any unrelated frozen bucket",
+    "Sparse reinsertion restores original relative ordering",
+    "In-place position, scale and all rotation components invalidate cached geometry",
+    "Caller edits to collider records are discarded by rebuild, exactly as before",
+    "Collision flag removes an existing collider",
+    "Vegetation classification excludes former collider",
+    "Collider can be re-enabled after exclusion",
+    "Sparse removals retain the original order of surviving colliders",
+    "Scenery reordering is reflected exactly in each bucket",
+    "Duplicate source-mesh occurrences remain distinct colliders; added rotated mesh crosses buckets",
+    "Repeated public addBox of a mutated object clears all stale bucket memberships",
+    "Bridge addBox records are removed and can be re-added on the next sync 0",
+    "Bridge addBox records are removed and can be re-added on the next sync 1",
+    "Bridge addBox records are removed and can be re-added on the next sync 2",
+    "Empty scenery clears all old buckets",
+    "Full restoration after empty world has exact collision/candidate/ray ordering"
+  ],
+  "originalMeshes": 115675,
+  "originalColliders": 33207,
+  "finalColliders": 32955,
+  "retainedUnchangedColliders": 33207,
+  "untouchedFrozenBuckets": 23885,
+  "source": "Exact old addBox/fromMesh/replaceScenery differential against the actual current Marseille world",
+  "timing": null
+}

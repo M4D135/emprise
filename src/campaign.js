@@ -66,7 +66,17 @@ function create(world,sim,layout,{saved=null,now=Date.now(),notify=()=>{}}={}){
   state.mapOwned=v.mapOwned===true;state.cash=Math.min(v.cash,1e9);state.xp=Math.max(0,Math.min(finite(v.xp),1e8));state.earned=Math.max(0,finite(v.earned));state.kills=Math.max(0,finite(v.kills));state.nextRaid=Math.max(30,Math.min(240,finite(v.nextRaid,115)));
   for(const item of v.sites){const s=sites.find(s=>s.id===item?.id);if(s&&Number.isInteger(item.gang)&&item.gang>=0&&item.gang<4){s.gang=item.gang;s.closed=!!item.closed;s.upgrade=Math.max(0,Math.min(3,Math.floor(finite(item.upgrade))));}}
   const elapsed=Math.max(0,Math.min(8*3600,(now-(Number(v.savedAt)||now))/1000));state.offline=income()*elapsed/60;state.cash+=state.offline;state.earned+=state.offline;
-  if(v.player&&inWorld(v.player.x,v.player.z,5)&&Number.isFinite(v.player.hp)&&v.player.hp>0){const q=world.freeNear(v.player.x,v.player.z,.34);sim.relocate(q[0],q[1],finite(v.player.yaw));Object.assign(p,{hp:Math.max(1,Math.min(100,v.player.hp))});}
+  if(v.player&&inWorld(v.player.x,v.player.z,5)&&Number.isFinite(v.player.hp)&&v.player.hp>0){
+   // Marine restore validates its own water/hull position later in session
+   // creation. Looking for dry land first used to abort saves in the harbour.
+   const afloat=!!R.marine&&[1,2].includes(v.marine?.version)&&['swim','boat'].includes(v.marine.mode);
+   if(!afloat){
+    let q=world.freeNear(v.player.x,v.player.z,.34,{required:false});
+    if(!q){const home=world.combatWorld.spawn;q=world.freeNear(home.x,home.z,.34);notify('Position sauvegardée impraticable · retour au point de départ. Votre progression est conservée.');}
+    sim.relocate(q[0],q[1],finite(v.player.yaw));
+   }
+   Object.assign(p,{hp:Math.max(1,Math.min(100,v.player.hp))});
+  }
   for(const data of Array.isArray(v.enemies)?v.enemies:[]){const e=sim.state.enemies[data?.id];if(!e||!inWorld(data.x,data.z))continue;Object.assign(e,{x:data.x,z:data.z,hp:Math.max(0,Math.min(e.maxHp,Number(data.hp)||0)),deployed:!!data.deployed,gang:Number.isInteger(data.gang)&&data.gang>=0&&data.gang<4?data.gang:e.gang});}
   state.active=sites.some(s=>s.id===v.active&&s.gang!==0)?v.active:null;state.hold=Math.min(4.9,Math.max(0,finite(v.hold)));
   if(v.raid&&Array.isArray(v.raid.ids)&&v.raid.ids.length&&sites.some(s=>s.id===v.raid.site)&&Number.isInteger(v.raid.gang)&&v.raid.gang>0&&v.raid.gang<4){state.raid={site:v.raid.site,gang:v.raid.gang,timer:Math.max(15,Math.min(200,finite(v.raid.timer,100))),ids:layout.reserves.filter(id=>(Array.isArray(v.raid.ids)?v.raid.ids:[]).includes(id)),presence:0};}

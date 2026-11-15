@@ -1,0 +1,43 @@
+{
+  "sourceHtmlSha256": "b6641fc16d61894c12af1ff0f5be4506ade18de670d1e8b841129bacafa514d3",
+  "checks": [
+    "Fatal avant première frame, détail replié, rechargement et annulation clavier sans effacement",
+    "Manette : annulation B, double choix explicite A, nouvelle partie réelle à 200 €, réglages conservés",
+    "Réinitialisation depuis le titre : pagehide ne ressuscite pas la progression effacée",
+    "Vraie ville et vraie session : reprise nage aux coordonnées du crash, santé et argent conservés"
+  ],
+  "controller": "Gamepad API virtuelle standard, aucune manette physique",
+  "screenshots": [
+    "fatal-recovery-fatal.png",
+    "fatal-recovery-confirmation.png",
+    "fatal-recovery-new-game.png",
+    "fatal-recovery-marine.png"
+  ],
+  "marine": {
+    "mode": "swim",
+    "player": {
+      "x": 9.89877439307345,
+      "y": -1.2,
+      "z": 176.93137656723448,
+      "yaw": 0.7,
+      "pitch": 0.2,
+      "hp": 56,
+      "heat": 0,
+      "overheated": false,
+      "dash": 0,
+      "dashing": 0,
+      "pulseCooldown": 0,
+      "airborne": false,
+      "airVX": 0,
+      "airVY": 0,
+      "airVZ": 0,
+      "airTime": 0,
+      "padCooldown": 0,
+      "padId": null
+    },
+    "cash": 871,
+    "water": true,
+    "errors": [],
+    "backend": "webgpu"
+  }
+}

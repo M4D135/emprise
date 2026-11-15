@@ -1,4 +1,10 @@
-# EMPRISE 0.6.0 — migration WebGPU du 15 novembre 2026
+# EMPRISE 0.6.1 — extérieur chargé et récupération
+
+Les mesures à charge identique sont détaillées dans [OUTDOOR-PERFORMANCE.md](OUTDOOR-PERFORMANCE.md). Le scénario conserve 960 PNJ, 39 véhicules de trafic et trois explosions réelles, sans modifier les réglages graphiques. Chaque rapport porte l’empreinte du HTML et de la fixture effectivement exécutés.
+
+La récupération est vérifiée par `save-recovery.mjs`, `fatal-recovery.mjs` et `fatal-recovery-browser.py`. Le dernier contrôle navigateur est consigné dans [fatal-recovery.json](fatal-recovery.json) : erreur avant la première frame, rechargement, annulation et confirmation à la manette virtuelle, effacement sans réécriture par `pagehide`, réglages conservés, reprise en nage aux coordonnées du signalement. Les tests utilisent des profils temporaires, sans toucher à la sauvegarde de David.
+
+## Historique 0.6.0 — migration WebGPU du 15 novembre 2026
 
 Le backend natif, le secours WebGL2 et la comparaison de cinq scènes sont détaillés dans [WEBGPU.md](WEBGPU.md). Le portage avant correction visuelle est mesuré dans [render-comparison.json](render-comparison.json), et le build final dans [render-final-comparison.json](render-final-comparison.json) ; le build et son empreinte sont dans `SIZE.json`. La migration ne change pas les règles de simulation ni les données du monde. Le signalement visuel suivant a ajouté un filtre solaire continu, une correction de pente pour la foule et le recalage de la garniture du montant arrière de la 205 ; les résultats de ces contrôles sont référencés dans `WEBGPU.md`.
 

@@ -20,10 +20,14 @@
 /* Procedural phone concept: all shapes and icons are DOM/CSS, no bitmap assets. */
 #phone-alert{position:absolute;right:30px;top:123px;pointer-events:auto;display:flex;align-items:center;gap:10px;border-radius:20px;padding:8px 12px;background:#172f3a99;font-size:10px;letter-spacing:1px}#phone-count{display:grid;place-items:center;min-width:18px;height:18px;border-radius:50%;background:#f4eee2;color:#17303a;font-size:10px}#phone{position:fixed;inset:0;z-index:11;background:linear-gradient(90deg,transparent 35%,#07131b55);display:flex;justify-content:flex-end;align-items:center;padding:28px 5vw 38px;backdrop-filter:blur(1px)}.phone-device{position:relative;width:350px;height:min(730px,87vh);padding:7px;border-radius:48px;background:linear-gradient(120deg,#d9ac88,#956b55 38%,#efd2b5 62%,#755241);box-shadow:0 24px 80px #0009,0 0 0 1px #432c20, inset 0 0 0 2px #f5dbc1a6}.phone-device:before,.phone-device:after{content:'';position:absolute;background:#b58969;width:3px;border-radius:3px;left:-3px}.phone-device:before{top:125px;height:55px}.phone-device:after{top:193px;height:55px}.phone-screen{height:100%;border:4px solid #090b0d;border-radius:42px;background:#f5f5f7;color:#17191d;overflow:hidden;display:flex;flex-direction:column;text-shadow:none}.phone-status{height:46px;min-height:46px;position:relative;display:flex;justify-content:space-between;align-items:center;padding:5px 24px 0;font-size:11px;font-weight:600}.phone-island{position:absolute;left:50%;top:8px;transform:translateX(-50%);width:106px;height:29px;border-radius:20px;background:#080a0d;box-shadow:inset -12px 0 7px #131a22}.phone-island:after{content:'';position:absolute;right:10px;top:10px;width:8px;height:8px;border-radius:50%;background:radial-gradient(#192e47,#05090e)}.phone-network{font-size:10px;letter-spacing:1px}.phone-toolbar{display:flex;align-items:center;gap:8px;height:40px;padding:0 16px;color:#72777e;font-size:11px}.phone-toolbar span{flex:1}.phone-toolbar button{padding:4px 9px;background:transparent;color:#3e647e;font-size:27px;line-height:1}#phone-back[hidden]{display:block!important;visibility:hidden}.phone-header{display:block;padding:10px 23px 18px}.phone-header h2{font-size:28px;letter-spacing:-1px;font-weight:700;margin:0 0 7px}.phone-header p{margin:0;font-size:11px;color:#777d85}#phone-content{overflow:auto;overscroll-behavior:contain;flex:1;padding:0 14px 22px}.phone-thread{width:100%;display:flex;gap:12px;align-items:center;text-align:left;padding:16px 7px;background:none;border-top:1px solid #17191d10;color:#17191d}.phone-thread>span:nth-child(2){flex:1;min-width:0}.phone-thread strong{display:block;font-size:14px;font-weight:600}.phone-thread small{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#7d8188;font-size:12px;line-height:1.7;margin-top:3px}.contact-avatar{display:grid;place-items:center;flex:none;width:40px;height:40px;border-radius:50%;background:linear-gradient(145deg,#e0e6e8,#cbd5db);color:#4e626e;font-size:17px}.unread-dot{background:#3c799f;color:white;border-radius:20px;padding:3px 6px;font-size:10px}.phone-empty{color:#828991;font-size:13px;text-align:center;margin-top:80px}.sms{margin:12px 6px 20px;padding:16px;background:#e7e9ec;border-radius:18px 18px 18px 5px;line-height:1.55;font-size:13px}.sms>strong{font-weight:600}.sms>p{white-space:pre-line;margin:9px 0}.sms>small{font-size:10px;color:#7b8189}.sms-hint{border-top:1px solid #0001;padding-top:10px;color:#405766;font-size:12px}.sms-actions{display:flex;gap:8px;margin-top:13px}.sms-actions button{flex:1;border-radius:12px;background:#2a657e;color:#fff;padding:11px 7px;font-size:12px}.sms-actions button+button{background:#d6dce1;color:#42535f}#phone-contract{margin:0 20px 12px;padding:10px 12px;border-radius:12px;background:#e2ebe7;color:#416252;font-size:11px;line-height:1.5}.phone-home{height:4px;width:100px;background:#20232a;border-radius:5px;margin:8px auto 10px;flex:none}.phone-model{position:absolute;bottom:-24px;left:0;width:100%;text-align:center;font-size:9px;letter-spacing:.7px;color:#d0d5d7;opacity:.65}.phone-context{position:absolute;bottom:12px;right:5vw;font-size:10px;color:#d5dcdf}#phone button:focus-visible{outline:2px solid #3280a8;outline-offset:-2px}body.pad #phone button:focus{outline:2px solid #3280a8;outline-offset:-2px}
 @media(max-height:650px){#phone{padding-top:10px;padding-bottom:32px}.phone-device{height:90vh;width:310px}.phone-header{padding-top:0}.phone-header h2{font-size:23px}.phone-model{display:none}}@media(max-width:450px){#phone{justify-content:center;padding-left:12px;padding-right:12px}.phone-device{width:min(350px,94vw)}#phone-alert{right:18px}}
+
+/* A failed load still offers working recovery controls, above the game UI. */
+#recovery{position:fixed;inset:0;z-index:30;display:grid;place-items:center;padding:24px;background:#122c35;overflow:auto}.recovery-card{width:min(560px,100%);padding:clamp(24px,5vw,48px);border:1px solid #ffffff20;border-radius:16px;background:#193640;box-shadow:0 24px 80px #0003}.recovery-card h2{font-size:clamp(26px,4vw,36px);line-height:1.12;letter-spacing:-1px;margin:22px 0 18px}.recovery-card p{font-size:15px;line-height:1.65;color:#d1dcde}.recovery-actions{display:grid;gap:10px;margin:28px 0}.recovery-actions button{padding:17px 20px;text-align:left;border-radius:8px;background:#f18b55;color:#142e36;font-weight:700;font-size:14px}.recovery-actions button+button{background:#ffffff0a;color:#ebefea;border:1px solid #ffffff35}.recovery-card details{font-size:12px;color:#afc4c8}.recovery-card summary{cursor:pointer;padding:8px 0}.recovery-card #recovery-detail{font:12px/1.6 monospace;overflow-wrap:anywhere;max-height:20vh;overflow:auto}.recovery-card small{display:block;margin-top:24px;font-size:11px;color:#a8bdc2;line-height:1.5}#reset-confirm{z-index:40;background:#0d2631de}#reset-error{padding:12px;background:#b83c2520;color:#842d20;font-size:13px}
 </style></head><body>
 <canvas id="scene" aria-label="Monde 3D de Marseille"></canvas>
 <div id="loading">EMPRISE <span>Construction de Marseille…</span></div>
-<section id="title" hidden><div class="eyebrow">MARSEILLE · 43°17′ N  5°22′ E</div><h1>EMPRISE<span>.</span></h1><div class="game-version" aria-label="Version 0.6.0">V0.6.0 <small>FERRO · BUILD 31cd866fea</small></div><div class="subtitle">Le pouvoir se prend, quartier par quartier.</div><p>Le port a ses commerces, ses territoires et ses dettes.<br>Observez. Choisissez vos alliances et vos affrontements.<br><span id="saved-status"></span></p><button id="start">ENTRER DANS LA VILLE <b>↗</b></button><button id="title-controls" class="secondary">MANETTE / COMMANDES</button><small id="pad-status"></small><div class="titlefooter">01 / VIEUX-PORT <span>SOLO PERSISTANT · TERRITOIRES · RISQUES</span></div></section>
+<section id="recovery" hidden role="alertdialog" aria-modal="true" aria-labelledby="recovery-title" aria-describedby="recovery-message"><div class="recovery-card"><div class="eyebrow">EMPRISE</div><h2 id="recovery-title">La partie s’est interrompue.</h2><p id="recovery-message">Votre sauvegarde est conservée. Vous pouvez la recharger ou commencer une nouvelle partie.</p><div class="recovery-actions"><button id="fatal-reload">Recharger la partie</button><button id="fatal-reset">Nouvelle partie</button></div><details><summary>Détail de l’erreur</summary><p id="recovery-detail"></p></details><small>Clavier : Tab, Entrée · Manette : croix, bouton de validation</small></div></section>
+<section id="title" hidden><div class="eyebrow">MARSEILLE · 43°17′ N  5°22′ E</div><h1>EMPRISE<span>.</span></h1><div class="game-version" aria-label="Version 0.6.1">V0.6.1 <small>FERRO · BUILD f5b5cb7682</small></div><div class="subtitle">Le pouvoir se prend, quartier par quartier.</div><p>Le port a ses commerces, ses territoires et ses dettes.<br>Observez. Choisissez vos alliances et vos affrontements.<br><span id="saved-status"></span></p><button id="start">ENTRER DANS LA VILLE <b>↗</b></button><button id="title-controls" class="secondary">MANETTE / COMMANDES</button><button id="title-reset" class="secondary">NOUVELLE PARTIE</button><small id="pad-status"></small><div class="titlefooter">01 / VIEUX-PORT <span>SOLO PERSISTANT · TERRITOIRES · RISQUES</span></div></section>
 <div id="hud" hidden><header><div class="brand">EMPRISE<span>.</span><small>MARSEILLE</small></div><div class="wallet"><b id="cash"></b><div id="wanted"></div><small id="law"></small></div><button id="pause" aria-label="Mettre en pause" title="Pause · P">Ⅱ</button><div class="stats"><span id="perf">60 FPS</span></div></header><div id="compass" aria-label="Boussole"><b id="compass-heading">N</b><span id="compass-degrees">000°</span></div><button id="phone-alert" hidden aria-label="Lire les nouveaux messages"><span>SMS</span><b id="phone-count"></b></button><div id="sailing" hidden><div class="wind-vane" aria-label="Direction du vent"><span>N</span><b id="wind-arrow">↑</b></div><div><strong id="sail-station"></strong><p id="sail-summary"></p><p id="sail-catch"></p><small id="sail-keys"></small></div></div><section id="objective" hidden><span class="label">AFFRONTEMENT EN COURS</span><h2 id="task"></h2><div id="progress"></div></section><div id="target"></div><div id="cross">·</div><div id="hit" hidden>×</div><div id="notice" role="status"></div><div id="vehicle"><span id="mode">À PIED</span><strong id="speed">100 <small>PV</small></strong><div id="engine">MITRAILLETTE · 1 / 2</div><div id="heat"><i></i></div></div><footer><span id="keys">ZQSD / WASD marcher · Maj courir · E véhicule · Clic tirer</span><button id="sound">SON ON</button></footer><div class="credit">© contributeurs OpenStreetMap · OpenFreeMap · ODbL · Hauteurs IGN BD TOPO</div></div>
 <section id="paused" hidden><div class="panel"><div class="eyebrow">EMPRISE / PROGRESSION SOLO</div><h2 id="pauseTitle">Une pause sur le quai.</h2><div id="ledger"></div><button id="pause-controls" class="secondary">MANETTE / COMMANDES</button><button id="pause-notebook" class="secondary">CARNET DU RÉSEAU · J</button><button id="pause-actions" class="secondary">ACTIONS</button><div class="graphics"><label><input id="reflections" type="checkbox" checked> Reflets de la scène</label><label><input id="shadows" type="checkbox" checked> Ombres dynamiques</label></div><p>ZQSD / WASD : se déplacer ou conduire<br>Maj : courir · E : entrer / sortir / éjecter le conducteur · contact automatique (F pour couper)<br>S : freiner, puis reculer · Espace : frein à main / esquive · Maj au volant : frein à main<br>H : changer de couleur · C : changer de vue · Molette : zoom FPS / troisième personne · Souris : viser · Clic : tirer<br>1 / 2 / 3 : armes, dont roquettes · V : crosse · R : onde<br>G : saisir / poser · B : lancer · I : incendier · T : réparer au garage<br>O : téléphone / SMS · J : carnet du réseau · M : consulter votre plan (achat requis)<br>Voilier : C change de poste, A/D oriente, W/S déploie la voile<br>Échap : pause · Glisser pour viser si capture refusée</p><label class="paint">COULEUR DU VÉHICULE <input id="paint" type="color" value="#bb2729" aria-label="Couleur du véhicule"></label><button id="resume">REPRENDRE ↗</button><button id="restart" class="secondary">EFFACER LA PROGRESSION</button></div></section>
 <div id="touch" hidden><button data-key="KeyW">↑</button><button data-key="KeyA">←</button><button data-key="KeyS">↓</button><button data-key="KeyD">→</button><button data-key="KeyE">E</button><button data-key="KeyF">F</button><button data-action="fire">TIR</button></div>
@@ -33,11 +37,11 @@
 <section id="cityplan" class="dialog" hidden><div class="map-paper"><header><div><span id="map-origin"></span><h2>Marseille / Vieux-Port</h2></div><button id="map-extent">VOIR MARSEILLE</button><button id="close-map">REPLIER ×</button></header><canvas id="city-map" width="760" height="750" aria-label="Plan de Marseille consultable"></canvas><p>■ Votre équipe · bleu : Marins · orange : Cendres · violet : Onyx</p><small>Pas de GPS ni de positions ennemies. Le temps continue.</small></div></section>
 <section id="controls" class="dialog" hidden><div class="paper"><span class="eyebrow">MANETTE</span><h2>À pied comme au volant.</h2><p id="pad-help"></p><label>Sensibilité <input id="pad-sensitivity" type="range" min="0.25" max="2" step="0.05"></label><label>Zone morte <input id="pad-deadzone" type="range" min="0.05" max="0.35" step="0.01"></label><label>Vibrations <input id="pad-vibration" type="range" min="0" max="1" step="0.05"></label><label><input id="pad-invert" type="checkbox"> Inverser la visée verticale</label><button id="close-controls">RETOUR</button></div></section>
 <section id="actions" class="dialog" hidden><div class="paper"><span class="eyebrow">ACTIONS</span><h2>À portée de main.</h2><div id="action-list"></div><button id="close-actions">RETOUR</button><small>Le monde continue pendant ce choix.</small></div></section>
-<section id="reset-confirm" class="dialog" hidden><div class="paper"><h2>Effacer la progression ?</h2><p>Les territoires, les revenus et la sauvegarde de cette partie seront supprimés.</p><button id="cancel-reset">CONSERVER LA PARTIE</button><button id="confirm-reset">EFFACER ET RECOMMENCER</button></div></section>
+<section id="reset-confirm" class="dialog" hidden role="alertdialog" aria-modal="true" aria-labelledby="reset-title" aria-describedby="reset-description"><div class="paper"><h2 id="reset-title">Commencer une nouvelle partie ?</h2><p id="reset-description">Les territoires, les revenus et la sauvegarde de cette partie seront supprimés. Vos réglages seront conservés.</p><p id="reset-error" role="alert" hidden></p><button id="cancel-reset">CONSERVER LA PARTIE</button><button id="confirm-reset">EFFACER ET RECOMMENCER</button></div></section>
 <section id="notebook" class="dialog" hidden><div class="paper notebook"><span class="eyebrow">NOTES PERSONNELLES</span><h2>Le carnet du réseau.</h2><div id="notebook-summary"></div><div id="notebook-mission"></div><h3>Adresses et territoires</h3><div id="notebook-places"></div><h3>Dans votre sac</h3><div id="notebook-inventory"></div><h3>Derniers événements</h3><ol id="notebook-history"></ol><button id="close-notebook">REFERMER · J / ÉCHAP</button><small>Ces notes ne donnent aucune position en direct. Le temps continue pendant leur lecture.</small></div></section>
 <section id="phone" hidden aria-label="Téléphone et messages"><div class="phone-device"><div class="phone-screen"><div class="phone-status"><span id="phone-clock">09:41</span><i class="phone-island"></i><span class="phone-network">▂▄▆ <span>▰</span></span></div><div class="phone-toolbar"><button id="phone-back" aria-label="Conversations">‹</button><span>Messages</span><button id="close-phone" aria-label="Ranger le téléphone">×</button></div><header class="phone-header"><h2 id="phone-heading">Messages</h2><p id="phone-subtitle"></p></header><div id="phone-contract" hidden></div><div id="phone-content"></div><div class="phone-home"></div></div><small class="phone-model">iPhone 18 Pro Max · concept EMPRISE</small></div><small class="phone-context">O / Échap pour ranger · Le monde continue</small></section>
 <script>
-globalThis.RADE={build:{"version": "0.6.0", "name": "Rendu natif", "engine": "FERRO", "title": "EMPRISE", "id": "31cd866fea"}};
+globalThis.RADE={build:{"version": "0.6.1", "name": "Ville active", "engine": "FERRO", "title": "EMPRISE", "id": "f5b5cb7682"}};
 /* RADE FERRO 0.1 — base PDR, formes libres BITUME; voir docs/INTEGRATION.md. */
 /* FERRO — original WebGL2 renderer. All surfaces and meshes are mathematical. */
 /* PDR (origine) : copie de FERRO 0.2 pour Point de rupture (github.com/M4D135/FERRO, étiquette v0.2, commit 248043a).
@@ -873,14 +877,15 @@ globalThis.RADE={build:{"version": "0.6.0", "name": "Rendu natif", "engine": "FE
   })();
   function foliageTriangles(){return FOLIAGE.triangles;}
   const names = ['box','sphere','cylinder','octa','ring','bevel','foliage','wedge']; // BITUME : 'wedge'
+  const shapeIndices=new Map(names.map((name,i)=>[name,i]));
   // BITUME : formes libres (carènes, mains). Une forme libre est une liste de triangles [p0, p1, p2, n0, n1, n2] tenue
   // dans le cube unité (−0,5 à 0,5) ; l'instance porte sa vraie taille dans s. Les normales sont celles du cube : le
   // nuanceur les divise par s, ce qui rend la normale du volume à sa vraie taille. Enregistrer avant FRender.create.
   const FORMES_LIBRES=new Map();
   function forme(nom,triangles){
     if(typeof nom!=='string'||!Array.isArray(triangles))throw new TypeError('forme(nom, triangles)');
-    if(!FORMES_LIBRES.has(nom)&&names.includes(nom))throw new Error('forme déjà définie par le moteur : '+nom);
-    if(!names.includes(nom))names.push(nom);
+    if(!FORMES_LIBRES.has(nom)&&shapeIndices.has(nom))throw new Error('forme déjà définie par le moteur : '+nom);
+    if(!shapeIndices.has(nom)){shapeIndices.set(nom,names.length);names.push(nom);}
     FORMES_LIBRES.set(nom,triangles);
   }
   const INDEX_OCTETS=4; // BITUME : index sur 32 bits, les formes libres dépassent les 65 536 sommets
@@ -1023,8 +1028,8 @@ globalThis.RADE={build:{"version": "0.6.0", "name": "Rendu natif", "engine": "FE
   function pack(meshes,environment,objects=false) {
     const grouped=names.map(()=>[]);
     for(const mesh of meshes||[]) {
-      const i=names.indexOf(mesh.shape||'box');
-      if(i>=0) grouped[i].push(mesh);
+      const i=shapeIndices.get(mesh.shape||'box');
+      if(i!==undefined) grouped[i].push(mesh);
     }
     const count=grouped.reduce((n,g)=>n+g.length,0),values=new Float32Array(count*16),groups=[];
     let offset=0;
@@ -1039,9 +1044,27 @@ globalThis.RADE={build:{"version": "0.6.0", "name": "Rendu natif", "engine": "FE
     }
     return {values,groups};
   }
+  // A renderer owns each workspace. Returned batches remain valid until its
+  // next call; the public pack() above still returns independent storage.
+  function instancePacker(){
+    let counts=new Uint32Array(0),next=new Uint32Array(0),storage=new Float32Array(0),active=new Float32Array(0);
+    const groups=[],records=[],batch={values:active,groups},zero=[0,0,0],one=[1,1,1];
+    return (meshes,environment,objects=false)=>{
+      if(counts.length<names.length){counts=new Uint32Array(names.length);next=new Uint32Array(names.length);}
+      else counts.fill(0);
+      let total=0;for(const mesh of meshes||[]){const i=shapeIndices.get(mesh.shape||'box');if(i!==undefined){counts[i]++;total++;}}
+      const required=total*16;if(storage.length<required)storage=new Float32Array(Math.max(required,storage.length*2,256));
+      if(active.buffer!==storage.buffer||active.length!==required)active=storage.subarray(0,required);batch.values=active;groups.length=0;
+      let offset=0;for(let i=0;i<names.length;i++){next[i]=offset;if(counts[i]){const group=records[i]||(records[i]={name:names[i],offset:0,count:0});group.offset=offset*4;group.count=counts[i];groups.push(group);offset+=counts[i]*16;}}
+      for(const mesh of meshes||[]){const i=shapeIndices.get(mesh.shape||'box');if(i===undefined)continue;const at=next[i];next[i]+=16;
+        const p=mesh.p||zero,s=mesh.s||one,r=mesh.r||zero,c=mesh.color||zero;
+        active[at]=p[0];active[at+1]=p[1];active[at+2]=p[2];active[at+3]=mesh.mat||0;active[at+4]=s[0];active[at+5]=s[1];active[at+6]=s[2];active[at+7]=mesh.emissive||0;active[at+8]=r[0];active[at+9]=r[1];active[at+10]=r[2];active[at+11]=surfaceFlags(mesh,environment,objects);active[at+12]=c[0];active[at+13]=c[1];active[at+14]=c[2];active[at+15]=mesh.color?1:0;
+      }return batch;
+    };
+  }
   function packEffects(meshes,environment,eye){
     const distance=m=>(m.p[0]-eye[0])**2+(m.p[1]-eye[1])**2+(m.p[2]-eye[2])**2;
-    const list=meshes.filter(m=>names.includes(m.shape||'sphere')&&m.alpha>.003).slice().sort((a,b)=>distance(b)-distance(a));
+    const list=meshes.filter(m=>shapeIndices.has(m.shape||'sphere')&&m.alpha>.003).sort((a,b)=>distance(b)-distance(a));
     const values=new Float32Array(list.length*16),groups=[];let offset=0;
     for(const mesh of list){
       const name=mesh.shape||'sphere',last=groups[groups.length-1];
@@ -1051,6 +1074,26 @@ globalThis.RADE={build:{"version": "0.6.0", "name": "Rendu natif", "engine": "FE
       values[offset]=p[0];values[offset+1]=p[1];values[offset+2]=p[2];values[offset+3]=material;values[offset+4]=s[0];values[offset+5]=s[1];values[offset+6]=s[2];values[offset+7]=mesh.emissive||0;values[offset+8]=r[0];values[offset+9]=r[1];values[offset+10]=r[2];values[offset+11]=surfaceFlags(mesh,environment,true);values[offset+12]=c[0];values[offset+13]=c[1];values[offset+14]=c[2];values[offset+15]=Math.min(1,Math.max(0,mesh.alpha));offset+=16;
     }
     return {values,groups};
+  }
+  function effectsPacker(){
+    const order=[],records=[],groups=[],groupRecords=[],zero=[0,0,0],one=[1,1,1],gray=[.5,.5,.5];
+    let storage=new Float32Array(0),active=new Float32Array(0),previous=0;const batch={values:active,groups};
+    return (meshes,environment,eye)=>{
+      order.length=0;let count=0;
+      for(const mesh of meshes){if(!shapeIndices.has(mesh.shape||'sphere')||!(mesh.alpha>.003))continue;
+        const record=records[count]||(records[count]={mesh:null,distance:0,index:0});record.mesh=mesh;record.distance=(mesh.p[0]-eye[0])**2+(mesh.p[1]-eye[1])**2+(mesh.p[2]-eye[2])**2;record.index=count++;order.push(record);
+      }
+      for(let i=count;i<previous;i++)records[i].mesh=null;previous=count;
+      // The tie break preserves the input order of the original stable sort.
+      order.sort((a,b)=>(b.distance-a.distance)||a.index-b.index);
+      const required=count*16;if(storage.length<required)storage=new Float32Array(Math.max(required,storage.length*2,256));
+      if(active.buffer!==storage.buffer||active.length!==required)active=storage.subarray(0,required);batch.values=active;groups.length=0;let offset=0;
+      for(const record of order){const mesh=record.mesh,name=mesh.shape||'sphere',last=groups[groups.length-1];
+        if(last&&last.name===name)last.count++;else{const group=groupRecords[groups.length]||(groupRecords[groups.length]={name:'',offset:0,count:0});group.name=name;group.offset=offset*4;group.count=1;groups.push(group);}
+        const p=mesh.p,s=mesh.s||one,r=mesh.r||zero,c=mesh.color||gray,material=mesh.window?18:mesh.shape==='ring'&&Number.isFinite(mesh.innerRatio)?20+Math.min(.999,Math.max(0,mesh.innerRatio)):mesh.fxPriority==='hazard'?16:mesh.fxFire?14:mesh.fxSmoke?15:mesh.fxSpark?17:7;
+        active[offset]=p[0];active[offset+1]=p[1];active[offset+2]=p[2];active[offset+3]=material;active[offset+4]=s[0];active[offset+5]=s[1];active[offset+6]=s[2];active[offset+7]=mesh.emissive||0;active[offset+8]=r[0];active[offset+9]=r[1];active[offset+10]=r[2];active[offset+11]=surfaceFlags(mesh,environment,true);active[offset+12]=c[0];active[offset+13]=c[1];active[offset+14]=c[2];active[offset+15]=Math.min(1,Math.max(0,mesh.alpha));offset+=16;
+      }return batch;
+    };
   }
 
   function multiply(a,b,out) {
@@ -1108,33 +1151,107 @@ globalThis.RADE={build:{"version": "0.6.0", "name": "Rendu natif", "engine": "FE
     };
   }
   function metadata(mesh){
-    return {mesh,p:mesh.p||[0,0,0],radius:Math.hypot(...(mesh.s||[1,1,1]))*.5,detail:Math.max(0,Math.min(2,Math.floor(mesh.detail||0))),software:null,softwareCoarse:null};
+    return {mesh,renderRevision:mesh.renderRevision||0,p:mesh.p||[0,0,0],radius:Math.hypot(...(mesh.s||[1,1,1]))*.5,detail:Math.max(0,Math.min(2,Math.floor(mesh.detail||0))),software:null,softwareCoarse:null};
   }
-  function spatialIndex(meshes,environment,previous){
-    const levels=[new Map(),new Map(),new Map()],large=[[],[],[]],maxRadius=[0,0,0],entries=[],byMesh=new WeakMap();
-    for(const mesh of meshes||[]){
-      // Destruction replaces changed meshes; retained immutable meshes keep
-      // their instance rows and expensive Canvas face/lighting caches.
-      const retained=previous&&previous.byMesh.get(mesh),e=retained||metadata(mesh),key=Math.floor(e.p[0]/8)+','+Math.floor(e.p[2]/8),map=levels[e.detail];
-      if(e.radius>32)large[e.detail].push(e);else{if(!map.has(key))map.set(key,[]);map.get(key).push(e);maxRadius[e.detail]=Math.max(maxRadius[e.detail],e.radius);}
-      if(!retained){const p=e.p,s=mesh.s||[1,1,1],r=mesh.r||[0,0,0],c=mesh.color||[0,0,0];
-        e.row=new Float32Array([p[0],p[1],p[2],mesh.mat||0,s[0],s[1],s[2],mesh.emissive||0,r[0],r[1],r[2],surfaceFlags(mesh,environment),c[0],c[1],c[2],mesh.color?1:0]);}
-      entries.push(e);byMesh.set(mesh,e);
+  function partitionWorld(meshes){
+    const world=[],background=[],source=meshes||[];
+    for(let i=0;i<source.length;i++){const mesh=source[i];if(mesh===undefined&&!(i in source))continue;(mesh.backgroundWater?background:world).push(mesh);}
+    return {world,background};
+  }
+  function sameChunkCategory(c,e){const m=e.mesh,p=e.p,s=m.s;return s.length===3&&c.x===p[0]&&c.y===p[1]&&c.z===p[2]&&c.sx===s[0]&&c.sy===s[1]&&c.sz===s[2]&&c.detail===m.detail&&c.ground===(m.ground===true)&&c.radius===e.radius;}
+  function planChunks(index,chunks,categories,state){
+    const categoryFor=e=>{let c=categories.get(e);if(!c||!sameChunkCategory(c,e)){
+      const m=e.mesh,p=e.p,s=m.s,size=Math.max(...s),ground=m.ground===true||(s[1]<.15&&p[1]+s[1]/2<.24),range=m.detail===2?65:m.detail===1?130:ground||size>4?6000:size<.65?75:180,cell=range<6000?32:128;
+      c={key:Math.floor(p[0]/cell)+','+Math.floor(p[2]/cell)+','+range+','+(e.radius>40?'large':'small'),range,x:p[0],y:p[1],z:p[2],sx:s[0],sy:s[1],sz:s[2],detail:m.detail,ground:m.ground===true,radius:e.radius};categories.set(e,c);
+    }e.chunkCategory=c;return c;};
+    const delta=index.delta,incremental=chunks.size&&delta&&!delta.full&&state.index===index&&state.epoch===delta.fromEpoch;
+    state.index=index;state.epoch=delta?.epoch;state.incremental=!!incremental;state.entriesVisited=0;
+    if(incremental){
+      const erased=new Set([...delta.removed,...delta.changed]),keys=new Set(),additions=new Map();
+      for(const e of erased){const c=categories.get(e);if(c)keys.add(c.key);}
+      for(const e of [...delta.added,...delta.changed]){const c=categoryFor(e);keys.add(c.key);let list=additions.get(c.key);if(!list){list=[];additions.set(c.key,list);}list.push(e);}
+      const edited=[];
+      for(const key of keys){
+        const old=chunks.get(key),added=additions.get(key)||[],entries=(old?.entries||[]).filter(e=>!erased.has(e));entries.push(...added);entries.sort((a,b)=>a.ordinal-b.ordinal);state.entriesVisited+=(old?.entries.length||0)+added.length;if(!entries.length)continue;
+        const c=old||{range:categoryFor(entries[0]).range,entries:[]};c.nextCount=entries.length;c.nextEntries=c.entries.length===entries.length&&entries.every((e,i)=>e===c.entries[i])?null:entries;edited.push([key,c,entries[0].ordinal]);
+      }
+      edited.sort((a,b)=>a[2]-b[2]);const next=new Map();let at=0;
+      // Unchanged chunks retain relative order. Merge only the affected chunks
+      // at their new first occurrence; even depth ties keep the original order.
+      for(const [key,c] of chunks){if(keys.has(key))continue;const ordinal=c.entries[0].ordinal;while(at<edited.length&&edited[at][2]<ordinal){next.set(edited[at][0],edited[at][1]);at++;}c.nextEntries=null;c.nextCount=c.entries.length;next.set(key,c);}
+      while(at<edited.length){next.set(edited[at][0],edited[at][1]);at++;}return next;
+    }
+    const next=new Map();for(const e of index.entries){state.entriesVisited++;const category=categoryFor(e);let c=next.get(category.key);
+      if(!c){c=chunks.get(category.key)||{range:category.range,entries:[]};c.nextEntries=null;c.nextCount=0;next.set(category.key,c);}
+      if(c.nextEntries)c.nextEntries.push(e);else if(c.entries[c.nextCount]!==e){c.nextEntries=c.entries.slice(0,c.nextCount);c.nextEntries.push(e);}c.nextCount++;
+    }return next;
+  }
+  function spatialIndex(meshes,environment,previous,options){
+    if(previous?.reconcile)return previous.reconcile(meshes,environment,options);
+    const levels=[new Map(),new Map(),new Map()],large=[0,1,2].map(()=>({entries:[],epoch:0,count:0,next:null})),maxRadius=[0,0,0],byMesh=new WeakMap();let epoch=0;
+    const index={entries:[],query,byMesh,reconcile};
+    function append(bucket,e){
+      if(bucket.epoch!==epoch){bucket.epoch=epoch;bucket.count=0;bucket.next=null;}
+      if(bucket.next)bucket.next.push(e);
+      else if(bucket.entries[bucket.count]!==e){bucket.next=bucket.entries.slice(0,bucket.count);bucket.next.push(e);}
+      bucket.count++;
+    }
+    function finish(bucket){
+      if(bucket.epoch!==epoch){bucket.entries=[];return false;}
+      if(bucket.next)bucket.entries=bucket.next;
+      else if(bucket.count!==bucket.entries.length)bucket.entries=bucket.entries.slice(0,bucket.count);
+      bucket.next=null;return true;
+    }
+    function reconcile(list,env,options){
+      // Opt-in producer contract: retained identity + renderRevision guarantees
+      // every render/spatial property (including p/s/r/color array contents)
+      // is unchanged. A revised mesh always receives complete new metadata.
+      const revisionedMeshes=options?.revisionedMeshes===true;
+      const priorEpoch=epoch++,priorDuplicates=index.duplicates,priorEntries=index.entries,entries=[],added=[],removed=[],changed=[];let lastOrdinal=-1,cursor=0,reordered=false,duplicates=false;
+      for(const mesh of list||[]){
+        // Stable scene order permits a direct reference read. A changed list
+        // resynchronizes through the map; duplicates keep its original rules.
+        const candidate=priorDuplicates?null:priorEntries[cursor],prior=candidate?.mesh===mesh&&candidate.indexEpoch===priorEpoch?candidate:byMesh.get(mesh);
+        if(prior?.indexEpoch===priorEpoch&&prior.ordinal>=cursor)cursor=prior.ordinal+1;
+        const duplicate=prior?.indexEpoch===epoch,retained=prior&&(prior.indexEpoch===priorEpoch||prior.retainedEpoch===epoch)&&prior.renderRevision===(mesh.renderRevision||0)?prior:null,e=retained||metadata(mesh);
+        if(duplicate)duplicates=true;
+        if(retained){
+          if(!duplicate){if(e.ordinal<=lastOrdinal)reordered=true;lastOrdinal=e.ordinal;}
+          e.retainedEpoch=epoch;if(!revisionedMeshes&&e.chunkCategory&&!sameChunkCategory(e.chunkCategory,e))changed.push(e);
+        }
+        else{
+          const p=e.p,s=mesh.s||[1,1,1],r=mesh.r||[0,0,0],c=mesh.color||[0,0,0];
+          e.row=new Float32Array([p[0],p[1],p[2],mesh.mat||0,s[0],s[1],s[2],mesh.emissive||0,r[0],r[1],r[2],surfaceFlags(mesh,env),c[0],c[1],c[2],mesh.color?1:0]);
+          byMesh.set(mesh,e);
+          if(priorEpoch)added.push(e);
+        }
+        if(!e.indexBucket||(!revisionedMeshes&&(e.indexPX!==e.p[0]||e.indexPZ!==e.p[2]||e.indexRadius!==e.radius||e.indexDetail!==e.detail))){
+          if(e.radius>32)e.indexBucket=large[e.detail];
+          else{const key=Math.floor(e.p[0]/8)+','+Math.floor(e.p[2]/8),map=levels[e.detail];let bucket=map.get(key);if(!bucket){bucket={entries:[],epoch:0,count:0,next:null};map.set(key,bucket);}e.indexBucket=bucket;maxRadius[e.detail]=Math.max(maxRadius[e.detail],e.radius);}
+          e.indexPX=e.p[0];e.indexPZ=e.p[2];e.indexRadius=e.radius;e.indexDetail=e.detail;
+        }
+        e.indexEpoch=epoch;e.ordinal=entries.length;append(e.indexBucket,e);entries.push(e);
+      }
+      for(const e of index.entries)if(e.indexEpoch!==epoch){removed.push(e);if(byMesh.get(e.mesh)===e)byMesh.delete(e.mesh);}
+      for(let level=0;level<3;level++){finish(large[level]);for(const [key,bucket] of levels[level])if(!finish(bucket))levels[level].delete(key);}
+      index.entries=entries;index.duplicates=duplicates;index.delta={fromEpoch:priorEpoch,epoch,added,removed,changed,full:!priorEpoch||reordered||duplicates||priorDuplicates||added.length+removed.length>Math.max(64,entries.length/4)};return index;
     }
     function query(eye,ranges){
       const result=[];
       for(let level=0;level<3;level++){
         const range=ranges[level];if(!(range>0))continue;
-        for(const e of large[level]){const d=(e.p[0]-eye[0])**2+(e.p[1]-eye[1])**2+(e.p[2]-eye[2])**2;if(d<=(range+e.radius)**2)result.push(e);}
+        for(const e of large[level].entries){const d=(e.p[0]-eye[0])**2+(e.p[1]-eye[1])**2+(e.p[2]-eye[2])**2;if(d<=(range+e.radius)**2)result.push(e);}
+        // Keeping the largest previous radius is conservative: the exact same
+        // distance test below rejects any extra buckets visited after removals.
         const radius=range+maxRadius[level];
         for(let x=Math.floor((eye[0]-radius)/8);x<=Math.floor((eye[0]+radius)/8);x++)for(let z=Math.floor((eye[2]-radius)/8);z<=Math.floor((eye[2]+radius)/8);z++){
           const bucket=levels[level].get(x+','+z);if(!bucket)continue;
-          for(const e of bucket){const d=(e.p[0]-eye[0])**2+(e.p[1]-eye[1])**2+(e.p[2]-eye[2])**2;if(d<=(range+e.radius)**2)result.push(e);}
+          for(const e of bucket.entries){const d=(e.p[0]-eye[0])**2+(e.p[1]-eye[1])**2+(e.p[2]-eye[2])**2;if(d<=(range+e.radius)**2)result.push(e);}
         }
       }
       return result;
     }
-    return {entries,query,byMesh};
+    return reconcile(meshes,environment,options);
   }
   function visible(e,eye,axes,horizontal,vertical,far){
     const x=e.p[0]-eye[0],y=e.p[1]-eye[1],d=e.p[2]-eye[2],f=axes.forward,right=axes.right,up=axes.up;
@@ -1142,7 +1259,7 @@ globalThis.RADE={build:{"version": "0.6.0", "name": "Rendu natif", "engine": "FE
     return z+r>.04&&z-r<far&&Math.abs(x*right[0]+y*right[1]+d*right[2])<=z*horizontal+r*Math.sqrt(1+horizontal*horizontal)&&Math.abs(x*up[0]+y*up[1]+d*up[2])<=z*vertical+r*Math.sqrt(1+vertical*vertical);
   }
   function packIndexed(entries){
-    const buckets=names.map(()=>[]);for(const e of entries){const i=names.indexOf(e.mesh.shape||'box');if(i>=0)buckets[i].push(e);}
+    const buckets=names.map(()=>[]);for(const e of entries){const i=shapeIndices.get(e.mesh.shape||'box');if(i!==undefined)buckets[i].push(e);}
     const values=new Float32Array(entries.length*16),groups=[];let offset=0;
     for(let i=0;i<names.length;i++)if(buckets[i].length){groups.push({name:names[i],offset:offset*4,count:buckets[i].length});for(const e of buckets[i]){values.set(e.row,offset);offset+=16;}}
     return {values,groups};
@@ -1304,11 +1421,11 @@ globalThis.RADE={build:{"version": "0.6.0", "name": "Rendu natif", "engine": "FE
       shadowGeometry=new WeakMap();staticCasterPlan=null;for(const e of world.entries)shadowGeometry.set(e.mesh,null);
       worldRevision=0;stats.worldRevision=0;stats.staticTotal=world.entries.length;stats.biome=environment?environment.biome:null;
     }
-    function updateWorld(meshes,revision,points){
+    function updateWorld(meshes,revision,points,updateOptions){
       if(disposed||revision===worldRevision)return false;
       const changedLights=Array.isArray(points)&&(points.length!==lights.length||points.some((light,i)=>light!==lights[i]));
       if(changedLights)lights=points;
-      const next=meshes||[],ground=next.some(mesh=>mesh.ground===true);world=spatialIndex(next,environment,world);
+      const next=meshes||[],ground=next.some(mesh=>mesh.ground===true);world=spatialIndex(next,environment,world,updateOptions);
       // Legacy scenes infer the floor. Switching that rule invalidates their
       // receiver classification, even for otherwise unchanged surfaces.
       if(ground!==explicitGround||changedLights)for(const e of world.entries)e.software=e.softwareCoarse=null;
@@ -1649,6 +1766,8 @@ globalThis.RADE={build:{"version": "0.6.0", "name": "Rendu natif", "engine": "FE
     let post=null,shadowTarget=null,whiteTexture=null,pbrTextures=[],targetKey='',shadowKey='',shadowLight=null;
     let world=[],worldIndex=spatialIndex([]),backgroundIndex=spatialIndex([]),lights=[],environment=null,worldBatch=pack([]),quality='auto',disposed=false,worldRevision=0;
     let staticCaches=[],lampCasters=[],actorLightPlan=null;
+    const packDynamic=instancePacker(),packOverlay=instancePacker(),packFx=effectsPacker();
+    const ordinary=[],overlay=[],particles=[],overlayParticles=[];
     // BITUME : nappes (chaussée, accotements, terrain : triangles continus, matière et couleur par sommet) et lots
     // de décor (instances statiques groupées par portion de circuit, chacune avec sa version lointaine allégée).
     let nappes=[],nappeVao=null,nappeVbo=null,nappeIbo=null,lots=[];
@@ -1843,44 +1962,32 @@ globalThis.RADE={build:{"version": "0.6.0", "name": "Rendu natif", "engine": "FE
     }
 
     function updateShape(name,vertices){const range=source.ranges[name];if(!range||vertices.length!==range.count*6)throw new Error('Shape vertex count changed: '+name);const start=source.indices[range.offset/INDEX_OCTETS]*6;source.vertices.set(vertices,start);if(!stats.contextLost){gl.bindBuffer(gl.ARRAY_BUFFER,vbo);gl.bufferSubData(gl.ARRAY_BUFFER,start*4,vertices);}}
-    let chunks=new Map();const chunkCategories=new WeakMap();
+    let chunks=new Map();const chunkCategories=new WeakMap(),chunkState={index:null,epoch:0};
     function rebuildChunks(){
-      const next=new Map();
-      for(const e of worldIndex.entries){
-        const m=e.mesh,p=e.p,s=m.s,groundFlag=m.ground===true;let category=chunkCategories.get(e);
-        // Scalar copies avoid aliasing mutable p/s arrays. Retained immutable
-        // entries skip the repeated grid arithmetic and string allocation.
-        if(!category||s.length!==3||category.x!==p[0]||category.y!==p[1]||category.z!==p[2]||category.sx!==s[0]||category.sy!==s[1]||category.sz!==s[2]||category.detail!==m.detail||category.ground!==groundFlag||category.radius!==e.radius){
-          const size=Math.max(...s),ground=groundFlag||(s[1]<.15&&p[1]+s[1]/2<.24),range=m.detail===2?65:m.detail===1?130:ground||size>4?6000:size<.65?75:180,cell=range<6000?32:128;
-          category={key:Math.floor(p[0]/cell)+','+Math.floor(p[2]/cell)+','+range+','+(e.radius>40?'large':'small'),range,x:p[0],y:p[1],z:p[2],sx:s[0],sy:s[1],sz:s[2],detail:m.detail,ground:groundFlag,radius:e.radius};chunkCategories.set(e,category);
-        }
-        let c=next.get(category.key);
-        if(!c){const previous=chunks.get(category.key);c={range:category.range,entries:[],previous,same:!!previous};next.set(category.key,c);}
-        if(c.same&&c.previous.entries[c.entries.length]!==e)c.same=false;c.entries.push(e);
-      }
+      const next=planChunks(worldIndex,chunks,chunkCategories,chunkState);
       let uploads=0;
-      for(const [key,group] of next){if(group.same&&group.previous.entries.length===group.entries.length){next.set(key,group.previous);continue;}
+      for(const [key,group] of next){if(!group.nextEntries&&group.nextCount===group.entries.length)continue;
         // Only changed chunks need fresh bounds and GPU data. The final object
         // has no link to the previous chunk, so replaced generations can die.
-        const c={range:group.range,entries:group.entries,min:[Infinity,Infinity,Infinity],max:[-Infinity,-Infinity,-Infinity]};
+        const c={range:group.range,entries:group.nextEntries||group.entries.slice(0,group.nextCount),min:[Infinity,Infinity,Infinity],max:[-Infinity,-Infinity,-Infinity]};
         for(const e of c.entries)for(let k=0;k<3;k++){c.min[k]=Math.min(c.min[k],e.p[k]-e.radius);c.max[k]=Math.max(c.max[k],e.p[k]+e.radius);}
         c.p=c.min.map((v,k)=>(v+c.max[k])/2);c.radius=Math.hypot(...c.max.map((v,k)=>(v-c.min[k])/2));c.batch=packIndexed(c.entries);c.buffer=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,c.buffer);gl.bufferData(gl.ARRAY_BUFFER,c.batch.values,gl.STATIC_DRAW);uploads+=c.batch.values.byteLength;next.set(key,c);
       }
-      for(const [key,c] of chunks)if(next.get(key)!==c)gl.deleteBuffer(c.buffer);chunks=next;stats.chunks=chunks.size;stats.chunkBuildBytes=uploads;
+      for(const [key,c] of chunks)if(next.get(key)!==c)gl.deleteBuffer(c.buffer);chunks=next;stats.chunks=chunks.size;stats.chunkBuildBytes=uploads;stats.chunkUpdateIncremental=chunkState.incremental;stats.chunkEntriesVisited=chunkState.entriesVisited;
     }
     function drawChunks(accept,shadow=false){let objects=0,count=0;for(const c of chunks.values())if(accept(c)){renderBatch(c.batch,c.buffer,false,shadow);objects+=c.entries.length;count++;}if(shadow){stats.shadowChunks=count;stats.shadowStatic=objects;}else{stats.visibleChunks=count;stats.staticVisible=objects;stats.staticCulled=world.length-objects;}return count;}
     function setWorld(meshes,points,atmosphere) {
-      environment=environmentInfo(atmosphere);world=(meshes||[]).filter(m=>!m.backgroundWater);worldIndex=spatialIndex(world,environment);backgroundIndex=spatialIndex((meshes||[]).filter(m=>m.backgroundWater),environment);lights=points||[];worldBatch=pack([]);shadowLight=null;actorLightPlan=null;stats.staticTotal=world.length+backgroundIndex.entries.length;stats.biome=environment?environment.biome:null;
+      const partition=partitionWorld(meshes);environment=environmentInfo(atmosphere);world=partition.world;worldIndex=spatialIndex(world,environment);backgroundIndex=spatialIndex(partition.background,environment);lights=points||[];worldBatch=pack([]);shadowLight=null;actorLightPlan=null;stats.staticTotal=world.length+backgroundIndex.entries.length;stats.biome=environment?environment.biome:null;
       worldRevision=0;stats.worldRevision=0;rebuildChunks();
       lampCasters=[];for(const cache of staticCaches){cache.entries=[];cache.batch=pack([]);}
       governor.reset();autoScale=1;
       if(stats.contextLost||disposed) return;
       gl.bindBuffer(gl.ARRAY_BUFFER,worldBuffer);gl.bufferData(gl.ARRAY_BUFFER,worldBatch.values,gl.STATIC_DRAW);
     }
-    function updateWorld(meshes,revision,points){
+    function updateWorld(meshes,revision,points,updateOptions){
       if(disposed||revision===worldRevision)return false;
       if(Array.isArray(points)&&(points.length!==lights.length||points.some((light,i)=>light!==lights[i]))){lights=points;if(!lights.includes(shadowLight))shadowLight=null;}
-      world=(meshes||[]).filter(m=>!m.backgroundWater);worldIndex=spatialIndex(world,environment,worldIndex);backgroundIndex=spatialIndex((meshes||[]).filter(m=>m.backgroundWater),environment,backgroundIndex);worldBatch=pack([]);rebuildChunks();
+      const partition=partitionWorld(meshes);world=partition.world;worldIndex=spatialIndex(world,environment,worldIndex,updateOptions);backgroundIndex=spatialIndex(partition.background,environment,backgroundIndex,updateOptions);worldBatch=pack([]);rebuildChunks();
       // Every depth view must stop referencing removed walls immediately. GPU
       // storage is reused; only the affected instance lists upload next draw.
       lampCasters=[];actorLightPlan=null;for(const cache of staticCaches.slice(0,4)){cache.entries=[];cache.batch=pack([]);}
@@ -1919,7 +2026,7 @@ globalThis.RADE={build:{"version": "0.6.0", "name": "Rendu natif", "engine": "FE
       renderBatch(cache.batch,cache.buffer,!same,shadow);
     }
     function renderEffects(meshes,eye,time,clip=vp){
-      const batch=packEffects(meshes,environment,eye);stats.fxInstances+=batch.values.length/16;if(!batch.groups.length)return;
+      const batch=packFx(meshes,environment,eye);stats.fxInstances+=batch.values.length/16;if(!batch.groups.length)return;
       gl.useProgram(fxProgram);gl.uniformMatrix4fv(fxUniforms.uViewProjection,false,clip);gl.uniform2f(fxUniforms.uWindTime,0,time);
       gl.uniform3fv(fxUniforms.uSkyTop,environment?.skyTop||[.2,.3,.4]);gl.uniform3fv(fxUniforms.uSkyBottom,environment?.skyBottom||[.5,.6,.6]);gl.uniform3fv(fxUniforms.uEye,eye);gl.uniform3fv(fxUniforms.uAmbient,environment?environment.ambient:[.12,.15,.16]);
       gl.uniform3fv(fxUniforms.uFogColor,environment?environment.fog:[.009,.018,.024]);gl.uniform2f(fxUniforms.uEnvironment,environment?1:0,environment?environment.fogDensity:.018);gl.uniform1f(fxUniforms.uTime,time);
@@ -1962,8 +2069,8 @@ globalThis.RADE={build:{"version": "0.6.0", "name": "Rendu natif", "engine": "FE
       gl.useProgram(depthProgram);gl.bindVertexArray(vao);gl.enable(gl.DEPTH_TEST);gl.enable(gl.CULL_FACE);gl.enable(gl.POLYGON_OFFSET_FILL);gl.polygonOffset(1.1,2);
       gl.uniformMatrix4fv(depthMatrix,false,shadowMatrix);gl.uniform2f(depthWind,environment.wind,time);
       const inside=e=>{
-        const d=e.p.map((v,k)=>v-p[k]),along=a=>d[0]*a[0]+d[1]*a[1]+d[2]*a[2],z=along(fw);
-        return Math.abs(along(r))<extent+e.radius&&Math.abs(along(u))<extent+e.radius&&z+e.radius>near&&z-e.radius<far;
+        const x=e.p[0]-p[0],y=e.p[1]-p[1],d=e.p[2]-p[2],z=x*fw[0]+y*fw[1]+d*fw[2];
+        return Math.abs(x*r[0]+y*r[1]+d*r[2])<extent+e.radius&&Math.abs(x*u[0]+y*u[1]+d*u[2])<extent+e.radius&&z+e.radius>near&&z-e.radius<far;
       };
       const casters=camera.chunked?[]:camera.allStatic?worldIndex.entries:worldIndex.query(center,[extent+24,26,0]).filter(inside);
       renderStatic(casters,2,true);if(camera.chunked)drawChunks(inside,true);
@@ -2097,8 +2204,8 @@ globalThis.RADE={build:{"version": "0.6.0", "name": "Rendu natif", "engine": "FE
       const blackout=horrorLights(fx.horror,lights);stats.blackoutLights=blackout?.size||0;
       lightPositions.fill(0);lightColors.fill(0);lightRanges.fill(0);lightDirections.fill(0);lightCones.fill(0);
       selected.forEach(({light},i)=>{if(light.dir){lightDirections.set(light.dir,i*3);lightCones.set(light.cone||[.75,.94],i*2);}lightPositions.set(light.p,i*3);lightRanges[i]=light.range||0;const c=light.color||[1,1,1],power=(light.power===undefined?1:light.power)*(blackout?.get(light)??1);lightColors.set([c[0]*power,c[1]*power,c[2]*power],i*3);});
-      const ordinary=[],overlay=[],particles=[],overlayParticles=[];for(const mesh of dynamic||[]) (mesh.overlay?(mesh.fx?overlayParticles:overlay):mesh.fx?particles:ordinary).push(mesh);
-      const dynamicBatch=pack(ordinary,environment,true);
+      ordinary.length=overlay.length=particles.length=overlayParticles.length=0;for(const mesh of dynamic||[]) (mesh.overlay?(mesh.fx?overlayParticles:overlay):mesh.fx?particles:ordinary).push(mesh);
+      const dynamicBatch=packDynamic(ordinary,environment,true);
       const torchPosition=eye.map((v,i)=>v+right[i]*.16-up[i]*.08);
       stats.drawCalls=0;stats.triangles=0;stats.instances=0;stats.bloom=!!post&&fx.bloom!==false;stats.shadows=!!shadowTarget&&fx.shadows!==false;stats.shadowMaps=stats.shadows?shadowLights.length+1+(environment?1:0):0;stats.shadowMode=environment?'sun-atlas':'atlas';
       stats.uploadBytes=0;stats.fxInstances=0;
@@ -2187,7 +2294,7 @@ globalThis.RADE={build:{"version": "0.6.0", "name": "Rendu natif", "engine": "FE
         let overlayClip=vp;
         if(overlayNear!==near){overlayProjection.set(projection);overlayProjection[10]=(far+overlayNear)/(overlayNear-far);overlayProjection[14]=2*far*overlayNear/(overlayNear-far);multiply(overlayProjection,view,overlayVP);overlayClip=overlayVP;gl.uniformMatrix4fv(uniforms.uViewProjection,false,overlayClip);}
         if(blackout){selected.forEach(({light},i)=>{const c=light.color||[1,1,1],power=light.power===undefined?1:light.power;lightColors.set([c[0]*power,c[1]*power,c[2]*power],i*3);});gl.uniform3fv(uniforms.uLightColor,lightColors);}
-        gl.clear(gl.DEPTH_BUFFER_BIT);if(overlay.length)renderBatch(pack(overlay,environment,true),overlayBuffer,true);
+        gl.clear(gl.DEPTH_BUFFER_BIT);if(overlay.length)renderBatch(packOverlay(overlay,environment,true),overlayBuffer,true);
         if(overlayParticles.length)renderEffects(overlayParticles,eye,t,overlayClip);
         if(overlayClip!==vp)gl.uniformMatrix4fv(uniforms.uViewProjection,false,vp);
       }
@@ -2240,7 +2347,7 @@ globalThis.RADE={build:{"version": "0.6.0", "name": "Rendu natif", "engine": "FE
   }
   // Both GPU backends share the procedural shapes, instance layout and visibility
   // rules. No rendering calls or GPU state are shared between the APIs.
-  const shared={geometry,pack,packEffects,packIndexed,spatialIndex,visible,metadata,environmentInfo,outdoorMesh,surfaceFlags,transientLights,horrorLights,cameraAxes,multiply,detailRanges,extendedDistance,resolutionGovernor,settings,indoor:PDR_INDOOR,shapes:FORMES_LIBRES};
+  const shared={geometry,pack,packEffects,instancePacker,effectsPacker,packIndexed,spatialIndex,partitionWorld,planChunks,visible,metadata,environmentInfo,outdoorMesh,surfaceFlags,transientLights,horrorLights,cameraAxes,multiply,detailRanges,extendedDistance,resolutionGovernor,settings,indoor:PDR_INDOOR,shapes:FORMES_LIBRES};
   globalThis.FRender={create,foliageTriangles,forme,shared};
 })();
 
@@ -2284,7 +2391,9 @@ async function create(canvas,options={}){
  const view=new Float32Array(16),projection=new Float32Array(16),vp=new Float32Array(16),overlayProjection=new Float32Array(16),overlayVP=new Float32Array(16),shadowMatrices=new Float32Array(48),shadowViewMatrix=new Float32Array(16),shadowProjection=new Float32Array(16),shadowMatrix=new Float32Array(16);
  const lightPositions=new Float32Array(36),lightColors=new Float32Array(36),lightRanges=new Float32Array(12),lightDirections=new Float32Array(36),lightCones=new Float32Array(24);
  const staticCaches=Array.from({length:5},()=>({entries:[],batch:S.pack([]),buffer:null,capacity:0})),dynamicSlot={},overlaySlot={},fxSlot={},overlayFxSlot={},crowdSlot={},pdrSlots=[];
- let nappes=[],lots=[],lampCasters=[];const chunkCategories=new WeakMap();
+ const packDynamic=S.instancePacker(),packOverlay=S.instancePacker(),packFx=S.effectsPacker(),packOverlayFx=S.effectsPacker();
+ const ordinary=[],overlay=[],particles=[],overlayParticles=[];
+ let nappes=[],lots=[],lampCasters=[];const chunkCategories=new WeakMap(),chunkState={index:null,epoch:0};
  const gpu={device,adapter,context,format,canvasFormat,depthFormat,samples:config.msaa?4:1,generation:1,shadowView:null,config,vignette:config.vignette};
  device.addEventListener('uncapturederror',event=>{const message=event.error?.message||String(event.error);stats.errorEvents.push(message);if(stats.errorEvents.length>32)stats.errorEvents.shift();options.onError?.(event.error);});
  device.lost.then(info=>{stats.contextLost=stats.deviceLost=true;if(!disposed)options.onDeviceLost?.(info);});
@@ -2338,12 +2447,12 @@ async function create(canvas,options={}){
  function ensureSlot(slot,batch,update=true){const required=Math.max(4,batch.values.byteLength);if(!slot.buffer||slot.capacity<required){freeBuffer(slot.buffer);slot.buffer=buffer(required,GPUBufferUsage.VERTEX,'FERRO instances');slot.capacity=align(required);update=true;}if(update&&batch.values.byteLength){device.queue.writeBuffer(slot.buffer,0,batch.values);stats.uploadBytes+=batch.values.byteLength;}slot.batch=batch;return slot;}
  function renderBatch(pass,batch,storage,shadow=false){if(!batch?.groups?.length)return;pass.setVertexBuffer(0,vbo);pass.setIndexBuffer(ibo,'uint32');for(const group of batch.groups){const shape=source.ranges[group.name];if(!shape)throw Error('Forme WebGPU inconnue : '+group.name);pass.setVertexBuffer(1,storage.buffer,group.offset,group.count*64);pass.drawIndexed(shape.count,group.count,shape.offset/4,0,0);stats.drawCalls++;stats.triangles+=shape.count/3*group.count;if(!shadow)stats.instances+=group.count;}}
  function renderStatic(pass,entries,slot,shadow=false){const cache=staticCaches[slot],same=cache.entries.length===entries.length&&entries.every((e,i)=>e===cache.entries[i]);if(!same){cache.entries=entries;cache.batch=S.packIndexed(entries);}ensureSlot(cache,cache.batch,!same);renderBatch(pass,cache.batch,cache,shadow);}
- function rebuildChunks(){const next=new Map();for(const e of worldIndex.entries){const m=e.mesh,p=e.p,s=m.s,groundFlag=m.ground===true;let category=chunkCategories.get(e);if(!category||s.length!==3||category.x!==p[0]||category.y!==p[1]||category.z!==p[2]||category.sx!==s[0]||category.sy!==s[1]||category.sz!==s[2]||category.detail!==m.detail||category.ground!==groundFlag||category.radius!==e.radius){const size=Math.max(...s),ground=groundFlag||(s[1]<.15&&p[1]+s[1]/2<.24),range=m.detail===2?65:m.detail===1?130:ground||size>4?6000:size<.65?75:180,cell=range<6000?32:128;category={key:Math.floor(p[0]/cell)+','+Math.floor(p[2]/cell)+','+range+','+(e.radius>40?'large':'small'),range,x:p[0],y:p[1],z:p[2],sx:s[0],sy:s[1],sz:s[2],detail:m.detail,ground:groundFlag,radius:e.radius};chunkCategories.set(e,category);}let c=next.get(category.key);if(!c){const previous=chunks.get(category.key);c={range:category.range,entries:[],previous,same:!!previous};next.set(category.key,c);}if(c.same&&c.previous.entries[c.entries.length]!==e)c.same=false;c.entries.push(e);}
-  let uploads=0;for(const [key,g]of next){if(g.same&&g.previous.entries.length===g.entries.length){next.set(key,g.previous);continue;}const c={range:g.range,entries:g.entries,min:[Infinity,Infinity,Infinity],max:[-Infinity,-Infinity,-Infinity]};for(const e of c.entries)for(let k=0;k<3;k++){c.min[k]=Math.min(c.min[k],e.p[k]-e.radius);c.max[k]=Math.max(c.max[k],e.p[k]+e.radius);}c.p=c.min.map((v,k)=>(v+c.max[k])/2);c.radius=Math.hypot(...c.max.map((v,k)=>(v-c.min[k])/2));c.batch=S.packIndexed(c.entries);ensureSlot(c,c.batch);uploads+=c.batch.values.byteLength;next.set(key,c);}for(const [key,c]of chunks)if(next.get(key)!==c)freeBuffer(c.buffer);chunks=next;stats.chunks=chunks.size;stats.chunkBuildBytes=uploads;
+ function rebuildChunks(){const next=S.planChunks(worldIndex,chunks,chunkCategories,chunkState);
+  let uploads=0;for(const [key,g]of next){if(!g.nextEntries&&g.nextCount===g.entries.length)continue;const c={range:g.range,entries:g.nextEntries||g.entries.slice(0,g.nextCount),min:[Infinity,Infinity,Infinity],max:[-Infinity,-Infinity,-Infinity]};for(const e of c.entries)for(let k=0;k<3;k++){c.min[k]=Math.min(c.min[k],e.p[k]-e.radius);c.max[k]=Math.max(c.max[k],e.p[k]+e.radius);}c.p=c.min.map((v,k)=>(v+c.max[k])/2);c.radius=Math.hypot(...c.max.map((v,k)=>(v-c.min[k])/2));c.batch=S.packIndexed(c.entries);ensureSlot(c,c.batch);uploads+=c.batch.values.byteLength;next.set(key,c);}for(const [key,c]of chunks)if(next.get(key)!==c)freeBuffer(c.buffer);chunks=next;stats.chunks=chunks.size;stats.chunkBuildBytes=uploads;stats.chunkUpdateIncremental=chunkState.incremental;stats.chunkEntriesVisited=chunkState.entriesVisited;
  }
  function drawChunks(pass,accept,shadow=false){let objects=0,count=0;for(const c of chunks.values())if(accept(c)){renderBatch(pass,c.batch,c,shadow);objects+=c.entries.length;count++;}if(shadow){stats.shadowChunks=count;stats.shadowStatic=objects;}else{stats.visibleChunks=count;stats.staticVisible=objects;stats.staticCulled=world.length-objects;}return count;}
- function setWorld(meshes,points,atmosphere){environment=S.environmentInfo(atmosphere);world=(meshes||[]).filter(m=>!m.backgroundWater);worldIndex=S.spatialIndex(world,environment);backgroundIndex=S.spatialIndex((meshes||[]).filter(m=>m.backgroundWater),environment);lights=points||[];shadowLight=null;actorLightPlan=null;worldRevision=0;stats.worldRevision=0;stats.staticTotal=world.length+backgroundIndex.entries.length;stats.biome=environment?.biome||null;rebuildChunks();lampCasters=[];for(const cache of staticCaches){cache.entries=[];cache.batch=S.pack([]);}governor.reset();autoScale=1;}
- function updateWorld(meshes,revision,points){if(disposed||revision===worldRevision)return false;if(Array.isArray(points)&&(points.length!==lights.length||points.some((l,i)=>l!==lights[i]))){lights=points;if(!lights.includes(shadowLight))shadowLight=null;}world=(meshes||[]).filter(m=>!m.backgroundWater);worldIndex=S.spatialIndex(world,environment,worldIndex);backgroundIndex=S.spatialIndex((meshes||[]).filter(m=>m.backgroundWater),environment,backgroundIndex);rebuildChunks();lampCasters=[];actorLightPlan=null;for(const cache of staticCaches.slice(0,4)){cache.entries=[];cache.batch=S.pack([]);}worldRevision=revision===undefined?worldRevision+1:revision;stats.worldRevision=worldRevision;stats.staticTotal=world.length+backgroundIndex.entries.length;return true;}
+ function setWorld(meshes,points,atmosphere){const partition=S.partitionWorld(meshes);environment=S.environmentInfo(atmosphere);world=partition.world;worldIndex=S.spatialIndex(world,environment);backgroundIndex=S.spatialIndex(partition.background,environment);lights=points||[];shadowLight=null;actorLightPlan=null;worldRevision=0;stats.worldRevision=0;stats.staticTotal=world.length+backgroundIndex.entries.length;stats.biome=environment?.biome||null;rebuildChunks();lampCasters=[];for(const cache of staticCaches){cache.entries=[];cache.batch=S.pack([]);}governor.reset();autoScale=1;}
+ function updateWorld(meshes,revision,points,updateOptions){if(disposed||revision===worldRevision)return false;if(Array.isArray(points)&&(points.length!==lights.length||points.some((l,i)=>l!==lights[i]))){lights=points;if(!lights.includes(shadowLight))shadowLight=null;}const partition=S.partitionWorld(meshes);world=partition.world;worldIndex=S.spatialIndex(world,environment,worldIndex,updateOptions);backgroundIndex=S.spatialIndex(partition.background,environment,backgroundIndex,updateOptions);rebuildChunks();lampCasters=[];actorLightPlan=null;for(const cache of staticCaches.slice(0,4)){cache.entries=[];cache.batch=S.pack([]);}worldRevision=revision===undefined?worldRevision+1:revision;stats.worldRevision=worldRevision;stats.staticTotal=world.length+backgroundIndex.entries.length;return true;}
  function updateShape(name,vertices){const range=source.ranges[name];if(!range||vertices.length!==range.count*6)throw Error('Shape vertex count changed: '+name);const start=source.indices[range.offset/4]*6;source.vertices.set(vertices,start);if(!stats.contextLost)device.queue.writeBuffer(vbo,start*4,vertices);}
  function setNappes(list){for(const n of nappes){freeBuffer(n.vertex);freeBuffer(n.instance);freeBuffer(n.index);}nappes=[];for(const n of list||[]){if(!n.sommets||!n.indices?.length)continue;const count=n.sommets.length/13,vertices=new Float32Array(count*6),instances=new Float32Array(count*16);for(let i=0;i<count;i++){vertices.set(n.sommets.subarray? n.sommets.subarray(i*13,i*13+6):n.sommets.slice(i*13,i*13+6),i*6);instances.set([0,0,0,n.sommets[i*13+9],1,1,1,0,0,0,0,2,n.sommets[i*13+10],n.sommets[i*13+11],n.sommets[i*13+12],1],i*16);}nappes.push({...n,vertex:buffer(vertices,GPUBufferUsage.VERTEX,'FERRO terrain vertices'),instance:buffer(instances,GPUBufferUsage.VERTEX,'FERRO terrain materials'),index:buffer(new Uint32Array(n.indices),GPUBufferUsage.INDEX,'FERRO terrain indices')});}stats.nappeTriangles=nappes.reduce((sum,n)=>sum+n.indices.length/3,0);}
  function setLots(list){for(const l of lots){freeBuffer(l.near?.buffer);freeBuffer(l.far?.buffer);}lots=(list||[]).filter(l=>l?.objets||l?.paquet?.values).map(l=>{const near=l.objets?S.pack(l.objets,environment):l.paquet,far=l.loin?.length?S.pack(l.loin,environment):l.paquetLoin;return {...l,near:ensureSlot({},near),far:far?ensureSlot({},far):null};});stats.lots=lots.length;}
@@ -2384,7 +2493,7 @@ async function create(canvas,options={}){
   shadowProjection.fill(0);shadowProjection[0]=shadowProjection[5]=1/extent;shadowProjection[10]=-2/(far-near);shadowProjection[14]=-(far+near)/(far-near);shadowProjection[15]=1;
   S.multiply(shadowProjection,shadowViewMatrix,shadowMatrix);shadowMatrices.set(shadowMatrix,16);crowdSunMatrix.set(shadowMatrix);
   pass.setViewport(full?0:shadowTarget.size,full?0:shadowTarget.size,tile,tile,0,1);pass.setPipeline(pipeline('depth',{samples:1}));pass.setBindGroup(0,bind('depth','sun',{uViewProjection:shadowMatrix,uWindTime:[environment.wind,time]}));
-  const inside=e=>{const d=e.p.map((v,k)=>v-p[k]),along=a=>d[0]*a[0]+d[1]*a[1]+d[2]*a[2],z=along(fw);return Math.abs(along(r))<extent+e.radius&&Math.abs(along(u))<extent+e.radius&&z+e.radius>near&&z-e.radius<far;};
+  const inside=e=>{const x=e.p[0]-p[0],y=e.p[1]-p[1],d=e.p[2]-p[2],z=x*fw[0]+y*fw[1]+d*fw[2];return Math.abs(x*r[0]+y*r[1]+d*r[2])<extent+e.radius&&Math.abs(x*u[0]+y*u[1]+d*u[2])<extent+e.radius&&z+e.radius>near&&z-e.radius<far;};
   const casters=camera.chunked?[]:camera.allStatic?worldIndex.entries:worldIndex.query(center,[extent+24,26,0]).filter(inside);
   renderStatic(pass,casters,2,true);if(camera.chunked)drawChunks(pass,inside,true);
   renderLots(pass,eye,axes,0,0,0,l=>inside({p:l.centre,radius:l.rayon}));renderBatch(pass,dynamicBatch,dynamicSlot,true);if(crowd)renderBatch(pass,crowd,crowdSlot,true);
@@ -2392,7 +2501,7 @@ async function create(canvas,options={}){
   if(typeof fx.foule?.gpuShadow==='function')countCrowd(fx.foule.gpuShadow(pass,{matrice:crowdSunMatrix,direction:sun,texel,plein:full,viewport:[full?0:shadowTarget.size,full?0:shadowTarget.size,tile,tile],centre:center,etendue:extent,profondeur:far}),true);
  }
  function renderEffects(pass,meshes,eye,time,clip=vp,overlay=false){
-  const batch=S.packEffects(meshes,environment,eye);stats.fxInstances+=batch.values.length/16;if(!batch.groups.length)return;
+  const batch=(overlay?packOverlayFx:packFx)(meshes,environment,eye);stats.fxInstances+=batch.values.length/16;if(!batch.groups.length)return;
   const storage=overlay?overlayFxSlot:fxSlot;ensureSlot(storage,batch);
   pass.setPipeline(pipeline('fx'));pass.setBindGroup(0,bind('fx',overlay?'overlay':'world',{uViewProjection:clip,uWindTime:[0,time],uSkyTop:environment?.skyTop||[.2,.3,.4],uSkyBottom:environment?.skyBottom||[.5,.6,.6],uEye:eye,uAmbient:environment?.ambient||[.12,.15,.16],uFogColor:environment?.fog||[.009,.018,.024],uEnvironment:[environment?1:0,environment?.fogDensity??.018],uTime:time}));renderBatch(pass,batch,storage);
  }
@@ -2429,8 +2538,8 @@ async function create(canvas,options={}){
   const selected=shadowLights.map(light=>({light,d:distanceTo(light)})).concat(transient.map(light=>({light,d:distanceTo(light)})),sorted.filter(e=>!shadowLights.includes(e.light)).slice(0,Math.max(0,(quality==='low'?6:12)-shadowLights.length-transient.length))).slice(0,12);
   const blackout=S.horrorLights(fx.horror,lights);stats.blackoutLights=blackout?.size||0;lightPositions.fill(0);lightColors.fill(0);lightRanges.fill(0);lightDirections.fill(0);lightCones.fill(0);
   selected.forEach(({light},i)=>{if(light.dir){lightDirections.set(light.dir,i*3);lightCones.set(light.cone||[.75,.94],i*2);}lightPositions.set(light.p,i*3);lightRanges[i]=light.range||0;const color=light.color||[1,1,1],power=(light.power===undefined?1:light.power)*(blackout?.get(light)??1);lightColors.set(color.map(c=>c*power),i*3);});
-  const ordinary=[],overlay=[],particles=[],overlayParticles=[];for(const mesh of dynamic||[])(mesh.overlay?(mesh.fx?overlayParticles:overlay):mesh.fx?particles:ordinary).push(mesh);
-  const dynamicBatch=S.pack(ordinary,environment,true),torchPosition=eye.map((v,i)=>v+right[i]*.16-up[i]*.08),sunOnly=!!fx.sunOnly,hasOverlay=overlay.length>0||overlayParticles.length>0;
+  ordinary.length=overlay.length=particles.length=overlayParticles.length=0;for(const mesh of dynamic||[])(mesh.overlay?(mesh.fx?overlayParticles:overlay):mesh.fx?particles:ordinary).push(mesh);
+  const dynamicBatch=packDynamic(ordinary,environment,true),torchPosition=eye.map((v,i)=>v+right[i]*.16-up[i]*.08),sunOnly=!!fx.sunOnly,hasOverlay=overlay.length>0||overlayParticles.length>0;
   stats.drawCalls=stats.triangles=stats.instances=stats.uploadBytes=stats.uniformUploadBytes=stats.fxInstances=0;stats.bloom=quality!=='low'&&fx.bloom!==false;stats.shadows=quality!=='low'&&fx.shadows!==false;stats.shadowMode=environment?'sun-atlas':'atlas';stats.shadowMaps=stats.shadows?(sunOnly?0:shadowLights.length+(fx.torch!==false?1:0))+(environment?1:0):0;
   ensureSlot(dynamicSlot,dynamicBatch);const crowd=fx.instances?.groups?.length?fx.instances:null;stats.crowdInstances=crowd?crowd.values.length/16:0;if(crowd)ensureSlot(crowdSlot,crowd);
   const pdrLots=[];stats.pdrLotInstances=0;if(Array.isArray(fx.lots))for(let i=0;i<fx.lots.length;i++){const lot=fx.lots[i];if(!lot?.values||!lot?.groups?.length)continue;const slot=pdrSlots[i]||(pdrSlots[i]={lot:null,version:NaN});ensureSlot(slot,lot,slot.lot!==lot||slot.version!==lot.version);slot.lot=lot;slot.version=lot.version;pdrLots.push(slot);stats.pdrLotInstances+=lot.values.length/16;}
@@ -2462,7 +2571,7 @@ async function create(canvas,options={}){
    const overlayPass=begin({label:'FERRO close weapon',colorAttachments:[{view:targets.msaa?targets.msaa.view:targets.scene.view,...(targets.msaa?{resolveTarget:targets.scene.view}:{}),loadOp:'load',storeOp:'store'}],depthStencilAttachment:{view:targets.overlayDepth.view,depthLoadOp:'clear',depthClearValue:1,depthStoreOp:'discard'}});
    const overlayNear=Math.min(near,Math.max(.005,Number(camera.overlayNear)||near));let clip=vp;if(overlayNear!==near){overlayProjection.set(projection);overlayProjection[10]=(far+overlayNear)/(overlayNear-far);overlayProjection[14]=2*far*overlayNear/(overlayNear-far);S.multiply(overlayProjection,view,overlayVP);clip=overlayVP;}
    if(blackout)selected.forEach(({light},i)=>{const c=light.color||[1,1,1],power=light.power===undefined?1:light.power;lightColors.set(c.map(v=>v*power),i*3);});
-   if(overlay.length){const batch=S.pack(overlay,environment,true);ensureSlot(overlaySlot,batch);overlayPass.setPipeline(pipeline('world',{overlay:true}));overlayPass.setBindGroup(0,bind('world','overlay',{...worldValues,uViewProjection:clip},worldTextures));renderBatch(overlayPass,batch,overlaySlot);}
+   if(overlay.length){const batch=packOverlay(overlay,environment,true);ensureSlot(overlaySlot,batch);overlayPass.setPipeline(pipeline('world',{overlay:true}));overlayPass.setBindGroup(0,bind('world','overlay',{...worldValues,uViewProjection:clip},worldTextures));renderBatch(overlayPass,batch,overlaySlot);}
    if(overlayParticles.length)renderEffects(overlayPass,overlayParticles,eye,t,clip,true);overlayPass.end();
   }
   if(stats.reflections){const reflectionPass=begin({label:'FERRO screen space reflections',colorAttachments:[{view:targets.reflection.view,loadOp:'clear',clearValue:[0,0,0,0],storeOp:'store'}]});reflectionPass.setPipeline(pipeline('ssr',{samples:1}));reflectionPass.setBindGroup(0,bind('ssr','main',{uProjection:[1/projection[0],1/projection[5],projection[10],projection[14]],uPixel:[1/canvas.width,1/canvas.height]},{uColor:sceneBeforeOverlay,uDepth:targets.resolvedDepth||targets.depth}));reflectionPass.draw(3);reflectionPass.end();stats.drawCalls++;}
@@ -2673,9 +2782,16 @@ G.FRenderWebGPU={create,writeUniforms};
     const entries=originalMeshes.map((mesh,source)=>({mesh,source,bounds:bounds(mesh),rotation:rotation(mesh.r),triangles:mesh.shape==='foliage'?foliage:null}));
     for(const d of definitions){
       const members=d.meshes.filter(i=>entries[i]);if(!members.length)continue;
-      const g={...d,id:String(d.id),strength:d.strength||6,meshes:members,colliders:(d.colliders||[]).filter(i=>originalColliders[i]),bounds:d.bounds||union(members.map(i=>entries[i].bounds)),active:members.map(i=>entries[i]),solids:[],originalVolume:0};
+      const g={...d,id:String(d.id),strength:d.strength||6,meshes:members,colliders:(d.colliders||[]).filter(i=>originalColliders[i]),bounds:d.bounds||union(members.map(i=>entries[i].bounds)),active:members.map(i=>entries[i]),solids:[],originalVolume:0,rebuildOrder:groups.size};
       g.originalVolume=g.colliders.reduce((v,i)=>v+volume(originalColliders[i]),0);groups.set(g.id,g);for(const i of members)meshOwner.set(i,g.id);
     }
+    // Support relationships are immutable. Keep their order and cache each
+    // group's exact volume when its solids change, instead of rebuilding the
+    // support graph and summing every unchanged fragment after every blast.
+    const supported=[...groups.values()].filter(g=>g.supports?.length);
+    for(const g of supported){g.supportNodes=g.supports.map(id=>groups.get(String(id))).filter(Boolean);g.supportVolume=g.supportNodes.reduce((n,q)=>n+q.originalVolume,0);}
+    let solidCount=0;
+    function geometryFor(g,built){geometryDirty.add(g);solidCount+=built.solids.length-g.solids.length;g.active=built.active;g.solids=built.solids;g.solidVolume=g.solids.reduce((n,q)=>n+volume(q.bounds),0);}
     const cells=new Map(),size=8;
     for(const g of groups.values())for(let x=Math.floor(g.bounds.minX/size);x<=Math.floor(g.bounds.maxX/size);x++)for(let z=Math.floor(g.bounds.minZ/size);z<=Math.floor(g.bounds.maxZ/size);z++){
       const key=x+','+z;if(!cells.has(key))cells.set(key,[]);cells.get(key).push(g);
@@ -2711,20 +2827,23 @@ G.FRenderWebGPU={create,writeUniforms};
       const attached=record?.cuts.length&&g.colliders.length&&g.kind!=='roof'?active.filter(e=>e.solid||solids.some(q=>Math.hypot(Math.max(q.bounds.minX-e.bounds.maxX,0,e.bounds.minX-q.bounds.maxX),Math.max(q.bounds.minY-e.bounds.maxY,0,e.bounds.minY-q.bounds.maxY),Math.max(q.bounds.minZ-e.bounds.maxZ,0,e.bounds.minZ-q.bounds.maxZ))<.4)):active;
       return {active:attached,solids};
     }
-    const renderSlots=new Array(originalMeshes.length),firstIndex=new Uint32Array(originalMeshes.length),claimed=new Set(definitions.flatMap(d=>d.colliders||[]));
+    // Only touched groups need recompilation; their original order remains
+    // significant when definitions share a render slot. Restores mark all groups.
+    const geometryDirty=new Set(groups.values()),ownerIds=originalMeshes.map((_,i)=>meshOwner.get(i)),renderSlots=new Array(originalMeshes.length),firstIndex=new Uint32Array(originalMeshes.length),claimed=new Set(definitions.flatMap(d=>d.colliders||[]));
     function rebuild(next=states){
       const output=[],boxes=[];
-      for(const g of groups.values()){
+      for(const g of [...geometryDirty].sort((a,b)=>a.rebuildOrder-b.rebuildOrder)){
         const record=next.get(g.id),count=record?.cuts.length||0,removed=!!record?.removed;
         if(g.cacheRecord===record&&g.cacheCount===count&&g.cacheRemoved===removed)continue;
-        const built=compile(g,record);g.active=built.active;g.solids=built.solids;g.cacheRecord=record;g.cacheCount=count;g.cacheRemoved=removed;
+        const built=compile(g,record);geometryFor(g,built);g.cacheRecord=record;g.cacheCount=count;g.cacheRemoved=removed;
         for(const i of g.meshes)renderSlots[i]=[];
         for(const e of g.active)renderSlots[e.source].push(e);
       }
+      geometryDirty.clear();
       // Preserve original mesh ordering, including coplanar decorative surfaces.
       // Only a changed original mesh is replaced by its local surviving pieces.
       for(let i=0;i<originalMeshes.length;i++){
-        const id=meshOwner.get(i);firstIndex[i]=output.length;
+        const id=ownerIds[i];firstIndex[i]=output.length;
         if(!id){output.push(originalMeshes[i]);continue;}
         for(const e of renderSlots[i]||[]){const index=output.length;output.push(e.mesh);if(e.solid)boxes.push({...e.solid.bounds,mesh:index,destructibleId:id});}
       }
@@ -2791,7 +2910,7 @@ G.FRenderWebGPU={create,writeUniforms};
         const nearest=g.active.reduce((best,e)=>!best||distance(point,e.bounds)<distance(point,best.bounds)?e:best,null),d=distance(point,nearest.bounds),impact=[Math.max(nearest.bounds.minX,Math.min(point[0],nearest.bounds.maxX)),Math.max(nearest.bounds.minY,Math.min(point[1],nearest.bounds.maxY)),Math.max(nearest.bounds.minZ,Math.min(point[2],nearest.bounds.maxZ))],amount=power*(bullet?1:Math.pow(Math.max(0,1-d/radius),.45));if(amount<=.02)continue;
         const old=states.get(g.id)||{damage:0,cuts:[],removed:false},record={...old,cuts:old.cuts.slice(),damage:old.damage+amount},event={x:impact[0],y:impact[1],z:impact[2],sourceId:g.id,material:materialOf(nearest.mesh),power:amount,seed:nearest.source*977+(revision+1)*911};
         chipsFor(g,nearest,impact,amount,result.debris);
-        if(record.damage<g.strength){states.set(g.id,record);result.events.push({name:'materialImpact',...event});continue;}
+        if(record.damage<g.strength){states.set(g.id,record);geometryDirty.add(g);result.events.push({name:'materialImpact',...event});continue;}
         record.damage=0;
         const before=g.solids.reduce((v,q)=>v+volume(q.bounds),0),r=bullet?clamp(.30+Math.sqrt(power)*.13,.40,.85):radius*.66;
         const cut={minX:impact[0]-r,maxX:impact[0]+r,minY:impact[1]-r,maxY:impact[1]+r,minZ:impact[2]-r,maxZ:impact[2]+r};
@@ -2801,27 +2920,27 @@ G.FRenderWebGPU={create,writeUniforms};
         const remains=built.solids.reduce((v,q)=>v+volume(q.bounds),0);
         // Decorative groups can span a whole fence. Reaching their cut budget
         // must never erase unrelated posts/rails to save a handful of polygons.
-        if(!g.colliders.length&&(record.cuts.length>MAX_CUTS||built.active.length>64)){states.set(g.id,{...old,damage:0});result.events.push({name:'materialImpact',...event});continue;}
+        if(!g.colliders.length&&(record.cuts.length>MAX_CUTS||built.active.length>64)){states.set(g.id,{...old,damage:0});geometryDirty.add(g);result.events.push({name:'materialImpact',...event});continue;}
         if(built.solids.length>MAX_PARTS||record.cuts.length>MAX_CUTS||!built.active.length||g.colliders.length&&(!built.solids.length||remains<g.originalVolume*.035))record.removed=true;
         if(record.removed){record.cuts=[];built={active:[],solids:[]};result.collapsed.push(g.id);}
         // A grazing explosion must not create a fake revision or damage hole.
-        if(record.removed||remains<before-EPS||built.active.length!==g.active.length||record.cuts.length){removedGeometry(g,g.active,built.active,impact,amount,direction,fallen);states.set(g.id,record);result.changed=true;touched.push(g.id);g.active=built.active;g.solids=built.solids;result.events.push({name:'materialBreak',...event});}
+        if(record.removed||remains<before-EPS||built.active.length!==g.active.length||record.cuts.length){removedGeometry(g,g.active,built.active,impact,amount,direction,fallen);states.set(g.id,record);result.changed=true;touched.push(g.id);geometryFor(g,built);result.events.push({name:'materialBreak',...event});}
         for(const p of world.pipes||[])if(p.destructibleId===g.id&&!leaked.has(p.id)){leaked.add(p.id);result.pipeLeaks.push(p.id);}
       }
       if(result.changed){
-        for(const roof of groups.values())if(roof.supports?.length&&isAlive(roof.id)){
-          const supports=roof.supports.map(id=>groups.get(String(id))).filter(Boolean),original=supports.reduce((v,g)=>v+g.originalVolume,0),remaining=supports.reduce((v,g)=>v+g.solids.reduce((n,q)=>n+volume(q.bounds),0),0);
+        for(const roof of supported)if(isAlive(roof.id)){
+          const original=roof.supportVolume,remaining=roof.supportNodes.reduce((v,g)=>v+g.solidVolume,0);
           if(original>0&&remaining/original<(roof.supportRatio||.38)){
             const point=[(roof.bounds.minX+roof.bounds.maxX)/2,roof.bounds.minY,(roof.bounds.minZ+roof.bounds.maxZ)/2];removedGeometry(roof,roof.active,[],point,45,undefined,fallen);
-            states.set(roof.id,{damage:0,cuts:[],removed:true});roof.active=[];roof.solids=[];result.collapsed.push(roof.id);
-            for(const id of roof.dependents||[]){const g=groups.get(id);if(g&&isAlive(id)){removedGeometry(g,g.active,[],point,45,undefined,fallen);states.set(id,{damage:0,cuts:[],removed:true});g.active=[];g.solids=[];result.collapsed.push(id);}}
+            states.set(roof.id,{damage:0,cuts:[],removed:true});geometryFor(roof,{active:[],solids:[]});result.collapsed.push(roof.id);
+            for(const id of roof.dependents||[]){const g=groups.get(id);if(g&&isAlive(id)){removedGeometry(g,g.active,[],point,45,undefined,fallen);states.set(id,{damage:0,cuts:[],removed:true});geometryFor(g,{active:[],solids:[]});result.collapsed.push(id);}}
             result.events.push({name:'materialBreak',x:point[0],y:point[1],z:point[2],sourceId:roof.id,material:materialOf(entries[roof.meshes[0]].mesh),power:45,seed:roof.meshes[0]*977+(revision+1)*911});
           }
         }
         // Collapse only a locally over-fragmented body; never erase unrelated
         // scenery to meet a global budget or emit blocking cosmetic debris.
-        let total=Array.from(groups.values()).reduce((n,g)=>n+g.solids.length,0),limit=Math.max(512,originalColliders.length+384);
-        for(const id of touched)if(total>limit){const g=groups.get(id);total-=g.solids.length;removedGeometry(g,g.active,[],point,power,direction,fallen);states.set(id,{damage:0,cuts:[],removed:true});g.active=[];g.solids=[];if(!result.collapsed.includes(id))result.collapsed.push(id);}
+        let total=solidCount,limit=Math.max(512,originalColliders.length+384);
+        for(const id of touched)if(total>limit){const g=groups.get(id);total-=g.solids.length;removedGeometry(g,g.active,[],point,power,direction,fallen);states.set(id,{damage:0,cuts:[],removed:true});geometryFor(g,{active:[],solids:[]});if(!result.collapsed.includes(id))result.collapsed.push(id);}
         result.debris=[...fallingDebris(fallen),...result.debris].slice(0,MAX_DEBRIS);
         rebuild();revision++;result.revision=revision;
       }
@@ -2842,9 +2961,10 @@ G.FRenderWebGPU={create,writeUniforms};
       if(total>Math.max(512,originalColliders.length+384))return false;
       // Validation finishes before any live array or state is replaced.
       states.clear();for(const [id,s] of next)states.set(id,s);leaked.clear();for(const id of nextLeaks)leaked.add(id);
+      for(const g of groups.values())geometryDirty.add(g);
       rebuild();revision=options.exactRevision?value.revision:Math.max(revision+1,value.revision);return true;
     }
-    return {detach(id){const g=groups.get(id);if(!g||!isAlive(id))return [];const out=g.active.map(e=>e.mesh);states.set(id,{damage:0,cuts:[],removed:true});rebuild();revision++;return out;},describe(id){const g=groups.get(id);return g?{id:g.id,meshes:g.active.map(e=>e.mesh),strength:g.strength,bounds:g.bounds}:null;},get meshes(){return meshes;},get colliders(){return colliders;},get lights(){return lights;},get revision(){return revision;},isAlive,raycast,
+    return {detach(id){const g=groups.get(id);if(!g||!isAlive(id))return [];const out=g.active.map(e=>e.mesh);states.set(id,{damage:0,cuts:[],removed:true});geometryDirty.add(g);rebuild();revision++;return out;},describe(id){const g=groups.get(id);return g?{id:g.id,meshes:g.active.map(e=>e.mesh),strength:g.strength,bounds:g.bounds}:null;},get meshes(){return meshes;},get colliders(){return colliders;},get lights(){return lights;},get revision(){return revision;},isAlive,raycast,
       hit:(point,power,direction)=>damage(point,.22,power,true,undefined,validPoint(direction)?direction:undefined),blast:(point,radius,power,ignoreId)=>damage(point,radius,power,false,ignoreId),snapshot,restore};
   }
   G.FDestruction={create,fragment};
@@ -17105,25 +17225,43 @@ function create({savedCity=null}={}){
  const inCore=(x,z)=>x>=-550&&x<=550&&z>=-550&&z<=550;
  // Replace complete source silhouettes before collision construction; keep foliage and overhead branches non-solid.
  const vegetation=R.details.prepareVegetation(scenery,city,coreBounds),clearedTrees=vegetation.removed;
- const boxes=[],buckets=new Map(),key=(x,z)=>Math.floor(x/8)+','+Math.floor(z/8);
+ const boxes=[],buckets=new Map(),key=(x,z)=>Math.floor(x/8)+','+Math.floor(z/8),meshBoxes=new WeakMap(),boxIndex=new WeakMap(),taintedBoxes=new Set();let colliderGeneration=0,stagedBoxes=null;
+ const boxFields=['x','z','a','b','c','s','cap','minY','maxY','minX','maxX','minZ','maxZ'];
+ function cellsForBox(q){const cells=[];for(let z=Math.floor(q.minZ/8);z<=Math.floor(q.maxZ/8);z++)for(let x=Math.floor(q.minX/8);x<=Math.floor(q.maxX/8);x++)cells.push(x+','+z);return cells;}
+ function appendBox(q){
+  if(stagedBoxes){stagedBoxes.push(q);return q;}
+  const cells=cellsForBox(q);let index=boxIndex.get(q);if(!index){index={active:false,cells:[],order:0,seen:-1,nextOrder:0};boxIndex.set(q,index);}
+  if(index.active){taintedBoxes.add(q);for(const cell of cells)if(!index.cells.includes(cell))index.cells.push(cell);}else{index.active=true;index.cells=cells;index.order=boxes.length;}
+  boxes.push(q);for(const k of cells){let list=buckets.get(k);if(!list){list=[];buckets.set(k,list);}list.push(q);}return q;
+ }
  function addBox(q){
   q.c=Math.cos(q.cap);q.s=Math.sin(q.cap);
   const hx=Math.abs(q.c*q.a)+Math.abs(q.s*q.b),hz=Math.abs(q.s*q.a)+Math.abs(q.c*q.b);
-  q.minX=q.x-hx;q.maxX=q.x+hx;q.minZ=q.z-hz;q.maxZ=q.z+hz;boxes.push(q);
-  for(let z=Math.floor(q.minZ/8);z<=Math.floor(q.maxZ/8);z++)for(let x=Math.floor(q.minX/8);x<=Math.floor(q.maxX/8);x++){const k=x+','+z;if(!buckets.has(k))buckets.set(k,[]);buckets.get(k).push(q);}
-  return q;
+  q.minX=q.x-hx;q.maxX=q.x+hx;q.minZ=q.z-hz;q.maxZ=q.z+hz;return appendBox(q);
+ }
+ function sameMeshBox(entry,m,rx,ry,rz){
+  const v=entry.values,p=m.p,s=m.s;
+  if(!Object.is(v[0],p[0])||!Object.is(v[1],p[1])||!Object.is(v[2],p[2])||!Object.is(v[3],s[0])||!Object.is(v[4],s[1])||!Object.is(v[5],s[2])||!Object.is(v[6],rx)||!Object.is(v[7],ry)||!Object.is(v[8],rz)||entry.box.mesh!==m||entry.box.kind!=='urban')return false;
+  // Public collider records may have been edited by a caller. Such an edit must
+  // not survive replaceScenery: the old implementation rebuilt from the mesh.
+  for(let i=0;i<boxFields.length;i++)if(!Object.is(entry.box[boxFields[i]],v[i+9]))return false;return true;
  }
  function fromMesh(m){
   if(m.terrain||m.coast||m.collision===false)return;
   if(m.vegetationPart&&m.vegetationPart!=='trunk')return;
   if(m.fx||m.shape==='foliage'||m.shape==='ring'||m.s[1]<.12||m.p[1]+m.s[1]/2<.4)return;
   if(!m.boundary&&!m.landmark&&(Math.abs(m.p[0])>580||Math.abs(m.p[2])>580))return;
-  const rx=m.r?.[0]||0,rz=m.r?.[2]||0,s=m.s;
+  const rx=m.r?.[0]||0,ry=m.r?.[1]||0,rz=m.r?.[2]||0,s=m.s,previous=meshBoxes.get(m);
+  // Material/scorch revisions do not alter geometry. Keep unchanged boxes, but
+  // create a new snapshot when a pose changes; previous contact records stay valid.
+  // The generation guard also keeps duplicate mesh occurrences as distinct boxes.
+  if(previous&&previous.generation!==colliderGeneration&&sameMeshBox(previous,m,rx,ry,rz)){previous.generation=colliderGeneration;m.collision=true;appendBox(previous.box);return;}
   // Sloping roof pieces get a conservative envelope; vertical façades keep their exact yaw and dimensions.
   const h=Math.abs(Math.cos(rx)*Math.cos(rz)*s[1])+Math.abs(Math.sin(rx)*s[2])+Math.abs(Math.sin(rz)*s[0]);
   const sx=Math.abs(Math.cos(rz)*s[0])+Math.abs(Math.sin(rz)*s[1]);
   const sz=Math.abs(Math.cos(rx)*s[2])+Math.abs(Math.sin(rx)*s[1]);
-  m.collision=true;addBox({mesh:m,x:m.p[0],z:m.p[2],a:sx/2,b:sz/2,minY:m.p[1]-h/2,maxY:m.p[1]+h/2,cap:-(m.r?.[1]||0),kind:'urban'});
+  m.collision=true;const q=addBox({mesh:m,x:m.p[0],z:m.p[2],a:sx/2,b:sz/2,minY:m.p[1]-h/2,maxY:m.p[1]+h/2,cap:-ry,kind:'urban'});
+  if(!previous||previous.generation!==colliderGeneration)meshBoxes.set(m,{generation:colliderGeneration,box:q,values:[...m.p,...s,rx,ry,rz,...boxFields.map(k=>q[k])]});
  }
  if(landmarks)scenery.push(...landmarks.geometry);
  scenery.forEach(fromMesh);
@@ -17138,13 +17276,24 @@ function create({savedCity=null}={}){
  const ground=(x=0,z=0)=>(roomRegion(x,z)||inCore(x,z)) ? .08 :(landmarks?.groundHeight(x,z)??coast?.heightAt(x,z)??.08);
  function staticBlocked(x,z,r=.28,y=ground(x,z),height=1.8){
   if(roomRegion(x,z))return room.blocked(x,z,r,y,height);
-  if(!land(x,z,r))return true;if(!inCore(x-r,z-r)||!inCore(x+r,z+r))if(cityStream?.blocked?.(x,z,r,y,height))return true;
-  for(const q of candidates(x,z,r))if(q.maxY>y+.22&&q.minY<y+height&&disk(q,x,z,r))return true;
-  if(!ignoreVehicle)for(const c of fleet){const q=carBox(c);if(q.maxY>y+.22&&q.minY<y+height&&disk(q,x,z,r))return true;}return false;
+  if(!land(x,z,r))return true;const core=inCore(x-r,z-r)&&inCore(x+r,z+r);if(!core&&cityStream?.blocked?.(x,z,r,y,height))return true;
+  // Most capsule probes fit inside one existing spatial bucket. Scanning that
+  // array directly preserves the same boolean contacts without a temporary Set.
+  const ix0=Math.floor((x-r)/8),ix1=Math.floor((x+r)/8),iz0=Math.floor((z-r)/8),iz1=Math.floor((z+r)/8);
+  const local=core&&ix0===ix1&&iz0===iz1,nearby=local?buckets.get(ix0+','+iz0):candidates(x,z,r);
+  if(nearby)for(const q of nearby)if(q.maxY>y+.22&&q.minY<y+height&&disk(q,x,z,r))return true;
+  if(!ignoreVehicle)for(const c of fleet){const q=carBox(c,carBounds);if(q.maxY>y+.22&&q.minY<y+height&&disk(q,x,z,r))return true;}return false;
  }
  const clearance=R.clearance.create({bodies:()=>dynamicBodies,staticBlocked});
  const blocked=(x,z,r=.28,y=ground(x,z),height=1.8)=>clearance.blocked(x,z,r,y,height);
- const carBox=c=>{const base=Number.isFinite(c.y)?c.y:ground(c.x,c.z);return {vehicle:c,x:c.x,z:c.z,a:R.vehicles.SPECS[c.model].length/2,b:R.vehicles.SPECS[c.model].width/2,c:Math.cos(c.cap),s:Math.sin(c.cap),cap:c.cap,minY:base+.1,maxY:base+R.vehicles.SPECS[c.model].height};};
+ const carBounds=new WeakMap();
+ const carBox=(c,privateProbe=false)=>{const spec=R.vehicles.SPECS[c.model],base=Number.isFinite(c.y)?c.y:ground(c.x,c.z);let q=carBounds.get(c);
+  if(!q){q={vehicle:c,x:c.x,z:c.z,a:spec.length/2,b:spec.width/2,c:Math.cos(c.cap),s:Math.sin(c.cap),cap:c.cap,minY:base+.1,maxY:base+spec.height};carBounds.set(c,q);}
+  else{if(!Object.is(q.cap,c.cap)){q.cap=c.cap;q.c=Math.cos(c.cap);q.s=Math.sin(c.cap);}q.x=c.x;q.z=c.z;q.a=spec.length/2;q.b=spec.width/2;q.minY=base+.1;q.maxY=base+spec.height;}
+  // The shared box never escapes the boolean staticBlocked probe. Public boxes
+  // and collision results remain independent mutable snapshots, as before.
+  return privateProbe===carBounds?q:{...q};
+ };
  function overlap(a,b){
   if(b.minY>=a.maxY||b.maxY<=a.minY+.12)return null;
   let best=Infinity,nx=0,nz=0;
@@ -17186,9 +17335,39 @@ function create({savedCity=null}={}){
  }
  function castProjectile(o,d,far,r){let distance=far,normal=[0,1,0];const list=roomRegion(o[0],o[2])?room.colliders:[...candidates(o[0]+d[0]*far/2,o[2]+d[2]*far/2,far+r+1),...fleet.map(carBox),...dynamicBodies];for(const q of list){const hit=rayBox({...q,a:q.a+r,b:q.b+r,minY:q.minY-r,maxY:q.maxY+r},o,d,distance);if(hit<distance){distance=hit;const x=o[0]+d[0]*hit-q.x,z=o[2]+d[2]*hit-q.z,u=x*q.c+z*q.s,v=-x*q.s+z*q.c,y=o[1]+d[1]*hit,faces=[{d:Math.abs(Math.abs(u)-q.a-r),n:[Math.sign(u)*q.c,0,Math.sign(u)*q.s]},{d:Math.abs(Math.abs(v)-q.b-r),n:[-Math.sign(v)*q.s,0,Math.sign(v)*q.c]},{d:Math.min(Math.abs(y-q.minY+r),Math.abs(y-q.maxY-r)),n:[0,y<(q.minY+q.maxY)/2?-1:1,0]}];normal=faces.sort((a,b)=>a.d-b.d)[0].n;}}const terrain=terrainRay(o,d,distance,r);if(terrain.distance<distance){distance=terrain.distance;normal=terrain.normal;}return {distance,normal};}
  function roofHeight(x,z){if(roomRegion(x,z))return room.contains(x,z)?room.ceiling:0;let y=Math.max(ground(x,z),cityStream?.roofHeight(x,z)||0);for(const q of candidates(x,z,.1))if(disk(q,x,z,.05))y=Math.max(y,q.maxY);for(const c of fleet)if(disk(carBox(c),x,z,.05))y=Math.max(y,carBox(c).maxY);return y;}
- function freeNear(x,z,r=.4){for(let d=0;d<24;d+=.5)for(let i=0;i<(d?32:1);i++){const a=i*Math.PI/16,xx=x+Math.cos(a)*d,zz=z+Math.sin(a)*d;if(!blocked(xx,zz,r,ground(xx,zz)))return [xx,zz];}throw new Error('Aucun point libre près de '+x+','+z);}
+ function freeNear(x,z,r=.4,{required=true}={}){for(let d=0;d<24;d+=.5)for(let i=0;i<(d?32:1);i++){const a=i*Math.PI/16,xx=x+Math.cos(a)*d,zz=z+Math.sin(a)*d;if(!blocked(xx,zz,r,ground(xx,zz)))return [xx,zz];}if(!required)return null;throw new Error('Aucun point libre près de '+x+','+z);}
  function addMesh(m){scenery.push(m);fromMesh(m);}
- function replaceScenery(value){scenery=value;boxes.length=0;buckets.clear();for(const m of scenery)if(m.collision)fromMesh(m);}
+ function replaceScenery(value){
+  scenery=value;colliderGeneration++;const next=[];stagedBoxes=next;try{for(const m of scenery)if(m.collision)fromMesh(m);}finally{stagedBoxes=null;}
+  if(!taintedBoxes.size&&next.length===boxes.length&&next.every((q,i)=>q===boxes[i]))return;
+  const dirty=new Set(),added=new Map();let previousOrder=-1,reordered=false;
+  for(let i=0;i<next.length;i++){const q=next[i];let index=boxIndex.get(q);if(!index){index={active:false,cells:[],order:0,seen:-1,nextOrder:0};boxIndex.set(q,index);}
+   if(index.active){if(index.order<previousOrder)reordered=true;previousOrder=index.order;}
+   if(!index.active||taintedBoxes.has(q)){
+    for(const cell of index.cells)dirty.add(cell);index.cells=cellsForBox(q);
+    for(const cell of index.cells){dirty.add(cell);let list=added.get(cell);if(!list){list=[];added.set(cell,list);}list.push(q);}
+   }
+   index.seen=colliderGeneration;index.nextOrder=i;
+  }
+  for(const q of boxes){const index=boxIndex.get(q);if(index.seen!==colliderGeneration){index.active=false;for(const cell of index.cells)dirty.add(cell);}}
+  if(reordered){
+   // A reorder changes tie-breaking for overlapping boxes. It is uncommon in
+   // destruction, so retain the exact full-order rebuild for that case.
+   for(const list of buckets.values())list.length=0;
+   for(const q of next)for(const cell of boxIndex.get(q).cells){let list=buckets.get(cell);if(!list){list=[];buckets.set(cell,list);}list.push(q);}
+   for(const [cell,list]of buckets)if(!list.length)buckets.delete(cell);
+  }else{
+   // Retained boxes are still in the same relative order. Only buckets touched
+   // by an insertion/removal need merging; all other arrays remain untouched.
+   for(const cell of dirty){const list=buckets.get(cell)||[],seen=new Set();let at=0;
+    for(let i=0,n=list.length;i<n;i++){const q=list[i];if(boxIndex.get(q).seen===colliderGeneration&&!seen.has(q)){seen.add(q);list[at++]=q;}}
+    list.length=at;const insertions=added.get(cell);if(insertions)for(const q of insertions)if(!seen.has(q)){seen.add(q);list.push(q);}
+    if(insertions?.length)list.sort((a,b)=>boxIndex.get(a).nextOrder-boxIndex.get(b).nextOrder);
+    if(list.length)buckets.set(cell,list);else buckets.delete(cell);
+   }
+  }
+  boxes.length=0;for(const q of next){const index=boxIndex.get(q);index.active=true;index.order=index.nextOrder;boxes.push(q);}taintedBoxes.clear();
+ }
  // Port maintenance encounter: fictional METAL sentinels, reusable cover and a signal mast.
  const goal=freeNear(-91,0,2.5);const mission={x:goal[0],z:goal[1],radius:24};
  for(const [dx,dz,w]of [[-9,-4,4],[8,-5,3],[-6,8,3]]){const p=freeNear(goal[0]+dx,goal[1]+dz,2);addMesh(mesh([p[0],.8,p[1]],[w,1.45,1.8],[.24,.32,.34],0));}
@@ -18083,7 +18262,17 @@ function create(world,sim,layout,{saved=null,now=Date.now(),notify=()=>{}}={}){
   state.mapOwned=v.mapOwned===true;state.cash=Math.min(v.cash,1e9);state.xp=Math.max(0,Math.min(finite(v.xp),1e8));state.earned=Math.max(0,finite(v.earned));state.kills=Math.max(0,finite(v.kills));state.nextRaid=Math.max(30,Math.min(240,finite(v.nextRaid,115)));
   for(const item of v.sites){const s=sites.find(s=>s.id===item?.id);if(s&&Number.isInteger(item.gang)&&item.gang>=0&&item.gang<4){s.gang=item.gang;s.closed=!!item.closed;s.upgrade=Math.max(0,Math.min(3,Math.floor(finite(item.upgrade))));}}
   const elapsed=Math.max(0,Math.min(8*3600,(now-(Number(v.savedAt)||now))/1000));state.offline=income()*elapsed/60;state.cash+=state.offline;state.earned+=state.offline;
-  if(v.player&&inWorld(v.player.x,v.player.z,5)&&Number.isFinite(v.player.hp)&&v.player.hp>0){const q=world.freeNear(v.player.x,v.player.z,.34);sim.relocate(q[0],q[1],finite(v.player.yaw));Object.assign(p,{hp:Math.max(1,Math.min(100,v.player.hp))});}
+  if(v.player&&inWorld(v.player.x,v.player.z,5)&&Number.isFinite(v.player.hp)&&v.player.hp>0){
+   // Marine restore validates its own water/hull position later in session
+   // creation. Looking for dry land first used to abort saves in the harbour.
+   const afloat=!!R.marine&&[1,2].includes(v.marine?.version)&&['swim','boat'].includes(v.marine.mode);
+   if(!afloat){
+    let q=world.freeNear(v.player.x,v.player.z,.34,{required:false});
+    if(!q){const home=world.combatWorld.spawn;q=world.freeNear(home.x,home.z,.34);notify('Position sauvegardée impraticable · retour au point de départ. Votre progression est conservée.');}
+    sim.relocate(q[0],q[1],finite(v.player.yaw));
+   }
+   Object.assign(p,{hp:Math.max(1,Math.min(100,v.player.hp))});
+  }
   for(const data of Array.isArray(v.enemies)?v.enemies:[]){const e=sim.state.enemies[data?.id];if(!e||!inWorld(data.x,data.z))continue;Object.assign(e,{x:data.x,z:data.z,hp:Math.max(0,Math.min(e.maxHp,Number(data.hp)||0)),deployed:!!data.deployed,gang:Number.isInteger(data.gang)&&data.gang>=0&&data.gang<4?data.gang:e.gang});}
   state.active=sites.some(s=>s.id===v.active&&s.gang!==0)?v.active:null;state.hold=Math.min(4.9,Math.max(0,finite(v.hold)));
   if(v.raid&&Array.isArray(v.raid.ids)&&v.raid.ids.length&&sites.some(s=>s.id===v.raid.site)&&Number.isInteger(v.raid.gang)&&v.raid.gang>0&&v.raid.gang<4){state.raid={site:v.raid.site,gang:v.raid.gang,timer:Math.max(15,Math.min(200,finite(v.raid.timer,100))),ids:layout.reserves.filter(id=>(Array.isArray(v.raid.ids)?v.raid.ids:[]).includes(id)),presence:0};}
@@ -18103,7 +18292,7 @@ function clean(input){const o={};for(const k of keys){const v=input[k];if(k==='p
 function recorder(){let tape=null,last='',ticks=0;return {start(label='Commandes réelles'){tape={version:2,hz:120,expanded:true,label,runs:[]};last='';ticks=0;},push(input){if(!tape)return;const c=clean(input),key=JSON.stringify(c);if(key===last&&tape.runs.length)tape.runs.at(-1)[0]++;else{tape.runs.push([1,c]);last=key;}ticks++;},stop(){if(!tape)return null;tape.ticks=ticks;tape.duration=ticks/120;const out=tape;tape=null;return out;},get active(){return !!tape;}};}
 function player(tape){let run=0,tick=0,elapsed=0;return {next(){if(run>=tape.runs.length)return null;const [n,c]=tape.runs[run];tick++;elapsed++;if(tick>=n){run++;tick=0;}return c;},get time(){return elapsed/120;},get done(){return run>=tape.runs.length;}};}
 const KEY='rade-solo-v2';
-const storage={load(){try{const value=JSON.parse(localStorage.getItem(KEY)||'null');return value?.version===2?value:null;}catch{return null;}},save(value){try{localStorage.setItem(KEY,JSON.stringify(value));return true;}catch{return false;}},clear(){try{localStorage.removeItem(KEY);}catch{}}};
+const storage={load(){try{const value=JSON.parse(localStorage.getItem(KEY)||'null');return value?.version===2?value:null;}catch{return null;}},save(value){try{localStorage.setItem(KEY,JSON.stringify(value));return true;}catch{return false;}},clear(){try{localStorage.removeItem(KEY);return localStorage.getItem(KEY)===null;}catch{return false;}}};
 R.replay={clean,recorder,player};R.storage=storage;
 })(globalThis.RADE);
 
@@ -18791,8 +18980,8 @@ function create(world,interiors,baseMeshes,{saved=[],legacyDamage=null,onProject
   const records=[...openings.values()].filter(o=>!controller||controller.isAlive(o.sourceId)).map(o=>({o,d:Math.hypot(o.point[0]-x,o.point[2]-z)})).filter(q=>q.d<=80).sort((a,b)=>a.d-b.d||a.o.id.localeCompare(b.o.id)).slice(0,8),key=records.map(q=>q.o.id).sort().join('|');if(key===selectionKey)return false;
   selectionKey=key;selected=records.map(({o})=>interiors.breachProjection({mesh:baseMeshes[o.index],point:o.point,buildingId:o.buildingId,floor:o.floor})).filter(Boolean);for(const bridge of selected)onProject(bridge);dirty=true;return true;
  }
- function rebuild(dc){controller=dc;if(!dc)return false;const groups=new Map();for(const o of openings.values()){if(!groups.has(o.index))groups.set(o.index,[]);groups.get(o.index).push(o);}const meshes=[];
-  for(const m of dc.meshes){const index=indices.has(m)?indices.get(m):Number(/^piece-(\d+)$/.exec(m.destructibleId||'')?.[1]),records=groups.get(index);if(records&&m.shape==='box')meshes.push(...hollow(m,records));else meshes.push(m);}
+ function rebuild(dc){controller=dc;if(!dc)return false;const groups=new Map();for(const o of openings.values()){if(!groups.has(o.index))groups.set(o.index,[]);groups.get(o.index).push(o);}const meshes=groups.size?[]:dc.meshes.slice();
+  if(groups.size)for(const m of dc.meshes){const index=indices.get(m)??Number(/^piece-(\d+)$/.exec(m.destructibleId||'')?.[1]),records=groups.get(index);if(records&&m.shape==='box')meshes.push(...hollow(m,records));else meshes.push(m);}
   lights=[];for(const bridge of selected){bridge.refresh();meshes.push(...bridge.scenery);lights.push(...bridge.lights);}world.replaceScenery(meshes);for(const bridge of selected)for(const collider of bridge.colliders)world.addBox({...collider});revision=dc.revision;dirty=false;return true;
  }
  function sync(dc,position){controller=dc;choose(position);return rebuild(dc);}
@@ -18857,7 +19046,7 @@ function create(world,sim,{saved=null,interiors,campaign,traffic,notify=()=>{}}=
   }
   for(const record of rebuild)rebuildEngine(record);cleanEngines();
  }
- function scorch(dc,scene){for(const value of charred){const [part,id]=value.split('|');if(part===scene)for(const m of dc.describe(id)?.meshes||[])m.color=(m.color||[.4,.4,.4]).map(n=>n*.55);}}
+ function scorch(dc,scene){for(const value of charred){const [part,id]=value.split('|');if(part===scene)for(const m of dc.describe(id)?.meshes||[]){m.color=(m.color||[.4,.4,.4]).map(n=>n*.55);m.renderRevision=(m.renderRevision||0)+1;}}}
  function streetController(){if(!outdoor){outdoor=controller(baseMeshes,baseBoxes,135);if(saved?.damage&&outdoor.restore(saved.damage))sync(outdoor);scorch(outdoor,'street');}return outdoor;}
  function applyRoom(dc,room){room.scenery=dc.meshes;room.colliders.splice(0,room.colliders.length,...dc.colliders.map(q=>({x:(q.minX+q.maxX)/2,z:(q.minZ+q.maxZ)/2,a:(q.maxX-q.minX)/2,b:(q.maxZ-q.minZ)/2,c:1,s:0,cap:0,minY:q.minY,maxY:q.maxY,mesh:dc.meshes[q.mesh]})));}
  function prepareProjected(bridge){const room=bridge.room,key=room.sceneId;let record=projectedRooms.get(key);if(!record){let dc;if(indoor&&roomKey===key)dc=indoor;else{const source=roomStates.has(key)?interiors.roomFor(room.building,room.floor,room.placeIndex):room;dc=controller(source.scenery,source.colliders,key);if(roomStates.has(key))dc.restore(roomStates.get(key));scorch(dc,key);}record={dc,rooms:new Set()};projectedRooms.set(key,record);}record.rooms.add(room);applyRoom(record.dc,room);return record.dc;}
@@ -19001,7 +19190,7 @@ function create(world,sim,{saved=null,interiors,campaign,traffic,notify=()=>{}}=
   for(const q of bodies){if(q.scene!==currentScene())continue;const b=q.engine.body(q.handle);if(!b||b.lost||q===held)continue;const dx=b.pos[0]-p.x,dz=b.pos[2]-p.z,d=Math.hypot(dx,dz),rad=Math.min(.7,Math.max(q.mesh.s[0],q.mesh.s[2])/2)+.35;if(d<rad&&b.pos[1]<world.ground(p.x,p.z)+2&&b.mass<400)q.engine.impulse(q.handle,...b.pos,dx/(d||1)*90*dt,0,dz/(d||1)*90*dt);}
   if(fires.some(f=>f.heat>0)){if(!truck){alarm+=dt;if(alarm>6)dispatch();}crewStep(dt);if(Math.floor(clock/.8)!==Math.floor((clock-dt)/.8)&&truck)events.push({name:'policeSiren',level:.15});}
   fireClock+=dt;if(fireClock>=1){const elapsed=fireClock;fireClock=0;for(const f of fires){if(f.heat<=0)continue;f.age+=elapsed;f.fuel-=elapsed;f.heat=clamp(f.heat+elapsed*(.012-(f.scene==='street'?(world.weather?.rain||0)*.04:0)),0,1.5);if(f.fuel<=0)f.heat=0;const here=f.scene==='street'?!world.room:roomKey===f.scene;
-    if((here||f.scene==='street')&&f.age%4<elapsed){const dc=f.scene==='street'?streetController():activeController(),point=[f.x,fireHeight(f)+1.3,f.z],streamed=f.scene==='street'?world.cityStream?.damage?.(point,9*f.heat,2.3):null,result=streamed?.changed?streamed:dc.blast(point,2.3,9*f.heat);for(const e of result.events){charred.add((f.scene||'street')+'|'+e.sourceId);const item=streamed?.changed?null:dc.describe(e.sourceId);for(const m of item?.meshes||[])m.color=(m.color||[.4,.4,.4]).map(n=>n*.88);}if(result.changed){if(streamed?.changed){version++;staticClock=0;}else{if(f.scene==='street')breaches?.observe(result);sync(dc);}report.breaches++;structuralDebris(result.debris,f.scene);}else version++;}
+    if((here||f.scene==='street')&&f.age%4<elapsed){const dc=f.scene==='street'?streetController():activeController(),point=[f.x,fireHeight(f)+1.3,f.z],streamed=f.scene==='street'?world.cityStream?.damage?.(point,9*f.heat,2.3):null,result=streamed?.changed?streamed:dc.blast(point,2.3,9*f.heat);let recolored=false;for(const e of result.events){charred.add((f.scene||'street')+'|'+e.sourceId);const item=streamed?.changed?null:dc.describe(e.sourceId);for(const m of item?.meshes||[]){m.color=(m.color||[.4,.4,.4]).map(n=>n*.88);m.renderRevision=(m.renderRevision||0)+1;recolored=true;}}if(result.changed){if(streamed?.changed){version++;staticClock=0;}else{if(f.scene==='street')breaches?.observe(result);sync(dc);}report.breaches++;structuralDebris(result.debris,f.scene);}else if(recolored)version++;}
     if((here||f.scene==='street')&&!f.spread&&f.age>7){f.spread=true;const dc=f.scene==='street'?streetController():activeController();for(let j=0;j<8;j++){const a=j*Math.PI/4,hit=dc.raycast([f.x,fireHeight(f)+1.2,f.z],[Math.sin(a),0,Math.cos(a)],6);if(hit&&dc.describe(hit.id)?.meshes.some(m=>describe(m).fuel>.4)){ignite(hit.point[0],hit.point[2],f.scene,.6);break;}}}
     if(here&&Math.hypot(p.x-f.x,p.z-f.z,p.y-fireHeight(f))<2)sim.hurt(4*elapsed*f.heat);for(const c of world.fleet)if(f.scene==='street'&&f.vehicleId!==c.id&&Math.hypot(c.x-f.x,c.z-f.z)<3)hitVehicle(c,elapsed*2,[f.x,fireHeight(f)+1,f.z]);
   }}
@@ -20028,7 +20217,7 @@ let lastCommand={},processedEvents=0,carLookX=0,carLookY=0,testInput=null,camera
 const samples=[],cpuSamples=[],errors=[],recorder=R.replay.recorder(),graphics={reflections:true,shadows:true};
 let queuedZoom=0,liveZoom=0,liveView='poursuite';
 let mapPaint=0,mapBoard=null,mapWhole=false;
-let phoneThread=null,phoneRevision=-1,pendingPhone=null,recoveringRenderer=null,recoveryPointerUnlock=false;
+let phoneThread=null,phoneRevision=-1,pendingPhone=null,recoveringRenderer=null,recoveryPointerUnlock=false,resetting=false;
 const renderOptions={msaa:4,shadowMapScale:1,vignette:.9,bloomThreshold:[.9,.99]};
 const backendEvents=[];
 function onScene(type,handler,options){document.addEventListener(type,event=>{if(event.target===canvas)handler(event);},options);}
@@ -20047,8 +20236,14 @@ function updateBackendLabel(){const small=document.querySelector('.game-version 
 let padSettings={};try{padSettings=JSON.parse(localStorage.getItem('emprise-pad-v1')||'{}');}catch{}
 const pad=R.gamepad.create({settings:padSettings});let padActive=false,overlay=null,overlayReturn=null,aiming=0,queuedAction=null;
 function gate(){input.clear();pad.suspend();}
-function showOverlay(id){if(overlay)$(overlay).hidden=true;overlayReturn=document.activeElement;overlay=id;gate();drag=false;document.exitPointerLock?.();$(id).hidden=false;$(id).querySelector('button,input')?.focus();}
-function hideOverlay(){if(!overlay)return;$(overlay).hidden=true;overlay=null;gate();overlayReturn?.focus();if(running&&!padActive)lock();}
+function showOverlay(id){if(overlay)$(overlay).hidden=true;overlayReturn=document.activeElement;overlay=id;gate();drag=false;document.exitPointerLock?.();if(id==='reset-confirm')$('reset-error').hidden=true;$('recovery').inert=fatal;$(id).hidden=false;$(id).querySelector('button,input')?.focus();}
+function hideOverlay(){if(!overlay)return;$(overlay).hidden=true;overlay=null;$('recovery').inert=false;gate();overlayReturn?.focus();if(running&&!padActive)lock();}
+function dialogKeys(e,root){
+ if(e.code==='Escape'&&overlay==='reset-confirm'){hideOverlay();e.preventDefault();return true;}
+ if(e.code!=='Tab')return false;
+ const items=[...root.querySelectorAll('button,summary,input')].filter(el=>!el.disabled&&!el.closest('[hidden]')&&el.getClientRects().length);if(!items.length)return false;
+ const i=items.indexOf(document.activeElement);if(i<0||e.shiftKey&&i===0||!e.shiftKey&&i===items.length-1){items[e.shiftKey?items.length-1:0].focus();e.preventDefault();return true;}return false;
+}
 function openActions(){for(const b of document.querySelectorAll('[data-sail-control]'))b.hidden=session?.marine?.boat?.kind!=='sailboat';showOverlay('actions');}
 function openNotebook(){
  if(!session?.campaign||demo)return;
@@ -20090,7 +20285,13 @@ for(const key of ['sensitivity','deadzone','vibration','invert']){const el=$('pa
 $('close-notebook').onclick=hideOverlay;$('pause-notebook').onclick=openNotebook;
 const notebookAction=document.createElement('button');notebookAction.textContent='Consulter le carnet';notebookAction.onclick=openNotebook;$('action-list').insertBefore(notebookAction,$('action-list').children[3]);
 const phoneAction=document.createElement('button');phoneAction.textContent='Téléphone · Messages';phoneAction.onclick=openPhone;$('action-list').append(phoneAction);
-$('cancel-reset').onclick=hideOverlay;$('confirm-reset').onclick=()=>{R.storage.clear();location.reload();};
+$('cancel-reset').onclick=hideOverlay;$('confirm-reset').onclick=()=>{
+ if(overlay!=='reset-confirm'||resetting)return;resetting=true;
+ if(!R.storage.clear()){resetting=false;$('reset-error').textContent='Impossible d’effacer la sauvegarde dans ce navigateur. La partie a été conservée.';$('reset-error').hidden=false;return;}
+ // pagehide must not write the old live session back after explicit deletion.
+ location.reload();
+};
+$('fatal-reload').onclick=()=>location.reload();$('fatal-reset').onclick=()=>showOverlay('reset-confirm');$('title-reset').onclick=()=>showOverlay('reset-confirm');
 function updatePad(dt,now){const state=pad.poll(dt,now),b=state.pressed;
  if(state.active){padActive=true;document.body.classList.add('pad');lastGesture=now;}
  $('pad-status').textContent=state.connected?pad.label+' détectée · '+pad.glyph('A')+' pour jouer':'Manette : appuyez sur un bouton pour la détecter.';
@@ -20104,7 +20305,7 @@ function updatePad(dt,now){const state=pad.poll(dt,now),b=state.pressed;
 }
 function mergedInput(){const k=input.step(),p=pad.step(session.mode,session.sim.state.weapon);if(padActive){k.moveX=Math.abs(p.moveX||0)>Math.abs(k.moveX||0)?p.moveX:k.moveX;k.moveY=Math.abs(p.moveY||0)>Math.abs(k.moveY||0)?p.moveY:k.moveY;k.steer=Math.abs(p.steer||0)>Math.abs(k.moveX||0)?p.steer:k.moveX;for(const key of ['forward','back'])k[key]=Math.max(+k[key]||0,p[key]||0);k.lookX=(k.lookX||0)+(p.lookX||0);k.lookY=(k.lookY||0)+(p.lookY||0);for(const key of ['fire','sprint','drift','brake','dash','interact','camera','engine','grab','throw','melee','pulse','map'])k[key]=k[key]||p[key];if(p.weapon!==undefined)k.weapon=p.weapon;aiming=p.aim||0;}else aiming=0;if(queuedAction){k[queuedAction]=true;queuedAction=null;}if(queuedZoom){k.zoomDelta=queuedZoom;queuedZoom=0;}return k;}
 const env={skyTop:[.25,.44,.63],skyBottom:[.72,.76,.74],fog:[.64,.70,.71],sunDirection:[-.45,.62,.35],sunColor:[1.62,1.44,1.16],ambient:[.2,.23,.27],wind:.5,fogDensity:.00035,biome:'ville',outdoorZones:[{x:0,z:0,w:6000,d:6000}]};
-function save(){if(!testMode&&!demo&&live?.campaign&&!live.sim.state.dead){const ok=R.storage.save(live.save());if(!ok)live.tell('Sauvegarde indisponible dans ce navigateur.');}}
+function save(){if(!fatal&&!resetting&&!testMode&&!demo&&live?.campaign&&!live.sim.state.dead){const ok=R.storage.save(live.save());if(!ok)live.tell('Sauvegarde indisponible dans ce navigateur.');}}
 function soundStart(){if(!silent&&!demo){audio.start();audio.setMix({master:1,music:0,ambience:.22});audio.setPlaying(true);engineSound.demarrer();engineSound.reprendre();}}
 function silence(){pad.stop();engineSound.suspendre();audio.setPlaying(false);}
 function lock(){if(panel||overlay||demo||padActive)return;const promise=canvas.requestPointerLock?.();promise?.catch?.(()=>session.tell('Maintenez le clic pour regarder si la capture est refusée.',{remember:false}));}
@@ -20113,7 +20314,22 @@ async function warmCity(s){if(!s.world.cityStream)return;let n=0;do{s.world.city
 function install(s){session=s;crowdView?.liberer();s.urban?.prepare();renderer.setWorld(s.interiors?.active?.scenery||staticScenery(s),[],env);interiorVersion=s.interiors?.revision||0;urbanVersion=s.urban?.revision||0;cityVersion=s.world.cityStream?.revision||0;crowdView=PDR.foule.creerFoule(renderer,{ville:s.world.navCity,plafond:1000,seuil:3});crowdView.regler({joueur:-1,brouillard:false});crowdVersion=-1;motion.reset();input.clear();carLookX=carLookY=0;previousMode=s.mode;acc=0;cameraOverride=null;}
 function start(){if(!ready||fatal)return;if(demo)stopDemo();if(session.sim.state.dead)session.respawn();if(preparedDemo){preparedDemo.session.sim.dispose();preparedDemo=null;}gate();running=true;last=performance.now();acc=0;panel=null;$('title').hidden=true;$('hud').hidden=false;$('paused').hidden=true;$('trade').hidden=true;$('cityplan').hidden=true;$('touch').hidden=!matchMedia('(pointer:coarse)').matches;soundStart();lock();}
 function pause(){if(demo){stopDemo();return;}if(!ready)return;running=false;if(overlay){$(overlay).hidden=true;overlay=null;}closePanel();gate();drag=false;document.exitPointerLock?.();$('paused').hidden=false;$('pauseTitle').textContent=session.sim.state.dead?'À terre. Le réseau continue.':'Pause';$('resume').textContent=session.sim.state.dead?'REPRENDRE AU REFUGE ↗':'REPRENDRE ↗';$('ledger').textContent=session.campaign?`${Math.floor(session.campaign.state.cash)} € · ${session.campaign.sites.filter(s=>s.gang===0).length+(session.business?.journal().filter(q=>q.status==='protected').length||0)} lieux contrôlés · ${Math.round(session.campaign.income()+(session.business?.income||0))} €/min` : '';silence();save();}
-function fail(e){const text=e?.message||String(e);if(!errors.includes(text))errors.push(text);if(fatal)return;fatal=true;running=false;input.clear();silence();document.exitPointerLock?.();$('loading').textContent='Session interrompue : '+text;$('loading').hidden=false;console.error(e);}
+function recoveryFrame(now){
+ if(!fatal)return;
+ // Initialization can fail before the first game frame. Recovery controls do
+ // not depend on a running renderer, simulation, or writable saved session.
+ try{const state=pad.poll(1/60,now);if(state.active){padActive=true;document.body.classList.add('pad');}
+  if(state.connected&&!state.blocked){if(overlay==='reset-confirm'&&(state.pressed[1]||state.pressed[9]))hideOverlay();else pad.navigate($(overlay==='reset-confirm'?'reset-confirm':'recovery'),now);}
+ }catch{}requestAnimationFrame(recoveryFrame);
+}
+function fail(e){
+ const text=e?.message||String(e);if(!errors.includes(text))errors.push(text);if(fatal)return;
+ fatal=true;ready=false;running=false;demo=false;drag=false;gate();silence();document.exitPointerLock?.();
+ if(overlay)$(overlay).hidden=true;overlay=null;panel=null;
+ for(const id of ['loading','title','hud','paused','trade','business','cityplan','touch','attract','phone'])$(id).hidden=true;
+ $('recovery-detail').textContent=text;$('recovery').inert=false;$('recovery').hidden=false;$('fatal-reload').focus();
+ requestAnimationFrame(recoveryFrame);console.error(e);
+}
 window.addEventListener('error',e=>fail(e.error||e.message));window.addEventListener('unhandledrejection',e=>fail(e.reason));
 function prepareDemo(){if(preparedDemo||!R.replays.length)return;const tape=R.replays[demoIndex%R.replays.length],s=R.session.create({expanded:tape.expanded!==false,saved:tape.initial||null});s.urban?.prepare();preparedDemo={index:demoIndex,session:s};}
 function startDemo(){if(!ready||!R.replays.length||demo||$('title').hidden)return;liveZoom=followCamera.target;liveView=view;followCamera.reset();view='poursuite';demo=true;running=true;const tape=R.replays[demoIndex++%R.replays.length];replayPlayer=R.replay.player(tape);const prepared=preparedDemo?.index===demoIndex-1?preparedDemo.session:null;preparedDemo=null;install(prepared||R.session.create({expanded:tape.expanded!==false,saved:tape.initial||null}));last=performance.now();$('title').hidden=true;$('hud').hidden=false;$('attract').hidden=false;$('attract-label').textContent=tape.label;silence();}
@@ -20124,6 +20340,8 @@ $('start').onclick=start;$('resume').onclick=start;$('pause').onclick=pause;$('p
 $('restart').onclick=()=>showOverlay('reset-confirm');
 $('sound').onclick=()=>{silent=!silent;$('sound').textContent=silent?'SON OFF':'SON ON';audio.setMix({master:silent?0:1});if(silent)silence();else soundStart();};
 window.addEventListener('keydown',e=>{
+ if(fatal){padActive=false;document.body.classList.remove('pad');dialogKeys(e,$(overlay==='reset-confirm'?'reset-confirm':'recovery'));return;}
+ if(overlay==='reset-confirm'&&dialogKeys(e,$('reset-confirm')))return;
  if(activity(e))return;padActive=false;document.body.classList.remove('pad');if(overlay){if(e.code==='Escape'||e.code==='KeyJ'&&overlay==='notebook'||e.code==='KeyO'&&overlay==='phone'){hideOverlay();e.preventDefault();}return;}if(e.target?.tagName==='INPUT')return;
  if(e.code==='Escape'||e.code==='KeyP'){if(panel)closePanel();else if(running)pause();else if(ready&&$('title').hidden)start();e.preventDefault();return;}
  if(e.code==='KeyO'&&running&&!panel){if(!e.repeat)openPhone();e.preventDefault();return;}
@@ -20232,7 +20450,7 @@ function frame(now){requestAnimationFrame(frame);if(!ready||fatal)return;try{con
  if(!demo){samples.push(ms);if(samples.length>36000)samples.shift();saveClock+=dt;if(saveClock>5){save();saveClock=0;}}
  }
  pad.feedback(dt,now,session.car,running&&!demo&&!panel&&!overlay,session.mode==='car');
- const room=session.interiors?.active;if(!room)session.world.cityStream?.tick(session.player.x,session.player.z);if(interiorVersion!==(session.interiors?.revision||0)||urbanVersion!==(session.urban?.revision||0)||cityVersion!==(session.world.cityStream?.revision||0)){renderer.updateWorld(room?.scenery||staticScenery(session),++staticSerial,[]);interiorVersion=session.interiors?.revision||0;urbanVersion=session.urban?.revision||0;cityVersion=session.world.cityStream?.revision||0;motion.reset();}const cam=camera();if(session.weather)renderer.setEnvironment(room?{...session.weather.environment(),sunColor:[.1,.1,.1],ambient:[.44,.39,.31],fogDensity:0}:{...session.weather.environment(),fogDensity:Math.max(.000035,session.weather.environment().fogDensity*.3)});if(crowdVersion!==session.crowd.version){crowdView.recevoir(session.crowd.packed,session.crowd.n,session.crowd.locomotion);crowdVersion=session.crowd.version;}crowdView.cadre(cam,session.time,session.crowdAlpha);
+ const room=session.interiors?.active;if(!room)session.world.cityStream?.tick(session.player.x,session.player.z);if(interiorVersion!==(session.interiors?.revision||0)||urbanVersion!==(session.urban?.revision||0)||cityVersion!==(session.world.cityStream?.revision||0)){renderer.updateWorld(room?.scenery||staticScenery(session),++staticSerial,[],{revisionedMeshes:true});interiorVersion=session.interiors?.revision||0;urbanVersion=session.urban?.revision||0;cityVersion=session.world.cityStream?.revision||0;motion.reset();}const cam=camera();if(session.weather)renderer.setEnvironment(room?{...session.weather.environment(),sunColor:[.1,.1,.1],ambient:[.44,.39,.31],fogDensity:0}:{...session.weather.environment(),fogDensity:Math.max(.000035,session.weather.environment().fogDensity*.3)});if(crowdVersion!==session.crowd.version){crowdView.recevoir(session.crowd.packed,session.crowd.n,session.crowd.locomotion);crowdVersion=session.crowd.version;}crowdView.cadre(cam,session.time,session.crowdAlpha);
  const lighting=sceneLights();for(const f of session.urban?.fires||[])if(f.heat>0&&Math.hypot(f.x-session.player.x,f.z-session.player.z)<35)lighting.lights.push({p:[f.x,session.world.ground(f.x,f.z)+1.2,f.z],color:[1,.30,.04],power:24*f.heat,range:9});renderer.draw(cam,models(cam),{time:session.time,flash:session.mode==='foot'?session.sim.state.flash:0,damage:session.sim.state.damage,lights:lighting.lights,headlight:lighting.headlight,sunOnly:!lighting.headlight,torch:false,shadows:graphics.shadows,reflections:graphics.reflections,cloudOffset:session.weather?[session.weather.state.cloudX,session.weather.state.cloudZ]:[0,0],weather:session.weather&&!room?[session.weather.state.wet,session.weather.state.cloud,session.weather.state.storm,session.weather.state.flash]:[0,.22,0,0],bloom:true,msaa:true,foule:room?null:crowdView.fx,adaptive:false,frameMs:ms});drawCount++;
  if(session.weather)audio.setWeather(running&&!demo&&!silent?session.weather.state.rain:0,running&&!demo&&!silent?session.weather.state.gust:0,session.world.roofHeight(session.player.x,session.player.z)>session.player.y+2||session.mode==='car');const c=session.car,boat=session.mode==='boat'?session.marine?.boat:null,ears=session.player;engineSound.mettreAJour({pause:!running||silent||demo,joueur:boat?{regime:boat.engineRpm,gaz:Math.abs(boat.throttle),muet:!boat.engineOn,vue:'cockpit',v:0,glisse:0}:{...c,turbo:c.turbo?.reste>0,muet:session.mode!=='car'||!c.moteur||['bike','scooter'].includes(c.model),vue:view},rivaux:[...session.world.fleet.filter(v=>(v!==c||session.mode!=='car')&&v.moteur&&!['bike','scooter'].includes(v.model)).map(v=>({id:v.id,regime:v.regime,gaz:v.gaz,distance:Math.hypot(v.x-ears.x,v.z-ears.z),angle:0,vRel:0})),...(session.marine?.boats||[]).filter(v=>v!==boat&&v.engineOn).map((v,i)=>({id:60000+i,regime:v.engineRpm||750,gaz:Math.abs(v.throttle||0),distance:Math.hypot(v.x-ears.x,v.z-ears.z),angle:Math.atan2(v.x-ears.x,ears.z-v.z)-ears.yaw,vRel:0}))]});
  if(frameCount++%8===0)hud();if(running&&!demo){cpuSamples.push(performance.now()-cpu);if(cpuSamples.length>36000)cpuSamples.shift();}
