@@ -623,6 +623,10 @@
   // ---------------------------------------------------------------------------------------------------------------
 
   function creerFoule(renderer, options = {}) {
+    if(renderer?.gpu){
+      if(!PDR.fouleWebGPU)throw new Error('foule : backend WebGPU non chargé');
+      return PDR.fouleWebGPU.creer(renderer,options);
+    }
     const gl = renderer && renderer.gl, pdr = renderer && renderer.pdr;
     if (!gl || !pdr) throw new Error('foule : le moteur doit tourner en WebGL 2 avec ses points d’accroche PDR');
     const ville = options.ville || null;
@@ -925,5 +929,17 @@
   }
 
   PDR.foule = Object.freeze({ creerFoule, construireMaillages, creerListeur, decoder, axesCamera, HAUTEURS, OS, TEINTE, MATIERE,
-    ECHELLE, CAPACITE, LARGEUR, SEUIL_DETAIL, SOMMET });
+    ECHELLE, CAPACITE, LARGEUR, SEUIL_DETAIL, SOMMET,
+    shaderSources(glsl){const vs=FIGURINE_VS.replace('/*COMMUN*/',COMMUN),ps=POINT_VS.replace('/*COMMUN*/',COMMUN);return {
+      crowd:{vertex:vs,fragment:FIGURINE_FS.replace('/*PDR*/',glsl)},
+      crowdShadow:{vertex:vs.replace('precision highp int;','precision highp int;\n#define OMBRE 1'),fragment:OMBRE_FS},
+      crowdPoint:{vertex:ps,fragment:POINT_FS.replace('/*PDR*/',glsl)},
+      // WebGPU has no programmable point size. Expand the same procedural
+      // impostor to a six-vertex screen-space quad; retain its fragment shape.
+      crowdPointGPU:{vertex:ps.replace('out vec3 vMonde;', 'uniform vec2 uPointResolution;\nout vec2 vPointCoord;\nout vec3 vMonde;')
+        .replace('lireUnite(gl_VertexID)','lireUnite(gl_InstanceID)')
+        .replace('gl_PointSize=1.;','vPointCoord=vec2(0.);')
+        .replace('gl_PointSize=taille;', 'const vec2 corners[6]=vec2[6](vec2(-1.,-1.),vec2(-1.,1.),vec2(1.,-1.),vec2(1.,-1.),vec2(-1.,1.),vec2(1.,1.));vec2 corner=corners[gl_VertexID];vPointCoord=corner*.5+.5;gl_Position.xy+=vec2(corner.x,-corner.y)*taille/uPointResolution*clip.w;'),
+        fragment:POINT_FS.replace('/*PDR*/',glsl).replace('in vec3 vMonde;', 'in vec2 vPointCoord;\nin vec3 vMonde;').replace('gl_PointCoord','vPointCoord')}
+    };} });
 })(globalThis.PDR = globalThis.PDR || {});

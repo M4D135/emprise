@@ -1,0 +1,13 @@
+{
+  "checks": [
+    "Same procedural meshes and LOD instance lists",
+    "Double-buffered state/gait texture bytes and mark bits",
+    "Native indexed mesh and six-vertex distant-quad draw commands",
+    "Uniform std140 fields, integer camps and light strides",
+    "Non-filtering float/integer/depth bindings without float32-filterable dependency",
+    "MSAA4 to MSAA1 and back, 20 transitions, bounded pipeline cache and unchanged UBO/bind groups/textures",
+    "Cached pipelines/bind groups and deterministic resource disposal"
+  ],
+  "backend": "native-webgpu",
+  "gpuValidation": "GPU API instrumented stub; real-device shader/visual validation is separate"
+}

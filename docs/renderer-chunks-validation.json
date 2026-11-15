@@ -80,15 +80,15 @@
     "method": "CPU only, spatialIndex and GPU excluded; 3 warmups, 10 measured alternating-order rebuilds",
     "before": {
       "samples": 10,
-      "medianMs": 219.565,
-      "minMs": 209.385,
-      "maxMs": 241.323
+      "medianMs": 192.698,
+      "minMs": 186.138,
+      "maxMs": 202.364
     },
     "after": {
       "samples": 10,
-      "medianMs": 13.869,
-      "minMs": 12.578,
-      "maxMs": 15.035
+      "medianMs": 16.195,
+      "minMs": 14.947,
+      "maxMs": 26.447
     }
   },
   "checks": [

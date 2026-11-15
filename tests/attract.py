@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""Run the real-time WebGL2 mission with 480 civilians; CDP pipe, no server/port."""
-import argparse,base64,hashlib,json,pathlib,tempfile,time
+"""Run the real-time mission with 480 civilians; CDP pipe, no server/port."""
+import argparse,base64,hashlib,json,pathlib,tempfile,time,os
 from chrome import Tube
 p=argparse.ArgumentParser();p.add_argument('--chrome',default='/Applications/Google Chrome.app/Contents/MacOS/Google Chrome');p.add_argument('--url');a=p.parse_args()
 root=pathlib.Path(__file__).resolve().parents[1]
@@ -13,7 +13,7 @@ with tempfile.TemporaryDirectory(prefix='rade-chrome-') as profile, tempfile.Tem
             r=cmd('Runtime.evaluate',{'expression':js,'returnByValue':True,'awaitPromise':True,'userGesture':True})
             if r.get('exceptionDetails'):raise RuntimeError(str(r['exceptionDetails']))
             return r.get('result',{}).get('value')
-        cmd('Runtime.enable');cmd('Page.enable');cmd('Emulation.setDeviceMetricsOverride',{'width':1440,'height':900,'deviceScaleFactor':1,'mobile':False});cmd('Page.navigate',{'url':a.url or (root/'dist/index.html').as_uri()});cmd('Page.bringToFront')
+        cmd('Runtime.enable');cmd('Page.enable');cmd('Emulation.setDeviceMetricsOverride',{'width':1440,'height':900,'deviceScaleFactor':1,'mobile':False});cmd('Page.navigate',{'url':a.url or (root/'dist/index.html').as_uri()+'?renderer='+os.environ.get('EMPRISE_RENDERER','auto')});cmd('Page.bringToFront')
         start=time.monotonic()
         while not ev('!!globalThis.RADE?.game'):
             if time.monotonic()-start>30:raise RuntimeError('Initialization timeout')
@@ -65,6 +65,7 @@ with tempfile.TemporaryDirectory(prefix='rade-chrome-') as profile, tempfile.Tem
         rect=ev('(()=>{const r=document.getElementById("start").getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2}})()')
         for event in ['mousePressed','mouseReleased']:cmd('Input.dispatchMouseEvent',{'type':event,**rect,'button':'left','clickCount':1})
         time.sleep(.3);assert ev('RADE.game.running');assert not ev('RADE.game.demo');assert not ev('RADE.game.errors')
-        report={'delaySeconds':delay,'recordings':[first,second,third,fourth],'keysAndMouseReturnToTitle':True,'liveSessionUnchanged':True,'saveUnchanged':True,'livePlayAfterDemo':True,'explosionReplayValidated':True,'policeReplayValidated':True,'errors':ev('RADE.game.errors'),'url':a.url or 'file://dist/index.html','buildSha256':hashlib.sha256((root/'dist/index.html').read_bytes()).hexdigest()}
+        backend=ev('RADE.game.renderer.stats.backend');assert backend==os.environ.get('EMPRISE_RENDERER',backend)
+        report={'backend':backend,'delaySeconds':delay,'recordings':[first,second,third,fourth],'keysAndMouseReturnToTitle':True,'liveSessionUnchanged':True,'saveUnchanged':True,'livePlayAfterDemo':True,'explosionReplayValidated':True,'policeReplayValidated':True,'errors':ev('RADE.game.errors'),'url':a.url or 'file://dist/index.html','buildSha256':hashlib.sha256((root/'dist/index.html').read_bytes()).hexdigest()}
         (root/'docs/attract-validation.json').write_text(json.dumps(report,indent=2)+'\n');print(json.dumps(report,indent=2),flush=True)
     finally:chrome.fermer()

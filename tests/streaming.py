@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Real WebGL2 frame pacing, autosave enabled, no sampling profiler or server."""
+"""Real renderer frame pacing, autosave enabled, no sampling profiler or server."""
 from browser_support import Browser, ROOT
 import time,json,hashlib
 with Browser() as b:
@@ -19,7 +19,10 @@ with Browser() as b:
  assert not data['errors'],data['errors'];assert data['autosave'];assert data['metrics']['renderer']['staticCulled']>0
  before=b.ev('RADE.game.renderer.stats.chunkBuildBytes');b.ev('RADE.game.start();true');time.sleep(.3)
  b.ev('RADE.game.pause();true');assert b.ev('RADE.game.renderer.stats.chunkBuildBytes')==before,'Static chunks must be retained between draws'
- b.ev('globalThis.loss=RADE.game.renderer.gl.getExtension("WEBGL_lose_context");loss.loseContext();true');time.sleep(.3);b.ev('loss.restoreContext();true');time.sleep(2)
+ if data['metrics']['renderer']['backend']=='webgpu':
+  b.ev('RADE.game.renderer.gpu.device.destroy();true');b.wait('RADE.game.renderer.stats.backend==="webgl2"&&!RADE.game.recoveringRenderer',45);recovery='Repli WebGL2 après perte réelle du périphérique WebGPU'
+ else:
+  b.ev('globalThis.loss=RADE.game.renderer.gl.getExtension("WEBGL_lose_context");loss.loseContext();true');time.sleep(.3);b.ev('loss.restoreContext();true');time.sleep(2);recovery='Restauration du contexte WebGL'
  b.ev('RADE.game.start();true');b.wait('RADE.game.renderer.stats.visibleChunks>0');assert not b.ev('RADE.game.errors')
- data['checks']=['Culling caméra avec ombres séparées','Lots statiques conservés entre images','Autosauvegarde activée pendant 40 s','Restauration du contexte WebGL'];data['buildSha256']=hashlib.sha256((ROOT/'dist/index.html').read_bytes()).hexdigest()
+ data['checks']=['Culling caméra avec ombres séparées','Lots statiques conservés entre images','Autosauvegarde activée pendant 40 s',recovery];data['buildSha256']=hashlib.sha256((ROOT/'dist/index.html').read_bytes()).hexdigest()
  (ROOT/'docs/frame-pacing.json').write_text(json.dumps(data,ensure_ascii=False,indent=2)+'\n');b.capture('streaming-city.png');print(json.dumps({k:v for k,v in data.items() if k!='audit'},ensure_ascii=False,indent=2),flush=True)

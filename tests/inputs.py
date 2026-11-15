@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Regression through Chromium keyboard/mouse events, never game.controller."""
-import pathlib,sys,time,json,tempfile,base64
+import pathlib,sys,time,json,tempfile,base64,os,hashlib
 from chrome import Tube
 root=pathlib.Path(__file__).resolve().parents[1]
 with tempfile.TemporaryDirectory(prefix='rade-inputs-') as profile,tempfile.TemporaryFile(mode='w+') as journal:
@@ -18,7 +18,7 @@ with tempfile.TemporaryDirectory(prefix='rade-inputs-') as profile,tempfile.Temp
     assert time.monotonic()<end,'Handbrake did not stop vehicle within 5 s';time.sleep(.05)
    key('Space',False)
   def mouse(down):cmd('Input.dispatchMouseEvent',{'type':'mousePressed' if down else 'mouseReleased','x':720,'y':450,'button':'left','clickCount':1})
-  cmd('Page.enable');cmd('Runtime.enable');cmd('Emulation.setDeviceMetricsOverride',{'width':1440,'height':900,'deviceScaleFactor':1,'mobile':False});cmd('Page.navigate',{'url':(root/'dist/index.html').as_uri()+'?test=1'});cmd('Page.bringToFront')
+  cmd('Page.enable');cmd('Runtime.enable');cmd('Emulation.setDeviceMetricsOverride',{'width':1440,'height':900,'deviceScaleFactor':1,'mobile':False});cmd('Page.navigate',{'url':(root/'dist/index.html').as_uri()+'?test=1&renderer='+os.environ.get('EMPRISE_RENDERER','auto')});cmd('Page.bringToFront')
   start=time.monotonic()
   while not ev('!!globalThis.RADE?.game'):
    assert time.monotonic()-start<30;time.sleep(.1)
@@ -52,5 +52,6 @@ with tempfile.TemporaryDirectory(prefix='rade-inputs-') as profile,tempfile.Temp
    tape['source']='tests/inputs.py / événements Chromium clavier et souris';tape['expected']=ev('({shots:RADE.game.session.sim.state.shots,mode:RADE.game.session.mode,player:[RADE.game.session.player.x,RADE.game.session.player.z],car:[RADE.game.session.car.x,RADE.game.session.car.z],cash:RADE.game.session.campaign.state.cash})')
    (root/'docs/input-recording.json').write_text(json.dumps(tape,separators=(',',':'))+'\n')
   errors=ev('RADE.game.errors');assert not errors,errors
-  report={'date':'2026-11-15','checks':checks,'errors':errors};(root/'docs/input-regression.json').write_text(json.dumps(report,indent=2)+'\n');print(json.dumps(report,indent=2),flush=True)
+  backend=ev('RADE.game.renderer.stats.backend');assert backend==os.environ.get('EMPRISE_RENDERER',backend)
+  report={'backend':backend,'buildSha256':hashlib.sha256((root/'dist/index.html').read_bytes()).hexdigest(),'date':'2026-11-15','metrics':ev('RADE.game.metrics()'),'checks':checks,'errors':errors};(root/'docs/input-regression.json').write_text(json.dumps(report,indent=2)+'\n');print(json.dumps(report,indent=2),flush=True)
  finally:c.fermer()

@@ -1,0 +1,1504 @@
+{
+  "backendRequested": "webgpu",
+  "buildSha256": "4b58b6583db5372eaa49895ccc67e76a6062a0620bfbd859f68c582d5ac3da52",
+  "fixtureSha256": "c066b0f47f6d0ab14126a7b1d8ee3ce6b41a13fc2c5c2e08ccdce4c120e52e15",
+  "scope": "Real paused gameplay, procedural crowd, native GPU; fx options/public quality/viewport only.",
+  "cycles": [
+    [
+      {
+        "name": "high-full",
+        "quality": "high",
+        "fx": {
+          "msaa": true,
+          "bloom": true,
+          "shadows": true,
+          "reflections": true
+        },
+        "resolution": [
+          1440,
+          900
+        ],
+        "msaa": 4,
+        "bloom": true,
+        "shadows": true,
+        "reflections": true,
+        "drawCalls": 2025,
+        "triangles": 5671288,
+        "crowd": {
+          "backend": "webgpu",
+          "n": 480,
+          "proches": 46,
+          "candidats": 46,
+          "seuil": 3,
+          "listeMs": 0.10000002384185791,
+          "envoiMs": 0.10000002384185791,
+          "appels": 16,
+          "triangles": 141824,
+          "pointsDessines": 434,
+          "uploads": 2
+        },
+        "worldRevision": 0,
+        "staticTotal": 308272,
+        "resources": {
+          "buffers": 9508,
+          "textures": 15,
+          "pipelines": 16,
+          "uniformSlots": 8,
+          "trackedLiveBuffers": 0,
+          "trackedLiveTextures": 10
+        },
+        "allocations": {
+          "pipelines": 0,
+          "buffers": 0,
+          "textures": 10,
+          "bindGroups": 11
+        },
+        "hooks": {
+          "color": 10,
+          "shadow": 10
+        },
+        "errors": []
+      },
+      {
+        "name": "high-msaa-off",
+        "quality": "high",
+        "fx": {
+          "msaa": false,
+          "bloom": true,
+          "shadows": true,
+          "reflections": true
+        },
+        "resolution": [
+          1440,
+          900
+        ],
+        "msaa": 1,
+        "bloom": true,
+        "shadows": true,
+        "reflections": true,
+        "drawCalls": 2024,
+        "triangles": 5671288,
+        "crowd": {
+          "backend": "webgpu",
+          "n": 480,
+          "proches": 46,
+          "candidats": 46,
+          "seuil": 3,
+          "listeMs": 0,
+          "envoiMs": 0.10000002384185791,
+          "appels": 16,
+          "triangles": 141824,
+          "pointsDessines": 434,
+          "uploads": 2
+        },
+        "worldRevision": 0,
+        "staticTotal": 308272,
+        "resources": {
+          "buffers": 9508,
+          "textures": 13,
+          "pipelines": 16,
+          "uniformSlots": 8,
+          "trackedLiveBuffers": 0,
+          "trackedLiveTextures": 8
+        },
+        "allocations": {
+          "pipelines": 2,
+          "buffers": 0,
+          "textures": 17,
+          "bindGroups": 19
+        },
+        "hooks": {
+          "color": 11,
+          "shadow": 11
+        },
+        "errors": []
+      },
+      {
+        "name": "high-reflections-off",
+        "quality": "high",
+        "fx": {
+          "msaa": true,
+          "bloom": true,
+          "shadows": true,
+          "reflections": false
+        },
+        "resolution": [
+          1440,
+          900
+        ],
+        "msaa": 4,
+        "bloom": true,
+        "shadows": true,
+        "reflections": false,
+        "drawCalls": 2023,
+        "triangles": 5671288,
+        "crowd": {
+          "backend": "webgpu",
+          "n": 480,
+          "proches": 46,
+          "candidats": 46,
+          "seuil": 3,
+          "listeMs": 0,
+          "envoiMs": 0.10000002384185791,
+          "appels": 16,
+          "triangles": 141824,
+          "pointsDessines": 434,
+          "uploads": 2
+        },
+        "worldRevision": 0,
+        "staticTotal": 308272,
+        "resources": {
+          "buffers": 9508,
+          "textures": 15,
+          "pipelines": 16,
+          "uniformSlots": 8,
+          "trackedLiveBuffers": 0,
+          "trackedLiveTextures": 10
+        },
+        "allocations": {
+          "pipelines": 2,
+          "buffers": 0,
+          "textures": 26,
+          "bindGroups": 27
+        },
+        "hooks": {
+          "color": 10,
+          "shadow": 10
+        },
+        "errors": []
+      },
+      {
+        "name": "high-bloom-off",
+        "quality": "high",
+        "fx": {
+          "msaa": true,
+          "bloom": false,
+          "shadows": true,
+          "reflections": true
+        },
+        "resolution": [
+          1440,
+          900
+        ],
+        "msaa": 1,
+        "bloom": false,
+        "shadows": true,
+        "reflections": false,
+        "drawCalls": 2021,
+        "triangles": 5671288,
+        "crowd": {
+          "backend": "webgpu",
+          "n": 480,
+          "proches": 46,
+          "candidats": 46,
+          "seuil": 3,
+          "listeMs": 0,
+          "envoiMs": 0.10000002384185791,
+          "appels": 16,
+          "triangles": 141824,
+          "pointsDessines": 434,
+          "uploads": 2
+        },
+        "worldRevision": 0,
+        "staticTotal": 308272,
+        "resources": {
+          "buffers": 9508,
+          "textures": 13,
+          "pipelines": 16,
+          "uniformSlots": 8,
+          "trackedLiveBuffers": 0,
+          "trackedLiveTextures": 8
+        },
+        "allocations": {
+          "pipelines": 2,
+          "buffers": 0,
+          "textures": 33,
+          "bindGroups": 32
+        },
+        "hooks": {
+          "color": 10,
+          "shadow": 10
+        },
+        "errors": []
+      },
+      {
+        "name": "high-shadows-off",
+        "quality": "high",
+        "fx": {
+          "msaa": true,
+          "bloom": true,
+          "shadows": false,
+          "reflections": true
+        },
+        "resolution": [
+          1440,
+          900
+        ],
+        "msaa": 4,
+        "bloom": true,
+        "shadows": false,
+        "reflections": true,
+        "drawCalls": 1281,
+        "triangles": 2846902,
+        "crowd": {
+          "backend": "webgpu",
+          "n": 480,
+          "proches": 46,
+          "candidats": 46,
+          "seuil": 3,
+          "listeMs": 0,
+          "envoiMs": 0.10000002384185791,
+          "appels": 16,
+          "triangles": 141824,
+          "pointsDessines": 434,
+          "uploads": 2
+        },
+        "worldRevision": 0,
+        "staticTotal": 308272,
+        "resources": {
+          "buffers": 9508,
+          "textures": 15,
+          "pipelines": 16,
+          "uniformSlots": 8,
+          "trackedLiveBuffers": 0,
+          "trackedLiveTextures": 10
+        },
+        "allocations": {
+          "pipelines": 2,
+          "buffers": 0,
+          "textures": 42,
+          "bindGroups": 42
+        },
+        "hooks": {
+          "color": 10,
+          "shadow": 0
+        },
+        "errors": []
+      },
+      {
+        "name": "low",
+        "quality": "low",
+        "fx": {
+          "msaa": true,
+          "bloom": true,
+          "shadows": true,
+          "reflections": true
+        },
+        "resolution": [
+          1152,
+          720
+        ],
+        "msaa": 1,
+        "bloom": false,
+        "shadows": false,
+        "reflections": false,
+        "drawCalls": 1277,
+        "triangles": 2846902,
+        "crowd": {
+          "backend": "webgpu",
+          "n": 480,
+          "proches": 46,
+          "candidats": 46,
+          "seuil": 3,
+          "listeMs": 0,
+          "envoiMs": 0.10000002384185791,
+          "appels": 16,
+          "triangles": 141824,
+          "pointsDessines": 434,
+          "uploads": 2
+        },
+        "worldRevision": 0,
+        "staticTotal": 308272,
+        "resources": {
+          "buffers": 9508,
+          "textures": 13,
+          "pipelines": 16,
+          "uniformSlots": 8,
+          "trackedLiveBuffers": 0,
+          "trackedLiveTextures": 8
+        },
+        "allocations": {
+          "pipelines": 2,
+          "buffers": 0,
+          "textures": 50,
+          "bindGroups": 46
+        },
+        "hooks": {
+          "color": 10,
+          "shadow": 0
+        },
+        "errors": []
+      },
+      {
+        "name": "wide-resize",
+        "quality": "high",
+        "fx": {
+          "msaa": true,
+          "bloom": true,
+          "shadows": true,
+          "reflections": true
+        },
+        "resolution": [
+          960,
+          540
+        ],
+        "msaa": 4,
+        "bloom": true,
+        "shadows": true,
+        "reflections": true,
+        "drawCalls": 2095,
+        "triangles": 5614094,
+        "crowd": {
+          "backend": "webgpu",
+          "n": 480,
+          "proches": 24,
+          "candidats": 24,
+          "seuil": 3,
+          "listeMs": 0,
+          "envoiMs": 0.10000002384185791,
+          "appels": 9,
+          "triangles": 45186,
+          "pointsDessines": 456,
+          "uploads": 2
+        },
+        "worldRevision": 0,
+        "staticTotal": 308272,
+        "resources": {
+          "buffers": 9508,
+          "textures": 15,
+          "pipelines": 16,
+          "uniformSlots": 8,
+          "trackedLiveBuffers": 0,
+          "trackedLiveTextures": 10
+        },
+        "allocations": {
+          "pipelines": 2,
+          "buffers": 0,
+          "textures": 60,
+          "bindGroups": 57
+        },
+        "hooks": {
+          "color": 10,
+          "shadow": 10
+        },
+        "errors": []
+      },
+      {
+        "name": "portrait-resize",
+        "quality": "high",
+        "fx": {
+          "msaa": true,
+          "bloom": true,
+          "shadows": true,
+          "reflections": true
+        },
+        "resolution": [
+          900,
+          1100
+        ],
+        "msaa": 4,
+        "bloom": true,
+        "shadows": true,
+        "reflections": true,
+        "drawCalls": 1652,
+        "triangles": 5213242,
+        "crowd": {
+          "backend": "webgpu",
+          "n": 480,
+          "proches": 24,
+          "candidats": 24,
+          "seuil": 3,
+          "listeMs": 0,
+          "envoiMs": 0.10000002384185791,
+          "appels": 9,
+          "triangles": 45186,
+          "pointsDessines": 456,
+          "uploads": 2
+        },
+        "worldRevision": 0,
+        "staticTotal": 308272,
+        "resources": {
+          "buffers": 9508,
+          "textures": 15,
+          "pipelines": 16,
+          "uniformSlots": 8,
+          "trackedLiveBuffers": 0,
+          "trackedLiveTextures": 10
+        },
+        "allocations": {
+          "pipelines": 2,
+          "buffers": 0,
+          "textures": 69,
+          "bindGroups": 66
+        },
+        "hooks": {
+          "color": 10,
+          "shadow": 10
+        },
+        "errors": []
+      },
+      {
+        "name": "high-restored",
+        "quality": "high",
+        "fx": {
+          "msaa": true,
+          "bloom": true,
+          "shadows": true,
+          "reflections": true
+        },
+        "resolution": [
+          1440,
+          900
+        ],
+        "msaa": 4,
+        "bloom": true,
+        "shadows": true,
+        "reflections": true,
+        "drawCalls": 2025,
+        "triangles": 5671288,
+        "crowd": {
+          "backend": "webgpu",
+          "n": 480,
+          "proches": 46,
+          "candidats": 46,
+          "seuil": 3,
+          "listeMs": 0,
+          "envoiMs": 0.10000002384185791,
+          "appels": 16,
+          "triangles": 141824,
+          "pointsDessines": 434,
+          "uploads": 2
+        },
+        "worldRevision": 0,
+        "staticTotal": 308272,
+        "resources": {
+          "buffers": 9508,
+          "textures": 15,
+          "pipelines": 16,
+          "uniformSlots": 8,
+          "trackedLiveBuffers": 0,
+          "trackedLiveTextures": 10
+        },
+        "allocations": {
+          "pipelines": 2,
+          "buffers": 0,
+          "textures": 78,
+          "bindGroups": 75
+        },
+        "hooks": {
+          "color": 10,
+          "shadow": 10
+        },
+        "errors": []
+      }
+    ],
+    [
+      {
+        "name": "high-full",
+        "quality": "high",
+        "fx": {
+          "msaa": true,
+          "bloom": true,
+          "shadows": true,
+          "reflections": true
+        },
+        "resolution": [
+          1440,
+          900
+        ],
+        "msaa": 4,
+        "bloom": true,
+        "shadows": true,
+        "reflections": true,
+        "drawCalls": 2025,
+        "triangles": 5671288,
+        "crowd": {
+          "backend": "webgpu",
+          "n": 480,
+          "proches": 46,
+          "candidats": 46,
+          "seuil": 3,
+          "listeMs": 0,
+          "envoiMs": 0.10000002384185791,
+          "appels": 16,
+          "triangles": 141824,
+          "pointsDessines": 434,
+          "uploads": 2
+        },
+        "worldRevision": 0,
+        "staticTotal": 308272,
+        "resources": {
+          "buffers": 9508,
+          "textures": 15,
+          "pipelines": 16,
+          "uniformSlots": 8,
+          "trackedLiveBuffers": 0,
+          "trackedLiveTextures": 10
+        },
+        "allocations": {
+          "pipelines": 2,
+          "buffers": 0,
+          "textures": 78,
+          "bindGroups": 75
+        },
+        "hooks": {
+          "color": 10,
+          "shadow": 10
+        },
+        "errors": []
+      },
+      {
+        "name": "high-msaa-off",
+        "quality": "high",
+        "fx": {
+          "msaa": false,
+          "bloom": true,
+          "shadows": true,
+          "reflections": true
+        },
+        "resolution": [
+          1440,
+          900
+        ],
+        "msaa": 1,
+        "bloom": true,
+        "shadows": true,
+        "reflections": true,
+        "drawCalls": 2024,
+        "triangles": 5671288,
+        "crowd": {
+          "backend": "webgpu",
+          "n": 480,
+          "proches": 46,
+          "candidats": 46,
+          "seuil": 3,
+          "listeMs": 0,
+          "envoiMs": 0.10000002384185791,
+          "appels": 16,
+          "triangles": 141824,
+          "pointsDessines": 434,
+          "uploads": 2
+        },
+        "worldRevision": 0,
+        "staticTotal": 308272,
+        "resources": {
+          "buffers": 9508,
+          "textures": 13,
+          "pipelines": 16,
+          "uniformSlots": 8,
+          "trackedLiveBuffers": 0,
+          "trackedLiveTextures": 8
+        },
+        "allocations": {
+          "pipelines": 2,
+          "buffers": 0,
+          "textures": 85,
+          "bindGroups": 83
+        },
+        "hooks": {
+          "color": 10,
+          "shadow": 10
+        },
+        "errors": []
+      },
+      {
+        "name": "high-reflections-off",
+        "quality": "high",
+        "fx": {
+          "msaa": true,
+          "bloom": true,
+          "shadows": true,
+          "reflections": false
+        },
+        "resolution": [
+          1440,
+          900
+        ],
+        "msaa": 4,
+        "bloom": true,
+        "shadows": true,
+        "reflections": false,
+        "drawCalls": 2023,
+        "triangles": 5671288,
+        "crowd": {
+          "backend": "webgpu",
+          "n": 480,
+          "proches": 46,
+          "candidats": 46,
+          "seuil": 3,
+          "listeMs": 0,
+          "envoiMs": 0.10000002384185791,
+          "appels": 16,
+          "triangles": 141824,
+          "pointsDessines": 434,
+          "uploads": 2
+        },
+        "worldRevision": 0,
+        "staticTotal": 308272,
+        "resources": {
+          "buffers": 9508,
+          "textures": 15,
+          "pipelines": 16,
+          "uniformSlots": 8,
+          "trackedLiveBuffers": 0,
+          "trackedLiveTextures": 10
+        },
+        "allocations": {
+          "pipelines": 2,
+          "buffers": 0,
+          "textures": 94,
+          "bindGroups": 91
+        },
+        "hooks": {
+          "color": 10,
+          "shadow": 10
+        },
+        "errors": []
+      },
+      {
+        "name": "high-bloom-off",
+        "quality": "high",
+        "fx": {
+          "msaa": true,
+          "bloom": false,
+          "shadows": true,
+          "reflections": true
+        },
+        "resolution": [
+          1440,
+          900
+        ],
+        "msaa": 1,
+        "bloom": false,
+        "shadows": true,
+        "reflections": false,
+        "drawCalls": 2021,
+        "triangles": 5671288,
+        "crowd": {
+          "backend": "webgpu",
+          "n": 480,
+          "proches": 46,
+          "candidats": 46,
+          "seuil": 3,
+          "listeMs": 0.10000002384185791,
+          "envoiMs": 0.10000002384185791,
+          "appels": 16,
+          "triangles": 141824,
+          "pointsDessines": 434,
+          "uploads": 2
+        },
+        "worldRevision": 0,
+        "staticTotal": 308272,
+        "resources": {
+          "buffers": 9508,
+          "textures": 13,
+          "pipelines": 16,
+          "uniformSlots": 8,
+          "trackedLiveBuffers": 0,
+          "trackedLiveTextures": 8
+        },
+        "allocations": {
+          "pipelines": 2,
+          "buffers": 0,
+          "textures": 101,
+          "bindGroups": 96
+        },
+        "hooks": {
+          "color": 10,
+          "shadow": 10
+        },
+        "errors": []
+      },
+      {
+        "name": "high-shadows-off",
+        "quality": "high",
+        "fx": {
+          "msaa": true,
+          "bloom": true,
+          "shadows": false,
+          "reflections": true
+        },
+        "resolution": [
+          1440,
+          900
+        ],
+        "msaa": 4,
+        "bloom": true,
+        "shadows": false,
+        "reflections": true,
+        "drawCalls": 1281,
+        "triangles": 2846902,
+        "crowd": {
+          "backend": "webgpu",
+          "n": 480,
+          "proches": 46,
+          "candidats": 46,
+          "seuil": 3,
+          "listeMs": 0.10000002384185791,
+          "envoiMs": 0.10000002384185791,
+          "appels": 16,
+          "triangles": 141824,
+          "pointsDessines": 434,
+          "uploads": 2
+        },
+        "worldRevision": 0,
+        "staticTotal": 308272,
+        "resources": {
+          "buffers": 9508,
+          "textures": 15,
+          "pipelines": 16,
+          "uniformSlots": 8,
+          "trackedLiveBuffers": 0,
+          "trackedLiveTextures": 10
+        },
+        "allocations": {
+          "pipelines": 2,
+          "buffers": 0,
+          "textures": 110,
+          "bindGroups": 104
+        },
+        "hooks": {
+          "color": 10,
+          "shadow": 0
+        },
+        "errors": []
+      },
+      {
+        "name": "low",
+        "quality": "low",
+        "fx": {
+          "msaa": true,
+          "bloom": true,
+          "shadows": true,
+          "reflections": true
+        },
+        "resolution": [
+          1152,
+          720
+        ],
+        "msaa": 1,
+        "bloom": false,
+        "shadows": false,
+        "reflections": false,
+        "drawCalls": 1273,
+        "triangles": 2794242,
+        "crowd": {
+          "backend": "webgpu",
+          "n": 480,
+          "proches": 36,
+          "candidats": 36,
+          "seuil": 3,
+          "listeMs": 0.10000002384185791,
+          "envoiMs": 0.10000002384185791,
+          "appels": 12,
+          "triangles": 89144,
+          "pointsDessines": 444,
+          "uploads": 2
+        },
+        "worldRevision": 0,
+        "staticTotal": 308272,
+        "resources": {
+          "buffers": 9508,
+          "textures": 13,
+          "pipelines": 16,
+          "uniformSlots": 8,
+          "trackedLiveBuffers": 0,
+          "trackedLiveTextures": 8
+        },
+        "allocations": {
+          "pipelines": 2,
+          "buffers": 0,
+          "textures": 118,
+          "bindGroups": 108
+        },
+        "hooks": {
+          "color": 10,
+          "shadow": 0
+        },
+        "errors": []
+      },
+      {
+        "name": "wide-resize",
+        "quality": "high",
+        "fx": {
+          "msaa": true,
+          "bloom": true,
+          "shadows": true,
+          "reflections": true
+        },
+        "resolution": [
+          960,
+          540
+        ],
+        "msaa": 4,
+        "bloom": true,
+        "shadows": true,
+        "reflections": true,
+        "drawCalls": 2101,
+        "triangles": 5701986,
+        "crowd": {
+          "backend": "webgpu",
+          "n": 480,
+          "proches": 36,
+          "candidats": 36,
+          "seuil": 3,
+          "listeMs": 0.10000002384185791,
+          "envoiMs": 0.10000002384185791,
+          "appels": 12,
+          "triangles": 89144,
+          "pointsDessines": 444,
+          "uploads": 2
+        },
+        "worldRevision": 0,
+        "staticTotal": 308272,
+        "resources": {
+          "buffers": 9508,
+          "textures": 15,
+          "pipelines": 16,
+          "uniformSlots": 8,
+          "trackedLiveBuffers": 0,
+          "trackedLiveTextures": 10
+        },
+        "allocations": {
+          "pipelines": 2,
+          "buffers": 0,
+          "textures": 128,
+          "bindGroups": 119
+        },
+        "hooks": {
+          "color": 11,
+          "shadow": 11
+        },
+        "errors": []
+      },
+      {
+        "name": "portrait-resize",
+        "quality": "high",
+        "fx": {
+          "msaa": true,
+          "bloom": true,
+          "shadows": true,
+          "reflections": true
+        },
+        "resolution": [
+          900,
+          1100
+        ],
+        "msaa": 4,
+        "bloom": true,
+        "shadows": true,
+        "reflections": true,
+        "drawCalls": 1658,
+        "triangles": 5301134,
+        "crowd": {
+          "backend": "webgpu",
+          "n": 480,
+          "proches": 36,
+          "candidats": 36,
+          "seuil": 3,
+          "listeMs": 0.10000002384185791,
+          "envoiMs": 0.10000002384185791,
+          "appels": 12,
+          "triangles": 89144,
+          "pointsDessines": 444,
+          "uploads": 2
+        },
+        "worldRevision": 0,
+        "staticTotal": 308272,
+        "resources": {
+          "buffers": 9508,
+          "textures": 15,
+          "pipelines": 16,
+          "uniformSlots": 8,
+          "trackedLiveBuffers": 0,
+          "trackedLiveTextures": 10
+        },
+        "allocations": {
+          "pipelines": 2,
+          "buffers": 0,
+          "textures": 137,
+          "bindGroups": 128
+        },
+        "hooks": {
+          "color": 11,
+          "shadow": 11
+        },
+        "errors": []
+      },
+      {
+        "name": "high-restored",
+        "quality": "high",
+        "fx": {
+          "msaa": true,
+          "bloom": true,
+          "shadows": true,
+          "reflections": true
+        },
+        "resolution": [
+          1440,
+          900
+        ],
+        "msaa": 4,
+        "bloom": true,
+        "shadows": true,
+        "reflections": true,
+        "drawCalls": 2025,
+        "triangles": 5671288,
+        "crowd": {
+          "backend": "webgpu",
+          "n": 480,
+          "proches": 46,
+          "candidats": 46,
+          "seuil": 3,
+          "listeMs": 0,
+          "envoiMs": 0.10000002384185791,
+          "appels": 16,
+          "triangles": 141824,
+          "pointsDessines": 434,
+          "uploads": 2
+        },
+        "worldRevision": 0,
+        "staticTotal": 308272,
+        "resources": {
+          "buffers": 9508,
+          "textures": 15,
+          "pipelines": 16,
+          "uniformSlots": 8,
+          "trackedLiveBuffers": 0,
+          "trackedLiveTextures": 10
+        },
+        "allocations": {
+          "pipelines": 2,
+          "buffers": 0,
+          "textures": 146,
+          "bindGroups": 137
+        },
+        "hooks": {
+          "color": 11,
+          "shadow": 11
+        },
+        "errors": []
+      }
+    ],
+    [
+      {
+        "name": "high-full",
+        "quality": "high",
+        "fx": {
+          "msaa": true,
+          "bloom": true,
+          "shadows": true,
+          "reflections": true
+        },
+        "resolution": [
+          1440,
+          900
+        ],
+        "msaa": 4,
+        "bloom": true,
+        "shadows": true,
+        "reflections": true,
+        "drawCalls": 2025,
+        "triangles": 5671288,
+        "crowd": {
+          "backend": "webgpu",
+          "n": 480,
+          "proches": 46,
+          "candidats": 46,
+          "seuil": 3,
+          "listeMs": 0,
+          "envoiMs": 0.10000002384185791,
+          "appels": 16,
+          "triangles": 141824,
+          "pointsDessines": 434,
+          "uploads": 2
+        },
+        "worldRevision": 0,
+        "staticTotal": 308272,
+        "resources": {
+          "buffers": 9508,
+          "textures": 15,
+          "pipelines": 16,
+          "uniformSlots": 8,
+          "trackedLiveBuffers": 0,
+          "trackedLiveTextures": 10
+        },
+        "allocations": {
+          "pipelines": 2,
+          "buffers": 0,
+          "textures": 146,
+          "bindGroups": 137
+        },
+        "hooks": {
+          "color": 10,
+          "shadow": 10
+        },
+        "errors": []
+      },
+      {
+        "name": "high-msaa-off",
+        "quality": "high",
+        "fx": {
+          "msaa": false,
+          "bloom": true,
+          "shadows": true,
+          "reflections": true
+        },
+        "resolution": [
+          1440,
+          900
+        ],
+        "msaa": 1,
+        "bloom": true,
+        "shadows": true,
+        "reflections": true,
+        "drawCalls": 2024,
+        "triangles": 5671288,
+        "crowd": {
+          "backend": "webgpu",
+          "n": 480,
+          "proches": 46,
+          "candidats": 46,
+          "seuil": 3,
+          "listeMs": 0,
+          "envoiMs": 0.10000002384185791,
+          "appels": 16,
+          "triangles": 141824,
+          "pointsDessines": 434,
+          "uploads": 2
+        },
+        "worldRevision": 0,
+        "staticTotal": 308272,
+        "resources": {
+          "buffers": 9508,
+          "textures": 13,
+          "pipelines": 16,
+          "uniformSlots": 8,
+          "trackedLiveBuffers": 0,
+          "trackedLiveTextures": 8
+        },
+        "allocations": {
+          "pipelines": 2,
+          "buffers": 0,
+          "textures": 153,
+          "bindGroups": 145
+        },
+        "hooks": {
+          "color": 10,
+          "shadow": 10
+        },
+        "errors": []
+      },
+      {
+        "name": "high-reflections-off",
+        "quality": "high",
+        "fx": {
+          "msaa": true,
+          "bloom": true,
+          "shadows": true,
+          "reflections": false
+        },
+        "resolution": [
+          1440,
+          900
+        ],
+        "msaa": 4,
+        "bloom": true,
+        "shadows": true,
+        "reflections": false,
+        "drawCalls": 2023,
+        "triangles": 5671288,
+        "crowd": {
+          "backend": "webgpu",
+          "n": 480,
+          "proches": 46,
+          "candidats": 46,
+          "seuil": 3,
+          "listeMs": 0,
+          "envoiMs": 0.10000002384185791,
+          "appels": 16,
+          "triangles": 141824,
+          "pointsDessines": 434,
+          "uploads": 2
+        },
+        "worldRevision": 0,
+        "staticTotal": 308272,
+        "resources": {
+          "buffers": 9508,
+          "textures": 15,
+          "pipelines": 16,
+          "uniformSlots": 8,
+          "trackedLiveBuffers": 0,
+          "trackedLiveTextures": 10
+        },
+        "allocations": {
+          "pipelines": 2,
+          "buffers": 0,
+          "textures": 162,
+          "bindGroups": 153
+        },
+        "hooks": {
+          "color": 10,
+          "shadow": 10
+        },
+        "errors": []
+      },
+      {
+        "name": "high-bloom-off",
+        "quality": "high",
+        "fx": {
+          "msaa": true,
+          "bloom": false,
+          "shadows": true,
+          "reflections": true
+        },
+        "resolution": [
+          1440,
+          900
+        ],
+        "msaa": 1,
+        "bloom": false,
+        "shadows": true,
+        "reflections": false,
+        "drawCalls": 2021,
+        "triangles": 5671288,
+        "crowd": {
+          "backend": "webgpu",
+          "n": 480,
+          "proches": 46,
+          "candidats": 46,
+          "seuil": 3,
+          "listeMs": 0,
+          "envoiMs": 0.10000002384185791,
+          "appels": 16,
+          "triangles": 141824,
+          "pointsDessines": 434,
+          "uploads": 2
+        },
+        "worldRevision": 0,
+        "staticTotal": 308272,
+        "resources": {
+          "buffers": 9508,
+          "textures": 13,
+          "pipelines": 16,
+          "uniformSlots": 8,
+          "trackedLiveBuffers": 0,
+          "trackedLiveTextures": 8
+        },
+        "allocations": {
+          "pipelines": 2,
+          "buffers": 0,
+          "textures": 169,
+          "bindGroups": 158
+        },
+        "hooks": {
+          "color": 10,
+          "shadow": 10
+        },
+        "errors": []
+      },
+      {
+        "name": "high-shadows-off",
+        "quality": "high",
+        "fx": {
+          "msaa": true,
+          "bloom": true,
+          "shadows": false,
+          "reflections": true
+        },
+        "resolution": [
+          1440,
+          900
+        ],
+        "msaa": 4,
+        "bloom": true,
+        "shadows": false,
+        "reflections": true,
+        "drawCalls": 1281,
+        "triangles": 2846902,
+        "crowd": {
+          "backend": "webgpu",
+          "n": 480,
+          "proches": 46,
+          "candidats": 46,
+          "seuil": 3,
+          "listeMs": 0,
+          "envoiMs": 0.10000002384185791,
+          "appels": 16,
+          "triangles": 141824,
+          "pointsDessines": 434,
+          "uploads": 2
+        },
+        "worldRevision": 0,
+        "staticTotal": 308272,
+        "resources": {
+          "buffers": 9508,
+          "textures": 15,
+          "pipelines": 16,
+          "uniformSlots": 8,
+          "trackedLiveBuffers": 0,
+          "trackedLiveTextures": 10
+        },
+        "allocations": {
+          "pipelines": 2,
+          "buffers": 0,
+          "textures": 178,
+          "bindGroups": 168
+        },
+        "hooks": {
+          "color": 11,
+          "shadow": 0
+        },
+        "errors": []
+      },
+      {
+        "name": "low",
+        "quality": "low",
+        "fx": {
+          "msaa": true,
+          "bloom": true,
+          "shadows": true,
+          "reflections": true
+        },
+        "resolution": [
+          1152,
+          720
+        ],
+        "msaa": 1,
+        "bloom": false,
+        "shadows": false,
+        "reflections": false,
+        "drawCalls": 1277,
+        "triangles": 2846902,
+        "crowd": {
+          "backend": "webgpu",
+          "n": 480,
+          "proches": 46,
+          "candidats": 46,
+          "seuil": 3,
+          "listeMs": 0,
+          "envoiMs": 0.10000002384185791,
+          "appels": 16,
+          "triangles": 141824,
+          "pointsDessines": 434,
+          "uploads": 2
+        },
+        "worldRevision": 0,
+        "staticTotal": 308272,
+        "resources": {
+          "buffers": 9508,
+          "textures": 13,
+          "pipelines": 16,
+          "uniformSlots": 8,
+          "trackedLiveBuffers": 0,
+          "trackedLiveTextures": 8
+        },
+        "allocations": {
+          "pipelines": 2,
+          "buffers": 0,
+          "textures": 186,
+          "bindGroups": 172
+        },
+        "hooks": {
+          "color": 10,
+          "shadow": 0
+        },
+        "errors": []
+      },
+      {
+        "name": "wide-resize",
+        "quality": "high",
+        "fx": {
+          "msaa": true,
+          "bloom": true,
+          "shadows": true,
+          "reflections": true
+        },
+        "resolution": [
+          960,
+          540
+        ],
+        "msaa": 4,
+        "bloom": true,
+        "shadows": true,
+        "reflections": true,
+        "drawCalls": 2095,
+        "triangles": 5614094,
+        "crowd": {
+          "backend": "webgpu",
+          "n": 480,
+          "proches": 24,
+          "candidats": 24,
+          "seuil": 3,
+          "listeMs": 0,
+          "envoiMs": 0.10000002384185791,
+          "appels": 9,
+          "triangles": 45186,
+          "pointsDessines": 456,
+          "uploads": 2
+        },
+        "worldRevision": 0,
+        "staticTotal": 308272,
+        "resources": {
+          "buffers": 9508,
+          "textures": 15,
+          "pipelines": 16,
+          "uniformSlots": 8,
+          "trackedLiveBuffers": 0,
+          "trackedLiveTextures": 10
+        },
+        "allocations": {
+          "pipelines": 2,
+          "buffers": 0,
+          "textures": 196,
+          "bindGroups": 183
+        },
+        "hooks": {
+          "color": 11,
+          "shadow": 11
+        },
+        "errors": []
+      },
+      {
+        "name": "portrait-resize",
+        "quality": "high",
+        "fx": {
+          "msaa": true,
+          "bloom": true,
+          "shadows": true,
+          "reflections": true
+        },
+        "resolution": [
+          900,
+          1100
+        ],
+        "msaa": 4,
+        "bloom": true,
+        "shadows": true,
+        "reflections": true,
+        "drawCalls": 1652,
+        "triangles": 5213242,
+        "crowd": {
+          "backend": "webgpu",
+          "n": 480,
+          "proches": 24,
+          "candidats": 24,
+          "seuil": 3,
+          "listeMs": 0,
+          "envoiMs": 0.10000002384185791,
+          "appels": 9,
+          "triangles": 45186,
+          "pointsDessines": 456,
+          "uploads": 2
+        },
+        "worldRevision": 0,
+        "staticTotal": 308272,
+        "resources": {
+          "buffers": 9508,
+          "textures": 15,
+          "pipelines": 16,
+          "uniformSlots": 8,
+          "trackedLiveBuffers": 0,
+          "trackedLiveTextures": 10
+        },
+        "allocations": {
+          "pipelines": 2,
+          "buffers": 0,
+          "textures": 205,
+          "bindGroups": 192
+        },
+        "hooks": {
+          "color": 10,
+          "shadow": 10
+        },
+        "errors": []
+      },
+      {
+        "name": "high-restored",
+        "quality": "high",
+        "fx": {
+          "msaa": true,
+          "bloom": true,
+          "shadows": true,
+          "reflections": true
+        },
+        "resolution": [
+          1440,
+          900
+        ],
+        "msaa": 4,
+        "bloom": true,
+        "shadows": true,
+        "reflections": true,
+        "drawCalls": 2025,
+        "triangles": 5671288,
+        "crowd": {
+          "backend": "webgpu",
+          "n": 480,
+          "proches": 46,
+          "candidats": 46,
+          "seuil": 3,
+          "listeMs": 0,
+          "envoiMs": 0.10000002384185791,
+          "appels": 16,
+          "triangles": 141824,
+          "pointsDessines": 434,
+          "uploads": 2
+        },
+        "worldRevision": 0,
+        "staticTotal": 308272,
+        "resources": {
+          "buffers": 9508,
+          "textures": 15,
+          "pipelines": 16,
+          "uniformSlots": 8,
+          "trackedLiveBuffers": 0,
+          "trackedLiveTextures": 10
+        },
+        "allocations": {
+          "pipelines": 2,
+          "buffers": 0,
+          "textures": 214,
+          "bindGroups": 201
+        },
+        "hooks": {
+          "color": 10,
+          "shadow": 10
+        },
+        "errors": []
+      }
+    ]
+  ],
+  "initial": {
+    "backend": "webgpu",
+    "errors": [],
+    "backendEvents": [],
+    "adapter": {
+      "vendor": "apple",
+      "architecture": "metal-3"
+    },
+    "simulationTime": 0,
+    "drawCount": 14
+  },
+  "final": {
+    "backend": "webgpu",
+    "errors": [],
+    "backendEvents": [],
+    "adapter": {
+      "vendor": "apple",
+      "architecture": "metal-3"
+    },
+    "simulationTime": 0,
+    "drawCount": 306
+  },
+  "sameRestoredImage": true,
+  "checks": [
+    "Real native crowd receives color and shadow passes",
+    "MSAA4 to MSAA1 and back",
+    "SSR, bloom and shadow toggles",
+    "Low/high quality and wide/portrait resize",
+    "Stable retained resource counts and no new pipelines/buffers after warmup",
+    "No GPU error, device loss or WebGL2 fallback",
+    "Gameplay stays paused"
+  ]
+}

@@ -1,4 +1,10 @@
-# EMPRISE 0.5.0 — vérification du 15 novembre 2026
+# EMPRISE 0.6.0 — migration WebGPU du 15 novembre 2026
+
+Le backend natif, le secours WebGL2 et la comparaison de cinq scènes sont détaillés dans [WEBGPU.md](WEBGPU.md). Le portage avant correction visuelle est mesuré dans [render-comparison.json](render-comparison.json), et le build final dans [render-final-comparison.json](render-final-comparison.json) ; le build et son empreinte sont dans `SIZE.json`. La migration ne change pas les règles de simulation ni les données du monde. Le signalement visuel suivant a ajouté un filtre solaire continu, une correction de pente pour la foule et le recalage de la garniture du montant arrière de la 205 ; les résultats de ces contrôles sont référencés dans `WEBGPU.md`.
+
+Les nouveaux tests couvrent le cycle de vie du renderer, la compilation des 18 shaders sur GPU réel, la foule native, les erreurs et pertes de périphérique avec reprise de la même partie. Les rapports de jeu actif du portage sont listés dans `render-gameplay.json` ; le parcours de 40 secondes du build final figure dans `frame-pacing.json`. Les preuves historiques ci-dessous restent datées et ne sont pas présentées comme une nouvelle validation exhaustive.
+
+## Historique 0.5.0 — vérification du 15 novembre 2026
 
 Version « Tenir la rue ». Le build courant et son SHA-256 sont dans `SIZE.json`. Chaque rapport navigateur conserve le SHA du build effectivement testé : les captures ne proviennent pas toutes du dernier rebuild. Les rapports indiquent les conditions de chaque vérification ; les scènes préparées et les commandes réelles sont distinguées.
 

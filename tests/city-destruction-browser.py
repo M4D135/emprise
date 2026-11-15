@@ -3,7 +3,7 @@
 from browser_support import Browser,ROOT
 import time,json,hashlib
 with Browser() as b:
- b.load();ev=b.ev;ev('RADE.game.start();globalThis.s=RADE.game.session;globalThis.w=s.world;s.sim.state.enemies.forEach(e=>e.deployed=false);s.campaign.law.wanted=0;true')
+ b.load('?test=1&renderer=webgl2');ev=b.ev;ev('RADE.game.start();globalThis.s=RADE.game.session;globalThis.w=s.world;s.sim.state.enemies.forEach(e=>e.deployed=false);s.campaign.law.wanted=0;true')
  target=ev('''(()=>{const tile=RADE.cityData.decode('-3,2');for(const b of tile.buildings){if(b.height<5||b.height>40||b.points.length>16)continue;for(let i=0;i<b.points.length;i++){const a=b.points[i],d=b.points[(i+1)%b.points.length],dx=d[0]-a[0],dz=d[1]-a[1],L=Math.hypot(dx,dz);if(L<7||L>35)continue;const x=(a[0]+d[0])/2,z=(a[1]+d[1])/2;for(const side of [-1,1]){const nx=-dz/L*side,nz=dx/L*side,px=x+nx*12,pz=z+nz*12,y=w.ground(px,pz);if(w.blocked(px,pz,.35,y,1.8)||w.water(px,pz)||Math.abs(y-w.ground(x,z))>.2)continue;const direction=[-nx,0,-nz],hit=w.ray([px,y+1.3,pz],direction,13);if(Math.abs(hit-11.85)>.3)continue;let clear=true;for(let t=0;t<11;t+=.5)if(w.blocked(px-nx*t,pz-nz*t,.32,y,1.8)){clear=false;break;}if(clear)return {id:b.id,x,z,px,pz,y,nx,nz,wall:i};}}}return null;})()''');assert target,'No suitable real external façade'
  ev('globalThis.target='+json.dumps(target)+';s.sim.relocate(target.px,target.pz,Math.atan2(-target.nx,target.nz));s.player.pitch=Math.atan2(1.25-1.62,12);true');time.sleep(.25);b.wait('!w.cityStream.pending',60);b.capture('city-facade-before.png')
  b.cmd('Input.dispatchKeyEvent',{'type':'keyDown','code':'Digit3','key':'3'});time.sleep(.12);b.cmd('Input.dispatchKeyEvent',{'type':'keyUp','code':'Digit3','key':'3'});time.sleep(.2);assert ev('s.sim.state.weapon===2')

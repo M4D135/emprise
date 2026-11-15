@@ -1,0 +1,52 @@
+{
+  "audit": {
+    "backend": "webgpu",
+    "nativeAdapter": true,
+    "adapter": {
+      "vendor": "apple",
+      "architecture": "metal-3",
+      "device": ""
+    },
+    "mesure": {
+      "backend": "webgpu",
+      "n": 52,
+      "proches": 51,
+      "candidats": 51,
+      "seuil": 3,
+      "listeMs": 0.10000002384185791,
+      "envoiMs": 0,
+      "appels": 12,
+      "triangles": 774904,
+      "pointsDessines": 1,
+      "uploads": 4
+    },
+    "sourceCount": 52,
+    "visibleMeshes": 51
+  },
+  "frames": [
+    {
+      "appels": 12,
+      "triangles": 774906,
+      "instances": 52,
+      "shadows": {
+        "appels": 11,
+        "triangles": 774904,
+        "instances": 51
+      }
+    },
+    {
+      "appels": 12,
+      "triangles": 774906,
+      "instances": 52,
+      "shadows": {
+        "appels": 11,
+        "triangles": 774904,
+        "instances": 51
+      }
+    }
+  ],
+  "errors": [],
+  "poseChanged": true,
+  "sourceSha256": "5afa215f57a0fdb9efaf5ed19ab91375cd87a3ee75494a71eabaa6d680d472db",
+  "fixture": "Isolated native crowd: fixed camera and procedural population, actual GPUDevice, color and shadow passes, two explicitly advanced interpolated gait phases. Renderer-world parity is tested separately."
+}

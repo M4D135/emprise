@@ -1,0 +1,335 @@
+{
+  "fixtureSha256": "cb2ddd07092d0773826361ce5ed16811eefeedd7b7550cd6ce2da8049cb59a1c",
+  "builds": {
+    "webgl2": "b699d747128015542c7bcf91d8774ccfb89fb705d153b72a188331134e7b1312",
+    "webgpu": "b699d747128015542c7bcf91d8774ccfb89fb705d153b72a188331134e7b1312"
+  },
+  "aggregation": "Median of three trial percentiles; 240 rendered frames per trial. Lower milliseconds is better.",
+  "scenes": [
+    {
+      "name": "port-day",
+      "identityHash": "c06888c1",
+      "measurements": {
+        "webgl2": {
+          "frames": {
+            "p50": 16.7,
+            "p95": 16.9,
+            "p99": 17.5
+          },
+          "renderCPU": {
+            "p50": 2.1,
+            "p95": 2.3,
+            "p99": 2.4
+          },
+          "gameCPU": {
+            "p50": 3.2,
+            "p95": 3.7,
+            "p99": 3.9
+          },
+          "gpu": {
+            "p50": 11.867,
+            "p95": 13.971,
+            "p99": 20.286
+          },
+          "over25": 0,
+          "over50": 0,
+          "maxFrameMs": 17.7
+        },
+        "webgpu": {
+          "frames": {
+            "p50": 16.7,
+            "p95": 17.4,
+            "p99": 17.6
+          },
+          "renderCPU": {
+            "p50": 2.2,
+            "p95": 2.7,
+            "p99": 3.1
+          },
+          "gameCPU": {
+            "p50": 3.3,
+            "p95": 4.2,
+            "p99": 5
+          },
+          "gpu": {
+            "p50": 11.338,
+            "p95": 14.09,
+            "p99": 16.515
+          },
+          "over25": 0,
+          "over50": 0,
+          "maxFrameMs": 18.5
+        }
+      },
+      "quality": {
+        "msaa": 4,
+        "shadows": true,
+        "reflections": true,
+        "bloom": true,
+        "pbrLayers": 2,
+        "dynamicLights": 3,
+        "staticVisible": 76866
+      }
+    },
+    {
+      "name": "port-night",
+      "identityHash": "df7dc27e",
+      "measurements": {
+        "webgl2": {
+          "frames": {
+            "p50": 16.7,
+            "p95": 17.2,
+            "p99": 17.5
+          },
+          "renderCPU": {
+            "p50": 1.7,
+            "p95": 2.3,
+            "p99": 2.4
+          },
+          "gameCPU": {
+            "p50": 2.7,
+            "p95": 3.7,
+            "p99": 3.9
+          },
+          "gpu": {
+            "p50": 12.01,
+            "p95": 14.415,
+            "p99": 22.65
+          },
+          "over25": 0,
+          "over50": 0,
+          "maxFrameMs": 17.6
+        },
+        "webgpu": {
+          "frames": {
+            "p50": 16.7,
+            "p95": 17.4,
+            "p99": 17.6
+          },
+          "renderCPU": {
+            "p50": 2.2,
+            "p95": 2.5,
+            "p99": 2.6
+          },
+          "gameCPU": {
+            "p50": 3.4,
+            "p95": 3.8,
+            "p99": 4
+          },
+          "gpu": {
+            "p50": 13.763,
+            "p95": 14.09,
+            "p99": 14.418
+          },
+          "over25": 0,
+          "over50": 0,
+          "maxFrameMs": 17.8
+        }
+      },
+      "quality": {
+        "msaa": 4,
+        "shadows": true,
+        "reflections": true,
+        "bloom": true,
+        "pbrLayers": 2,
+        "dynamicLights": 8,
+        "staticVisible": 76866
+      }
+    },
+    {
+      "name": "port-rain",
+      "identityHash": "16fd2556",
+      "measurements": {
+        "webgl2": {
+          "frames": {
+            "p50": 16.7,
+            "p95": 16.9,
+            "p99": 17.5
+          },
+          "renderCPU": {
+            "p50": 2.1,
+            "p95": 2.3,
+            "p99": 2.3
+          },
+          "gameCPU": {
+            "p50": 3.9,
+            "p95": 4.2,
+            "p99": 4.4
+          },
+          "gpu": {
+            "p50": 11.63,
+            "p95": 15.649,
+            "p99": 27.038
+          },
+          "over25": 0,
+          "over50": 0,
+          "maxFrameMs": 18.7
+        },
+        "webgpu": {
+          "frames": {
+            "p50": 16.7,
+            "p95": 17.5,
+            "p99": 17.7
+          },
+          "renderCPU": {
+            "p50": 1.9,
+            "p95": 2.4,
+            "p99": 2.7
+          },
+          "gameCPU": {
+            "p50": 3.5,
+            "p95": 4.1,
+            "p99": 4.6
+          },
+          "gpu": {
+            "p50": 11.338,
+            "p95": 13.894,
+            "p99": 14.418
+          },
+          "over25": 0,
+          "over50": 0,
+          "maxFrameMs": 18
+        }
+      },
+      "quality": {
+        "msaa": 4,
+        "shadows": true,
+        "reflections": true,
+        "bloom": true,
+        "pbrLayers": 2,
+        "dynamicLights": 4,
+        "staticVisible": 76866
+      }
+    },
+    {
+      "name": "bonne-mere",
+      "identityHash": "b73c4df",
+      "measurements": {
+        "webgl2": {
+          "frames": {
+            "p50": 16.7,
+            "p95": 17.3,
+            "p99": 17.7
+          },
+          "renderCPU": {
+            "p50": 3,
+            "p95": 3.6,
+            "p99": 3.8
+          },
+          "gameCPU": {
+            "p50": 3.9,
+            "p95": 4.8,
+            "p99": 5
+          },
+          "gpu": {
+            "p50": 11.839,
+            "p95": 13.463,
+            "p99": 20.786
+          },
+          "over25": 0,
+          "over50": 0,
+          "maxFrameMs": 18.1
+        },
+        "webgpu": {
+          "frames": {
+            "p50": 16.7,
+            "p95": 17.2,
+            "p99": 18.2
+          },
+          "renderCPU": {
+            "p50": 2.3,
+            "p95": 2.9,
+            "p99": 4.3
+          },
+          "gameCPU": {
+            "p50": 3,
+            "p95": 3.8,
+            "p99": 5.6
+          },
+          "gpu": {
+            "p50": 11.207,
+            "p95": 14.09,
+            "p99": 17.367
+          },
+          "over25": 3,
+          "over50": 1,
+          "maxFrameMs": 67.1
+        }
+      },
+      "quality": {
+        "msaa": 4,
+        "shadows": true,
+        "reflections": true,
+        "bloom": true,
+        "pbrLayers": 2,
+        "dynamicLights": 8,
+        "staticVisible": 105328
+      }
+    },
+    {
+      "name": "shop",
+      "identityHash": "20134f97",
+      "measurements": {
+        "webgl2": {
+          "frames": {
+            "p50": 16.7,
+            "p95": 17.1,
+            "p99": 17.5
+          },
+          "renderCPU": {
+            "p50": 0.5,
+            "p95": 0.7,
+            "p99": 0.8
+          },
+          "gameCPU": {
+            "p50": 1.2,
+            "p95": 1.6,
+            "p99": 1.9
+          },
+          "gpu": {
+            "p50": 6.542,
+            "p95": 9.979,
+            "p99": 18.106
+          },
+          "over25": 0,
+          "over50": 0,
+          "maxFrameMs": 17.9
+        },
+        "webgpu": {
+          "frames": {
+            "p50": 16.7,
+            "p95": 17.2,
+            "p99": 17.6
+          },
+          "renderCPU": {
+            "p50": 0.9,
+            "p95": 1.1,
+            "p99": 1.2
+          },
+          "gameCPU": {
+            "p50": 1.6,
+            "p95": 1.9,
+            "p99": 2.1
+          },
+          "gpu": {
+            "p50": 4.391,
+            "p95": 7.668,
+            "p99": 7.799
+          },
+          "over25": 0,
+          "over50": 0,
+          "maxFrameMs": 17.9
+        }
+      },
+      "quality": {
+        "msaa": 4,
+        "shadows": true,
+        "reflections": true,
+        "bloom": true,
+        "pbrLayers": 2,
+        "dynamicLights": 3,
+        "staticVisible": 385
+      }
+    }
+  ]
+}

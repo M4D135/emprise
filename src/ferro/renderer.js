@@ -164,12 +164,18 @@
     vec2 uv=slot==1&&uShadowSettings.w>1.5?p.xy:p.xy*.5+tile;
     float visibility=0.;
     if(slot==1&&uShadowSettings.w>.5){
-      // A wider, weighted kernel softens the sun's large world-space texels.
-      // Every tap still compares its own receiver-plane depth at full precision.
-      visibility=depthSample(uv,vec2(0.),p.z-bias,slope)*4.;
-      visibility+=(depthSample(uv,vec2(-1.25,0.),p.z-bias,slope)+depthSample(uv,vec2(1.25,0.),p.z-bias,slope)+depthSample(uv,vec2(0.,-1.25),p.z-bias,slope)+depthSample(uv,vec2(0.,1.25),p.z-bias,slope))*2.;
-      visibility+=depthSample(uv,vec2(-1.25,-1.25),p.z-bias,slope)+depthSample(uv,vec2(1.25,-1.25),p.z-bias,slope)+depthSample(uv,vec2(-1.25,1.25),p.z-bias,slope)+depthSample(uv,vec2(1.25,1.25),p.z-bias,slope);
-      visibility*=.0625;
+      // Quadratic B-spline PCF: nine comparisons, continuous sub-texel weights.
+      // Nearest PCF taps used to jump together when the light/camera moved.
+      // Compare at each sampled centre before filtering, retaining the receiver
+      // plane correction so oblique facades do not acquire self-shadow bands.
+      float texel=uShadowSettings.y;
+      vec2 cell=uv/texel,f=fract(cell)-.5,centre=(floor(cell)+.5)*texel;
+      vec3 wx=vec3(.5*(.5-f.x)*(.5-f.x),.75-f.x*f.x,.5*(.5+f.x)*(.5+f.x));
+      vec3 wy=vec3(.5*(.5-f.y)*(.5-f.y),.75-f.y*f.y,.5*(.5+f.y)*(.5+f.y));
+      for(int y=0;y<3;y++)for(int x=0;x<3;x++){
+        vec2 tap=centre+vec2(float(x-1),float(y-1))*texel;
+        visibility+=wx[x]*wy[y]*step(p.z-bias+dot(slope,tap-uv),texture(uShadowMap,tap).r);
+      }
     }else{
       visibility+=depthSample(uv,vec2(-.65,-.65),p.z-bias,slope);
       visibility+=depthSample(uv,vec2(.65,-.65),p.z-bias,slope);
@@ -711,7 +717,7 @@
   float pdrEchantillon(vec2 uv,vec2 decalage,float profondeur,vec2 pente){
     float texel=uPdrOmbreReglages.y;
     vec2 tap=uv+decalage*texel,centre=(floor(tap/texel)+.5)*texel;
-    return step(profondeur+dot(pente,(centre-uv)*2.),texture(uPdrOmbre,tap).r);
+    return step(profondeur+dot(pente,centre-uv),texture(uPdrOmbre,tap).r);
   }
   float pdrOmbreSoleil(vec3 monde,vec3 n){
     if(uPdrOmbreReglages.x<.5)return 1.;
@@ -723,10 +729,18 @@
     if(projete.w<=0.||p.z<=0.||p.z>=1.||min(p.x,p.y)<=.001||max(p.x,p.y)>=.999)return 1.;
     float biais=.00014+.00024*(1.-max(dot(n,uPdrSoleil),0.)),z=p.z-biais;
     vec2 uv=uPdrOmbreReglages.z>.5?p.xy:p.xy*.5+vec2(.5,0.);
-    float v=pdrEchantillon(uv,vec2(0.),z,pente)*4.;
-    v+=(pdrEchantillon(uv,vec2(-1.25,0.),z,pente)+pdrEchantillon(uv,vec2(1.25,0.),z,pente)+pdrEchantillon(uv,vec2(0.,-1.25),z,pente)+pdrEchantillon(uv,vec2(0.,1.25),z,pente))*2.;
-    v+=pdrEchantillon(uv,vec2(-1.25,-1.25),z,pente)+pdrEchantillon(uv,vec2(1.25,-1.25),z,pente)+pdrEchantillon(uv,vec2(-1.25,1.25),z,pente)+pdrEchantillon(uv,vec2(1.25,1.25),z,pente);
-    v*=.0625;
+    // Full-atlas sun uses projection UVs directly; a quarter-atlas tile has
+    // half-sized UVs, hence twice the receiver-plane gradient.
+    pente*=uPdrOmbreReglages.z>.5?1.:2.;
+    float texel=uPdrOmbreReglages.y;
+    vec2 cell=uv/texel,f=fract(cell)-.5,centre=(floor(cell)+.5)*texel;
+    vec3 wx=vec3(.5*(.5-f.x)*(.5-f.x),.75-f.x*f.x,.5*(.5+f.x)*(.5+f.x));
+    vec3 wy=vec3(.5*(.5-f.y)*(.5-f.y),.75-f.y*f.y,.5*(.5+f.y)*(.5+f.y));
+    float v=0.;
+    for(int y=0;y<3;y++)for(int x=0;x<3;x++){
+      vec2 tap=centre+vec2(float(x-1),float(y-1))*texel;
+      v+=wx[x]*wy[y]*step(z+dot(pente,tap-uv),texture(uPdrOmbre,tap).r);
+    }
     float bord=min(min(p.x,p.y),min(1.-p.x,1.-p.y));
     return mix(1.,mix(.055,1.,v),smoothstep(.012,.085,bord));
   }
@@ -2184,5 +2198,8 @@
       }};
     return {setEnvironment(value){environment=environmentInfo(value);},setWorld,updateWorld,draw,resize,dispose,stats,actorFilter,setNappes,setLots,updateShape,gl,pdr};
   }
-  globalThis.FRender={create,foliageTriangles,forme};
+  // Both GPU backends share the procedural shapes, instance layout and visibility
+  // rules. No rendering calls or GPU state are shared between the APIs.
+  const shared={geometry,pack,packEffects,packIndexed,spatialIndex,visible,metadata,environmentInfo,outdoorMesh,surfaceFlags,transientLights,horrorLights,cameraAxes,multiply,detailRanges,extendedDistance,resolutionGovernor,settings,indoor:PDR_INDOOR,shapes:FORMES_LIBRES};
+  globalThis.FRender={create,foliageTriangles,forme,shared};
 })();

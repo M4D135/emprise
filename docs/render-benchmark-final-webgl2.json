@@ -1,0 +1,2236 @@
+{
+  "label": "final-webgl2",
+  "backendRequested": "webgl2",
+  "buildSha256": "b699d747128015542c7bcf91d8774ccfb89fb705d153b72a188331134e7b1312",
+  "fixtureSha256": "cb2ddd07092d0773826361ce5ed16811eefeedd7b7550cd6ce2da8049cb59a1c",
+  "viewportCSS": [
+    1440,
+    900
+  ],
+  "devicePixelRatio": 1,
+  "simulation": "frozen at identical tick; actual game model construction and render loop retained",
+  "scenes": [
+    {
+      "name": "port-day",
+      "identity": {
+        "hash": "c06888c1",
+        "staticMeshes": 308272,
+        "dynamicMeshes": 7927,
+        "pedestrians": 480,
+        "camera": {
+          "pos": [
+            74.5,
+            1.7,
+            130
+          ],
+          "yaw": 1.5707963267948966,
+          "pitch": 0,
+          "fov": 74,
+          "near": 0.15,
+          "overlayNear": 0.035,
+          "far": 26000,
+          "allStatic": true,
+          "chunked": true,
+          "sun": {
+            "center": [
+              99.5,
+              0.08,
+              130
+            ],
+            "extent": 110,
+            "depth": 150
+          }
+        },
+        "weather": {
+          "clockHours": 14,
+          "elapsed": 90,
+          "wet": 0,
+          "cloud": 0.22,
+          "rain": 0,
+          "wind": 0.28,
+          "storm": 0,
+          "cloudX": 0.42,
+          "cloudZ": 0.13
+        },
+        "time": 0,
+        "lights": [
+          {
+            "p": [
+              84.66064239994085,
+              0.7999999999999999,
+              174.63586098042825
+            ],
+            "dir": [
+              -0.1501996429829077,
+              0,
+              -0.9886556869040946
+            ],
+            "cone": [
+              0.78,
+              0.96
+            ],
+            "color": [
+              1,
+              0.91,
+              0.72
+            ],
+            "power": 53.445,
+            "range": 32
+          },
+          {
+            "p": [
+              71.98156847431986,
+              0.7999999999999999,
+              83.17708076921718
+            ],
+            "dir": [
+              0.1524521484677197,
+              0,
+              0.988310853136591
+            ],
+            "cone": [
+              0.78,
+              0.96
+            ],
+            "color": [
+              1,
+              0.91,
+              0.72
+            ],
+            "power": 53.445,
+            "range": 32
+          },
+          {
+            "p": [
+              125.3862107025131,
+              0.7999999999999999,
+              155.88984559455218
+            ],
+            "dir": [
+              0.9224693424673385,
+              0,
+              -0.38607034619078984
+            ],
+            "cone": [
+              0.78,
+              0.96
+            ],
+            "color": [
+              1,
+              0.91,
+              0.72
+            ],
+            "power": 53.445,
+            "range": 32
+          }
+        ],
+        "shadowMode": "sun-atlas"
+      },
+      "backend": "webgl2",
+      "build": {
+        "version": "0.6.0",
+        "name": "Rendu natif",
+        "engine": "FERRO",
+        "title": "EMPRISE",
+        "id": "31cd866fea"
+      },
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/157.0.0.0 Safari/537.36",
+      "trials": [
+        {
+          "identityHash": "c06888c1",
+          "worldRevision": 5,
+          "streamPending": false,
+          "frames": {
+            "n": 239,
+            "p50": 16.69999998807907,
+            "p95": 17,
+            "p99": 17.5,
+            "max": 17.599999964237213
+          },
+          "renderCPU": {
+            "n": 240,
+            "p50": 2.100000023841858,
+            "p95": 2.399999976158142,
+            "p99": 2.5,
+            "max": 2.5
+          },
+          "gameCPU": {
+            "n": 240,
+            "p50": 3.200000047683716,
+            "p95": 3.899999976158142,
+            "p99": 4.100000023841858,
+            "max": 4.300000011920929
+          },
+          "gpu": {
+            "n": 240,
+            "p50": 11.1565,
+            "p95": 14.017958,
+            "p99": 20.286,
+            "max": 22.776833
+          },
+          "gpuTimer": "EXT_disjoint_timer_query_webgl2",
+          "disjoint": 0,
+          "over25": 0,
+          "over50": 0,
+          "over100": 0,
+          "resolution": [
+            1440,
+            900
+          ],
+          "renderer": {
+            "drawCalls": 2040,
+            "triangles": 5677092,
+            "instances": 85274,
+            "contextLost": false,
+            "webglVersion": 2,
+            "backend": "webgl2",
+            "bloom": true,
+            "shadows": true,
+            "pbrLayers": 2,
+            "requestedBackend": "webgl2",
+            "fallbackReason": null,
+            "staticTotal": 308272,
+            "biome": "ville",
+            "worldRevision": 0,
+            "chunks": 9493,
+            "chunkBuildBytes": 19729344,
+            "renderScale": 1,
+            "pixelRatio": 1,
+            "width": 1440,
+            "height": 900,
+            "msaa": 4,
+            "viewDistance": 64,
+            "staticVisible": 76866,
+            "staticCulled": 231405,
+            "dynamicLights": 3,
+            "blackoutLights": 0,
+            "shadowMaps": 1,
+            "shadowMode": "sun-atlas",
+            "uploadBytes": 507328,
+            "fxInstances": 14,
+            "crowdInstances": 0,
+            "pdrLotInstances": 0,
+            "shadowChunks": 265,
+            "shadowStatic": 40243,
+            "backgroundWater": 1,
+            "backgroundDrawCalls": 1,
+            "visibleChunks": 656,
+            "lotsVisibles": 0,
+            "reflections": true,
+            "reflectionSteps": 48
+          },
+          "errors": [],
+          "nativeProfiler": null
+        },
+        {
+          "identityHash": "c06888c1",
+          "worldRevision": 5,
+          "streamPending": false,
+          "frames": {
+            "n": 239,
+            "p50": 16.69999998807907,
+            "p95": 16.899999976158142,
+            "p99": 17.599999964237213,
+            "max": 17.700000047683716
+          },
+          "renderCPU": {
+            "n": 240,
+            "p50": 2.099999964237213,
+            "p95": 2.300000011920929,
+            "p99": 2.399999976158142,
+            "max": 2.399999976158142
+          },
+          "gameCPU": {
+            "n": 240,
+            "p50": 3.100000023841858,
+            "p95": 3.600000023841858,
+            "p99": 3.899999976158142,
+            "max": 4
+          },
+          "gpu": {
+            "n": 240,
+            "p50": 12.263208,
+            "p95": 13.971333,
+            "p99": 18.060249,
+            "max": 22.414166
+          },
+          "gpuTimer": "EXT_disjoint_timer_query_webgl2",
+          "disjoint": 0,
+          "over25": 0,
+          "over50": 0,
+          "over100": 0,
+          "resolution": [
+            1440,
+            900
+          ],
+          "renderer": {
+            "drawCalls": 2040,
+            "triangles": 5677092,
+            "instances": 85274,
+            "contextLost": false,
+            "webglVersion": 2,
+            "backend": "webgl2",
+            "bloom": true,
+            "shadows": true,
+            "pbrLayers": 2,
+            "requestedBackend": "webgl2",
+            "fallbackReason": null,
+            "staticTotal": 308272,
+            "biome": "ville",
+            "worldRevision": 0,
+            "chunks": 9493,
+            "chunkBuildBytes": 19729344,
+            "renderScale": 1,
+            "pixelRatio": 1,
+            "width": 1440,
+            "height": 900,
+            "msaa": 4,
+            "viewDistance": 64,
+            "staticVisible": 76866,
+            "staticCulled": 231405,
+            "dynamicLights": 3,
+            "blackoutLights": 0,
+            "shadowMaps": 1,
+            "shadowMode": "sun-atlas",
+            "uploadBytes": 507328,
+            "fxInstances": 14,
+            "crowdInstances": 0,
+            "pdrLotInstances": 0,
+            "shadowChunks": 265,
+            "shadowStatic": 40243,
+            "backgroundWater": 1,
+            "backgroundDrawCalls": 1,
+            "visibleChunks": 656,
+            "lotsVisibles": 0,
+            "reflections": true,
+            "reflectionSteps": 48
+          },
+          "errors": [],
+          "nativeProfiler": null
+        },
+        {
+          "identityHash": "c06888c1",
+          "worldRevision": 5,
+          "streamPending": false,
+          "frames": {
+            "n": 239,
+            "p50": 16.69999998807907,
+            "p95": 16.900000035762787,
+            "p99": 17.100000023841858,
+            "max": 17.400000035762787
+          },
+          "renderCPU": {
+            "n": 240,
+            "p50": 2.099999964237213,
+            "p95": 2.200000047683716,
+            "p99": 2.399999976158142,
+            "max": 2.400000035762787
+          },
+          "gameCPU": {
+            "n": 240,
+            "p50": 3.199999988079071,
+            "p95": 3.699999988079071,
+            "p99": 3.800000011920929,
+            "max": 3.899999976158142
+          },
+          "gpu": {
+            "n": 240,
+            "p50": 11.867124,
+            "p95": 13.494708,
+            "p99": 21.113124,
+            "max": 44.319583
+          },
+          "gpuTimer": "EXT_disjoint_timer_query_webgl2",
+          "disjoint": 0,
+          "over25": 0,
+          "over50": 0,
+          "over100": 0,
+          "resolution": [
+            1440,
+            900
+          ],
+          "renderer": {
+            "drawCalls": 2040,
+            "triangles": 5677092,
+            "instances": 85274,
+            "contextLost": false,
+            "webglVersion": 2,
+            "backend": "webgl2",
+            "bloom": true,
+            "shadows": true,
+            "pbrLayers": 2,
+            "requestedBackend": "webgl2",
+            "fallbackReason": null,
+            "staticTotal": 308272,
+            "biome": "ville",
+            "worldRevision": 0,
+            "chunks": 9493,
+            "chunkBuildBytes": 19729344,
+            "renderScale": 1,
+            "pixelRatio": 1,
+            "width": 1440,
+            "height": 900,
+            "msaa": 4,
+            "viewDistance": 64,
+            "staticVisible": 76866,
+            "staticCulled": 231405,
+            "dynamicLights": 3,
+            "blackoutLights": 0,
+            "shadowMaps": 1,
+            "shadowMode": "sun-atlas",
+            "uploadBytes": 507328,
+            "fxInstances": 14,
+            "crowdInstances": 0,
+            "pdrLotInstances": 0,
+            "shadowChunks": 265,
+            "shadowStatic": 40243,
+            "backgroundWater": 1,
+            "backgroundDrawCalls": 1,
+            "visibleChunks": 656,
+            "lotsVisibles": 0,
+            "reflections": true,
+            "reflectionSteps": 48
+          },
+          "errors": [],
+          "nativeProfiler": null
+        }
+      ]
+    },
+    {
+      "name": "port-night",
+      "identity": {
+        "hash": "df7dc27e",
+        "staticMeshes": 308272,
+        "dynamicMeshes": 8070,
+        "pedestrians": 480,
+        "camera": {
+          "pos": [
+            74.5,
+            1.7,
+            130
+          ],
+          "yaw": 1.5707963267948966,
+          "pitch": 0,
+          "fov": 74,
+          "near": 0.15,
+          "overlayNear": 0.035,
+          "far": 26000,
+          "allStatic": true,
+          "chunked": true,
+          "sun": {
+            "center": [
+              99.5,
+              0.08,
+              130
+            ],
+            "extent": 110,
+            "depth": 150
+          }
+        },
+        "weather": {
+          "clockHours": 23,
+          "elapsed": 90,
+          "wet": 0,
+          "cloud": 0.22,
+          "rain": 0,
+          "wind": 0.28,
+          "storm": 0,
+          "cloudX": 0.42,
+          "cloudZ": 0.13
+        },
+        "time": 0,
+        "lights": [
+          {
+            "p": [
+              83.14232686356921,
+              5.72,
+              133.77092130719944
+            ],
+            "color": [
+              1,
+              0.77,
+              0.44
+            ],
+            "power": 72,
+            "range": 19
+          },
+          {
+            "p": [
+              83.02405086821493,
+              5.72,
+              137.95550493613192
+            ],
+            "color": [
+              1,
+              0.77,
+              0.44
+            ],
+            "power": 72,
+            "range": 19
+          },
+          {
+            "p": [
+              72.17904030482472,
+              5.72,
+              111.07361984821524
+            ],
+            "color": [
+              1,
+              0.77,
+              0.44
+            ],
+            "power": 72,
+            "range": 19
+          },
+          {
+            "p": [
+              60,
+              2.5,
+              107.4
+            ],
+            "color": [
+              1,
+              0.63,
+              0.28
+            ],
+            "power": 18,
+            "range": 13
+          },
+          {
+            "p": [
+              78.2370671730383,
+              5.72,
+              157.3208785564726
+            ],
+            "color": [
+              1,
+              0.77,
+              0.44
+            ],
+            "power": 72,
+            "range": 19
+          },
+          {
+            "p": [
+              90.30245962314726,
+              5.72,
+              104.3603364972162
+            ],
+            "color": [
+              1,
+              0.77,
+              0.44
+            ],
+            "power": 72,
+            "range": 19
+          },
+          {
+            "p": [
+              93.59707400839739,
+              5.72,
+              100.59828699649802
+            ],
+            "color": [
+              1,
+              0.77,
+              0.44
+            ],
+            "power": 72,
+            "range": 19
+          },
+          {
+            "p": [
+              98.72082628138554,
+              5.72,
+              159.7239626682634
+            ],
+            "color": [
+              1,
+              0.77,
+              0.44
+            ],
+            "power": 72,
+            "range": 19
+          },
+          {
+            "p": [
+              84.66064239994085,
+              0.7999999999999999,
+              174.63586098042825
+            ],
+            "dir": [
+              -0.1501996429829077,
+              0,
+              -0.9886556869040946
+            ],
+            "cone": [
+              0.78,
+              0.96
+            ],
+            "color": [
+              1,
+              0.91,
+              0.72
+            ],
+            "power": 93,
+            "range": 32
+          },
+          {
+            "p": [
+              71.98156847431986,
+              0.7999999999999999,
+              83.17708076921718
+            ],
+            "dir": [
+              0.1524521484677197,
+              0,
+              0.988310853136591
+            ],
+            "cone": [
+              0.78,
+              0.96
+            ],
+            "color": [
+              1,
+              0.91,
+              0.72
+            ],
+            "power": 93,
+            "range": 32
+          },
+          {
+            "p": [
+              75.39940157442743,
+              5.72,
+              80.73619386342867
+            ],
+            "color": [
+              1,
+              0.77,
+              0.44
+            ],
+            "power": 72,
+            "range": 19
+          },
+          {
+            "p": [
+              74.72396020533093,
+              5.72,
+              78.40729513615226
+            ],
+            "color": [
+              1,
+              0.77,
+              0.44
+            ],
+            "power": 72,
+            "range": 19
+          },
+          {
+            "p": [
+              114.93870839234778,
+              5.72,
+              164.21908807448497
+            ],
+            "color": [
+              1,
+              0.77,
+              0.44
+            ],
+            "power": 72,
+            "range": 19
+          },
+          {
+            "p": [
+              125.3862107025131,
+              0.7999999999999999,
+              155.88984559455218
+            ],
+            "dir": [
+              0.9224693424673385,
+              0,
+              -0.38607034619078984
+            ],
+            "cone": [
+              0.78,
+              0.96
+            ],
+            "color": [
+              1,
+              0.91,
+              0.72
+            ],
+            "power": 93,
+            "range": 32
+          },
+          {
+            "p": [
+              -186.169271836761,
+              183,
+              1338.102346698701
+            ],
+            "color": [
+              1,
+              0.72,
+              0.37
+            ],
+            "power": 440,
+            "range": 32,
+            "landmark": true
+          },
+          {
+            "p": [
+              -193.14391714865562,
+              213,
+              1339.9338277314355
+            ],
+            "color": [
+              1,
+              0.72,
+              0.37
+            ],
+            "power": 180,
+            "range": 19,
+            "landmark": true
+          }
+        ],
+        "shadowMode": "sun-atlas"
+      },
+      "backend": "webgl2",
+      "build": {
+        "version": "0.6.0",
+        "name": "Rendu natif",
+        "engine": "FERRO",
+        "title": "EMPRISE",
+        "id": "31cd866fea"
+      },
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/157.0.0.0 Safari/537.36",
+      "trials": [
+        {
+          "identityHash": "df7dc27e",
+          "worldRevision": 5,
+          "streamPending": false,
+          "frames": {
+            "n": 239,
+            "p50": 16.69999998807907,
+            "p95": 17,
+            "p99": 17.30000001192093,
+            "max": 17.599999964237213
+          },
+          "renderCPU": {
+            "n": 240,
+            "p50": 2.099999964237213,
+            "p95": 2.300000011920929,
+            "p99": 2.399999976158142,
+            "max": 3.400000035762787
+          },
+          "gameCPU": {
+            "n": 240,
+            "p50": 3.199999988079071,
+            "p95": 3.699999988079071,
+            "p99": 4,
+            "max": 4.899999976158142
+          },
+          "gpu": {
+            "n": 240,
+            "p50": 11.197833,
+            "p95": 19.14625,
+            "p99": 22.955624,
+            "max": 24.135666
+          },
+          "gpuTimer": "EXT_disjoint_timer_query_webgl2",
+          "disjoint": 0,
+          "over25": 0,
+          "over50": 0,
+          "over100": 0,
+          "resolution": [
+            1440,
+            900
+          ],
+          "renderer": {
+            "drawCalls": 2039,
+            "triangles": 5730630,
+            "instances": 85417,
+            "contextLost": false,
+            "webglVersion": 2,
+            "backend": "webgl2",
+            "bloom": true,
+            "shadows": true,
+            "pbrLayers": 2,
+            "requestedBackend": "webgl2",
+            "fallbackReason": null,
+            "staticTotal": 308272,
+            "biome": "ville",
+            "worldRevision": 0,
+            "chunks": 9493,
+            "chunkBuildBytes": 19729344,
+            "renderScale": 1,
+            "pixelRatio": 1,
+            "width": 1440,
+            "height": 900,
+            "msaa": 4,
+            "viewDistance": 64,
+            "staticVisible": 76866,
+            "staticCulled": 231405,
+            "dynamicLights": 8,
+            "blackoutLights": 0,
+            "shadowMaps": 1,
+            "shadowMode": "sun-atlas",
+            "uploadBytes": 516480,
+            "fxInstances": 14,
+            "crowdInstances": 0,
+            "pdrLotInstances": 0,
+            "shadowChunks": 265,
+            "shadowStatic": 42337,
+            "backgroundWater": 1,
+            "backgroundDrawCalls": 1,
+            "visibleChunks": 656,
+            "lotsVisibles": 0,
+            "reflections": true,
+            "reflectionSteps": 48
+          },
+          "errors": [],
+          "nativeProfiler": null
+        },
+        {
+          "identityHash": "df7dc27e",
+          "worldRevision": 5,
+          "streamPending": false,
+          "frames": {
+            "n": 239,
+            "p50": 16.69999998807907,
+            "p95": 17.30000001192093,
+            "p99": 17.5,
+            "max": 17.600000023841858
+          },
+          "renderCPU": {
+            "n": 240,
+            "p50": 1.699999988079071,
+            "p95": 2,
+            "p99": 2.099999964237213,
+            "max": 2.199999988079071
+          },
+          "gameCPU": {
+            "n": 240,
+            "p50": 2.699999988079071,
+            "p95": 3.099999964237213,
+            "p99": 3.199999988079071,
+            "max": 3.399999976158142
+          },
+          "gpu": {
+            "n": 240,
+            "p50": 12.00975,
+            "p95": 14.048625,
+            "p99": 22.650291,
+            "max": 23.818125
+          },
+          "gpuTimer": "EXT_disjoint_timer_query_webgl2",
+          "disjoint": 0,
+          "over25": 0,
+          "over50": 0,
+          "over100": 0,
+          "resolution": [
+            1440,
+            900
+          ],
+          "renderer": {
+            "drawCalls": 2039,
+            "triangles": 5730630,
+            "instances": 85417,
+            "contextLost": false,
+            "webglVersion": 2,
+            "backend": "webgl2",
+            "bloom": true,
+            "shadows": true,
+            "pbrLayers": 2,
+            "requestedBackend": "webgl2",
+            "fallbackReason": null,
+            "staticTotal": 308272,
+            "biome": "ville",
+            "worldRevision": 0,
+            "chunks": 9493,
+            "chunkBuildBytes": 19729344,
+            "renderScale": 1,
+            "pixelRatio": 1,
+            "width": 1440,
+            "height": 900,
+            "msaa": 4,
+            "viewDistance": 64,
+            "staticVisible": 76866,
+            "staticCulled": 231405,
+            "dynamicLights": 8,
+            "blackoutLights": 0,
+            "shadowMaps": 1,
+            "shadowMode": "sun-atlas",
+            "uploadBytes": 516480,
+            "fxInstances": 14,
+            "crowdInstances": 0,
+            "pdrLotInstances": 0,
+            "shadowChunks": 265,
+            "shadowStatic": 42337,
+            "backgroundWater": 1,
+            "backgroundDrawCalls": 1,
+            "visibleChunks": 656,
+            "lotsVisibles": 0,
+            "reflections": true,
+            "reflectionSteps": 48
+          },
+          "errors": [],
+          "nativeProfiler": null
+        },
+        {
+          "identityHash": "df7dc27e",
+          "worldRevision": 5,
+          "streamPending": false,
+          "frames": {
+            "n": 239,
+            "p50": 16.69999998807907,
+            "p95": 17.19999998807907,
+            "p99": 17.5,
+            "max": 17.600000023841858
+          },
+          "renderCPU": {
+            "n": 240,
+            "p50": 1.699999988079071,
+            "p95": 2.399999976158142,
+            "p99": 2.5,
+            "max": 2.699999988079071
+          },
+          "gameCPU": {
+            "n": 240,
+            "p50": 2.700000047683716,
+            "p95": 3.700000047683716,
+            "p99": 3.900000035762787,
+            "max": 4.100000023841858
+          },
+          "gpu": {
+            "n": 240,
+            "p50": 12.280749,
+            "p95": 14.415291,
+            "p99": 18.828624,
+            "max": 22.921291
+          },
+          "gpuTimer": "EXT_disjoint_timer_query_webgl2",
+          "disjoint": 0,
+          "over25": 0,
+          "over50": 0,
+          "over100": 0,
+          "resolution": [
+            1440,
+            900
+          ],
+          "renderer": {
+            "drawCalls": 2039,
+            "triangles": 5730630,
+            "instances": 85417,
+            "contextLost": false,
+            "webglVersion": 2,
+            "backend": "webgl2",
+            "bloom": true,
+            "shadows": true,
+            "pbrLayers": 2,
+            "requestedBackend": "webgl2",
+            "fallbackReason": null,
+            "staticTotal": 308272,
+            "biome": "ville",
+            "worldRevision": 0,
+            "chunks": 9493,
+            "chunkBuildBytes": 19729344,
+            "renderScale": 1,
+            "pixelRatio": 1,
+            "width": 1440,
+            "height": 900,
+            "msaa": 4,
+            "viewDistance": 64,
+            "staticVisible": 76866,
+            "staticCulled": 231405,
+            "dynamicLights": 8,
+            "blackoutLights": 0,
+            "shadowMaps": 1,
+            "shadowMode": "sun-atlas",
+            "uploadBytes": 516480,
+            "fxInstances": 14,
+            "crowdInstances": 0,
+            "pdrLotInstances": 0,
+            "shadowChunks": 265,
+            "shadowStatic": 42337,
+            "backgroundWater": 1,
+            "backgroundDrawCalls": 1,
+            "visibleChunks": 656,
+            "lotsVisibles": 0,
+            "reflections": true,
+            "reflectionSteps": 48
+          },
+          "errors": [],
+          "nativeProfiler": null
+        }
+      ]
+    },
+    {
+      "name": "port-rain",
+      "identity": {
+        "hash": "16fd2556",
+        "staticMeshes": 308272,
+        "dynamicMeshes": 8286,
+        "pedestrians": 480,
+        "camera": {
+          "pos": [
+            74.5,
+            1.7,
+            130
+          ],
+          "yaw": 1.5707963267948966,
+          "pitch": 0,
+          "fov": 74,
+          "near": 0.15,
+          "overlayNear": 0.035,
+          "far": 26000,
+          "allStatic": true,
+          "chunked": true,
+          "sun": {
+            "center": [
+              99.5,
+              0.08,
+              130
+            ],
+            "extent": 110,
+            "depth": 150
+          }
+        },
+        "weather": {
+          "clockHours": 14,
+          "elapsed": 90,
+          "wet": 0.92,
+          "cloud": 1,
+          "rain": 1,
+          "wind": 1.55,
+          "storm": 1,
+          "cloudX": 0.42,
+          "cloudZ": 0.13
+        },
+        "time": 0,
+        "lights": [
+          {
+            "p": [
+              60,
+              2.5,
+              107.4
+            ],
+            "color": [
+              1,
+              0.63,
+              0.28
+            ],
+            "power": 24.3,
+            "range": 13
+          },
+          {
+            "p": [
+              84.66064239994085,
+              0.7999999999999999,
+              174.63586098042825
+            ],
+            "dir": [
+              -0.1501996429829077,
+              0,
+              -0.9886556869040946
+            ],
+            "cone": [
+              0.78,
+              0.96
+            ],
+            "color": [
+              1,
+              0.91,
+              0.72
+            ],
+            "power": 108.75,
+            "range": 32
+          },
+          {
+            "p": [
+              71.98156847431986,
+              0.7999999999999999,
+              83.17708076921718
+            ],
+            "dir": [
+              0.1524521484677197,
+              0,
+              0.988310853136591
+            ],
+            "cone": [
+              0.78,
+              0.96
+            ],
+            "color": [
+              1,
+              0.91,
+              0.72
+            ],
+            "power": 108.75,
+            "range": 32
+          },
+          {
+            "p": [
+              125.3862107025131,
+              0.7999999999999999,
+              155.88984559455218
+            ],
+            "dir": [
+              0.9224693424673385,
+              0,
+              -0.38607034619078984
+            ],
+            "cone": [
+              0.78,
+              0.96
+            ],
+            "color": [
+              1,
+              0.91,
+              0.72
+            ],
+            "power": 108.75,
+            "range": 32
+          }
+        ],
+        "shadowMode": "sun-atlas"
+      },
+      "backend": "webgl2",
+      "build": {
+        "version": "0.6.0",
+        "name": "Rendu natif",
+        "engine": "FERRO",
+        "title": "EMPRISE",
+        "id": "31cd866fea"
+      },
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/157.0.0.0 Safari/537.36",
+      "trials": [
+        {
+          "identityHash": "16fd2556",
+          "worldRevision": 5,
+          "streamPending": false,
+          "frames": {
+            "n": 239,
+            "p50": 16.69999998807907,
+            "p95": 16.900000035762787,
+            "p99": 17.599999964237213,
+            "max": 17.799999952316284
+          },
+          "renderCPU": {
+            "n": 240,
+            "p50": 2.099999964237213,
+            "p95": 2.200000047683716,
+            "p99": 2.300000011920929,
+            "max": 2.399999976158142
+          },
+          "gameCPU": {
+            "n": 240,
+            "p50": 3.899999976158142,
+            "p95": 4.199999988079071,
+            "p99": 4.300000011920929,
+            "max": 4.5
+          },
+          "gpu": {
+            "n": 240,
+            "p50": 11.172749,
+            "p95": 17.124041,
+            "p99": 23.308499,
+            "max": 23.687374
+          },
+          "gpuTimer": "EXT_disjoint_timer_query_webgl2",
+          "disjoint": 0,
+          "over25": 0,
+          "over50": 0,
+          "over100": 0,
+          "resolution": [
+            1440,
+            900
+          ],
+          "renderer": {
+            "drawCalls": 2087,
+            "triangles": 5688024,
+            "instances": 85633,
+            "contextLost": false,
+            "webglVersion": 2,
+            "backend": "webgl2",
+            "bloom": true,
+            "shadows": true,
+            "pbrLayers": 2,
+            "requestedBackend": "webgl2",
+            "fallbackReason": null,
+            "staticTotal": 308272,
+            "biome": "ville",
+            "worldRevision": 0,
+            "chunks": 9493,
+            "chunkBuildBytes": 19729344,
+            "renderScale": 1,
+            "pixelRatio": 1,
+            "width": 1440,
+            "height": 900,
+            "msaa": 4,
+            "viewDistance": 64,
+            "staticVisible": 76866,
+            "staticCulled": 231405,
+            "dynamicLights": 4,
+            "blackoutLights": 0,
+            "shadowMaps": 1,
+            "shadowMode": "sun-atlas",
+            "uploadBytes": 530304,
+            "fxInstances": 373,
+            "crowdInstances": 0,
+            "pdrLotInstances": 0,
+            "shadowChunks": 265,
+            "shadowStatic": 40243,
+            "backgroundWater": 1,
+            "backgroundDrawCalls": 1,
+            "visibleChunks": 656,
+            "lotsVisibles": 0,
+            "reflections": true,
+            "reflectionSteps": 48
+          },
+          "errors": [],
+          "nativeProfiler": null
+        },
+        {
+          "identityHash": "16fd2556",
+          "worldRevision": 5,
+          "streamPending": false,
+          "frames": {
+            "n": 239,
+            "p50": 16.69999998807907,
+            "p95": 17.100000023841858,
+            "p99": 17.5,
+            "max": 17.5
+          },
+          "renderCPU": {
+            "n": 240,
+            "p50": 2.099999964237213,
+            "p95": 2.299999952316284,
+            "p99": 2.300000011920929,
+            "max": 2.5
+          },
+          "gameCPU": {
+            "n": 240,
+            "p50": 3.899999976158142,
+            "p95": 4.200000047683716,
+            "p99": 4.399999976158142,
+            "max": 4.600000023841858
+          },
+          "gpu": {
+            "n": 240,
+            "p50": 13.082208,
+            "p95": 15.649041,
+            "p99": 28.745124,
+            "max": 40.554916
+          },
+          "gpuTimer": "EXT_disjoint_timer_query_webgl2",
+          "disjoint": 0,
+          "over25": 0,
+          "over50": 0,
+          "over100": 0,
+          "resolution": [
+            1440,
+            900
+          ],
+          "renderer": {
+            "drawCalls": 2087,
+            "triangles": 5688024,
+            "instances": 85633,
+            "contextLost": false,
+            "webglVersion": 2,
+            "backend": "webgl2",
+            "bloom": true,
+            "shadows": true,
+            "pbrLayers": 2,
+            "requestedBackend": "webgl2",
+            "fallbackReason": null,
+            "staticTotal": 308272,
+            "biome": "ville",
+            "worldRevision": 0,
+            "chunks": 9493,
+            "chunkBuildBytes": 19729344,
+            "renderScale": 1,
+            "pixelRatio": 1,
+            "width": 1440,
+            "height": 900,
+            "msaa": 4,
+            "viewDistance": 64,
+            "staticVisible": 76866,
+            "staticCulled": 231405,
+            "dynamicLights": 4,
+            "blackoutLights": 0,
+            "shadowMaps": 1,
+            "shadowMode": "sun-atlas",
+            "uploadBytes": 530304,
+            "fxInstances": 373,
+            "crowdInstances": 0,
+            "pdrLotInstances": 0,
+            "shadowChunks": 265,
+            "shadowStatic": 40243,
+            "backgroundWater": 1,
+            "backgroundDrawCalls": 1,
+            "visibleChunks": 656,
+            "lotsVisibles": 0,
+            "reflections": true,
+            "reflectionSteps": 48
+          },
+          "errors": [],
+          "nativeProfiler": null
+        },
+        {
+          "identityHash": "16fd2556",
+          "worldRevision": 5,
+          "streamPending": false,
+          "frames": {
+            "n": 239,
+            "p50": 16.69999998807907,
+            "p95": 16.899999976158142,
+            "p99": 17.5,
+            "max": 18.700000047683716
+          },
+          "renderCPU": {
+            "n": 240,
+            "p50": 2.099999964237213,
+            "p95": 2.399999976158142,
+            "p99": 3.800000011920929,
+            "max": 5.099999964237213
+          },
+          "gameCPU": {
+            "n": 240,
+            "p50": 3.899999976158142,
+            "p95": 4.399999976158142,
+            "p99": 6.699999988079071,
+            "max": 8.600000023841858
+          },
+          "gpu": {
+            "n": 240,
+            "p50": 11.630083,
+            "p95": 13.794291,
+            "p99": 27.037541,
+            "max": 28.546124
+          },
+          "gpuTimer": "EXT_disjoint_timer_query_webgl2",
+          "disjoint": 0,
+          "over25": 0,
+          "over50": 0,
+          "over100": 0,
+          "resolution": [
+            1440,
+            900
+          ],
+          "renderer": {
+            "drawCalls": 2087,
+            "triangles": 5688024,
+            "instances": 85633,
+            "contextLost": false,
+            "webglVersion": 2,
+            "backend": "webgl2",
+            "bloom": true,
+            "shadows": true,
+            "pbrLayers": 2,
+            "requestedBackend": "webgl2",
+            "fallbackReason": null,
+            "staticTotal": 308272,
+            "biome": "ville",
+            "worldRevision": 0,
+            "chunks": 9493,
+            "chunkBuildBytes": 19729344,
+            "renderScale": 1,
+            "pixelRatio": 1,
+            "width": 1440,
+            "height": 900,
+            "msaa": 4,
+            "viewDistance": 64,
+            "staticVisible": 76866,
+            "staticCulled": 231405,
+            "dynamicLights": 4,
+            "blackoutLights": 0,
+            "shadowMaps": 1,
+            "shadowMode": "sun-atlas",
+            "uploadBytes": 530304,
+            "fxInstances": 373,
+            "crowdInstances": 0,
+            "pdrLotInstances": 0,
+            "shadowChunks": 265,
+            "shadowStatic": 40243,
+            "backgroundWater": 1,
+            "backgroundDrawCalls": 1,
+            "visibleChunks": 656,
+            "lotsVisibles": 0,
+            "reflections": true,
+            "reflectionSteps": 48
+          },
+          "errors": [],
+          "nativeProfiler": null
+        }
+      ]
+    },
+    {
+      "name": "bonne-mere",
+      "identity": {
+        "hash": "b73c4df",
+        "staticMeshes": 442911,
+        "dynamicMeshes": 6055,
+        "pedestrians": 480,
+        "camera": {
+          "pos": [
+            -45.4748537925,
+            203,
+            1251.4844574361
+          ],
+          "yaw": -2.2508943606282967,
+          "pitch": -0.11384545792741649,
+          "fov": 62,
+          "near": 0.15,
+          "overlayNear": 0.035,
+          "far": 26000,
+          "allStatic": true,
+          "chunked": true,
+          "sun": {
+            "center": [
+              -45.4748537925,
+              154,
+              1251.4844574361
+            ],
+            "extent": 110,
+            "depth": 150
+          }
+        },
+        "weather": {
+          "clockHours": 23,
+          "elapsed": 90,
+          "wet": 0,
+          "cloud": 0.22,
+          "rain": 0,
+          "wind": 0.28,
+          "storm": 0,
+          "cloudX": 0.42,
+          "cloudZ": 0.13
+        },
+        "time": 0,
+        "lights": [
+          {
+            "p": [
+              -52.3914527281678,
+              105.55574309930353,
+              1258.7057009281277
+            ],
+            "color": [
+              1,
+              0.77,
+              0.44
+            ],
+            "power": 72,
+            "range": 19
+          },
+          {
+            "p": [
+              -64.98189381981966,
+              101.26919313727562,
+              1234.729972362416
+            ],
+            "color": [
+              1,
+              0.77,
+              0.44
+            ],
+            "power": 72,
+            "range": 19
+          },
+          {
+            "p": [
+              -48.2878410517925,
+              115.83492187342576,
+              1304.9290402494278
+            ],
+            "color": [
+              1,
+              0.77,
+              0.44
+            ],
+            "power": 72,
+            "range": 19
+          },
+          {
+            "p": [
+              -91.11851443030771,
+              101.84997937183186,
+              1207.739861749729
+            ],
+            "color": [
+              1,
+              0.77,
+              0.44
+            ],
+            "power": 72,
+            "range": 19
+          },
+          {
+            "p": [
+              -105.28039584207146,
+              139.0016794882542,
+              1273.3703175237556
+            ],
+            "color": [
+              1,
+              0.77,
+              0.44
+            ],
+            "power": 72,
+            "range": 19
+          },
+          {
+            "p": [
+              -164.6848114222311,
+              172,
+              1352.342521883505
+            ],
+            "color": [
+              1,
+              0.72,
+              0.37
+            ],
+            "power": 380,
+            "range": 30,
+            "landmark": true
+          },
+          {
+            "p": [
+              -186.169271836761,
+              183,
+              1338.102346698701
+            ],
+            "color": [
+              1,
+              0.72,
+              0.37
+            ],
+            "power": 440,
+            "range": 32,
+            "landmark": true
+          },
+          {
+            "p": [
+              -193.14391714865562,
+              213,
+              1339.9338277314355
+            ],
+            "color": [
+              1,
+              0.72,
+              0.37
+            ],
+            "power": 180,
+            "range": 19,
+            "landmark": true
+          },
+          {
+            "p": [
+              -185.32974881684626,
+              185,
+              1352.219541926473
+            ],
+            "color": [
+              1,
+              0.72,
+              0.37
+            ],
+            "power": 440,
+            "range": 32,
+            "landmark": true
+          },
+          {
+            "p": [
+              -192.47229873272383,
+              213,
+              1351.2275839136532
+            ],
+            "color": [
+              1,
+              0.72,
+              0.37
+            ],
+            "power": 180,
+            "range": 19,
+            "landmark": true
+          },
+          {
+            "p": [
+              -200.28646706453316,
+              178,
+              1338.9418697186156
+            ],
+            "color": [
+              1,
+              0.72,
+              0.37
+            ],
+            "power": 440,
+            "range": 32,
+            "landmark": true
+          },
+          {
+            "p": [
+              -177.29086521415678,
+              172,
+              1378.5929963134095
+            ],
+            "color": [
+              1,
+              0.72,
+              0.37
+            ],
+            "power": 380,
+            "range": 30,
+            "landmark": true
+          },
+          {
+            "p": [
+              -199.44694404461845,
+              183,
+              1353.059064946388
+            ],
+            "color": [
+              1,
+              0.72,
+              0.37
+            ],
+            "power": 440,
+            "range": 32,
+            "landmark": true
+          }
+        ],
+        "shadowMode": "sun-atlas"
+      },
+      "backend": "webgl2",
+      "build": {
+        "version": "0.6.0",
+        "name": "Rendu natif",
+        "engine": "FERRO",
+        "title": "EMPRISE",
+        "id": "31cd866fea"
+      },
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/157.0.0.0 Safari/537.36",
+      "trials": [
+        {
+          "identityHash": "b73c4df",
+          "worldRevision": 13,
+          "streamPending": false,
+          "frames": {
+            "n": 239,
+            "p50": 16.69999998807907,
+            "p95": 17.599999964237213,
+            "p99": 17.80000001192093,
+            "max": 17.900000035762787
+          },
+          "renderCPU": {
+            "n": 240,
+            "p50": 2.899999976158142,
+            "p95": 3.600000023841858,
+            "p99": 3.800000011920929,
+            "max": 3.899999976158142
+          },
+          "gameCPU": {
+            "n": 240,
+            "p50": 3.899999976158142,
+            "p95": 4.899999976158142,
+            "p99": 5.300000011920929,
+            "max": 5.5
+          },
+          "gpu": {
+            "n": 240,
+            "p50": 12.242791,
+            "p95": 13.546791,
+            "p99": 21.476666,
+            "max": 23.531041
+          },
+          "gpuTimer": "EXT_disjoint_timer_query_webgl2",
+          "disjoint": 0,
+          "over25": 0,
+          "over50": 0,
+          "over100": 0,
+          "resolution": [
+            1440,
+            900
+          ],
+          "renderer": {
+            "drawCalls": 622,
+            "triangles": 3169546,
+            "instances": 111864,
+            "contextLost": false,
+            "webglVersion": 2,
+            "backend": "webgl2",
+            "bloom": true,
+            "shadows": true,
+            "pbrLayers": 2,
+            "requestedBackend": "webgl2",
+            "fallbackReason": null,
+            "staticTotal": 442911,
+            "biome": "ville",
+            "worldRevision": 8,
+            "chunks": 11126,
+            "chunkBuildBytes": 2393344,
+            "renderScale": 1,
+            "pixelRatio": 1,
+            "width": 1440,
+            "height": 900,
+            "msaa": 4,
+            "viewDistance": 64,
+            "staticVisible": 105328,
+            "staticCulled": 337582,
+            "dynamicLights": 8,
+            "blackoutLights": 0,
+            "shadowMaps": 1,
+            "shadowMode": "sun-atlas",
+            "uploadBytes": 387520,
+            "fxInstances": 1,
+            "crowdInstances": 0,
+            "pdrLotInstances": 0,
+            "shadowChunks": 94,
+            "shadowStatic": 50353,
+            "backgroundWater": 1,
+            "backgroundDrawCalls": 1,
+            "visibleChunks": 232,
+            "lotsVisibles": 0,
+            "reflections": true,
+            "reflectionSteps": 48
+          },
+          "errors": [],
+          "nativeProfiler": null
+        },
+        {
+          "identityHash": "b73c4df",
+          "worldRevision": 13,
+          "streamPending": false,
+          "frames": {
+            "n": 239,
+            "p50": 16.69999998807907,
+            "p95": 17.200000047683716,
+            "p99": 17.600000023841858,
+            "max": 18.100000023841858
+          },
+          "renderCPU": {
+            "n": 240,
+            "p50": 3,
+            "p95": 3.599999964237213,
+            "p99": 3.700000047683716,
+            "max": 3.899999976158142
+          },
+          "gameCPU": {
+            "n": 240,
+            "p50": 4.100000023841858,
+            "p95": 4.799999952316284,
+            "p99": 5,
+            "max": 5.099999964237213
+          },
+          "gpu": {
+            "n": 240,
+            "p50": 11.820208,
+            "p95": 13.386,
+            "p99": 20.199041,
+            "max": 22.572875
+          },
+          "gpuTimer": "EXT_disjoint_timer_query_webgl2",
+          "disjoint": 0,
+          "over25": 0,
+          "over50": 0,
+          "over100": 0,
+          "resolution": [
+            1440,
+            900
+          ],
+          "renderer": {
+            "drawCalls": 622,
+            "triangles": 3169546,
+            "instances": 111864,
+            "contextLost": false,
+            "webglVersion": 2,
+            "backend": "webgl2",
+            "bloom": true,
+            "shadows": true,
+            "pbrLayers": 2,
+            "requestedBackend": "webgl2",
+            "fallbackReason": null,
+            "staticTotal": 442911,
+            "biome": "ville",
+            "worldRevision": 8,
+            "chunks": 11126,
+            "chunkBuildBytes": 2393344,
+            "renderScale": 1,
+            "pixelRatio": 1,
+            "width": 1440,
+            "height": 900,
+            "msaa": 4,
+            "viewDistance": 64,
+            "staticVisible": 105328,
+            "staticCulled": 337582,
+            "dynamicLights": 8,
+            "blackoutLights": 0,
+            "shadowMaps": 1,
+            "shadowMode": "sun-atlas",
+            "uploadBytes": 387520,
+            "fxInstances": 1,
+            "crowdInstances": 0,
+            "pdrLotInstances": 0,
+            "shadowChunks": 94,
+            "shadowStatic": 50353,
+            "backgroundWater": 1,
+            "backgroundDrawCalls": 1,
+            "visibleChunks": 232,
+            "lotsVisibles": 0,
+            "reflections": true,
+            "reflectionSteps": 48
+          },
+          "errors": [],
+          "nativeProfiler": null
+        },
+        {
+          "identityHash": "b73c4df",
+          "worldRevision": 13,
+          "streamPending": false,
+          "frames": {
+            "n": 239,
+            "p50": 16.69999998807907,
+            "p95": 17.299999952316284,
+            "p99": 17.700000047683716,
+            "max": 17.899999976158142
+          },
+          "renderCPU": {
+            "n": 240,
+            "p50": 3,
+            "p95": 3.699999988079071,
+            "p99": 3.900000035762787,
+            "max": 4
+          },
+          "gameCPU": {
+            "n": 240,
+            "p50": 3.800000011920929,
+            "p95": 4.699999988079071,
+            "p99": 5,
+            "max": 5.099999964237213
+          },
+          "gpu": {
+            "n": 240,
+            "p50": 11.838916,
+            "p95": 13.462624,
+            "p99": 20.786,
+            "max": 21.615541
+          },
+          "gpuTimer": "EXT_disjoint_timer_query_webgl2",
+          "disjoint": 0,
+          "over25": 0,
+          "over50": 0,
+          "over100": 0,
+          "resolution": [
+            1440,
+            900
+          ],
+          "renderer": {
+            "drawCalls": 622,
+            "triangles": 3169546,
+            "instances": 111864,
+            "contextLost": false,
+            "webglVersion": 2,
+            "backend": "webgl2",
+            "bloom": true,
+            "shadows": true,
+            "pbrLayers": 2,
+            "requestedBackend": "webgl2",
+            "fallbackReason": null,
+            "staticTotal": 442911,
+            "biome": "ville",
+            "worldRevision": 8,
+            "chunks": 11126,
+            "chunkBuildBytes": 2393344,
+            "renderScale": 1,
+            "pixelRatio": 1,
+            "width": 1440,
+            "height": 900,
+            "msaa": 4,
+            "viewDistance": 64,
+            "staticVisible": 105328,
+            "staticCulled": 337582,
+            "dynamicLights": 8,
+            "blackoutLights": 0,
+            "shadowMaps": 1,
+            "shadowMode": "sun-atlas",
+            "uploadBytes": 387520,
+            "fxInstances": 1,
+            "crowdInstances": 0,
+            "pdrLotInstances": 0,
+            "shadowChunks": 94,
+            "shadowStatic": 50353,
+            "backgroundWater": 1,
+            "backgroundDrawCalls": 1,
+            "visibleChunks": 232,
+            "lotsVisibles": 0,
+            "reflections": true,
+            "reflectionSteps": 48
+          },
+          "errors": [],
+          "nativeProfiler": null
+        }
+      ]
+    },
+    {
+      "name": "shop",
+      "identity": {
+        "hash": "20134f97",
+        "staticMeshes": 385,
+        "dynamicMeshes": 111,
+        "pedestrians": 480,
+        "camera": {
+          "pos": [
+            1000,
+            1.7000000000000002,
+            1008
+          ],
+          "yaw": 0,
+          "pitch": 0,
+          "fov": 74,
+          "near": 0.15,
+          "overlayNear": 0.035,
+          "far": 26000,
+          "allStatic": true,
+          "chunked": true,
+          "sun": {
+            "center": [
+              99.5,
+              0.08,
+              130
+            ],
+            "extent": 110,
+            "depth": 150
+          }
+        },
+        "weather": {
+          "clockHours": 14,
+          "elapsed": 90,
+          "wet": 0,
+          "cloud": 0.22,
+          "rain": 0,
+          "wind": 0.28,
+          "storm": 0,
+          "cloudX": 0.42,
+          "cloudZ": 0.13
+        },
+        "time": 0,
+        "lights": [
+          {
+            "p": [
+              1000,
+              3.1,
+              994
+            ],
+            "color": [
+              1,
+              0.82,
+              0.6
+            ],
+            "power": 18,
+            "range": 10
+          },
+          {
+            "p": [
+              1000,
+              3.1,
+              1000
+            ],
+            "color": [
+              1,
+              0.82,
+              0.6
+            ],
+            "power": 18,
+            "range": 10
+          },
+          {
+            "p": [
+              1000,
+              3.1,
+              1006
+            ],
+            "color": [
+              1,
+              0.82,
+              0.6
+            ],
+            "power": 18,
+            "range": 10
+          }
+        ],
+        "shadowMode": "sun-atlas"
+      },
+      "backend": "webgl2",
+      "build": {
+        "version": "0.6.0",
+        "name": "Rendu natif",
+        "engine": "FERRO",
+        "title": "EMPRISE",
+        "id": "31cd866fea"
+      },
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/157.0.0.0 Safari/537.36",
+      "trials": [
+        {
+          "identityHash": "20134f97",
+          "worldRevision": 5,
+          "streamPending": false,
+          "frames": {
+            "n": 239,
+            "p50": 16.69999998807907,
+            "p95": 17.099999964237213,
+            "p99": 17.400000035762787,
+            "max": 17.69999998807907
+          },
+          "renderCPU": {
+            "n": 240,
+            "p50": 0.20000004768371582,
+            "p95": 0.7000000476837158,
+            "p99": 0.800000011920929,
+            "max": 0.800000011920929
+          },
+          "gameCPU": {
+            "n": 240,
+            "p50": 0.5,
+            "p95": 1.699999988079071,
+            "p99": 2,
+            "max": 2
+          },
+          "gpu": {
+            "n": 240,
+            "p50": 6.034624,
+            "p95": 9.979416,
+            "p99": 14.046791,
+            "max": 15.242124
+          },
+          "gpuTimer": "EXT_disjoint_timer_query_webgl2",
+          "disjoint": 0,
+          "over25": 0,
+          "over50": 0,
+          "over100": 0,
+          "resolution": [
+            1440,
+            900
+          ],
+          "renderer": {
+            "drawCalls": 59,
+            "triangles": 108528,
+            "instances": 496,
+            "contextLost": false,
+            "webglVersion": 2,
+            "backend": "webgl2",
+            "bloom": true,
+            "shadows": true,
+            "pbrLayers": 2,
+            "requestedBackend": "webgl2",
+            "fallbackReason": null,
+            "staticTotal": 385,
+            "biome": "ville",
+            "worldRevision": 1,
+            "chunks": 9,
+            "chunkBuildBytes": 24640,
+            "renderScale": 1,
+            "pixelRatio": 1,
+            "width": 1440,
+            "height": 900,
+            "msaa": 4,
+            "viewDistance": 64,
+            "staticVisible": 385,
+            "staticCulled": 0,
+            "dynamicLights": 3,
+            "blackoutLights": 0,
+            "shadowMaps": 1,
+            "shadowMode": "sun-atlas",
+            "uploadBytes": 7104,
+            "fxInstances": 0,
+            "crowdInstances": 0,
+            "pdrLotInstances": 0,
+            "shadowChunks": 0,
+            "shadowStatic": 0,
+            "backgroundWater": 0,
+            "backgroundDrawCalls": 0,
+            "visibleChunks": 9,
+            "lotsVisibles": 0,
+            "reflections": true,
+            "reflectionSteps": 48
+          },
+          "errors": [],
+          "nativeProfiler": null
+        },
+        {
+          "identityHash": "20134f97",
+          "worldRevision": 5,
+          "streamPending": false,
+          "frames": {
+            "n": 239,
+            "p50": 16.69999998807907,
+            "p95": 17.100000023841858,
+            "p99": 17.600000023841858,
+            "max": 17.900000035762787
+          },
+          "renderCPU": {
+            "n": 240,
+            "p50": 0.5,
+            "p95": 0.699999988079071,
+            "p99": 0.800000011920929,
+            "max": 1
+          },
+          "gameCPU": {
+            "n": 240,
+            "p50": 1.2000000476837158,
+            "p95": 1.600000023841858,
+            "p99": 1.9000000357627869,
+            "max": 2
+          },
+          "gpu": {
+            "n": 240,
+            "p50": 6.541583,
+            "p95": 9.953,
+            "p99": 18.105666,
+            "max": 19.0065
+          },
+          "gpuTimer": "EXT_disjoint_timer_query_webgl2",
+          "disjoint": 0,
+          "over25": 0,
+          "over50": 0,
+          "over100": 0,
+          "resolution": [
+            1440,
+            900
+          ],
+          "renderer": {
+            "drawCalls": 59,
+            "triangles": 108528,
+            "instances": 496,
+            "contextLost": false,
+            "webglVersion": 2,
+            "backend": "webgl2",
+            "bloom": true,
+            "shadows": true,
+            "pbrLayers": 2,
+            "requestedBackend": "webgl2",
+            "fallbackReason": null,
+            "staticTotal": 385,
+            "biome": "ville",
+            "worldRevision": 1,
+            "chunks": 9,
+            "chunkBuildBytes": 24640,
+            "renderScale": 1,
+            "pixelRatio": 1,
+            "width": 1440,
+            "height": 900,
+            "msaa": 4,
+            "viewDistance": 64,
+            "staticVisible": 385,
+            "staticCulled": 0,
+            "dynamicLights": 3,
+            "blackoutLights": 0,
+            "shadowMaps": 1,
+            "shadowMode": "sun-atlas",
+            "uploadBytes": 7104,
+            "fxInstances": 0,
+            "crowdInstances": 0,
+            "pdrLotInstances": 0,
+            "shadowChunks": 0,
+            "shadowStatic": 0,
+            "backgroundWater": 0,
+            "backgroundDrawCalls": 0,
+            "visibleChunks": 9,
+            "lotsVisibles": 0,
+            "reflections": true,
+            "reflectionSteps": 48
+          },
+          "errors": [],
+          "nativeProfiler": null
+        },
+        {
+          "identityHash": "20134f97",
+          "worldRevision": 5,
+          "streamPending": false,
+          "frames": {
+            "n": 239,
+            "p50": 16.69999998807907,
+            "p95": 17,
+            "p99": 17.5,
+            "max": 17.600000023841858
+          },
+          "renderCPU": {
+            "n": 240,
+            "p50": 0.5,
+            "p95": 0.6000000238418579,
+            "p99": 0.699999988079071,
+            "max": 0.699999988079071
+          },
+          "gameCPU": {
+            "n": 240,
+            "p50": 1.199999988079071,
+            "p95": 1.5,
+            "p99": 1.699999988079071,
+            "max": 1.9000000357627869
+          },
+          "gpu": {
+            "n": 240,
+            "p50": 7.162875,
+            "p95": 13.609208,
+            "p99": 18.606833,
+            "max": 19.230666
+          },
+          "gpuTimer": "EXT_disjoint_timer_query_webgl2",
+          "disjoint": 0,
+          "over25": 0,
+          "over50": 0,
+          "over100": 0,
+          "resolution": [
+            1440,
+            900
+          ],
+          "renderer": {
+            "drawCalls": 59,
+            "triangles": 108528,
+            "instances": 496,
+            "contextLost": false,
+            "webglVersion": 2,
+            "backend": "webgl2",
+            "bloom": true,
+            "shadows": true,
+            "pbrLayers": 2,
+            "requestedBackend": "webgl2",
+            "fallbackReason": null,
+            "staticTotal": 385,
+            "biome": "ville",
+            "worldRevision": 1,
+            "chunks": 9,
+            "chunkBuildBytes": 24640,
+            "renderScale": 1,
+            "pixelRatio": 1,
+            "width": 1440,
+            "height": 900,
+            "msaa": 4,
+            "viewDistance": 64,
+            "staticVisible": 385,
+            "staticCulled": 0,
+            "dynamicLights": 3,
+            "blackoutLights": 0,
+            "shadowMaps": 1,
+            "shadowMode": "sun-atlas",
+            "uploadBytes": 7104,
+            "fxInstances": 0,
+            "crowdInstances": 0,
+            "pdrLotInstances": 0,
+            "shadowChunks": 0,
+            "shadowStatic": 0,
+            "backgroundWater": 0,
+            "backgroundDrawCalls": 0,
+            "visibleChunks": 9,
+            "lotsVisibles": 0,
+            "reflections": true,
+            "reflectionSteps": 48
+          },
+          "errors": [],
+          "nativeProfiler": null
+        }
+      ]
+    }
+  ]
+}

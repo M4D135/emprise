@@ -1,5 +1,6 @@
 {
-  "delaySeconds": 5.250205207965337,
+  "backend": "webgpu",
+  "delaySeconds": 5.226354708021972,
   "recordings": [
     "Tir et conduite \u00b7 clavier / souris r\u00e9els",
     "Commerce contest\u00e9 \u00b7 session de test valid\u00e9e",
@@ -14,5 +15,5 @@
   "policeReplayValidated": true,
   "errors": [],
   "url": "file://dist/index.html",
-  "buildSha256": "ed3d4306684bfb084929a0e9361f537263382581a15fc44014cd539565c427d1"
+  "buildSha256": "4b58b6583db5372eaa49895ccc67e76a6062a0620bfbd859f68c582d5ac3da52"
 }

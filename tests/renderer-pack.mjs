@@ -1,6 +1,6 @@
 import fs from 'node:fs';import vm from 'node:vm';import assert from 'node:assert/strict';import {execFileSync} from 'node:child_process';
 const baseline=execFileSync('git',['show','509b2ec:src/ferro/renderer.js'],{encoding:'utf8'}),current=fs.readFileSync(new URL('../src/ferro/renderer.js',import.meta.url),'utf8');
-function api(code){const c=vm.createContext({});vm.runInContext(code.replace('globalThis.FRender={create,foliageTriangles,forme};','globalThis.FRender={pack,packEffects};'),c);return c.FRender;}
+function api(code){const c=vm.createContext({});vm.runInContext(code.replace('globalThis.FRender={create,foliageTriangles,forme};','globalThis.FRender={pack,packEffects};'),c);return c.FRender.shared||c.FRender;}
 const before=api(baseline),after=api(current);let seed=135;const random=()=>((seed=Math.imul(seed,1664525)+1013904223>>>0)/4294967296),shapes=['box','bevel','sphere','cylinder','ring',null,'unknown'];let compared=0;
 for(let n=0;n<60;n++){
  const meshes=Array.from({length:[0,1,6,90,500][n%5]},(_,i)=>({shape:shapes[i%7],p:[random()*100-50,random()*5,random()*100-50],s:i%3?[random()*3,random()*3,random()*3]:undefined,r:i%2?[random(),-random(),random()]:undefined,color:i%3?[random(),0,random()]:undefined,mat:i%21,emissive:i%4?0:.5,alpha:(i%11-1)/9,innerRatio:i%7/5,window:i%13===0,fxFire:i%17===0,fxSmoke:i%19===0,fxSpark:i%23===0,fxPriority:i%29===0?'hazard':undefined,overlay:i%3===0,surface:i%4?'object':'architecture'}));

@@ -1,13 +1,85 @@
 {
+  "backend": "webgpu",
+  "buildSha256": "4b58b6583db5372eaa49895ccc67e76a6062a0620bfbd859f68c582d5ac3da52",
   "date": "2026-11-15",
+  "metrics": {
+    "frame": {
+      "n": 823,
+      "p50": 16.69999999999891,
+      "p95": 17.399999999999636
+    },
+    "cpu": {
+      "n": 823,
+      "p50": 3.399999976158142,
+      "p95": 7.5
+    },
+    "resolution": [
+      1440,
+      900
+    ],
+    "pedestrians": 480,
+    "traffic": 15,
+    "renderer": {
+      "backend": "webgpu",
+      "webglVersion": 0,
+      "webgpu": true,
+      "contextLost": false,
+      "deviceLost": false,
+      "drawCalls": 1844,
+      "triangles": 3195626,
+      "instances": 40342,
+      "uploadBytes": 194496,
+      "errorEvents": [],
+      "gpuTimingAvailable": true,
+      "pbrLayers": 2,
+      "renderScale": 1,
+      "pixelRatio": 1,
+      "width": 1440,
+      "height": 900,
+      "msaa": 4,
+      "requestedBackend": "webgpu",
+      "fallbackReason": null,
+      "worldRevision": 0,
+      "staticTotal": 308272,
+      "biome": "ville",
+      "chunks": 9493,
+      "chunkBuildBytes": 19729344,
+      "viewDistance": 64,
+      "staticVisible": 36822,
+      "staticCulled": 271449,
+      "dynamicLights": 5,
+      "blackoutLights": 0,
+      "fxInstances": 21,
+      "uniformUploadBytes": 2256,
+      "bloom": true,
+      "shadows": true,
+      "shadowMode": "sun-atlas",
+      "shadowMaps": 1,
+      "crowdInstances": 0,
+      "pdrLotInstances": 0,
+      "shadowChunks": 247,
+      "shadowStatic": 38801,
+      "backgroundWater": 1,
+      "backgroundDrawCalls": 1,
+      "visibleChunks": 603,
+      "lotsVisibles": 0,
+      "reflections": true,
+      "reflectionSteps": 48,
+      "gpuBuffers": 9512,
+      "gpuTextures": 15,
+      "pipelineCount": 16,
+      "uniformSlots": 10
+    },
+    "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/157.0.0.0 Safari/537.36"
+  },
   "checks": [
     {
       "driving": {
-        "x": 77.67436426922669,
-        "z": 124.8634466990708,
-        "v": 7.241683105878102
+        "x": 77.68166069568102,
+        "z": 124.92335133933598,
+        "v": 7.199428316469085
       },
-      "reverse": -4.735733935099314
+      "reverse": -4.649401887295534
     },
     {
       "singleShotAndRelease": {
@@ -16,7 +88,7 @@
         "events": 0,
         "voices": 2,
         "gunVoices": 0,
-        "kick": 2.6983796338507214e-16
+        "kick": 2.6492154676263415e-16
       }
     },
     {

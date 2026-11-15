@@ -3,6 +3,8 @@
     "Plaque1600kg tombée sur la capsule : dégagement progressif puis marche W réelle opérationnelle",
     "Tirs lance-roquettes par clics réels jusqu’à la brèche : collision statique retirée et débris physiques"
   ],
+  "backendRequested": "webgpu",
+  "backend": "webgpu",
   "recovery": {
     "x": 63.02843253421143,
     "z": 188.89157302749643,
@@ -31,11 +33,11 @@
     "hp": 100,
     "errors": [],
     "pacing": {
-      "frames": 527,
-      "p95": 16.899999999999636,
-      "max": 150,
-      "over50": 9,
-      "over100": 2
+      "frames": 519,
+      "p95": 17.299999999999272,
+      "max": 166.70000000000073,
+      "over50": 10,
+      "over100": 3
     }
   },
   "shots": [
@@ -43,24 +45,754 @@
       "shots": 1,
       "hp": 100,
       "dead": false,
-      "heat": 0.24208333333332932,
-      "staticAfter": 8.000000000000025
+      "heat": 0.26541666666666275,
+      "weapon": 2,
+      "ammo": [
+        180,
+        36,
+        11
+      ],
+      "player": {
+        "x": -254.79374336975567,
+        "y": 0.08,
+        "z": -236.46899713714157,
+        "yaw": 1.5817246848831783,
+        "pitch": -0.03748243669166152
+      },
+      "ground": 0.08,
+      "actualEye": [
+        -254.79374336975567,
+        1.7000000000000002,
+        -236.46899713714157
+      ],
+      "actualDir": [
+        0.9992379437403421,
+        -0.03747366058909431,
+        0.010920464808156234
+      ],
+      "actualRay": 8.0056230238502,
+      "projectiles": [],
+      "staticAfter": 8.000000000000025,
+      "backend": "webgpu",
+      "backendEvents": [],
+      "pointerLocked": true,
+      "running": true,
+      "lastCommand": {
+        "moveX": 0,
+        "moveY": 0,
+        "lookX": 0,
+        "lookY": 0,
+        "left": false,
+        "right": false,
+        "back": 0,
+        "forward": 0,
+        "sprint": false,
+        "brake": false,
+        "interact": false,
+        "engine": false,
+        "paint": false,
+        "camera": false,
+        "map": false,
+        "melee": false,
+        "pulse": false,
+        "weapon1": false,
+        "weapon2": false,
+        "weapon3": false,
+        "grab": false,
+        "throw": false,
+        "ignite": false,
+        "repair": false,
+        "fire": false,
+        "steer": 0,
+        "drift": false
+      }
     },
     {
       "shots": 2,
       "hp": 100,
       "dead": false,
-      "heat": 0.48124999999999196,
-      "staticAfter": 8.000000000000025
+      "heat": 0.5104166666666587,
+      "weapon": 2,
+      "ammo": [
+        180,
+        36,
+        10
+      ],
+      "player": {
+        "x": -254.79374336975567,
+        "y": 0.08,
+        "z": -236.46899713714157,
+        "yaw": 1.5817246848831783,
+        "pitch": -0.03748243669166152
+      },
+      "ground": 0.08,
+      "actualEye": [
+        -254.79374336975567,
+        1.7000000000000002,
+        -236.46899713714157
+      ],
+      "actualDir": [
+        0.9992379437403421,
+        -0.03747366058909431,
+        0.010920464808156234
+      ],
+      "actualRay": 8.0056230238502,
+      "projectiles": [],
+      "staticAfter": 8.000000000000025,
+      "backend": "webgpu",
+      "backendEvents": [],
+      "pointerLocked": true,
+      "running": true,
+      "lastCommand": {
+        "moveX": 0,
+        "moveY": 0,
+        "lookX": 0,
+        "lookY": 0,
+        "left": false,
+        "right": false,
+        "back": 0,
+        "forward": 0,
+        "sprint": false,
+        "brake": false,
+        "interact": false,
+        "engine": false,
+        "paint": false,
+        "camera": false,
+        "map": false,
+        "melee": false,
+        "pulse": false,
+        "weapon1": false,
+        "weapon2": false,
+        "weapon3": false,
+        "grab": false,
+        "throw": false,
+        "ignite": false,
+        "repair": false,
+        "fire": false,
+        "steer": 0,
+        "drift": false
+      }
     },
     {
       "shots": 3,
       "hp": 100,
       "dead": false,
-      "heat": 0.6212499999999961,
-      "staticAfter": 20
+      "heat": 0.6270833333333294,
+      "weapon": 2,
+      "ammo": [
+        180,
+        36,
+        9
+      ],
+      "player": {
+        "x": -254.79374336975567,
+        "y": 0.08,
+        "z": -236.46899713714157,
+        "yaw": 1.5817246848831783,
+        "pitch": -0.03748243669166152
+      },
+      "ground": 0.08,
+      "actualEye": [
+        -254.79374336975567,
+        1.7000000000000002,
+        -236.46899713714157
+      ],
+      "actualDir": [
+        0.9992379437403421,
+        -0.03747366058909431,
+        0.010920464808156234
+      ],
+      "actualRay": 7.910647801062126,
+      "projectiles": [],
+      "staticAfter": 20,
+      "backend": "webgpu",
+      "backendEvents": [],
+      "pointerLocked": true,
+      "running": true,
+      "lastCommand": {
+        "moveX": 0,
+        "moveY": 0,
+        "lookX": 0,
+        "lookY": 0,
+        "left": false,
+        "right": false,
+        "back": 0,
+        "forward": 0,
+        "sprint": false,
+        "brake": false,
+        "interact": false,
+        "engine": false,
+        "paint": false,
+        "camera": false,
+        "map": false,
+        "melee": false,
+        "pulse": false,
+        "weapon1": false,
+        "weapon2": false,
+        "weapon3": false,
+        "grab": false,
+        "throw": false,
+        "ignite": false,
+        "repair": false,
+        "fire": false,
+        "steer": 0,
+        "drift": false
+      }
     }
   ],
+  "diagnostics": {
+    "before": {
+      "shots": 0,
+      "hp": 100,
+      "dead": false,
+      "heat": 0,
+      "weapon": 2,
+      "ammo": [
+        180,
+        36,
+        12
+      ],
+      "player": {
+        "x": -254.79374336975567,
+        "y": 0.08,
+        "z": -236.46899713714157,
+        "yaw": 1.5817246848831783,
+        "pitch": -0.03748243669166152
+      },
+      "ground": 0.08,
+      "actualEye": [
+        -254.79374336975567,
+        1.7000000000000002,
+        -236.46899713714157
+      ],
+      "actualDir": [
+        0.9992379437403421,
+        -0.03747366058909431,
+        0.010920464808156234
+      ],
+      "actualRay": 8.0056230238502,
+      "projectiles": [],
+      "staticAfter": 8.000000000000025,
+      "backend": "webgpu",
+      "backendEvents": [],
+      "pointerLocked": true,
+      "running": true,
+      "lastCommand": {
+        "moveX": 0,
+        "moveY": 0,
+        "lookX": 0,
+        "lookY": 0,
+        "left": false,
+        "right": false,
+        "back": 0,
+        "forward": 0,
+        "sprint": false,
+        "brake": false,
+        "interact": false,
+        "engine": false,
+        "paint": false,
+        "camera": false,
+        "map": false,
+        "melee": false,
+        "pulse": false,
+        "weapon1": false,
+        "weapon2": false,
+        "weapon3": false,
+        "grab": false,
+        "throw": false,
+        "ignite": false,
+        "repair": false,
+        "fire": false,
+        "steer": 0,
+        "drift": false
+      }
+    },
+    "target": {
+      "wall": {
+        "x": -227.604891489427,
+        "z": -236.17185579859122,
+        "a": 19.190475529963187,
+        "b": 4.965819456180858,
+        "c": -0.9999402860890485,
+        "s": -0.010928140562415102,
+        "minY": 0,
+        "maxY": 33,
+        "mesh": {
+          "shape": "box",
+          "p": [
+            -227.604891489427,
+            16.5,
+            -236.17185579859122
+          ],
+          "s": [
+            38.380951059926375,
+            33,
+            9.931638912361716
+          ],
+          "r": [
+            0,
+            3.1306642955015116,
+            0
+          ],
+          "mat": 13.083416917664,
+          "outdoor": true,
+          "color": [
+            0.8290577261941507,
+            0.5575670106336474,
+            0.40319042751798406
+          ],
+          "collision": true,
+          "material": "stone",
+          "mass": 4981335.342321536
+        }
+      },
+      "point": [
+        -246.79422108104328,
+        1.4,
+        -236.38157201264224
+      ],
+      "eye": [
+        -254.79374336975567,
+        1.4,
+        -236.46899713714157
+      ],
+      "dir": [
+        0.9999402860890485,
+        0,
+        0.010928140562415102
+      ],
+      "rayBefore": 8.000000000000025,
+      "nearbyVehicles": []
+    },
+    "after": {
+      "shots": 3,
+      "hp": 100,
+      "dead": false,
+      "heat": 0,
+      "weapon": 2,
+      "ammo": [
+        180,
+        36,
+        9
+      ],
+      "player": {
+        "x": -254.79374336975567,
+        "y": 0.08,
+        "z": -236.46899713714157,
+        "yaw": 1.5817246848831783,
+        "pitch": -0.03748243669166152
+      },
+      "ground": 0.08,
+      "actualEye": [
+        -254.79374336975567,
+        1.7000000000000002,
+        -236.46899713714157
+      ],
+      "actualDir": [
+        0.9992379437403421,
+        -0.03747366058909431,
+        0.010920464808156234
+      ],
+      "actualRay": 7.91065152138995,
+      "projectiles": [],
+      "staticAfter": 20,
+      "backend": "webgpu",
+      "backendEvents": [],
+      "pointerLocked": true,
+      "running": true,
+      "lastCommand": {
+        "moveX": 0,
+        "moveY": 0,
+        "lookX": 0,
+        "lookY": 0,
+        "left": false,
+        "right": false,
+        "back": 0,
+        "forward": 0,
+        "sprint": false,
+        "brake": false,
+        "interact": false,
+        "engine": false,
+        "paint": false,
+        "camera": false,
+        "map": false,
+        "melee": false,
+        "pulse": false,
+        "weapon1": false,
+        "weapon2": false,
+        "weapon3": false,
+        "grab": false,
+        "throw": false,
+        "ignite": false,
+        "repair": false,
+        "fire": false,
+        "steer": 0,
+        "drift": false
+      }
+    },
+    "trace": [
+      {
+        "t": 6.133333333333428,
+        "cmd": {
+          "fire": true,
+          "lookX": 0,
+          "lookY": 0,
+          "moveX": 0,
+          "moveY": 0
+        },
+        "player": {
+          "x": -254.79374336975567,
+          "y": 0.08,
+          "z": -236.46899713714157,
+          "yaw": 1.5817246848831783,
+          "pitch": -0.03748243669166152
+        },
+        "weapon": 2,
+        "events": [
+          {
+            "name": "rocket",
+            "x": -253.58285115213368,
+            "y": 1.4252255873547017,
+            "z": -236.20174829096808,
+            "owner": "player",
+            "id": 1
+          }
+        ],
+        "eventCounts": {
+          "rocket": 1
+        },
+        "projectiles": [
+          {
+            "id": 1,
+            "kind": "rocket",
+            "owner": "player",
+            "x": -253.38392230345772,
+            "y": 1.424486395942429,
+            "z": -236.20701770844153,
+            "vx": 23.9914189357953,
+            "vy": -0.08914871303791072,
+            "vz": -0.6355076349867304,
+            "age": 0.008333333333333333,
+            "life": 4.991666666666666,
+            "fuse": 0,
+            "radius": 0.24,
+            "blastRadius": 4.2,
+            "damage": 32,
+            "terrainPower": 55,
+            "travel": 0.19899999999999995,
+            "bounces": 0,
+            "resting": false
+          }
+        ]
+      },
+      {
+        "t": 6.400000000000108,
+        "cmd": {
+          "fire": false,
+          "lookX": 0,
+          "lookY": 0,
+          "moveX": 0,
+          "moveY": 0
+        },
+        "player": {
+          "x": -254.79374336975567,
+          "y": 0.08,
+          "z": -236.46899713714157,
+          "yaw": 1.5817246848831783,
+          "pitch": -0.03748243669166152
+        },
+        "weapon": 2,
+        "events": [
+          {
+            "name": "explosion",
+            "id": 1,
+            "kind": "rocket",
+            "life": 2.4,
+            "x": -247.036304200575,
+            "y": 1.4008995465675504,
+            "z": -236.3751594835973,
+            "radius": 4.2,
+            "power": 55,
+            "seed": 1103515245,
+            "owner": "player"
+          },
+          {
+            "name": "materialImpact",
+            "x": -246.84848825406797,
+            "y": 1.4008995465675504,
+            "z": -236.3751594835973,
+            "sourceId": "piece-10406",
+            "material": "stone",
+            "power": 53.87929323196608,
+            "seed": 10167573
+          }
+        ],
+        "eventCounts": {
+          "explosion": 1,
+          "materialImpact": 1
+        },
+        "projectiles": []
+      },
+      {
+        "t": 8.150000000000178,
+        "cmd": {
+          "fire": true,
+          "lookX": 0,
+          "lookY": 0,
+          "moveX": 0,
+          "moveY": 0
+        },
+        "player": {
+          "x": -254.79374336975567,
+          "y": 0.08,
+          "z": -236.46899713714157,
+          "yaw": 1.5817246848831783,
+          "pitch": -0.03748243669166152
+        },
+        "weapon": 2,
+        "events": [
+          {
+            "name": "rocket",
+            "x": -253.58285115213368,
+            "y": 1.4252255873547017,
+            "z": -236.20174829096808,
+            "owner": "player",
+            "id": 2
+          }
+        ],
+        "eventCounts": {
+          "rocket": 1
+        },
+        "projectiles": [
+          {
+            "id": 2,
+            "kind": "rocket",
+            "owner": "player",
+            "x": -253.38392230345772,
+            "y": 1.424486395942429,
+            "z": -236.20701770844153,
+            "vx": 23.9914189357953,
+            "vy": -0.08914871303791072,
+            "vz": -0.6355076349867304,
+            "age": 0.008333333333333333,
+            "life": 4.991666666666666,
+            "fuse": 0,
+            "radius": 0.24,
+            "blastRadius": 4.2,
+            "damage": 32,
+            "terrainPower": 55,
+            "travel": 0.19899999999999995,
+            "bounces": 0,
+            "resting": false
+          }
+        ]
+      },
+      {
+        "t": 8.41666666666683,
+        "cmd": {
+          "fire": false,
+          "lookX": 0,
+          "lookY": 0,
+          "moveX": 0,
+          "moveY": 0
+        },
+        "player": {
+          "x": -254.79374336975567,
+          "y": 0.08,
+          "z": -236.46899713714157,
+          "yaw": 1.5817246848831783,
+          "pitch": -0.03748243669166152
+        },
+        "weapon": 2,
+        "events": [
+          {
+            "name": "explosion",
+            "id": 2,
+            "kind": "rocket",
+            "life": 2.4,
+            "x": -247.036304200575,
+            "y": 1.4008995465675504,
+            "z": -236.3751594835973,
+            "radius": 4.2,
+            "power": 55,
+            "seed": 2207030490,
+            "owner": "player"
+          },
+          {
+            "name": "materialImpact",
+            "x": -246.84848825406797,
+            "y": 1.4008995465675504,
+            "z": -236.3751594835973,
+            "sourceId": "piece-10406",
+            "material": "stone",
+            "power": 53.87929323196608,
+            "seed": 10167573
+          }
+        ],
+        "eventCounts": {
+          "explosion": 1,
+          "materialImpact": 1
+        },
+        "projectiles": []
+      },
+      {
+        "t": 10.183333333333396,
+        "cmd": {
+          "fire": true,
+          "lookX": 0,
+          "lookY": 0,
+          "moveX": 0,
+          "moveY": 0
+        },
+        "player": {
+          "x": -254.79374336975567,
+          "y": 0.08,
+          "z": -236.46899713714157,
+          "yaw": 1.5817246848831783,
+          "pitch": -0.03748243669166152
+        },
+        "weapon": 2,
+        "events": [
+          {
+            "name": "rocket",
+            "x": -253.58285115213368,
+            "y": 1.4252255873547017,
+            "z": -236.20174829096808,
+            "owner": "player",
+            "id": 3
+          }
+        ],
+        "eventCounts": {
+          "rocket": 1
+        },
+        "projectiles": [
+          {
+            "id": 3,
+            "kind": "rocket",
+            "owner": "player",
+            "x": -253.38392230345772,
+            "y": 1.424486395942429,
+            "z": -236.20701770844153,
+            "vx": 23.9914189357953,
+            "vy": -0.08914871303791072,
+            "vz": -0.6355076349867304,
+            "age": 0.008333333333333333,
+            "life": 4.991666666666666,
+            "fuse": 0,
+            "radius": 0.24,
+            "blastRadius": 4.2,
+            "damage": 32,
+            "terrainPower": 55,
+            "travel": 0.19899999999999995,
+            "bounces": 0,
+            "resting": false
+          }
+        ]
+      },
+      {
+        "t": 10.450000000000047,
+        "cmd": {
+          "fire": false,
+          "lookX": 0,
+          "lookY": 0,
+          "moveX": 0,
+          "moveY": 0
+        },
+        "player": {
+          "x": -254.79374336975567,
+          "y": 0.08,
+          "z": -236.46899713714157,
+          "yaw": 1.5817246848831783,
+          "pitch": -0.03748243669166152
+        },
+        "weapon": 2,
+        "events": [
+          {
+            "name": "explosion",
+            "id": 3,
+            "kind": "rocket",
+            "life": 2.4,
+            "x": -247.036304200575,
+            "y": 1.4008995465675504,
+            "z": -236.3751594835973,
+            "radius": 4.2,
+            "power": 55,
+            "seed": 3310545735,
+            "owner": "player"
+          },
+          {
+            "name": "materialBreak",
+            "x": -246.84848825406797,
+            "y": 1.4008995465675504,
+            "z": -236.3751594835973,
+            "sourceId": "piece-10406",
+            "material": "stone",
+            "power": 53.87929323196608,
+            "seed": 10167573
+          },
+          {
+            "name": "materialBreak",
+            "x": -246.27186211151613,
+            "y": 1.4008995465675504,
+            "z": -232.71764235918437,
+            "sourceId": "piece-282",
+            "material": "wood",
+            "power": 21.972493246053215,
+            "seed": 276425,
+            "sourceRoom": "building-1475:0:local-0:v2"
+          },
+          {
+            "name": "materialImpact",
+            "x": -246.17061797502646,
+            "y": 1.4008995465675504,
+            "z": -232.37824377163952,
+            "sourceId": "piece-283",
+            "material": "stone",
+            "power": 14.213859660898724,
+            "seed": 277402,
+            "sourceRoom": "building-1475:0:local-0:v2"
+          },
+          {
+            "name": "materialBreak",
+            "x": -246.27186211151613,
+            "y": 1.5273,
+            "z": -232.71764235918437,
+            "sourceId": "piece-284",
+            "material": "metal",
+            "power": 21.959685252129695,
+            "seed": 278379,
+            "sourceRoom": "building-1475:0:local-0:v2"
+          },
+          {
+            "name": "materialBreak",
+            "x": -241.54347707528095,
+            "y": 2.5041249999999997,
+            "z": -235.86037756758697,
+            "sourceId": "piece-39",
+            "material": "wood",
+            "power": 45.47721577632744,
+            "seed": 39014,
+            "sourceRoom": "building-1475:0:local-0:v2"
+          }
+        ],
+        "eventCounts": {
+          "explosion": 1,
+          "materialBreak": 85,
+          "materialImpact": 9
+        },
+        "projectiles": []
+      }
+    ],
+    "mouse": [
+      {
+        "t": 6.125000000000094,
+        "x": 720,
+        "y": 490,
+        "dx": 0,
+        "dy": 0
+      }
+    ]
+  },
   "fixture": "Départ joueur et plaque préparés ; puis marche clavier réelle. Façade réelle choisie et joueur placé devant, tirs par clics réels. Pas de parcours complet ni reproduction de la sauvegarde exacte de David.",
-  "buildSha256": "5a58818efc8b8388c9f58ef9586288460631b864cb2c41a54b5559a8e29f0934"
+  "buildSha256": "4b58b6583db5372eaa49895ccc67e76a6062a0620bfbd859f68c582d5ac3da52"
 }

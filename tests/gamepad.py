@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Virtual standard pad through navigator.getGamepads in real WebGL2 Chrome, not game.controller."""
+"""Virtual standard pad through navigator.getGamepads in real Chrome, not game.controller."""
 from browser_support import Browser,ROOT
-import time,json
+import time,json,hashlib
 with Browser() as b:
  b.cmd('Page.addScriptToEvaluateOnNewDocument',{'source':'''window.rumbles=[];window.virtualPad={id:'Xbox 360 Controller (STANDARD GAMEPAD)',index:0,connected:true,mapping:'standard',axes:[0,0,0,0],buttons:Array.from({length:17},()=>({value:0,pressed:false})),vibrationActuator:{playEffect:(t,o)=>{rumbles.push(o);return Promise.resolve('complete')},reset:()=>{rumbles.push({reset:true});return Promise.resolve()}}};Object.defineProperty(navigator,'getGamepads',{value:()=>virtualPad.connected?[virtualPad]:[]});'''})
  b.load();ev=b.ev
@@ -39,4 +39,4 @@ with Browser() as b:
  assert ev('rumbles.some(r=>r.strongMagnitude>0)');assert ev('rumbles.some(r=>r.reset)');assert not ev('RADE.game.errors')
  b.capture('gamepad-menu.png');saved=ev('RADE.game.pad.settings.sensitivity');b.load();assert ev('RADE.game.pad.settings.sensitivity')==saved;checks.append('Réglages persistants, vibrations finies, annulation de remise à zéro')
  b.load('');b.wait('RADE.game.demo',9);button(0);time.sleep(.2);assert not ev('RADE.game.demo');assert not ev('RADE.game.running');time.sleep(.4);assert not ev('RADE.game.running');neutral();tap(0);assert ev('RADE.game.running');assert not ev('RADE.game.errors');checks.append('Démo après 5 s, retour au titre sans validation parasite puis reprise')
- report={'checks':checks,'hardware':'Gamepad API virtuelle Xbox standard, aucune manette physique branchée pour ce test','errors':ev('RADE.game.errors')};(ROOT/'docs/gamepad-validation.json').write_text(json.dumps(report,ensure_ascii=False,indent=2)+'\n');print(json.dumps(report,ensure_ascii=False,indent=2),flush=True)
+ report={'backend':ev('RADE.game.renderer.stats.backend'),'buildSha256':hashlib.sha256((ROOT/'dist/index.html').read_bytes()).hexdigest(),'checks':checks,'hardware':'Gamepad API virtuelle Xbox standard, aucune manette physique branchée pour ce test','errors':ev('RADE.game.errors')};(ROOT/'docs/gamepad-validation.json').write_text(json.dumps(report,ensure_ascii=False,indent=2)+'\n');print(json.dumps(report,ensure_ascii=False,indent=2),flush=True)

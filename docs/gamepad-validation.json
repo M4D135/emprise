@@ -1,4 +1,6 @@
 {
+  "backend": "webgpu",
+  "buildSha256": "4b58b6583db5372eaa49895ccc67e76a6062a0620bfbd859f68c582d5ac3da52",
   "checks": [
     "Titre : A démarre sans capture souris",
     "X entrée/sortie · RT analogique · LT frein/recul · B frein à main · Y vue",

@@ -6,7 +6,7 @@ import {performance} from 'node:perf_hooks';
 const baseline=execFileSync('git',['show','509b2ec:src/ferro/renderer.js'],{encoding:'utf8'}),current=fs.readFileSync(new URL('../src/ferro/renderer.js',import.meta.url),'utf8');
 function harness(source){
  const context=vm.createContext({});
- vm.runInContext(source.replace('globalThis.FRender={create,foliageTriangles,forme};','globalThis.FRender={spatialIndex,packIndexed,visible};'),context);
+ vm.runInContext(source.replace('globalThis.FRender={create,foliageTriangles,forme};','globalThis.FRender={spatialIndex,packIndexed,visible};'),context);context.FRender=context.FRender.shared||context.FRender;
  const a=source.indexOf('    let chunks=new Map();'),b=source.indexOf('    function drawChunks(',a);assert(a>=0&&b>a);
  return vm.runInContext(`(()=>{const events=[],stats={},gl={ARRAY_BUFFER:1,STATIC_DRAW:2,serial:0,createBuffer(){const b={id:++this.serial};events.push(['create',b.id]);return b;},bindBuffer(_,b){this.bound=b;events.push(['bind',b.id]);},bufferData(_,values){events.push(['data',this.bound.id,values.byteLength]);},deleteBuffer(b){events.push(['delete',b.id]);}},packIndexed=FRender.packIndexed;let worldIndex={entries:[],byMesh:new WeakMap()};${source.slice(a,b)}return {prepare(meshes,reset=false){worldIndex=FRender.spatialIndex(meshes,null,reset?null:worldIndex);},rebuild:rebuildChunks,get chunks(){return chunks;},get stats(){return stats;},get events(){return events;},resetEvents(){events.length=0;},entry(mesh){return worldIndex.byMesh.get(mesh);},restore(){chunks.clear();rebuildChunks();},visible:FRender.visible};})()`,context);
 }

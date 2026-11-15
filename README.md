@@ -1,6 +1,8 @@
-# EMPRISE — 0.5.0 « Tenir la rue »
+# EMPRISE — 0.6.0 « Rendu natif »
 
 Sandbox FPS solo persistant dans Marseille et ses eaux côtières, avec conduite et combat dans un seul renderer **FERRO**. Jouer : **[gta.estrasse.fr](https://gta.estrasse.fr)** · [Dépôt GitHub privé](https://github.com/M4D135/emprise).
+
+Le rendu utilise maintenant **WebGPU natif avec secours WebGL2**. Le filtre des ombres solaires est continu, la correction de profondeur de la foule tient compte de la taille réelle de sa tuile, et la garniture arrière de la 205 suit son montant. [Mesures et validation](docs/WEBGPU.md) · [Correctifs visuels avant/après](docs/SHADOWS.md).
 
 Cette version réunit le trafic civil et policier, les vols de véhicules, les gangs, les commerces et territoires à conquérir, les revenus passifs et les contre-attaques. Les conducteurs sont visibles et peuvent être extraits d’un véhicule arrêté. Les blessures distinguent tête, bras et jambes ; une blessure à la jambe impose une posture au sol et une mobilité très réduite.
 
@@ -39,7 +41,7 @@ python3 build.py
 open dist/index.html
 ```
 
-Python 3 standard pour construire ; Node et Chrome pour les tests. Le HTML autonome pèse environ **22,2 Mo**, données géographiques et générateurs procéduraux compris, sans CDN ni requête réseau à l’exécution. `SIZE.json` donne son empreinte. WebGL2 et un navigateur de bureau sont requis pour la configuration vérifiée ; aucun backend WebGPU n'est livré.
+Python 3 standard pour construire ; Node et Chrome pour les tests. Le HTML autonome pèse environ **22,6 Mo**, données géographiques et générateurs procéduraux compris, sans CDN ni requête réseau à l’exécution. `SIZE.json` donne son empreinte. Le moteur utilise **WebGPU natif**, avec **WebGL2 en secours automatique** si WebGPU est absent, échoue ou perd son périphérique en partie. Le moteur réellement actif apparaît à l'écran titre. `?renderer=webgl2` permet de forcer le secours ; `?renderer=webgpu` demande WebGPU tout en conservant le repli en cas d'échec. [Architecture, tests et comparaison avant/après](docs/WEBGPU.md).
 
 La version et l’identifiant du build apparaissent à l’écran titre. Après **5 secondes sans interaction**, des sessions de test enregistrées sont rejouées. Une touche ou un clic ramène au titre ; cette démonstration ne modifie pas la progression.
 

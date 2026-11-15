@@ -45,7 +45,7 @@ function model(type='gti',color='#bb2729'){
   box([-.63,.68,side*(W+.006)],[.008,.29,.008],BLACK,7);box([.77,.7,side*(W+.006)],[.008,.27,.008],BLACK,7);
   box([1.02,.715,side*(W+.02)],[.065,.038,.016],[.95,.38,.06],5);
   box([.64,.94,side*(W+.12)],[.21,.11,.20],r5?paint:DARK,r5?17:7);box([.536,.945,side*(W+.12)],[.006,.078,.147],[.43,.55,.56],8);
-  if(r5)text('GT TURBO',-.39,.39,side*(W+.031),.014,SILVER,'side');else{text('GTI',-1.31,1.01,side*.712,.014,RED,'side');text('1.9',-1.30,1.10,side*.682,.011,SILVER,'side');}
+  if(r5)text('GT TURBO',-.39,.39,side*(W+.031),.014,SILVER,'side');
  }
  const hood=[];const hx=[.80,L-.27,L-.02],hy=[.85,.805,.765],hz=[-1,-.90,-.52,0,.52,.90,1];
  for(let i=0;i<hx.length-1;i++)for(let j=0;j<hz.length-1;j++){const at=(k,t)=>[hx[k],hy[k]+.024*(1-t*t),t*(W-.045-(k===2?.035:0))];hood.push([at(i,hz[j]),at(i+1,hz[j]),at(i+1,hz[j+1]),at(i,hz[j+1])]);}
@@ -67,7 +67,39 @@ function model(type='gti',color='#bb2729'){
   panel('a-pillar',[[A,B,F1,F0]]);panel('roof-rail',[[B,C,Q2,Q1,F2,F1]]);
   panel('c-pillar',[[C,D,Q3,Q2]]);panel('belt-rail',[[D,A,F0,F3,Q0,Q3]]);
   panel('b-pillar',[[F3,F2,Q1,Q0]],DARK,7);
-  if(!r5){const badge=[q(rearRoof+.04,1.19,.637),q(rearBottom+.05,.925,.703),q(rearBottom+.20,.925,.703),q(rearRoof+.13,1.19,.637)];panel('quarter-trim',[badge],DARK,7);}
+  if(!r5){
+   // The C-pillar is two slightly different planes. Fit trim and lettering to
+   // those exact faces; a free-standing quad crossed the paint and rear glass.
+   const pillar=[[C,D,Q3],[C,Q3,Q2]],cross2=(a,b,c)=>(b[0]-a[0])*(c[1]-a[1])-(b[1]-a[1])*(c[0]-a[0]);
+   const span=y=>{const a=(y-D[1])/(C[1]-D[1]),b=(y-Q3[1])/(Q2[1]-Q3[1]);return [D[0]+(C[0]-D[0])*a,Q3[0]+(Q2[0]-Q3[0])*b];};
+   const border=(y,t)=>{const [left,right]=span(y);return [left+(right-left)*t,y];},trim=[border(.925,.12),border(.925,.88),border(1.19,.88),border(1.19,.12)];
+   function clip(poly,triangle){
+    const sign=Math.sign(cross2(...triangle));let out=poly;
+    for(let i=0;i<triangle.length&&out.length;i++){
+     const a=triangle[i],b=triangle[(i+1)%triangle.length],input=out;out=[];
+     for(let j=0;j<input.length;j++){
+      const p=input[j],r=input[(j+1)%input.length],dp=sign*cross2(a,b,p),dr=sign*cross2(a,b,r),inside=dp>=-1e-10;
+      if(inside)out.push(p);if(inside!==(dr>=-1e-10)){const t=dp/(dp-dr);out.push([p[0]+(r[0]-p[0])*t,p[1]+(r[1]-p[1])*t]);}
+     }
+    }return out;
+   }
+   function onPillar(poly,relief){
+    const polys=[];
+    for(const face of pillar){
+     const clipped=clip(poly,face);if(clipped.length<3)continue;
+     const [a,b,c]=face,u=b.map((v,i)=>v-a[i]),v=c.map((n,i)=>n-a[i]),n=[u[1]*v[2]-u[2]*v[1],u[2]*v[0]-u[0]*v[2],u[0]*v[1]-u[1]*v[0]],scale=side*Math.sign(n[2])*relief/Math.hypot(...n),den=cross2(a,b,c);
+     polys.push(clipped.map(p=>{const wb=cross2(a,p,c)/den,wc=cross2(a,b,p)/den,z=a[2]+wb*(b[2]-a[2])+wc*(c[2]-a[2]);return [p[0]+n[0]*scale,p[1]+n[1]*scale,z+n[2]*scale];}));
+    }return polys;
+   }
+   panel('quarter-trim',onPillar(trim,.003),DARK,7);
+   function trimText(label,top,size,color,mat){
+    const polys=[],[left,right]=span(top-size*2),start=(left+right)/2+(label.length*4-1)*size/2;
+    for(let k=0;k<label.length;k++){const glyph=fonts[label[k]];for(let j=0;j<5;j++)for(let i=0;i<glyph[j].length;i++)if(glyph[j][i]==='1'){
+     const x=start-(k*4+i)*size,y=top-j*size,h=size*.4;polys.push(...onPillar(clip([[x-h,y-h],[x+h,y-h],[x+h,y+h],[x-h,y+h]],trim),.006));
+    }}panel('quarter-badge-'+label,polys,color,mat);
+   }
+   trimText('GTI',1.045,.009,RED,17);trimText('1.9',1.12,.008,SILVER,0);
+  }
   for(const [label,win]of [['door',[F0,F1,F2,F3]],['quarter',[Q0,Q1,Q2,Q3]]]){
    panel(label+'-glass',[win],GLASS,8);const glass=pieces[pieces.length-1];glass.fx=true;glass.alpha=.25;glass.window=true;
    for(let j=0;j<win.length;j++)bar(win[j],win[(j+1)%win.length],.013,BLACK,7);

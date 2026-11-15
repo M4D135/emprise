@@ -1,0 +1,187 @@
+{
+  "description": "Actual device loss, uncaptured GPU validation, adapter/API/init failure; same live session and replaced-canvas input",
+  "cases": [
+    {
+      "case": "device-lost",
+      "state": {
+        "backend": "webgl2",
+        "sameSession": true,
+        "state": "{\"cash\":4321.5,\"hp\":73,\"inventory\":{\"weapons\":[true,true,true],\"ammo\":[71,17,6]},\"weapon\":0}",
+        "before": "{\"cash\":4321.5,\"hp\":73,\"inventory\":{\"weapons\":[true,true,true],\"ammo\":[71,17,6]},\"weapon\":0}",
+        "errors": [],
+        "events": [
+          {
+            "from": "webgpu",
+            "to": "webgl2",
+            "reason": "destroyed",
+            "message": "Device was destroyed."
+          }
+        ],
+        "reason": "WebGPU destroyed: Device was destroyed.",
+        "running": true,
+        "recovering": false,
+        "canvasReplaced": true,
+        "pointerLocked": false,
+        "loading": false
+      },
+      "input": {
+        "commands": {
+          "forward": 1,
+          "moveY": 1,
+          "interact": true,
+          "fire": true,
+          "lookX": 0.0528,
+          "lookY": 0.0264,
+          "zoomDelta": 0.75
+        },
+        "contextMenuPrevented": true,
+        "testing": false
+      },
+      "framesAfter": 50
+    },
+    {
+      "case": "validation-error",
+      "state": {
+        "backend": "webgl2",
+        "sameSession": true,
+        "state": "{\"cash\":4321.5,\"hp\":73,\"inventory\":{\"weapons\":[true,true,true],\"ammo\":[71,17,6]},\"weapon\":0}",
+        "before": "{\"cash\":4321.5,\"hp\":73,\"inventory\":{\"weapons\":[true,true,true],\"ammo\":[71,17,6]},\"weapon\":0}",
+        "errors": [],
+        "events": [
+          {
+            "from": "webgpu",
+            "to": "webgl2",
+            "reason": "validation",
+            "message": "Buffer usages must not be 0.\n - While calling [Device].CreateBuffer([BufferDescriptor]).\n"
+          }
+        ],
+        "reason": "WebGPU validation: Buffer usages must not be 0.\n - While calling [Device].CreateBuffer([BufferDescriptor]).\n",
+        "running": true,
+        "recovering": false,
+        "canvasReplaced": true,
+        "pointerLocked": false,
+        "loading": false
+      },
+      "input": {
+        "commands": {
+          "forward": 1,
+          "moveY": 1,
+          "interact": true,
+          "fire": true,
+          "lookX": 0.0528,
+          "lookY": 0.0264,
+          "zoomDelta": 0.75
+        },
+        "contextMenuPrevented": true,
+        "testing": false
+      },
+      "framesAfter": 51
+    },
+    {
+      "case": "adapter-rejected",
+      "state": {
+        "backend": "webgl2",
+        "sameSession": true,
+        "state": "{\"cash\":4321.5,\"hp\":73,\"inventory\":{\"weapons\":[true,true,true],\"ammo\":[71,17,6]},\"weapon\":0}",
+        "before": "{\"cash\":4321.5,\"hp\":73,\"inventory\":{\"weapons\":[true,true,true],\"ammo\":[71,17,6]},\"weapon\":0}",
+        "errors": [],
+        "events": [],
+        "reason": "Injected adapter rejection",
+        "running": false,
+        "recovering": false,
+        "canvasReplaced": false,
+        "pointerLocked": false,
+        "loading": false
+      },
+      "input": {
+        "commands": {
+          "forward": 1,
+          "moveY": 1,
+          "interact": true,
+          "fire": true,
+          "lookX": 0.0528,
+          "lookY": 0.0264,
+          "zoomDelta": 0.75
+        },
+        "contextMenuPrevented": true,
+        "testing": false
+      },
+      "framesAfter": 20
+    },
+    {
+      "case": "api-absent",
+      "state": {
+        "backend": "webgl2",
+        "sameSession": true,
+        "state": "{\"cash\":4321.5,\"hp\":73,\"inventory\":{\"weapons\":[true,true,true],\"ammo\":[71,17,6]},\"weapon\":0}",
+        "before": "{\"cash\":4321.5,\"hp\":73,\"inventory\":{\"weapons\":[true,true,true],\"ammo\":[71,17,6]},\"weapon\":0}",
+        "errors": [],
+        "events": [],
+        "reason": "WebGPU indisponible dans ce navigateur.",
+        "running": false,
+        "recovering": false,
+        "canvasReplaced": false,
+        "pointerLocked": false,
+        "loading": false
+      },
+      "input": {
+        "commands": {
+          "forward": 1,
+          "moveY": 1,
+          "interact": true,
+          "fire": true,
+          "lookX": 0.0528,
+          "lookY": 0.0264,
+          "zoomDelta": 0.75
+        },
+        "contextMenuPrevented": true,
+        "testing": false
+      },
+      "framesAfter": 21
+    },
+    {
+      "case": "installation-error",
+      "state": {
+        "backend": "webgl2",
+        "sameSession": true,
+        "state": "{\"cash\":4321.5,\"hp\":73,\"inventory\":{\"weapons\":[true,true,true],\"ammo\":[71,17,6]},\"weapon\":0}",
+        "before": "{\"cash\":4321.5,\"hp\":73,\"inventory\":{\"weapons\":[true,true,true],\"ammo\":[71,17,6]},\"weapon\":0}",
+        "errors": [],
+        "events": [
+          {
+            "from": "webgpu",
+            "to": "webgl2",
+            "reason": "installation",
+            "message": "Injected native installation failure"
+          }
+        ],
+        "reason": "WebGPU installation: Injected native installation failure",
+        "running": false,
+        "recovering": false,
+        "canvasReplaced": false,
+        "pointerLocked": false,
+        "loading": false
+      },
+      "input": {
+        "commands": {
+          "forward": 1,
+          "moveY": 1,
+          "interact": true,
+          "fire": true,
+          "lookX": 0.0528,
+          "lookY": 0.0264,
+          "zoomDelta": 0.75
+        },
+        "contextMenuPrevented": true,
+        "testing": false
+      },
+      "framesAfter": 20
+    }
+  ],
+  "validatedSources": {
+    "src/ferro/backends.js": "436cc5684ee3c8d950874489d4b267ae9e4a65e365771da434e70fe2e7ff518b",
+    "src/ferro/webgpu-renderer.js": "5fa9374d9c6a9125b6e5757700653b798dd8d4de0a9ce85481e63f613fb5d90e",
+    "src/game.js": "8cdccfa9b80ae2ae5208ea3ab2c31bb271c31f2496a2f627b84e2a262848754d"
+  },
+  "buildNote": "0.6.0 avant la correction du signe des dérivées WGSL. Le sélecteur, le renderer et le code de reprise sont inchangés depuis ce contrôle ; les shaders finaux sont validés séparément."
+}

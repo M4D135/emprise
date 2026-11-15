@@ -1,0 +1,95 @@
+{
+  "adapter": {
+    "vendor": "apple",
+    "architecture": "metal-3",
+    "device": "",
+    "description": ""
+  },
+  "programs": [
+    {
+      "name": "world",
+      "messages": [],
+      "pipeline": true,
+      "stageSha256": {
+        "vertex": "63cb76d4627ec78d7a7fdff16a7fe4fc754d6707178f971b39a4c7da46f15e48",
+        "fragment": "7cb933e75c10886c124ab93ce2175a8ba00375a40e5ff0ee1ba4640758888e19"
+      }
+    },
+    {
+      "name": "depth",
+      "messages": [],
+      "pipeline": true,
+      "stageSha256": {
+        "vertex": "3b274c300eef4cad46a063363e4484e51e9dab5faf260bded6a28e093ad2addb",
+        "fragment": "3e61bd50db0f24dbee23e5a55832a1cfdcb391e67915d85aa1e9a935cabe66bf"
+      }
+    },
+    {
+      "name": "sky",
+      "messages": [],
+      "pipeline": true,
+      "stageSha256": {
+        "vertex": "07f8fa0c85514d4a4d3898394a75bdd002f5f6170534d43073ed1bc022c4fc12",
+        "fragment": "b0219fbf571090edf906c283b7212549afcb06d64f0380cc3980efb2fa0bb365"
+      }
+    },
+    {
+      "name": "fx",
+      "messages": [],
+      "pipeline": true,
+      "stageSha256": {
+        "vertex": "8d755a79c89529dd8c59bcf5a15116ac74139450c41417272ab2c4dca6b11c47",
+        "fragment": "075248c0289a6d46add679843a982dfa098b0e762d1de3385198227549a5f8c1"
+      }
+    },
+    {
+      "name": "post",
+      "messages": [],
+      "pipeline": true,
+      "stageSha256": {
+        "vertex": "0399db40d6a8ab978dfeb70dd1938b8b46475bd2fec99dcd850ddcb5c94d67e6",
+        "fragment": "5583e34e18b3847a06235154aba32fe136082481b6ec5f672cc9c244d1b0594c"
+      }
+    },
+    {
+      "name": "ssr",
+      "messages": [],
+      "pipeline": true,
+      "stageSha256": {
+        "vertex": "693567d69658411f513db2d756c8f94a00faf4a6c5cf453ae955e6884d50dd3c",
+        "fragment": "464eb4e53b428d3b45cb58ccb04dd67f7dd526ce6eea4fc6a846468bc4bd8c93"
+      }
+    },
+    {
+      "name": "crowd",
+      "messages": [],
+      "pipeline": true,
+      "stageSha256": {
+        "vertex": "df01bcc4c8667d9a439ce7876ab97132579aa2863df13cc32963c7475e85a053",
+        "fragment": "5ca5865a49500fad5914020e14fdc24886dbf11de406a1f454ad07200930865e"
+      }
+    },
+    {
+      "name": "crowdShadow",
+      "messages": [],
+      "pipeline": true,
+      "stageSha256": {
+        "vertex": "ec5107a9593a58b852a44e79a4121b1fd12c67c6abbd8f189bd8f514b401a04c",
+        "fragment": "f11c8890f1bac5c59507677acda88f6ec1629e9380afa38095e7b4d28d108055"
+      }
+    },
+    {
+      "name": "crowdPoint",
+      "messages": [],
+      "pipeline": true,
+      "stageSha256": {
+        "vertex": "17e344103a2386bdcc120bc5557f11c682d6e52b69e79d1e5a322a145e1330d5",
+        "fragment": "3589f748d42d227350903ebb26cbeec67b4f2d9ca9c9c08c3e8c52e63d0e9324"
+      }
+    }
+  ],
+  "errors": [],
+  "shaderFileSha256": "610c7f8df92f7a92d048510b2cd4f5472f2a6f05e5ff72d3567e4abb24945c51",
+  "compiler": "Naga 30.0.1; Dawn native validation via Chrome",
+  "programCount": 9
+}

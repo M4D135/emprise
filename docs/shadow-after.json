@@ -572,8 +572,8 @@
     "full": true,
     "shift": 0,
     "samples": 110592,
-    "dark": 3183,
-    "meanDifference": 0.3342918113425926,
+    "dark": 1440,
+    "meanDifference": 0.25209780092592593,
     "maxDifference": 41,
     "stationaryChanged": 0,
     "stats": {
@@ -624,5 +624,5 @@
     "shadow-after-marseille-moved.png"
   ],
   "errors": [],
-  "buildSha256": "03abf0396a0a2b0e343774a71f114d4a687215e50e325775d74272a5f6424d5c"
+  "buildSha256": "b699d747128015542c7bcf91d8774ccfb89fb705d153b72a188331134e7b1312"
 }

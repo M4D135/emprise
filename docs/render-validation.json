@@ -1,0 +1,44 @@
+{
+  "nodeSuites": [
+    "render-backends.mjs",
+    "render-backends-handoff.mjs",
+    "webgpu-renderer.mjs",
+    "crowd-webgpu.mjs",
+    "renderer-pack.mjs",
+    "renderer-overlay.mjs",
+    "renderer-chunks.mjs"
+  ],
+  "passed": true,
+  "nativeShaders": {
+    "stages": 18,
+    "programs": 9,
+    "report": "webgpu-shaders-validation.json"
+  },
+  "nativeOptions": {
+    "configurations": 27,
+    "report": "render-options.json"
+  },
+  "fallbackCases": {
+    "cases": 5,
+    "report": "render-recovery.json"
+  },
+  "benchmark": "render-comparison.json",
+  "gameplay": "render-gameplay.json",
+  "gameplayPassed": true,
+  "note": "Les suites de migration, options et gameplay ont précédé le correctif visuel. Les rapports gardent leur empreinte de build ou de sources. Shaders natifs, ombres, garniture, comparaison finale et parcours actif de 40 s couvrent la version finale. Le test de façade conserve un échec initial intermittent, suivi de reproductions instrumentées concluantes.",
+  "migrationBuildSha256": "4b58b6583db5372eaa49895ccc67e76a6062a0620bfbd859f68c582d5ac3da52",
+  "buildSha256": "b699d747128015542c7bcf91d8774ccfb89fb705d153b72a188331134e7b1312",
+  "finalNodeSuites": [
+    "shadow-bias.mjs",
+    "vehicle-trim.mjs"
+  ],
+  "finalBenchmark": "render-final-comparison.json",
+  "finalFramePacing": "frame-pacing.json",
+  "finalShadowChecks": {
+    "webgl2": "shadow-after.json",
+    "webgpu": "shadow-webgpu-after.json",
+    "projectionBefore": "shadow-projection-before.json",
+    "projectionAfter": "shadow-projection-after.json"
+  },
+  "finalVehicleCheck": "vehicle-trim-validation.json"
+}

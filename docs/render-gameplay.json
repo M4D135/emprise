@@ -1,0 +1,75 @@
+{
+  "backendRequested": "webgpu",
+  "buildSha256": "4b58b6583db5372eaa49895ccc67e76a6062a0620bfbd859f68c582d5ac3da52",
+  "results": [
+    {
+      "test": "inputs",
+      "passed": true,
+      "seconds": 21.67
+    },
+    {
+      "test": "gamepad",
+      "passed": true,
+      "seconds": 46.18
+    },
+    {
+      "test": "cockpit",
+      "passed": true,
+      "seconds": 13.18
+    },
+    {
+      "test": "collapse",
+      "passed": true,
+      "fixture": "Same assertions; diagnostic retry, initial intermittent failure preserved in attempts",
+      "report": "collapse-browser.json"
+    },
+    {
+      "test": "attract",
+      "passed": true,
+      "seconds": 87.24
+    },
+    {
+      "test": "pacing",
+      "passed": true,
+      "seconds": 52.1
+    }
+  ],
+  "attempts": [
+    {
+      "test": "inputs",
+      "passed": true,
+      "seconds": 21.67
+    },
+    {
+      "test": "gamepad",
+      "passed": true,
+      "seconds": 46.18
+    },
+    {
+      "test": "cockpit",
+      "passed": true,
+      "seconds": 13.18
+    },
+    {
+      "test": "collapse",
+      "passed": false,
+      "seconds": 27.33
+    },
+    {
+      "test": "collapse",
+      "passed": true,
+      "fixture": "Same assertions; diagnostic retry, initial intermittent failure preserved in attempts",
+      "report": "collapse-browser.json"
+    },
+    {
+      "test": "attract",
+      "passed": true,
+      "seconds": 87.24
+    },
+    {
+      "test": "pacing",
+      "passed": true,
+      "seconds": 52.1
+    }
+  ]
+}
