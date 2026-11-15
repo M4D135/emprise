@@ -17,6 +17,10 @@ function create(world,sim,{saved=null,interiors,campaign,traffic,notify=()=>{}}=
  const baseMeshes=world.scenery.slice(),baseBoxes=world.boxes.slice(),physicsOptions={cell:8,ground:null,gravity:-9.81,capacity:256,maxStatics:8192,maxContacts:4096,maxAwake:96,maxJoints:0,massMin:.035,massMax:12000,iterations:4,maxSubsteps:4},engines=new Map(),ZONE=1024,PADDING=128,MAX_ZONES=24;
  const projectedRooms=new Map(),breaches=R.breaches?.create(world,interiors,baseMeshes,{saved:saved?.openings,legacyDamage:saved?.damage,onProject:prepareProjected});
  let projectionMembers=null,projectionRoom=null,projectedSyncDepth=0,projectedSyncPending=false;
+ // Transient reads never escape this owner. Render/collider poses copy their
+ // position; persistence and engine migration still request independent bodies.
+ const bodyRead={};
+ const readBody=q=>q.engine.bodyInto(q.handle,bodyRead);
  const publishBodies=value=>{if(world.publishBodies)world.publishBodies(value);else world.dynamicBodies=value;};
  const currentScene=()=>world.room?(world.room.sceneId||world.room.building.id+':'+world.room.floor):'street';
  const sceneGround=(scene,x,z)=>scene==='street'?world.ground(x,z):.08,fireHeight=f=>{const c=f.vehicleId!==undefined?world.fleet.find(c=>c.id===f.vehicleId):null;return c?(c.y??world.ground(c.x,c.z)):sceneGround(f.scene,f.x,f.z);};
@@ -41,7 +45,7 @@ function create(world,sim,{saved=null,interiors,campaign,traffic,notify=()=>{}}=
  }
  function migrateBodies(){
   const rebuild=new Set();
-  for(let i=bodies.length-1;i>=0;i--){const q=bodies[i],b=q.engine.body(q.handle);if(!b||b.lost){if(held===q)held=null;for(const record of engines.values())if(record.engine===q.engine)rebuild.add(record);bodies.splice(i,1);continue;}
+  for(let i=bodies.length-1;i>=0;i--){const q=bodies[i],b=readBody(q);if(!b||b.lost){if(held===q)held=null;for(const record of engines.values())if(record.engine===q.engine)rebuild.add(record);bodies.splice(i,1);continue;}
    if(q.scene!=='street')continue;const record=[...engines.values()].find(r=>r.engine===q.engine),bounds=record?.bounds;if(!bounds)continue;
    if(b.pos[0]>bounds.minX+48&&b.pos[0]<bounds.maxX-48&&b.pos[2]>bounds.minZ+48&&b.pos[2]<bounds.maxZ-48)continue;
    const next=physicsFor(q.scene,b.pos,q.engine);
@@ -59,7 +63,7 @@ function create(world,sim,{saved=null,interiors,campaign,traffic,notify=()=>{}}=
  function sync(dc){if(dc===outdoor){if(breaches)breaches.sync(dc,world.room?interiors?.outside:p);else world.replaceScenery(dc.meshes,{meshDelta:dc.meshDelta});}else{if(dc===indoor&&world.room)applyRoom(dc,world.room);for(const record of projectedRooms.values())if(record.dc===dc)for(const room of record.rooms){applyRoom(dc,room);breaches?.roomChanged(room);}if(!world.room&&outdoor&&breaches){if(projectedSyncDepth)projectedSyncPending=true;else breaches.update(1,p);}}version++;staticClock=0;}
  function exposedDamage(bridge,point,power,radius,direction){const dc=prepareProjected(bridge),local=bridge.toRoom(point),end=direction?bridge.toRoom(point.map((v,i)=>v+direction[i])):null,delta=end?.map((v,i)=>v-local[i]),length=delta?Math.hypot(...delta):1,result=radius>0?dc.blast(local,radius/Math.min(...bridge.scale),power):dc.hit(local,power,delta?.map(v=>v/(length||1)));if(result.changed)sync(dc);structuralDebris(result.debris,bridge.room.sceneId);return {...result,debris:[],events:result.events.map(e=>{const at=bridge.toWorld([e.x,e.y,e.z]);return {...e,x:at[0],y:at[1],z:at[2],sourceRoom:bridge.room.sceneId};})};}
 
- function bodyMesh(q){const b=q.engine.body(q.handle);if(!b||b.lost)return null;const r=FPhysics.quatToEuler(...b.quat);return {...q.mesh,p:b.pos,r,material:q.material,mass:q.mass};}
+ function bodyMesh(q){const b=readBody(q);if(!b||b.lost)return null;const r=FPhysics.quatToEuler(...b.quat);return {...q.mesh,p:b.pos.slice(),r,material:q.material,mass:q.mass};}
  function spawnBody(mesh,velocity=[0,0,0],spin=[.3,.1,.2],mass=describe(mesh).mass,scene=currentScene()){if(bodies.length>=240)return null;const engine=physicsFor(scene,mesh.p);if(!engine)return null;const h=addToEngine(engine,mesh,mass,velocity,spin);if(h<0)return null;const q={handle:h,engine,mesh:{...mesh,collision:false},mass,material:material(mesh),scene};if(!bodies.length)physicsClock=0;bodies.push(q);staticClock=0;return q;}
  function addDust(scene,pos,size,volume=0){
   if(!(volume>0))return;report.crumbleVolume+=volume;
@@ -102,7 +106,7 @@ function create(world,sim,{saved=null,interiors,campaign,traffic,notify=()=>{}}=
   let y=ground;
   for(const q of world.dynamicBodies){
    if(q.maxY<=y||q.minY>previous+maxRise||Math.abs(x-q.x)>q.a+r||Math.abs(z-q.z)>q.b+r)continue;
-   const body=q.body,b=body?.engine.body(body.handle);if(!b||b.lost||Math.hypot(...b.vel)>.35||Math.hypot(...b.ang)>.5)continue;
+   const body=q.body,b=body?readBody(body):null;if(!b||b.lost||Math.hypot(...b.vel)>.35||Math.hypot(...b.ang)>.5)continue;
    const m=q.mesh,axes=BITUME.voiture.euler(...m.r),half=m.s.map(v=>v/2);
    for(let sample=0;sample<17;sample++){
     const a=(sample-1)*Math.PI/8,px=x+(sample?Math.cos(a)*(r+.025):0),pz=z+(sample?Math.sin(a)*(r+.025):0);let low=-Infinity,high=Infinity,slope=0,valid=true;
@@ -128,7 +132,7 @@ function create(world,sim,{saved=null,interiors,campaign,traffic,notify=()=>{}}=
    finally{projectedSyncDepth--;if(!projectedSyncDepth&&projectedSyncPending){projectedSyncPending=false;breaches.update(1,p);}}
   }
   structuralDebris(result.debris,scene);
-  for(const q of bodies){if(q.scene!==scene)continue;const b=q.engine.body(q.handle);if(!b||b.lost)continue;const d=Math.hypot(...b.pos.map((n,i)=>n-point[i]));if(d<Math.max(radius,1.2)){const dir=direction||b.pos.map((n,i)=>(n-point[i])/(d||1));const impulse=q.mesh.structural&&power>=25?Math.max(power*6,q.mass*Math.min(2.5,power*.018)):power*6;q.engine.impulse(q.handle,...point,...dir.map((n,i)=>n*impulse+(q.mesh.structural&&i===1&&power>=25?q.mass*.35:0)));}}
+  for(const q of bodies){if(q.scene!==scene)continue;const b=readBody(q);if(!b||b.lost)continue;const d=Math.hypot(...b.pos.map((n,i)=>n-point[i]));if(d<Math.max(radius,1.2)){const dir=direction||b.pos.map((n,i)=>(n-point[i])/(d||1));const impulse=q.mesh.structural&&power>=25?Math.max(power*6,q.mass*Math.min(2.5,power*.018)):power*6;q.engine.impulse(q.handle,...point,...dir.map((n,i)=>n*impulse+(q.mesh.structural&&i===1&&power>=25?q.mass*.35:0)));}}
   for(const c of world.fleet){const base=c.y??world.ground(c.x,c.z),spec=R.vehicles.SPECS[c.model],d=Math.hypot(point[0]-c.x,point[2]-c.z,Math.max(0,base-point[1],point[1]-base-spec.height));if(d<(radius||0)+spec.width)hitVehicle(c,power*(radius?clamp(1-d/(radius+2)):1)*.65,point);}
   if(radius>2&&power>25){ignite(point[0],point[2],scene,.75);campaign?.crime(1.4);}
   return {...result,debris:[]};
@@ -140,7 +144,7 @@ function create(world,sim,{saved=null,interiors,campaign,traffic,notify=()=>{}}=
   if(item.meshes.length!==1||mass>65||Math.max(...mesh.s)>1.8){notify('Élément ancré ou trop lourd · '+Math.round(mass)+' kg');return false;}
   if(bodies.length>=240){notify('Trop de débris physiques actifs dans ce secteur.');return false;}dc.detach(hit.id);sync(dc);held=spawnBody(mesh,[0,0,0],[0,0,0],mass);notify('Objet saisi · '+Math.round(mass*10)/10+' kg · G poser · B lancer');return !!held;
  }
- function throwHeld(){if(!held)return false;const {dir}=aim(3),b=held.engine.body(held.handle),speed=clamp(150/Math.max(5,held.mass),2,12);held.engine.impulse(held.handle,...b.pos,...dir.map(n=>n*held.mass*speed));held=null;return true;}
+ function throwHeld(){if(!held)return false;const {dir}=aim(3),b=readBody(held),speed=clamp(150/Math.max(5,held.mass),2,12);held.engine.impulse(held.handle,...b.pos,...dir.map(n=>n*held.mass*speed));held=null;return true;}
  function ignite(x,z,scene='street',strength=1){if(fires.length>=32||fires.some(f=>f.scene===scene&&Math.hypot(f.x-x,f.z-z)<2&&f.heat>0))return false;const f={id:++report.ignitions,x,z,scene,heat:strength,age:0,fuel:110,spread:false};fires.push(f);alarm=Math.max(alarm,1);return true;}
  function igniteAhead(){const {hit}=aim(4);if(!hit){notify('Aucun objet combustible à portée.');return false;}const item=activeController().describe(hit.id);if(!item.meshes.some(m=>describe(m).fuel>.05)){notify('Ce matériau ne prend pas feu.');return false;}if(ignite(hit.point[0],hit.point[2],world.room?roomKey:'street')){campaign?.crime(1);notify('Incendie déclenché.');return true;}return false;}
  function startVehicleFire(c){
@@ -168,7 +172,7 @@ function create(world,sim,{saved=null,interiors,campaign,traffic,notify=()=>{}}=
   parts.forEach((m,i)=>{const a=i*2.399+c.cap,speed=m.mass>8?6:10;spawnBody(m,[Math.cos(a)*speed,5+i%5,Math.sin(a)*speed],[1+i%3,.8+i%2,1.2],m.mass,'street');});
   let f=fires.find(f=>f.vehicleId===c.id);if(f)Object.assign(f,{heat:1.35,fuel:48});else ignite(c.x,c.z,'street',1.35);campaign?.crime(1.6);notify('Véhicule détruit.');return true;
  }
- function vehicleImpact(c,h){const speed=Math.abs((c.u||0)*Math.cos(c.cap)*h.nx+(c.u||0)*Math.sin(c.cap)*h.nz),mass=R.vehicles.SPECS[c.model].mass,energy=.5*mass*speed*speed,point=[c.x-h.nx*R.vehicles.SPECS[c.model].length*.4,(c.y??world.ground(c.x,c.z))+.8,c.z-h.nz*R.vehicles.SPECS[c.model].length*.4];if(speed<1.5)return;hitVehicle(c,energy/4500,point);const other=h.obstacle?.vehicle;if(other)hitVehicle(other,energy/4500,point);if(h.obstacle?.body){const q=h.obstacle.body,b=q.engine.body(q.handle);q.engine.impulse(q.handle,...b.pos,-h.nx*mass*speed*.65,0,-h.nz*mass*speed*.65);}else if(speed>3&&h.obstacle?.mesh)damage(point,Math.min(150,energy/1800),Math.min(2.7,1+speed*.07),[-h.nx,0,-h.nz]);}
+ function vehicleImpact(c,h){const speed=Math.abs((c.u||0)*Math.cos(c.cap)*h.nx+(c.u||0)*Math.sin(c.cap)*h.nz),mass=R.vehicles.SPECS[c.model].mass,energy=.5*mass*speed*speed,point=[c.x-h.nx*R.vehicles.SPECS[c.model].length*.4,(c.y??world.ground(c.x,c.z))+.8,c.z-h.nz*R.vehicles.SPECS[c.model].length*.4];if(speed<1.5)return;hitVehicle(c,energy/4500,point);const other=h.obstacle?.vehicle;if(other)hitVehicle(other,energy/4500,point);if(h.obstacle?.body){const q=h.obstacle.body,b=readBody(q);q.engine.impulse(q.handle,...b.pos,-h.nx*mass*speed*.65,0,-h.nz*mass*speed*.65);}else if(speed>3&&h.obstacle?.mesh)damage(point,Math.min(150,energy/1800),Math.min(2.7,1+speed*.07),[-h.nx,0,-h.nz]);}
  function repair(c){if(c.exploded){notify('Épave irréparable.');return false;}const site=campaign?.near(),room=interiors?.active;if(!(site?.name.includes('Garage')||room?.building.type==='garage')){notify('Réparation dans un garage · 180 €');return false;}if(campaign.state.cash<180){notify('Il faut 180 €.');return false;}campaign.state.cash-=180;c.condition={body:1,engine:1,tires:1,steering:1};c.burned=false;c.burning=false;c.glassBroken=false;c.fireAge=0;c.blowFuse=undefined;for(const f of fires)if(f.vehicleId===c.id)f.heat=0;notify('Véhicule réparé · −180 €');return true;}
  function dispatch(){const f=fires.find(f=>f.heat>0);if(!f||!traffic)return;const door=f.scene==='street'?f:interiors.entries.find(b=>f.scene.startsWith(b.id+':')),target=door||f,choices=traffic.nodes.filter(n=>n.links.length&&Math.hypot(n.x-target.x,n.z-target.z)<120).sort((a,b)=>Math.abs(Math.hypot(a.x-target.x,a.z-target.z)-65)-Math.abs(Math.hypot(b.x-target.x,b.z-target.z)-65));
   for(const n of choices){const next=traffic.nodes[n.links[0]],c=BITUME.conduite.creer(n.x,n.z,Math.atan2(next.z-n.z,next.x-n.x));Object.assign(c,{id:900,model:'firetruck',color:'#b72d21',y:world.ground(n.x,n.z),moteur:true,mass:5200,ai:false,emergency:true});if(world.carContact(c))continue;const path=traffic.route(n.x,n.z,target.x,target.z);if(!path.length)continue;const first=traffic.nodes[path[0]];c.cap=Math.atan2(first.z-c.z,first.x-c.x);if(world.carContact(c))continue;truck=c;world.fleet.push(c);job={target,path,stuck:0,scene:f.scene};report.dispatches++;notify('Sirène des pompiers dans le quartier.');break;}
@@ -185,12 +189,12 @@ function create(world,sim,{saved=null,interiors,campaign,traffic,notify=()=>{}}=
  }
  function update(dt,events=[]){clock+=dt;for(let i=dust.length-1;i>=0;i--){dust[i].age+=dt;if(dust[i].age>=3.5)dust.splice(i,1);}for(const c of world.fleet)vehicleFireStep(c,dt);for(const c of world.fleet)c.impactHandler=h=>vehicleImpact(c,h);if(world.room)activeController();else if(roomKey){if(indoor)roomStates.set(roomKey,indoor.snapshot());roomKey=null;indoor=null;held=null;}
   if(breaches?.update(dt,world.room?interiors?.outside:p)){version++;staticClock=0;}if(breaches&&(projectionMembers!==breaches.projections||projectionRoom!==world.room)){projectionMembers=breaches.projections;projectionRoom=world.room;const exposedKeys=new Set(projectionMembers.map(b=>b.room.sceneId)),retainedRooms=new Set(projectionMembers.map(b=>b.room));if(world.room)retainedRooms.add(world.room);for(const [key,record]of projectedRooms){if(!exposedKeys.has(key)&&key!==roomKey){roomStates.set(key,record.dc.snapshot());projectedRooms.delete(key);}else for(const room of record.rooms)if(!retainedRooms.has(room))record.rooms.delete(room);}}
-  if(held){const b=held.engine.body(held.handle),{origin,dir}=aim(3),want=origin.map((v,i)=>v+dir[i]*1.8);if(b){const force=want.map((v,i)=>(v-b.pos[i])*18-b.vel[i]*6);held.engine.impulse(held.handle,...b.pos,...force.map(v=>v*held.mass*dt));if(Math.hypot(...b.pos.map((v,i)=>v-want[i]))>3)held=null;}}
+  if(held){const b=readBody(held),{origin,dir}=aim(3),want=origin.map((v,i)=>v+dir[i]*1.8);if(b){const force=want.map((v,i)=>(v-b.pos[i])*18-b.vel[i]*6);held.engine.impulse(held.handle,...b.pos,...force.map(v=>v*held.mass*dt));if(Math.hypot(...b.pos.map((v,i)=>v-want[i]))>3)held=null;}}
   physicsClock+=dt;if(bodies.length&&physicsClock>=1/60){
    staticClock-=physicsClock;
    migrateBodies();
    for(const {scene,engine}of [...engines.values()]){if(scene!=='street'&&scene!==currentScene())continue;
-    if(staticClock<=0){const set=new Set(),floors=new Map();for(const q of bodies){if(q.engine!==engine)continue;const b=engine.body(q.handle);if(!b||b.lost)continue;if(scene!=='street'){for(const k of world.room?.colliders||[])set.add(k);}else for(const k of world.candidates(b.pos[0],b.pos[2],8))set.add(k);
+    if(staticClock<=0){const set=new Set(),floors=new Map();for(const q of bodies){if(q.engine!==engine)continue;const b=readBody(q);if(!b||b.lost)continue;if(scene!=='street'){for(const k of world.room?.colliders||[])set.add(k);}else for(const k of world.candidates(b.pos[0],b.pos[2],8))set.add(k);
       const fx=Math.floor(b.pos[0]/8),fz=Math.floor(b.pos[2]/8);for(let x=fx-1;x<=fx+1;x++)for(let z=fz-1;z<=fz+1;z++){const key=x+','+z;if(floors.has(key))continue;const px=x*8+4,pz=z*8+4,y=scene==='street'?world.ground(px,pz):.08;floors.set(key,{x:px,z:pz,w:8,d:8,y:Number.isFinite(y)?y:.08});}
      }
      let floorList=[...floors.values()];if(floorList.length&&floorList.every(f=>Math.abs(f.y-floorList[0].y)<1e-6)){const x0=Math.min(...floorList.map(f=>f.x-4)),x1=Math.max(...floorList.map(f=>f.x+4)),z0=Math.min(...floorList.map(f=>f.z-4)),z1=Math.max(...floorList.map(f=>f.z+4));floorList=[{x:(x0+x1)/2,z:(z0+z1)/2,w:x1-x0,d:z1-z0,y:floorList[0].y}];}
@@ -199,7 +203,7 @@ function create(world,sim,{saved=null,interiors,campaign,traffic,notify=()=>{}}=
    }if(staticClock<=0)staticClock=.3;physicsClock=0;
   }
   publishBodies(bodies.filter(q=>q!==held&&q.scene===currentScene()).map(bodyBox).filter(Boolean));
-  for(const q of bodies){if(q.scene!==currentScene())continue;const b=q.engine.body(q.handle);if(!b||b.lost||q===held)continue;const dx=b.pos[0]-p.x,dz=b.pos[2]-p.z,d=Math.hypot(dx,dz),rad=Math.min(.7,Math.max(q.mesh.s[0],q.mesh.s[2])/2)+.35;if(d<rad&&b.pos[1]<world.ground(p.x,p.z)+2&&b.mass<400)q.engine.impulse(q.handle,...b.pos,dx/(d||1)*90*dt,0,dz/(d||1)*90*dt);}
+  for(const q of bodies){if(q.scene!==currentScene())continue;const b=readBody(q);if(!b||b.lost||q===held)continue;const dx=b.pos[0]-p.x,dz=b.pos[2]-p.z,d=Math.hypot(dx,dz),rad=Math.min(.7,Math.max(q.mesh.s[0],q.mesh.s[2])/2)+.35;if(d<rad&&b.pos[1]<world.ground(p.x,p.z)+2&&b.mass<400)q.engine.impulse(q.handle,...b.pos,dx/(d||1)*90*dt,0,dz/(d||1)*90*dt);}
   if(fires.some(f=>f.heat>0)){if(!truck){alarm+=dt;if(alarm>6)dispatch();}crewStep(dt);if(Math.floor(clock/.8)!==Math.floor((clock-dt)/.8)&&truck)events.push({name:'policeSiren',level:.15});}
   fireClock+=dt;if(fireClock>=1){const elapsed=fireClock;fireClock=0;for(const f of fires){if(f.heat<=0)continue;f.age+=elapsed;f.fuel-=elapsed;f.heat=clamp(f.heat+elapsed*(.012-(f.scene==='street'?(world.weather?.rain||0)*.04:0)),0,1.5);if(f.fuel<=0)f.heat=0;const here=f.scene==='street'?!world.room:roomKey===f.scene;
     if((here||f.scene==='street')&&f.age%4<elapsed){const dc=f.scene==='street'?streetController():activeController(),point=[f.x,fireHeight(f)+1.3,f.z],streamed=f.scene==='street'?world.cityStream?.damage?.(point,9*f.heat,2.3):null,result=streamed?.changed?streamed:dc.blast(point,2.3,9*f.heat);let recolored=false;for(const e of result.events){charred.add((f.scene||'street')+'|'+e.sourceId);const item=streamed?.changed?null:dc.describe(e.sourceId);for(const m of item?.meshes||[]){m.color=(m.color||[.4,.4,.4]).map(n=>n*.88);m.renderRevision=(m.renderRevision||0)+1;recolored=true;}}if(result.changed){if(streamed?.changed){version++;staticClock=0;}else{if(f.scene==='street')breaches?.observe(result);sync(dc);}report.breaches++;structuralDebris(result.debris,f.scene);}else if(recolored)version++;if(recolored)world.invalidateSceneryRender?.();}

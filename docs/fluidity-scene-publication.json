@@ -1,0 +1,53 @@
+{
+  "test": "PASS exact scene publication vs d22a5eb",
+  "facade": {
+    "id": "piece-11559",
+    "building": "building-1748",
+    "points": [
+      [
+        108.08626112878424,
+        1.55,
+        186.06500372804453
+      ],
+      [
+        109.79045204097373,
+        1.55,
+        195.91872045498621
+      ]
+    ]
+  },
+  "scenePublications": {
+    "before": [
+      1,
+      1,
+      1,
+      2,
+      2
+    ],
+    "after": [
+      1,
+      1,
+      1,
+      2,
+      2
+    ]
+  },
+  "localDeltas": {
+    "before": 7,
+    "after": 7
+  },
+  "changedReferences": {
+    "before": 6418,
+    "after": 6418
+  },
+  "finalStateHashes": {
+    "destruction": "ac86830ba5f11aa347f1531e52bc6e72e0549a96c6114ec55da63a672be4adf5",
+    "worldMeshes": "5ab36aff41e3302104751a4b0f288a142308bb66af4653fb5dd65d3ecfe717ac",
+    "worldColliders": "c3b8480e89a3289b26665cde3ee26bab876f80d95592bbf29a88af16b7e0a725",
+    "urbanReport": "bc0353ff96ebe91ccc38a4e4772334aa8d2058b59730c1a27fd730c852121f61",
+    "bodies": "f1e6c24899184b3b7414571f3bb7a67cbab89f5a16787c847839eb9edfdec93c",
+    "projections": "d36f35c1aff742eb3a17f03fafc9a191e2f4bbf05b4666b3f06037532a4ed984",
+    "save": "bdf7c29f4a09f9fe823f4e4311988a277a911a6b05dd9f69781c4eae94e835ed",
+    "revision": "4fc82b26aecb47d2868c4efbe3581732a3e7cbcc6c2efb32062c08170a05eeb8"
+  }
+}

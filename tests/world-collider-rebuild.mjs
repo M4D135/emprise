@@ -100,6 +100,26 @@ for(const w of worlds)w.addBox({x:63,z:181,a:1,b:1,cap:0,minY:0,maxY:3,kind:'man
 patch('Delta replacement removes manual colliders as the old full rebuild did',()=>[]);
 patch('Delta clears entire scenery',(list)=>[{start:0,deleteCount:list.length,items:[]}]);
 patch('Delta restores a nonempty world after empty',()=>[{start:0,deleteCount:0,items:[{shape:'box',p:[64,2,180],s:[4,3,.6],r:[.1,.4,.2],collision:true,fixtureId:900003}]}]);
+// Compact solid occurrence positions must survive edits around non-solid runs,
+// zero-length adjacent splices, duplicate meshes and appended manual contacts.
+let randomState=930124;const random=()=>{randomState=(Math.imul(randomState,1664525)+1013904223)>>>0;return randomState/4294967296;};
+for(let step=0;step<80;step++){
+ const length=scenes[0].length,start=Math.floor(random()*(length+1)),remove=Math.min(length-start,Math.floor(random()*4)),count=Math.floor(random()*5),duplicate=random()<.25;
+ const ids=Array.from({length:count},(_,i)=>910000+step*10+i),solid=Array.from({length:count},()=>random()<.45);
+ patch('Compact delta occurrence sequence '+step,(list)=>[{start,deleteCount:remove,items:ids.map((id,i)=>duplicate&&i===0&&list.length?list[0]:{shape:'box',p:[63+i*.3,1,180+step*.01],s:[1,2,1],r:[.1,.03*step,0],collision:solid[i],fixtureId:id})}]);
+ if(step%11===0){for(const w of worlds)w.addBox({x:63,z:181,a:.3,b:.4,cap:.15,minY:0,maxY:3,kind:'manual'});patch('Compact delta discards manual tail '+step,()=>[]);}
+}
+patch('Adjacent empty insertion and replacement retain correct solid ranks',list=>[{start:0,deleteCount:0,items:[{shape:'box',p:[62,1,180],s:[1,2,1],collision:false,fixtureId:999990}]},{start:0,deleteCount:Math.min(1,list.length),items:[{shape:'box',p:[62,1,180],s:[1,2,1],collision:true,fixtureId:999991}]}]);
+// A producer array may be extended through the public world API after its
+// compact index was prepared. A subsequent delta must rebuild the stale cache.
+for(const w of worlds)w.prepareSceneryDelta(w.scenery);
+for(const w of worlds)w.addMesh({shape:'box',p:[63,1.2,181],s:[2,2.4,1],r:[0,.17,0],fixtureId:999992});
+scenes=worlds.map(w=>w.scenery);patch('addMesh after prepare invalidates compact cache before a delta',()=>[]);
+assert(after.boxes.some(q=>q.mesh.fixtureId===999992));
+for(const w of worlds)w.prepareSceneryDelta(w.scenery);
+for(const w of worlds)w.scenery.push({shape:'box',p:[64,1.2,181],s:[2,2.4,1],r:[0,-.13,0],collision:true,fixtureId:999993});
+scenes=worlds.map(w=>w.scenery);patch('Raw scenery push after prepare is detected by source length',()=>[]);
+assert(after.boxes.some(q=>q.mesh.fixtureId===999993));
 const report={checks,originalMeshes:originalMeshCount,originalColliders:originalCount,finalColliders:after.boxes.length,retainedUnchangedColliders:kept.length,untouchedFrozenBuckets:frozen.length,source:'Exact old addBox/fromMesh/replaceScenery differential against the actual current Marseille world',timing:null};
 if(process.argv.includes('--bench')){
  const old=[],next=[];for(let trial=0;trial<5;trial++){const run=i=>{const t=performance.now();worlds[i].replaceScenery(scenes[i]);return performance.now()-t;};if(trial%2){next.push(run(1));old.push(run(0));}else{old.push(run(0));next.push(run(1));}}

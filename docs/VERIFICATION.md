@@ -1,4 +1,10 @@
-# EMPRISE 0.6.2 — grosses explosions
+# EMPRISE 0.6.3 — cadence extérieure
+
+[Protocole, résultats avant/après et limites](FLUIDITY-PERFORMANCE.md). Même foule de 960 PNJ, 39 véhicules de trafic, trois explosions simultanées et deux impacts de façade. Le rapport distingue les timestamps rAF, les soumissions CPU du rendu et le coût de la simulation. Un contrôle séparé conserve l’autosauvegarde normale, jusque-là absente des fixtures `?test=1`.
+
+Les différentiels contre `d22a5eb` vérifient exactement les collisions, l’ordre des contacts, les trajectoires de la foule, les snapshots physiques, les géométries, la destruction et les sauvegardes. Les régressions comprennent l’ajout d’un objet après préparation du cache et la réentrance des callbacks de la foule. Aucun budget de simulation ni réglage visuel n’est diminué.
+
+## Historique 0.6.2 — grosses explosions
 
 Les comparaisons isolées, leurs limites et les empreintes du build sont dans [EXPLOSION-PERFORMANCE.md](EXPLOSION-PERFORMANCE.md). La charge lourde ajoute trois voitures détruites simultanément et deux explosions de façade, avec leurs intérieurs et débris physiques, aux 960 PNJ et 39 véhicules de trafic. Les réglages 3D sont inchangés.
 

@@ -1,0 +1,490 @@
+{
+  "identity": {
+    "hash": "6e2d432a",
+    "pedestrians": 960,
+    "densePedestrians": 360,
+    "traffic": 39,
+    "fleet": 44,
+    "blastVehicles": [
+      1,
+      6,
+      7
+    ],
+    "camera": {
+      "pos": [
+        61.5,
+        4.5,
+        210
+      ],
+      "yaw": 0,
+      "pitch": -0.1,
+      "fov": 74,
+      "near": 0.15,
+      "overlayNear": 0.035,
+      "far": 26000,
+      "allStatic": true,
+      "chunked": true,
+      "sun": {
+        "center": [
+          61.5,
+          0.08,
+          170
+        ],
+        "extent": 110,
+        "depth": 150
+      }
+    },
+    "staticMeshes": 226210
+  },
+  "hashes": [
+    {
+      "frame": 0,
+      "hash": "ec312f84"
+    },
+    {
+      "frame": 60,
+      "hash": "48a47bb"
+    },
+    {
+      "frame": 120,
+      "hash": "db3f0b99"
+    },
+    {
+      "frame": 180,
+      "hash": "19eac7b4"
+    },
+    {
+      "frame": 240,
+      "hash": "79b154f7"
+    },
+    {
+      "frame": 300,
+      "hash": "d2c11418"
+    },
+    {
+      "frame": 360,
+      "hash": "8785f743"
+    },
+    {
+      "frame": 420,
+      "hash": "93a445ca"
+    },
+    {
+      "frame": 480,
+      "hash": "d074bfba"
+    },
+    {
+      "frame": 540,
+      "hash": "3485f94a"
+    }
+  ],
+  "counts": [
+    {
+      "frame": 0,
+      "models": 9693,
+      "triangles": 6699781,
+      "instances": 46130,
+      "drawCalls": 1776,
+      "pedestrians": 960,
+      "alive": 960,
+      "within100": 345,
+      "traffic": 39,
+      "debris": 0,
+      "explosions": 0,
+      "fires": 0,
+      "msaa": 4,
+      "shadows": true,
+      "reflections": true,
+      "bloom": true,
+      "resolution": [
+        1440,
+        900
+      ]
+    },
+    {
+      "frame": 60,
+      "models": 4141,
+      "triangles": 4138503,
+      "instances": 40578,
+      "drawCalls": 1825,
+      "pedestrians": 960,
+      "alive": 960,
+      "within100": 346,
+      "traffic": 39,
+      "debris": 0,
+      "explosions": 0,
+      "fires": 0,
+      "msaa": 4,
+      "shadows": true,
+      "reflections": true,
+      "bloom": true,
+      "resolution": [
+        1440,
+        900
+      ]
+    },
+    {
+      "frame": 120,
+      "models": 3470,
+      "triangles": 4244345,
+      "instances": 39905,
+      "drawCalls": 1830,
+      "pedestrians": 960,
+      "alive": 960,
+      "within100": 346,
+      "traffic": 39,
+      "debris": 35,
+      "explosions": 1,
+      "fires": 1,
+      "msaa": 4,
+      "shadows": true,
+      "reflections": true,
+      "bloom": true,
+      "resolution": [
+        1440,
+        900
+      ]
+    },
+    {
+      "frame": 180,
+      "models": 3441,
+      "triangles": 4234727,
+      "instances": 39876,
+      "drawCalls": 1823,
+      "pedestrians": 960,
+      "alive": 960,
+      "within100": 344,
+      "traffic": 39,
+      "debris": 35,
+      "explosions": 1,
+      "fires": 1,
+      "msaa": 4,
+      "shadows": true,
+      "reflections": true,
+      "bloom": true,
+      "resolution": [
+        1440,
+        900
+      ]
+    },
+    {
+      "frame": 240,
+      "models": 2795,
+      "triangles": 4225739,
+      "instances": 39229,
+      "drawCalls": 1795,
+      "pedestrians": 960,
+      "alive": 960,
+      "within100": 332,
+      "traffic": 39,
+      "debris": 65,
+      "explosions": 1,
+      "fires": 2,
+      "msaa": 4,
+      "shadows": true,
+      "reflections": true,
+      "bloom": true,
+      "resolution": [
+        1440,
+        900
+      ]
+    },
+    {
+      "frame": 300,
+      "models": 2766,
+      "triangles": 4179513,
+      "instances": 39200,
+      "drawCalls": 1792,
+      "pedestrians": 960,
+      "alive": 960,
+      "within100": 315,
+      "traffic": 39,
+      "debris": 65,
+      "explosions": 1,
+      "fires": 2,
+      "msaa": 4,
+      "shadows": true,
+      "reflections": true,
+      "bloom": true,
+      "resolution": [
+        1440,
+        900
+      ]
+    },
+    {
+      "frame": 360,
+      "models": 2827,
+      "triangles": 4089047,
+      "instances": 39260,
+      "drawCalls": 1787,
+      "pedestrians": 960,
+      "alive": 960,
+      "within100": 303,
+      "traffic": 39,
+      "debris": 95,
+      "explosions": 1,
+      "fires": 3,
+      "msaa": 4,
+      "shadows": true,
+      "reflections": true,
+      "bloom": true,
+      "resolution": [
+        1440,
+        900
+      ]
+    },
+    {
+      "frame": 420,
+      "models": 2822,
+      "triangles": 3927205,
+      "instances": 39255,
+      "drawCalls": 1788,
+      "pedestrians": 960,
+      "alive": 960,
+      "within100": 290,
+      "traffic": 39,
+      "debris": 95,
+      "explosions": 1,
+      "fires": 3,
+      "msaa": 4,
+      "shadows": true,
+      "reflections": true,
+      "bloom": true,
+      "resolution": [
+        1440,
+        900
+      ]
+    },
+    {
+      "frame": 480,
+      "models": 2820,
+      "triangles": 3678469,
+      "instances": 39253,
+      "drawCalls": 1782,
+      "pedestrians": 960,
+      "alive": 960,
+      "within100": 279,
+      "traffic": 39,
+      "debris": 95,
+      "explosions": 0,
+      "fires": 3,
+      "msaa": 4,
+      "shadows": true,
+      "reflections": true,
+      "bloom": true,
+      "resolution": [
+        1440,
+        900
+      ]
+    },
+    {
+      "frame": 540,
+      "models": 2820,
+      "triangles": 3591715,
+      "instances": 39253,
+      "drawCalls": 1783,
+      "pedestrians": 960,
+      "alive": 960,
+      "within100": 270,
+      "traffic": 39,
+      "debris": 95,
+      "explosions": 0,
+      "fires": 3,
+      "msaa": 4,
+      "shadows": true,
+      "reflections": true,
+      "bloom": true,
+      "resolution": [
+        1440,
+        900
+      ]
+    }
+  ],
+  "events": [
+    {
+      "frame": 90,
+      "simulationTick": 180,
+      "kind": "vehicleExplosion",
+      "id": 1
+    },
+    {
+      "frame": 210,
+      "simulationTick": 420,
+      "kind": "vehicleExplosion",
+      "id": 6
+    },
+    {
+      "frame": 330,
+      "simulationTick": 660,
+      "kind": "vehicleExplosion",
+      "id": 7
+    }
+  ],
+  "worldUpdates": [
+    {
+      "frame": 91,
+      "ms": 6,
+      "meshes": 308270,
+      "revision": 1
+    },
+    {
+      "frame": 211,
+      "ms": 5,
+      "meshes": 308269,
+      "revision": 2
+    },
+    {
+      "frame": 331,
+      "ms": 2.899999976158142,
+      "meshes": 308268,
+      "revision": 3
+    }
+  ],
+  "realtime": false,
+  "measures": {
+    "frame": {
+      "n": 599,
+      "p50": 16.69999998807907,
+      "p95": 17.30000001192093,
+      "p99": 17.69999998807907,
+      "max": 52.80000001192093,
+      "over25": 1,
+      "over50": 1
+    },
+    "render": {
+      "n": 600,
+      "p50": 1,
+      "p95": 1.2999999523162842,
+      "p99": 1.600000023841858,
+      "max": 2.900000035762787,
+      "over25": 0,
+      "over50": 0
+    },
+    "simulation": {
+      "n": 600,
+      "p50": 1.199999988079071,
+      "p95": 10.699999988079071,
+      "p99": 12.300000011920929,
+      "max": 42.09999996423721,
+      "over25": 1,
+      "over50": 0
+    },
+    "game": {
+      "n": 601,
+      "p50": 4.100000023841858,
+      "p95": 13.600000023841858,
+      "p99": 15.099999964237213,
+      "max": 45.5,
+      "over25": 1,
+      "over50": 0
+    },
+    "raf": {
+      "n": 601,
+      "p50": 16.69999999999891,
+      "p95": 17.30000000000109,
+      "p99": 17.5,
+      "max": 33.399999999999636,
+      "over25": 1,
+      "over50": 0
+    },
+    "drawSubmission": {
+      "n": 599,
+      "p50": 16.69999998807907,
+      "p95": 17.30000001192093,
+      "p99": 17.69999998807907,
+      "max": 52.80000001192093,
+      "over25": 1,
+      "over50": 1
+    }
+  },
+  "gpu": {
+    "available": true,
+    "dropped": 0,
+    "n": 600,
+    "p50": 13.369344,
+    "p95": 14.155776,
+    "p99": 14.548992,
+    "max": 14.811136,
+    "over25": 0,
+    "over50": 0
+  },
+  "renderer": {
+    "backend": "webgpu",
+    "webglVersion": 0,
+    "webgpu": true,
+    "contextLost": false,
+    "deviceLost": false,
+    "drawCalls": 1778,
+    "triangles": 3591499,
+    "instances": 39308,
+    "uploadBytes": 184000,
+    "errorEvents": [],
+    "gpuTimingAvailable": true,
+    "pbrLayers": 2,
+    "renderScale": 1,
+    "pixelRatio": 1,
+    "width": 1440,
+    "height": 900,
+    "msaa": 4,
+    "requestedBackend": "webgpu",
+    "fallbackReason": null,
+    "worldRevision": 3,
+    "staticTotal": 308268,
+    "biome": "ville",
+    "chunks": 9493,
+    "chunkBuildBytes": 11328,
+    "chunkUpdateIncremental": true,
+    "chunkEntriesVisited": 178,
+    "viewDistance": 64,
+    "staticVisible": 35472,
+    "staticCulled": 272795,
+    "dynamicLights": 4,
+    "blackoutLights": 0,
+    "fxInstances": 55,
+    "uniformUploadBytes": 3824,
+    "bloom": true,
+    "shadows": true,
+    "shadowMode": "sun-atlas",
+    "shadowMaps": 1,
+    "crowdInstances": 0,
+    "pdrLotInstances": 0,
+    "shadowChunks": 258,
+    "shadowStatic": 35378,
+    "backgroundWater": 1,
+    "backgroundDrawCalls": 1,
+    "visibleChunks": 576,
+    "lotsVisibles": 0,
+    "reflections": true,
+    "reflectionSteps": 48,
+    "gpuBuffers": 9514,
+    "gpuTextures": 15,
+    "pipelineCount": 16,
+    "uniformSlots": 9,
+    "gpuTimeMs": 14.09024,
+    "meshDeltaApplied": true
+  },
+  "errors": [],
+  "backendEvents": [],
+  "simulationTicks": 1200,
+  "build": {
+    "version": "0.6.2",
+    "name": "Déflagrations",
+    "engine": "FERRO",
+    "title": "EMPRISE",
+    "id": "6ed602edbe"
+  },
+  "timingDefinitions": {
+    "frame": "Legacy alias of drawSubmission, retained for baseline compatibility.",
+    "drawSubmission": "Interval between CPU entries to renderer.draw, after simulation and model generation in realtime mode.",
+    "raf": "Delta between browser-supplied rAF timestamps from game.samples; may include boundary callbacks while GPU profiling starts/drains.",
+    "gpu": "GPU elapsed passes only; excludes queue wait, CPU uploads before submit, compositor and presentation.",
+    "presentation": "Not measured. Regular rAF timestamps do not prove regular GPU presentation."
+  },
+  "label": "fluidity-standard-before",
+  "fixture": "outdoor-stress-scenes.js",
+  "buildSha256": "365a85a73310a028f29d8d82556514b84e1b3b492a2557e4f1c0c7c7ad8d26a7",
+  "fixtureSha256": "d7f4832d3994e9ebec0474f12a646dccc8268375bf5d00d6b4b594b7609f8a0e",
+  "profiled": false,
+  "productionSaveEnabled": false,
+  "protocol": "960 pedestrians (360 positioned in legal quay cells), 36 civilian traffic requests plus 3 police, 3 real vehicle detonations. Two normal 1/120 simulation ticks per rendered frame, active AI and physics; same simulation work regardless of backend speed. Graphics unchanged: 1440x900 DPR1 MSAA4 shadows SSR bloom. Signature sampled every60frames, outside separate render/simulation timers."
+}

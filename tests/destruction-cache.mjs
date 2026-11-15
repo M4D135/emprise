@@ -4,7 +4,8 @@ import {execFileSync} from 'node:child_process';
 import {createHash} from 'node:crypto';
 const smallOnly=process.argv.includes('--small');
 if(smallOnly)await import('../src/ferro/destruction.js');else await import('./load.mjs');
-const source=execFileSync('git',['show','3ac8e4c:src/ferro/destruction.js'],{encoding:'utf8'}),old=vm.createContext({FRender:globalThis.FRender,console});
+const baseline=process.env.EMPRISE_BASELINE||'3ac8e4c';
+const source=execFileSync('git',['show',baseline+':src/ferro/destruction.js'],{encoding:'utf8'}),old=vm.createContext({FRender:globalThis.FRender,console});
 vm.runInContext(source,old);
 const current=FDestruction.create,hash=o=>createHash('sha256').update(JSON.stringify(o)).digest('hex');
 function checkSpans(dc,sourceCount,sourceOf){

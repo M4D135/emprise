@@ -198,9 +198,22 @@
     }
     // Only touched groups need recompilation; their original order remains
     // significant when definitions share a render slot. Restores mark all groups.
-    const geometryDirty=new Set(groups.values()),ownerIds=originalMeshes.map((_,i)=>meshOwner.get(i)),renderSlots=new Array(originalMeshes.length),firstIndex=new Uint32Array(originalMeshes.length),claimed=new Set(definitions.flatMap(d=>d.colliders||[]));
+    const geometryDirty=new Set(groups.values()),ownerIds=originalMeshes.map((_,i)=>meshOwner.get(i)),renderSlots=new Array(originalMeshes.length),firstIndex=new Uint32Array(originalMeshes.length),slotOffsets=new Float64Array(originalMeshes.length+1),claimed=new Set(definitions.flatMap(d=>d.colliders||[]));
+    // A changed source only shifts the starts of later sources. Keep those
+    // integer offsets in a Fenwick tree instead of revisiting every city mesh.
+    // A complete restore resets the base starts and the tree together.
+    function sourceStart(i){if(!Number.isInteger(i)||i<0||i>=firstIndex.length)return firstIndex[i];let n=i,offset=0;while(n>0){offset+=slotOffsets[n];n-=n&-n;}return firstIndex[i]+offset;}
+    function shiftSources(i,amount){for(let n=i+1;n<slotOffsets.length;n+=n&-n)slotOffsets[n]+=amount;}
+    function spliceMeshes(before,splices){
+      if(!splices.length)return before.slice();
+      const parts=[];let at=0;for(const q of splices){if(q.start>at)parts.push(before.slice(at,q.start));if(q.items.length)parts.push(q.items);at=q.start+q.deleteCount;}if(at<before.length)parts.push(before.slice(at));
+      // Normal blasts have only a few ranges. Avoid argument-count limits for
+      // exceptionally large generic FERRO worlds without changing their order.
+      if(parts.length<4096)return [].concat(...parts);
+      const result=[];for(const part of parts)for(const m of part)result.push(m);return result;
+    }
     function rebuild(next=states,full=false){
-      const output=[],before=meshGeneration?meshes:null,changedSlots=new Map();full=full||!meshGeneration;
+      let output;const before=meshGeneration?meshes:null,changedSlots=new Map();full=full||!meshGeneration;
       for(const g of [...geometryDirty].sort((a,b)=>a.rebuildOrder-b.rebuildOrder)){
         const record=next.get(g.id),count=record?.cuts.length||0,removed=!!record?.removed;
         if(g.cacheRecord===record&&g.cacheCount===count&&g.cacheRemoved===removed)continue;
@@ -215,25 +228,32 @@
       geometryDirty.clear();
       // Splice starts refer to the previous flat array. Preserve occurrences
       // and source ordering, including zero-length slots and shared meshes.
-      const splices=[],removed=[],added=[];
+      const splices=[],removed=[],added=[],offsetChanges=[];
       for(const [i,previous]of [...changedSlots].sort((a,b)=>a[0]-b[0])){
         if(!ownerIds[i])continue;const nextSlot=renderSlots[i]||[];
         if(previous.length===nextSlot.length&&previous.every((e,j)=>e.mesh===nextSlot[j].mesh))continue;
-        const items=nextSlot.map(e=>e.mesh),start=firstIndex[i],last=splices[splices.length-1];
+        const items=nextSlot.map(e=>e.mesh),start=sourceStart(i),last=splices[splices.length-1];
         if(last&&start===last.start+last.deleteCount){last.deleteCount+=previous.length;for(const m of items)last.items.push(m);}
         else splices.push({start,deleteCount:previous.length,items});
         for(const e of previous)removed.push(e.mesh);for(const m of items)added.push(m);
+        if(nextSlot.length!==previous.length)offsetChanges.push([i,nextSlot.length-previous.length]);
       }
       // Preserve original mesh ordering, including coplanar decorative surfaces.
       // Only a changed original mesh is replaced by its local surviving pieces.
-      for(let i=0;i<originalMeshes.length;i++){
-        const id=ownerIds[i];firstIndex[i]=output.length;
-        if(!id){output.push(originalMeshes[i]);continue;}
-        for(const e of renderSlots[i]||[])output.push(e.mesh);
+      if(full){
+        output=[];slotOffsets.fill(0);
+        for(let i=0;i<originalMeshes.length;i++){
+          const id=ownerIds[i];firstIndex[i]=output.length;
+          if(!id){output.push(originalMeshes[i]);continue;}
+          for(const e of renderSlots[i]||[])output.push(e.mesh);
+        }
+      }else{
+        output=spliceMeshes(before,splices);
+        for(const [i,amount]of offsetChanges)shiftSources(i,amount);
       }
       // Snapshot unclaimed external records now, matching the eager API even
       // when a caller edits the original records before requesting colliders.
-      unclaimedBoxes=[];for(let i=0;i<originalColliders.length;i++)if(!claimed.has(i)){const c=originalColliders[i];unclaimedBoxes.push({...c,mesh:firstIndex[c.mesh]});}
+      unclaimedBoxes=[];for(let i=0;i<originalColliders.length;i++)if(!claimed.has(i)){const c=originalColliders[i];unclaimedBoxes.push({...c,mesh:sourceStart(c.mesh)});}
       meshes=output;colliders=null;lights=(world.lights||[]).filter(l=>!next.get(String(l.destructibleId))?.removed);
       meshDelta={before,after:meshes,generation:++meshGeneration,full,splices,removed,added};
     }
@@ -243,7 +263,7 @@
       // other games still receive the exact ordered, revision-local snapshot.
       if(colliders)return colliders;
       const boxes=[];
-      for(let i=0;i<originalMeshes.length;i++){const id=ownerIds[i];if(!id)continue;let index=firstIndex[i];for(const e of renderSlots[i]||[]){if(e.solid)boxes.push({...e.solid.bounds,mesh:index,destructibleId:id});index++;}}
+      let index=0;for(let i=0;i<originalMeshes.length;i++){const id=ownerIds[i];if(!id){index++;continue;}for(const e of renderSlots[i]||[]){if(e.solid)boxes.push({...e.solid.bounds,mesh:index,destructibleId:id});index++;}}
       for(const box of unclaimedBoxes)boxes.push(box);
       return colliders=boxes;
     }
@@ -361,7 +381,7 @@
       for(const g of groups.values())geometryDirty.add(g);
       rebuild(states,true);seedSupports();revision=options.exactRevision?value.revision:Math.max(revision+1,value.revision);return true;
     }
-    return {detach(id){const g=groups.get(id);if(!g||!isAlive(id))return [];const out=g.active.map(e=>e.mesh);states.set(id,{damage:0,cuts:[],removed:true});geometryDirty.add(g);rebuild();revision++;return out;},describe(id){const g=groups.get(id);return g?{id:g.id,meshes:g.active.map(e=>e.mesh),strength:g.strength,bounds:g.bounds}:null;},sourceSpan(index){return Number.isInteger(index)&&index>=0&&index<originalMeshes.length?{start:firstIndex[index],length:ownerIds[index]?(renderSlots[index]?.length||0):1}:null;},get meshes(){return meshes;},get meshDelta(){return meshDelta;},get colliders(){return collisionGeometry();},get lights(){return lights;},get revision(){return revision;},isAlive,raycast,
+    return {detach(id){const g=groups.get(id);if(!g||!isAlive(id))return [];const out=g.active.map(e=>e.mesh);states.set(id,{damage:0,cuts:[],removed:true});geometryDirty.add(g);rebuild();revision++;return out;},describe(id){const g=groups.get(id);return g?{id:g.id,meshes:g.active.map(e=>e.mesh),strength:g.strength,bounds:g.bounds}:null;},sourceSpan(index){return Number.isInteger(index)&&index>=0&&index<originalMeshes.length?{start:sourceStart(index),length:ownerIds[index]?(renderSlots[index]?.length||0):1}:null;},get meshes(){return meshes;},get meshDelta(){return meshDelta;},get colliders(){return collisionGeometry();},get lights(){return lights;},get revision(){return revision;},isAlive,raycast,
       hit:(point,power,direction)=>damage(point,.22,power,true,undefined,validPoint(direction)?direction:undefined),blast:(point,radius,power,ignoreId)=>damage(point,radius,power,false,ignoreId),snapshot,restore};
   }
   G.FDestruction={create,fragment};

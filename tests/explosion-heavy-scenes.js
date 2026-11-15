@@ -18,6 +18,21 @@ function selectHeavyFacade(world,interiors,controller,observer=[61.5,6.2,211]){
 }
 async function prepareOutdoorStress(){
  const g=RADE.game,s=g.session,w=s.world,r=g.renderer,frame=()=>new Promise(resolve=>requestAnimationFrame(resolve));
+ // Observe the actual game callback, not a second rAF callback whose execution
+ // begins after the game. Keep the wrapper stable and leave all other callers
+ // (including this fixture's waits) unchanged. No runtime source is patched.
+ const nativeRaf=window.requestAnimationFrame,callbackWrappers=new WeakMap();
+ let gameCallback=null,callbackCount=0,callbackStart=NaN,rafStamp=NaN,lastRafStamp=NaN,rafDelta=NaN,callbackRow=-1,callbackTicks=0,callbackWorldCost=0;
+ const TRACE_FIELDS=['frame','rafTimestamp','rafInterval','callbackStart','callbackDelay','preRenderCpu','renderCpu','simulationCpu','simulationTicks','worldUpdateCpu','postRenderCpu','callbackCpu','drawSubmissionInterval','lastCompletedGpuMs','simulationTickTotal'];
+ let trace=null,traceCapacity=0,traceCount=0;
+ const observedRaf=function(callback){
+  if(!gameCallback&&callback.name==='frame'&&String(callback).includes('session.update(1/120'))gameCallback=callback;
+  if(callback!==gameCallback)return nativeRaf.call(window,callback);
+  let wrapped=callbackWrappers.get(callback);if(!wrapped){wrapped=function(now){callbackCount++;callbackStart=performance.now();rafStamp=now;rafDelta=Number.isFinite(lastRafStamp)?now-lastRafStamp:NaN;lastRafStamp=now;callbackRow=-1;callbackTicks=0;callbackWorldCost=0;
+   try{return callback(now);}finally{if(callbackRow>=0&&trace){const end=performance.now(),offset=callbackRow*TRACE_FIELDS.length;trace[offset+10]=end-(trace[offset+3]+trace[offset+5]+trace[offset+6]);trace[offset+11]=end-trace[offset+3];}}
+  };callbackWrappers.set(callback,wrapped);}return nativeRaf.call(window,wrapped);
+ };
+ window.requestAnimationFrame=observedRaf;
  const update=s.update.bind(s);s.update=()=>{};g.controller=()=>({});
  s.weather.force('soleil');s.weather.setHour(14);s.weather.tick(0);
  s.sim.relocate(61.5,211,0);s.player.pitch=-.1;
@@ -36,6 +51,7 @@ async function prepareOutdoorStress(){
  blastCars.forEach((c,i)=>Object.assign(c,{x:61.5+(i%2)*4,z:181-i*18,cap:0,y:w.ground(61.5,181-i*18),ai:false,u:0,w:0,v:0,moteur:false}));
  w.cityStream.tick(s.player.x,s.player.z);while(w.cityStream.pending)await frame();
  for(let i=0;i<90;i++)await frame();
+ if(!gameCallback||!callbackCount){window.requestAnimationFrame=nativeRaf;throw Error('Game rAF callback instrumentation did not attach');}
  const original=r.draw.bind(r),samples={frame:[],render:[],simulation:[],game:[]},events=[],counts=[],hashes=[],worldUpdates=[];
  let active=false,tick=0,previous=0,realtime=false,simTicks=0,simulationCost=0,nextEvent=0;
  function advance(){
@@ -48,23 +64,32 @@ async function prepareOutdoorStress(){
     events.push({frame:tick,simulationTick:simTicks,kind:'buildingExplosion',point:point.slice(),power:240,radius:10,buildingId:facade.buildingId,sourceId:facade.sourceId,sourceAlive:s.urban.controller.isAlive(facade.sourceId),projections:projected.length,furnishing,collapsed:result.collapsed||[],debris:s.urban.bodies.length});
    }nextEvent++;
   }
-  s.player.hp=100;update(1/120,{});simTicks++;simulationCost+=performance.now()-start;
+  s.player.hp=100;update(1/120,{});simTicks++;callbackTicks++;simulationCost+=performance.now()-start;
  }
- const updateWorld=r.updateWorld.bind(r);r.updateWorld=function(...args){const t=performance.now(),result=updateWorld(...args);if(active)worldUpdates.push({frame:tick,ms:performance.now()-t,meshes:args[0].length,revision:s.urban.revision});return result;};
+ const updateWorld=r.updateWorld.bind(r);r.updateWorld=function(...args){const t=performance.now(),result=updateWorld(...args);if(active){const ms=performance.now()-t;callbackWorldCost+=ms;worldUpdates.push({frame:tick,ms,meshes:args[0].length,revision:s.urban.revision});}return result;};
  const digest=()=>{let h=2166136261;const n=x=>h=Math.imul(h^((Number(x)||0)*1e5|0),16777619)>>>0;
   for(const p of s.crowd.people){n(p.x);n(p.z);n(p.hp);n(p.cap);}for(const c of w.fleet){n(c.x);n(c.z);n(c.cap);n(c.v);n(c.exploded);}
   for(const q of s.urban.bodies){const b=q.engine.body(q.handle);if(b){for(const v of b.pos)n(v);for(const v of b.vel)n(v);for(const v of b.quat)n(v);for(const v of b.ang)n(v);n(b.mass);n(b.asleep);for(const v of q.mesh.s)n(v);n(q.mesh.mat);n(q.mass);}}
   n(s.urban.report.vehicleExplosions);n(s.urban.report.breaches);n(s.urban.report.crumbleVolume);n(s.urban.revision);n(w.scenery.length);n(w.boxes.length);for(const b of s.urban.breachProjections){n(b.floor);n(b.scenery.length);n(b.colliders.length);}n(s.time);return h.toString(16);
  };
  const identity={hash:digest(),pedestrians:s.crowd.n,densePedestrians:360,traffic:s.traffic.cars.length,fleet:w.fleet.length,blastVehicles:blastCars.map(c=>c.id),camera:cam,staticMeshes:w.scenery.length,facade:{sourceId:facade.sourceId,buildingId:facade.buildingId,name:facade.name,width:facade.width,depth:facade.depth,height:facade.height,normal:facade.normal,center:facade.center,points:facade.points,sourceGeometry:{p:facade.mesh.p.slice(),s:facade.mesh.s.slice(),r:(facade.mesh.r||[0,0,0]).slice()}},schedule:[{frame:90,kind:'vehicleExplosion',count:3},{frame:210,kind:'buildingExplosion',power:240,radius:10},{frame:330,kind:'buildingExplosion',power:240,radius:10}]};
- r.draw=function(camera,models,fx){const start=performance.now();if(active&&previous)samples.frame.push(start-previous);if(active)previous=start;
-  const result=original(camera,models,fx);if(active){samples.render.push(performance.now()-start);
-   if(!realtime)for(let i=0;i<2;i++)advance();samples.simulation.push(simulationCost);simulationCost=0;
+ r.draw=function(camera,models,fx){const start=performance.now(),submissionInterval=active&&previous?start-previous:NaN;if(active&&previous)samples.frame.push(submissionInterval);if(active)previous=start;
+  const result=original(camera,models,fx);if(active){const renderCpu=performance.now()-start;samples.render.push(renderCpu);
+   if(!realtime)for(let i=0;i<2;i++)advance();samples.simulation.push(simulationCost);
+   if(traceCount<traceCapacity){callbackRow=traceCount++;const offset=callbackRow*TRACE_FIELDS.length;trace[offset]=tick;trace[offset+1]=rafStamp;trace[offset+2]=rafDelta;trace[offset+3]=callbackStart;trace[offset+4]=callbackStart-rafStamp;trace[offset+5]=start-callbackStart;trace[offset+6]=renderCpu;trace[offset+7]=simulationCost;trace[offset+8]=callbackTicks;trace[offset+9]=callbackWorldCost;trace[offset+12]=submissionInterval;trace[offset+13]=r.stats.gpuTimeMs??NaN;trace[offset+14]=simTicks;}
+   simulationCost=0;
    if(tick%60===0){const stateHash=digest();hashes.push({frame:tick,hash:stateHash,renderHash:[models.length,r.stats.triangles,r.stats.instances,r.stats.drawCalls,w.scenery.length,w.boxes.length].join(':')});counts.push({frame:tick,models:models.length,triangles:r.stats.triangles,instances:r.stats.instances,drawCalls:r.stats.drawCalls,pedestrians:s.crowd.n,alive:s.crowd.people.filter(p=>p.hp>0).length,within100:s.crowd.people.filter(p=>p.hp>0&&Math.hypot(p.x-cam.pos[0],p.z-cam.pos[2])<100).length,traffic:s.traffic.cars.length,debris:s.urban.bodies.length,debrisHash:stateHash,staticMeshes:w.scenery.length,staticColliders:w.boxes.length,projections:s.urban.breachProjections.length,projectedMeshes:s.urban.breachProjections.reduce((n,b)=>n+b.scenery.length,0),projectedColliders:s.urban.breachProjections.reduce((n,b)=>n+b.colliders.length,0),explosions:s.sim.state.explosions.length,fires:s.urban.fires.length,msaa:r.stats.msaa,shadows:r.stats.shadows,reflections:r.stats.reflections,bloom:r.stats.bloom,resolution:[r.stats.width,r.stats.height]});}
    tick++;
   }return result;
  };
  const describe=a=>{const v=a.slice().sort((a,b)=>a-b),at=q=>v[Math.min(v.length-1,Math.floor(v.length*q))];return {n:v.length,p50:at(.5),p95:at(.95),p99:at(.99),max:v.at(-1),over25:v.filter(x=>x>25).length,over50:v.filter(x=>x>50).length};};
+ function pacingReport(rafSamples){
+  const column=index=>{const values=[];for(let i=0;i<traceCount;i++){const n=trace[i*TRACE_FIELDS.length+index];if(Number.isFinite(n))values.push(n);}return values;};
+  const rows=[];for(let i=0;i<traceCount;i++){const row=[];for(let k=0;k<TRACE_FIELDS.length;k++){const n=trace[i*TRACE_FIELDS.length+k];row.push(Number.isFinite(n)?n:null);}rows.push(row);}
+  const slow=new Set();for(let i=0;i<traceCount;i++){const o=i*TRACE_FIELDS.length;if(trace[o+2]>25||trace[o+11]>25||trace[o+12]>25){for(let j=Math.max(0,i-1);j<=Math.min(traceCount-1,i+1);j++)slow.add(j);}}
+  const tickHistogram={};for(const n of column(8))tickHistogram[n]=(tickHistogram[n]||0)+1;
+  return {fields:TRACE_FIELDS,rows,slowFrameIndices:[...slow].sort((a,b)=>a-b),simulationTicksPerFrame:tickHistogram,measures:{raf:describe(rafSamples),observedRaf:describe(column(2)),drawSubmission:describe(samples.frame),callbackDelay:describe(column(4)),preRenderCpu:describe(column(5)),postRenderCpu:describe(column(10)),callbackCpu:describe(column(11))},notes:['measures.frame remains the historical interval between renderer.draw entries; drawSubmission is its explicit alias. This is neither the rAF callback cadence nor presentation timing.','raf uses game.samples (browser-supplied rAF timestamps); observedRaf contains only callbacks that submitted a measured frame. game.samples may include a boundary frame while GPU profiling starts or drains.','preRenderCpu/renderCpu/postRenderCpu are elapsed main-thread intervals within the same game rAF callback; system interruptions may be included. Fixed mode runs two simulation ticks after renderer.draw, while realtime runs them before it.','lastCompletedGpuMs is the latest asynchronously completed GPU timestamp sample, not a timestamp associated with this row. It excludes queue wait and presentation.','Both regular rAF timestamps and regular CPU submissions can coexist with irregular GPU presentation. These metrics do not claim presentation cadence.','Rows are numeric preallocated storage during measurement; row objects, summaries and slow-frame neighbourhoods are constructed only after measurement stops.']};
+ }
  // Exact end-state evidence is deliberately computed after measured frames
  // stop and pause is active. No rounding, tolerance or 1e-5 quantization here.
  async function exactFinalState(){
@@ -74,8 +99,8 @@ async function prepareOutdoorStress(){
   const result={};for(const [name,value]of Object.entries(values)){const bytes=new TextEncoder().encode(JSON.stringify(value)),hash=await crypto.subtle.digest('SHA-256',bytes);result[name]=Array.from(new Uint8Array(hash),n=>n.toString(16).padStart(2,'0')).join('');}
   return result;
  }
- return {identity,async run(frames=600,realTime=false){realtime=realTime;g.samples.length=g.cpuSamples.length=0;if(r.setProfiling)await r.setProfiling(true);if(realtime)s.update=()=>{if(active)advance();};active=true;while(tick<frames&&!g.errors.length)await frame();active=false;
-  const gpu=r.setProfiling?await r.setProfiling(false):null;samples.game=g.cpuSamples.slice();g.pause();const rendererStats={...r.stats},finalStateHashes=await exactFinalState();
-  return {identity,hashes,counts,events,worldUpdates,realtime,finalStateHashes,protocol:'960 pedestrians, same legal quay placement and civilian/police traffic as outdoor stress. Three actual vehicle detonations in one simulation tick at frame90; real Marseille facade blasts power240/radius10 at frames210/330, revealing physical furnishing. Fixed camera. '+(realtime?'Unmodified wall-clock accumulator.':'Two 1/120 simulation ticks per rendered frame.')+' Graphics unchanged; simulation/debris and render counts sampled every60frames.',measures:Object.fromEntries(Object.entries(samples).map(([k,v])=>[k,describe(v)])),gpu:gpu?{available:gpu.available,dropped:gpu.dropped,...describe(gpu.samples)}:null,renderer:rendererStats,errors:g.errors.slice(),backendEvents:g.backendEvents,simulationTicks:simTicks,build:RADE.build};
+ return {identity,async run(frames=600,realTime=false){realtime=realTime;traceCapacity=frames;trace=new Float64Array(traceCapacity*TRACE_FIELDS.length);trace.fill(NaN);g.samples.length=g.cpuSamples.length=0;if(r.setProfiling)await r.setProfiling(true);if(realtime)s.update=()=>{if(active)advance();};active=true;while(tick<frames&&!g.errors.length)await frame();active=false;
+  const gpu=r.setProfiling?await r.setProfiling(false):null;samples.game=g.cpuSamples.slice();const rafSamples=g.samples.slice();g.pause();window.requestAnimationFrame=nativeRaf;const pacing=pacingReport(rafSamples),rendererStats={...r.stats},finalStateHashes=await exactFinalState();
+  return {identity,hashes,counts,events,worldUpdates,realtime,finalStateHashes,pacing,protocol:'960 pedestrians, same legal quay placement and civilian/police traffic as outdoor stress. Three actual vehicle detonations in one simulation tick at frame90; real Marseille facade blasts power240/radius10 at frames210/330, revealing physical furnishing. Fixed camera. '+(realtime?'Unmodified wall-clock accumulator.':'Two 1/120 simulation ticks per rendered frame.')+' Graphics unchanged; simulation/debris and render counts sampled every60frames. Historical frame measures renderer.draw submission intervals; raf reports browser rAF timestamps separately. Neither measures actual presentation.',measures:{...Object.fromEntries(Object.entries(samples).map(([k,v])=>[k,describe(v)])),...pacing.measures},gpu:gpu?{available:gpu.available,dropped:gpu.dropped,...describe(gpu.samples)}:null,renderer:rendererStats,errors:g.errors.slice(),backendEvents:g.backendEvents,simulationTicks:simTicks,build:RADE.build};
  }};
 }

@@ -27,7 +27,7 @@
 <canvas id="scene" aria-label="Monde 3D de Marseille"></canvas>
 <div id="loading">EMPRISE <span>Construction de Marseille…</span></div>
 <section id="recovery" hidden role="alertdialog" aria-modal="true" aria-labelledby="recovery-title" aria-describedby="recovery-message"><div class="recovery-card"><div class="eyebrow">EMPRISE</div><h2 id="recovery-title">La partie s’est interrompue.</h2><p id="recovery-message">Votre sauvegarde est conservée. Vous pouvez la recharger ou commencer une nouvelle partie.</p><div class="recovery-actions"><button id="fatal-reload">Recharger la partie</button><button id="fatal-reset">Nouvelle partie</button></div><details><summary>Détail de l’erreur</summary><p id="recovery-detail"></p></details><small>Clavier : Tab, Entrée · Manette : croix, bouton de validation</small></div></section>
-<section id="title" hidden><div class="eyebrow">MARSEILLE · 43°17′ N  5°22′ E</div><h1>EMPRISE<span>.</span></h1><div class="game-version" aria-label="Version 0.6.2">V0.6.2 <small>FERRO · BUILD 6ed602edbe</small></div><div class="subtitle">Le pouvoir se prend, quartier par quartier.</div><p>Le port a ses commerces, ses territoires et ses dettes.<br>Observez. Choisissez vos alliances et vos affrontements.<br><span id="saved-status"></span></p><button id="start">ENTRER DANS LA VILLE <b>↗</b></button><button id="title-controls" class="secondary">MANETTE / COMMANDES</button><button id="title-reset" class="secondary">NOUVELLE PARTIE</button><small id="pad-status"></small><div class="titlefooter">01 / VIEUX-PORT <span>SOLO PERSISTANT · TERRITOIRES · RISQUES</span></div></section>
+<section id="title" hidden><div class="eyebrow">MARSEILLE · 43°17′ N  5°22′ E</div><h1>EMPRISE<span>.</span></h1><div class="game-version" aria-label="Version 0.6.3">V0.6.3 <small>FERRO · BUILD 702ff88469</small></div><div class="subtitle">Le pouvoir se prend, quartier par quartier.</div><p>Le port a ses commerces, ses territoires et ses dettes.<br>Observez. Choisissez vos alliances et vos affrontements.<br><span id="saved-status"></span></p><button id="start">ENTRER DANS LA VILLE <b>↗</b></button><button id="title-controls" class="secondary">MANETTE / COMMANDES</button><button id="title-reset" class="secondary">NOUVELLE PARTIE</button><small id="pad-status"></small><div class="titlefooter">01 / VIEUX-PORT <span>SOLO PERSISTANT · TERRITOIRES · RISQUES</span></div></section>
 <div id="hud" hidden><header><div class="brand">EMPRISE<span>.</span><small>MARSEILLE</small></div><div class="wallet"><b id="cash"></b><div id="wanted"></div><small id="law"></small></div><button id="pause" aria-label="Mettre en pause" title="Pause · P">Ⅱ</button><div class="stats"><span id="perf">60 FPS</span></div></header><div id="compass" aria-label="Boussole"><b id="compass-heading">N</b><span id="compass-degrees">000°</span></div><button id="phone-alert" hidden aria-label="Lire les nouveaux messages"><span>SMS</span><b id="phone-count"></b></button><div id="sailing" hidden><div class="wind-vane" aria-label="Direction du vent"><span>N</span><b id="wind-arrow">↑</b></div><div><strong id="sail-station"></strong><p id="sail-summary"></p><p id="sail-catch"></p><small id="sail-keys"></small></div></div><section id="objective" hidden><span class="label">AFFRONTEMENT EN COURS</span><h2 id="task"></h2><div id="progress"></div></section><div id="target"></div><div id="cross">·</div><div id="hit" hidden>×</div><div id="notice" role="status"></div><div id="vehicle"><span id="mode">À PIED</span><strong id="speed">100 <small>PV</small></strong><div id="engine">MITRAILLETTE · 1 / 2</div><div id="heat"><i></i></div></div><footer><span id="keys">ZQSD / WASD marcher · Maj courir · E véhicule · Clic tirer</span><button id="sound">SON ON</button></footer><div class="credit">© contributeurs OpenStreetMap · OpenFreeMap · ODbL · Hauteurs IGN BD TOPO</div></div>
 <section id="paused" hidden><div class="panel"><div class="eyebrow">EMPRISE / PROGRESSION SOLO</div><h2 id="pauseTitle">Une pause sur le quai.</h2><div id="ledger"></div><button id="pause-controls" class="secondary">MANETTE / COMMANDES</button><button id="pause-notebook" class="secondary">CARNET DU RÉSEAU · J</button><button id="pause-actions" class="secondary">ACTIONS</button><div class="graphics"><label><input id="reflections" type="checkbox" checked> Reflets de la scène</label><label><input id="shadows" type="checkbox" checked> Ombres dynamiques</label></div><p>ZQSD / WASD : se déplacer ou conduire<br>Maj : courir · E : entrer / sortir / éjecter le conducteur · contact automatique (F pour couper)<br>S : freiner, puis reculer · Espace : frein à main / esquive · Maj au volant : frein à main<br>H : changer de couleur · C : changer de vue · Molette : zoom FPS / troisième personne · Souris : viser · Clic : tirer<br>1 / 2 / 3 : armes, dont roquettes · V : crosse · R : onde<br>G : saisir / poser · B : lancer · I : incendier · T : réparer au garage<br>O : téléphone / SMS · J : carnet du réseau · M : consulter votre plan (achat requis)<br>Voilier : C change de poste, A/D oriente, W/S déploie la voile<br>Échap : pause · Glisser pour viser si capture refusée</p><label class="paint">COULEUR DU VÉHICULE <input id="paint" type="color" value="#bb2729" aria-label="Couleur du véhicule"></label><button id="resume">REPRENDRE ↗</button><button id="restart" class="secondary">EFFACER LA PROGRESSION</button></div></section>
 <div id="touch" hidden><button data-key="KeyW">↑</button><button data-key="KeyA">←</button><button data-key="KeyS">↓</button><button data-key="KeyD">→</button><button data-key="KeyE">E</button><button data-key="KeyF">F</button><button data-action="fire">TIR</button></div>
@@ -41,7 +41,7 @@
 <section id="notebook" class="dialog" hidden><div class="paper notebook"><span class="eyebrow">NOTES PERSONNELLES</span><h2>Le carnet du réseau.</h2><div id="notebook-summary"></div><div id="notebook-mission"></div><h3>Adresses et territoires</h3><div id="notebook-places"></div><h3>Dans votre sac</h3><div id="notebook-inventory"></div><h3>Derniers événements</h3><ol id="notebook-history"></ol><button id="close-notebook">REFERMER · J / ÉCHAP</button><small>Ces notes ne donnent aucune position en direct. Le temps continue pendant leur lecture.</small></div></section>
 <section id="phone" hidden aria-label="Téléphone et messages"><div class="phone-device"><div class="phone-screen"><div class="phone-status"><span id="phone-clock">09:41</span><i class="phone-island"></i><span class="phone-network">▂▄▆ <span>▰</span></span></div><div class="phone-toolbar"><button id="phone-back" aria-label="Conversations">‹</button><span>Messages</span><button id="close-phone" aria-label="Ranger le téléphone">×</button></div><header class="phone-header"><h2 id="phone-heading">Messages</h2><p id="phone-subtitle"></p></header><div id="phone-contract" hidden></div><div id="phone-content"></div><div class="phone-home"></div></div><small class="phone-model">iPhone 18 Pro Max · concept EMPRISE</small></div><small class="phone-context">O / Échap pour ranger · Le monde continue</small></section>
 <script>
-globalThis.RADE={build:{"version": "0.6.2", "name": "D\u00e9flagrations", "engine": "FERRO", "title": "EMPRISE", "id": "6ed602edbe"}};
+globalThis.RADE={build:{"version": "0.6.3", "name": "Cadence", "engine": "FERRO", "title": "EMPRISE", "id": "702ff88469"}};
 /* RADE FERRO 0.1 — base PDR, formes libres BITUME; voir docs/INTEGRATION.md. */
 /* FERRO — original WebGL2 renderer. All surfaces and meshes are mathematical. */
 /* PDR (origine) : copie de FERRO 0.2 pour Point de rupture (github.com/M4D135/FERRO, étiquette v0.2, commit 248043a).
@@ -2915,9 +2915,22 @@ G.FRenderWebGPU={create,writeUniforms};
     }
     // Only touched groups need recompilation; their original order remains
     // significant when definitions share a render slot. Restores mark all groups.
-    const geometryDirty=new Set(groups.values()),ownerIds=originalMeshes.map((_,i)=>meshOwner.get(i)),renderSlots=new Array(originalMeshes.length),firstIndex=new Uint32Array(originalMeshes.length),claimed=new Set(definitions.flatMap(d=>d.colliders||[]));
+    const geometryDirty=new Set(groups.values()),ownerIds=originalMeshes.map((_,i)=>meshOwner.get(i)),renderSlots=new Array(originalMeshes.length),firstIndex=new Uint32Array(originalMeshes.length),slotOffsets=new Float64Array(originalMeshes.length+1),claimed=new Set(definitions.flatMap(d=>d.colliders||[]));
+    // A changed source only shifts the starts of later sources. Keep those
+    // integer offsets in a Fenwick tree instead of revisiting every city mesh.
+    // A complete restore resets the base starts and the tree together.
+    function sourceStart(i){if(!Number.isInteger(i)||i<0||i>=firstIndex.length)return firstIndex[i];let n=i,offset=0;while(n>0){offset+=slotOffsets[n];n-=n&-n;}return firstIndex[i]+offset;}
+    function shiftSources(i,amount){for(let n=i+1;n<slotOffsets.length;n+=n&-n)slotOffsets[n]+=amount;}
+    function spliceMeshes(before,splices){
+      if(!splices.length)return before.slice();
+      const parts=[];let at=0;for(const q of splices){if(q.start>at)parts.push(before.slice(at,q.start));if(q.items.length)parts.push(q.items);at=q.start+q.deleteCount;}if(at<before.length)parts.push(before.slice(at));
+      // Normal blasts have only a few ranges. Avoid argument-count limits for
+      // exceptionally large generic FERRO worlds without changing their order.
+      if(parts.length<4096)return [].concat(...parts);
+      const result=[];for(const part of parts)for(const m of part)result.push(m);return result;
+    }
     function rebuild(next=states,full=false){
-      const output=[],before=meshGeneration?meshes:null,changedSlots=new Map();full=full||!meshGeneration;
+      let output;const before=meshGeneration?meshes:null,changedSlots=new Map();full=full||!meshGeneration;
       for(const g of [...geometryDirty].sort((a,b)=>a.rebuildOrder-b.rebuildOrder)){
         const record=next.get(g.id),count=record?.cuts.length||0,removed=!!record?.removed;
         if(g.cacheRecord===record&&g.cacheCount===count&&g.cacheRemoved===removed)continue;
@@ -2932,25 +2945,32 @@ G.FRenderWebGPU={create,writeUniforms};
       geometryDirty.clear();
       // Splice starts refer to the previous flat array. Preserve occurrences
       // and source ordering, including zero-length slots and shared meshes.
-      const splices=[],removed=[],added=[];
+      const splices=[],removed=[],added=[],offsetChanges=[];
       for(const [i,previous]of [...changedSlots].sort((a,b)=>a[0]-b[0])){
         if(!ownerIds[i])continue;const nextSlot=renderSlots[i]||[];
         if(previous.length===nextSlot.length&&previous.every((e,j)=>e.mesh===nextSlot[j].mesh))continue;
-        const items=nextSlot.map(e=>e.mesh),start=firstIndex[i],last=splices[splices.length-1];
+        const items=nextSlot.map(e=>e.mesh),start=sourceStart(i),last=splices[splices.length-1];
         if(last&&start===last.start+last.deleteCount){last.deleteCount+=previous.length;for(const m of items)last.items.push(m);}
         else splices.push({start,deleteCount:previous.length,items});
         for(const e of previous)removed.push(e.mesh);for(const m of items)added.push(m);
+        if(nextSlot.length!==previous.length)offsetChanges.push([i,nextSlot.length-previous.length]);
       }
       // Preserve original mesh ordering, including coplanar decorative surfaces.
       // Only a changed original mesh is replaced by its local surviving pieces.
-      for(let i=0;i<originalMeshes.length;i++){
-        const id=ownerIds[i];firstIndex[i]=output.length;
-        if(!id){output.push(originalMeshes[i]);continue;}
-        for(const e of renderSlots[i]||[])output.push(e.mesh);
+      if(full){
+        output=[];slotOffsets.fill(0);
+        for(let i=0;i<originalMeshes.length;i++){
+          const id=ownerIds[i];firstIndex[i]=output.length;
+          if(!id){output.push(originalMeshes[i]);continue;}
+          for(const e of renderSlots[i]||[])output.push(e.mesh);
+        }
+      }else{
+        output=spliceMeshes(before,splices);
+        for(const [i,amount]of offsetChanges)shiftSources(i,amount);
       }
       // Snapshot unclaimed external records now, matching the eager API even
       // when a caller edits the original records before requesting colliders.
-      unclaimedBoxes=[];for(let i=0;i<originalColliders.length;i++)if(!claimed.has(i)){const c=originalColliders[i];unclaimedBoxes.push({...c,mesh:firstIndex[c.mesh]});}
+      unclaimedBoxes=[];for(let i=0;i<originalColliders.length;i++)if(!claimed.has(i)){const c=originalColliders[i];unclaimedBoxes.push({...c,mesh:sourceStart(c.mesh)});}
       meshes=output;colliders=null;lights=(world.lights||[]).filter(l=>!next.get(String(l.destructibleId))?.removed);
       meshDelta={before,after:meshes,generation:++meshGeneration,full,splices,removed,added};
     }
@@ -2960,7 +2980,7 @@ G.FRenderWebGPU={create,writeUniforms};
       // other games still receive the exact ordered, revision-local snapshot.
       if(colliders)return colliders;
       const boxes=[];
-      for(let i=0;i<originalMeshes.length;i++){const id=ownerIds[i];if(!id)continue;let index=firstIndex[i];for(const e of renderSlots[i]||[]){if(e.solid)boxes.push({...e.solid.bounds,mesh:index,destructibleId:id});index++;}}
+      let index=0;for(let i=0;i<originalMeshes.length;i++){const id=ownerIds[i];if(!id){index++;continue;}for(const e of renderSlots[i]||[]){if(e.solid)boxes.push({...e.solid.bounds,mesh:index,destructibleId:id});index++;}}
       for(const box of unclaimedBoxes)boxes.push(box);
       return colliders=boxes;
     }
@@ -3078,7 +3098,7 @@ G.FRenderWebGPU={create,writeUniforms};
       for(const g of groups.values())geometryDirty.add(g);
       rebuild(states,true);seedSupports();revision=options.exactRevision?value.revision:Math.max(revision+1,value.revision);return true;
     }
-    return {detach(id){const g=groups.get(id);if(!g||!isAlive(id))return [];const out=g.active.map(e=>e.mesh);states.set(id,{damage:0,cuts:[],removed:true});geometryDirty.add(g);rebuild();revision++;return out;},describe(id){const g=groups.get(id);return g?{id:g.id,meshes:g.active.map(e=>e.mesh),strength:g.strength,bounds:g.bounds}:null;},sourceSpan(index){return Number.isInteger(index)&&index>=0&&index<originalMeshes.length?{start:firstIndex[index],length:ownerIds[index]?(renderSlots[index]?.length||0):1}:null;},get meshes(){return meshes;},get meshDelta(){return meshDelta;},get colliders(){return collisionGeometry();},get lights(){return lights;},get revision(){return revision;},isAlive,raycast,
+    return {detach(id){const g=groups.get(id);if(!g||!isAlive(id))return [];const out=g.active.map(e=>e.mesh);states.set(id,{damage:0,cuts:[],removed:true});geometryDirty.add(g);rebuild();revision++;return out;},describe(id){const g=groups.get(id);return g?{id:g.id,meshes:g.active.map(e=>e.mesh),strength:g.strength,bounds:g.bounds}:null;},sourceSpan(index){return Number.isInteger(index)&&index>=0&&index<originalMeshes.length?{start:sourceStart(index),length:ownerIds[index]?(renderSlots[index]?.length||0):1}:null;},get meshes(){return meshes;},get meshDelta(){return meshDelta;},get colliders(){return collisionGeometry();},get lights(){return lights;},get revision(){return revision;},isAlive,raycast,
       hit:(point,power,direction)=>damage(point,.22,power,true,undefined,validPoint(direction)?direction:undefined),blast:(point,radius,power,ignoreId)=>damage(point,radius,power,false,ignoreId),snapshot,restore};
   }
   G.FDestruction={create,fragment};
@@ -3918,13 +3938,27 @@ G.FRenderWebGPU={create,writeUniforms};
     const isLost=h=>{const i=slot(h);return i>0&&(FL[i]&LOST)!==0;};
     // Plain description of a body (tests, debugging; allocates). size = collision size (bounding box of a round body in
     // its frame), realSize = given size; radius and height as given (null for a box, height null for a sphere).
-    function body(h){
+    function body(h){return bodyInto(h);}
+    // Optional caller-owned snapshot storage. No internal typed-array view is
+    // exposed; repeated reads reuse only this output and its six plain vectors.
+    // Callers retaining a pose across another read must keep their own output.
+    function bodyInto(h,out){
       const i=slot(h);if(!i)return null;
-      const p=i*3,v=i*6,f=FL[i],part=(A,k,n)=>Array.from(A.subarray(k,k+n));
-      return {handle:h,shape:SHAPES[SH[i]],size:[2*H[p],2*H[p+1],2*H[p+2]],radius:SH[i]?HR[p]:null,height:SH[i]===2?2*HR[p+1]:null,realSize:[2*HR[p],2*HR[p+1],2*HR[p+2]],
-        pos:part(P,p,3),quat:part(Q,i*4,4),vel:part(V,v,3),ang:part(V,v+3,3),mass:f&KINEMATIC?Infinity:Math.min(Math.max(MO[i],C.massMin),C.massMax),originalMass:MO[i],material:MAT[i],
-        friction:FR[i],restitution:RE[i],group:GRP[i],mask:MSK[i],kinematic:(f&KINEMATIC)!==0,asleep:(f&ASLEEP)!==0,pending:(f&PENDING)!==0,
-        lost:(f&LOST)!==0,hard:(f&HARD)!==0};
+      if(!out)out={};
+      const p=i*3,v=i*6,q=i*4,f=FL[i];
+      // Preserve body()'s property order as well as every numeric value: saved
+      // descriptions and deterministic JSON evidence remain byte-for-byte equal.
+      out.handle=h;out.shape=SHAPES[SH[i]];
+      const size=out.size||(out.size=[0,0,0]);size[0]=2*H[p];size[1]=2*H[p+1];size[2]=2*H[p+2];
+      out.radius=SH[i]?HR[p]:null;out.height=SH[i]===2?2*HR[p+1]:null;
+      const realSize=out.realSize||(out.realSize=[0,0,0]);realSize[0]=2*HR[p];realSize[1]=2*HR[p+1];realSize[2]=2*HR[p+2];
+      const pos=out.pos||(out.pos=[0,0,0]);pos[0]=P[p];pos[1]=P[p+1];pos[2]=P[p+2];
+      const quat=out.quat||(out.quat=[0,0,0,0]);quat[0]=Q[q];quat[1]=Q[q+1];quat[2]=Q[q+2];quat[3]=Q[q+3];
+      const vel=out.vel||(out.vel=[0,0,0]);vel[0]=V[v];vel[1]=V[v+1];vel[2]=V[v+2];
+      const ang=out.ang||(out.ang=[0,0,0]);ang[0]=V[v+3];ang[1]=V[v+4];ang[2]=V[v+5];
+      out.mass=f&KINEMATIC?Infinity:Math.min(Math.max(MO[i],C.massMin),C.massMax);out.originalMass=MO[i];out.material=MAT[i];
+      out.friction=FR[i];out.restitution=RE[i];out.group=GRP[i];out.mask=MSK[i];out.kinematic=(f&KINEMATIC)!==0;out.asleep=(f&ASLEEP)!==0;out.pending=(f&PENDING)!==0;
+      out.lost=(f&LOST)!==0;out.hard=(f&HARD)!==0;return out;
     }
     // Render pose [x, y, z, qx, qy, qz, qw]: PP..P and PQ..Q blended by alpha in [0, 1] (normalised, short arc),
     // raised by SL/2; for a box, the real shape sits on the bottom of its collision box (axis k: H_k > HR_k).
@@ -4554,7 +4588,7 @@ G.FRenderWebGPU={create,writeUniforms};
       return (h>>>0).toString(16).padStart(8,'0');
     }
 
-    const w={config:C,fingerprint:fp,staticsHash:'',stats,phaseMs:PH,setStatics,updateStatics:setStatics,addBody,valid,isAsleep,isLost,body,
+    const w={config:C,fingerprint:fp,staticsHash:'',stats,phaseMs:PH,setStatics,updateStatics:setStatics,addBody,valid,isAsleep,isLost,body,bodyInto,
       impulse,setVelocity,setKinematic,blast,pose,matrix,step,snapshot,restore,hash};
     setStatics([],[]);
     return w;
@@ -17394,7 +17428,7 @@ function create({savedCity=null}={}){
  const inCore=(x,z)=>x>=-550&&x<=550&&z>=-550&&z<=550;
  // Replace complete source silhouettes before collision construction; keep foliage and overhead branches non-solid.
  const vegetation=R.details.prepareVegetation(scenery,city,coreBounds),clearedTrees=vegetation.removed;
- const boxes=[],buckets=new Map(),key=(x,z)=>Math.floor(x/8)+','+Math.floor(z/8),meshBoxes=new WeakMap(),boxIndex=new WeakMap(),taintedBoxes=new Set();let colliderGeneration=0,stagedBoxes=null,colliderSource=null,colliderSourceWorld=null,colliderSlots=null,sceneryDelta=null,sceneryChanges=[],renderMutation=0;
+ const boxes=[],buckets=new Map(),key=(x,z)=>Math.floor(x/8)+','+Math.floor(z/8),meshBoxes=new WeakMap(),boxIndex=new WeakMap(),taintedBoxes=new Set();let colliderGeneration=0,stagedBoxes=null,colliderSource=null,colliderSourceWorld=null,colliderSourceLength=-1,colliderList=null,colliderPositions=null,colliderAligned=false,sceneryDelta=null,sceneryChanges=[],renderMutation=0;
  const boxFields=['x','z','a','b','c','s','cap','minY','maxY','minX','maxX','minZ','maxZ'];
  function cellsForBox(q){const cells=[];for(let z=Math.floor(q.minZ/8);z<=Math.floor(q.maxZ/8);z++)for(let x=Math.floor(q.minX/8);x<=Math.floor(q.maxX/8);x++)cells.push(x+','+z);return cells;}
  function appendBox(q){
@@ -17437,12 +17471,34 @@ function create({savedCity=null}={}){
  const rings=city.eau;
  function inRing(p,x,z){let inside=false;for(let i=0,j=p.length-2;i<p.length;j=i,i+=2){if((p[i+1]>z)!==(p[j+1]>z)&&x<(p[j]-p[i])*(z-p[i+1])/(p[j+1]-p[i+1])+p[i])inside=!inside;}return inside;}
  const water=(x,z)=>inCore(x,z)?rings.some(p=>inRing(p,x,z)):(coast?.water(x,z)??cityStream?.water(x,z)??false);
- function land(x,z,r=0){if(x-r<bounds.minX||x+r>bounds.maxX||z-r<bounds.minZ||z+r>bounds.maxZ)return false;for(const [dx,dz]of [[0,0],[r,0],[-r,0],[0,r],[0,-r]])if(water(x+dx,z+dz))return false;return true;}
+ function land(x,z,r=0){
+  if(x-r<bounds.minX||x+r>bounds.maxX||z-r<bounds.minZ||z+r>bounds.maxZ)return false;
+  if(inCore(x-r,z-r)&&inCore(x+r,z+r)){
+   // The three horizontal probes share the same polygon crossings. Compute
+   // each intersection once, retaining the exact five original point tests.
+   // Read ring vertices live: callers may still edit the geographic data.
+   const left=x-r,right=x+r,back=z-r,front=z+r;
+   for(const p of rings){let mask=0;
+    for(let i=0,j=p.length-2;i<p.length;j=i,i+=2){const zi=p[i+1],zj=p[j+1],xi=p[i],xj=p[j];
+     if((zi>z)!==(zj>z)){const edge=(xj-xi)*(z-zi)/(zj-zi)+xi;if(x<edge)mask^=1;if(right<edge)mask^=2;if(left<edge)mask^=4;}
+     if((zi>front)!==(zj>front)&&x<(xj-xi)*(front-zi)/(zj-zi)+xi)mask^=8;
+     if((zi>back)!==(zj>back)&&x<(xj-xi)*(back-zi)/(zj-zi)+xi)mask^=16;
+    }if(mask)return false;
+   }return true;
+  }
+  return !water(x,z)&&!water(x+r,z)&&!water(x-r,z)&&!water(x,z+r)&&!water(x,z-r);
+ }
  function candidates(x,z,r){const set=new Set();for(let j=Math.floor((z-r)/8);j<=Math.floor((z+r)/8);j++)for(let i=Math.floor((x-r)/8);i<=Math.floor((x+r)/8);i++)for(const q of buckets.get(i+','+j)||[])set.add(q);if(!inCore(x-r,z-r)||!inCore(x+r,z+r))for(const q of cityStream?.candidates(x,z,r)||[])set.add(q);return set;}
  function disk(q,x,z,r){const dx=x-q.x,dz=z-q.z,u=dx*q.c+dz*q.s,v=-dx*q.s+dz*q.c;return (u-clamp(u,-q.a,q.a))**2+(v-clamp(v,-q.b,q.b))**2<r*r;}
  let vehicle=null,ignoreVehicle=false,actor=null,actorSeated=false,weather=null,room=null,dynamicBodies=[];const fleet=[];
  const roomRegion=(x,z)=>room&&Math.abs(x-1000)<room.w/2+4&&Math.abs(z-1000)<room.d/2+4;
  const ground=(x=0,z=0)=>(roomRegion(x,z)||inCore(x,z)) ? .08 :(landmarks?.groundHeight(x,z)??coast?.heightAt(x,z)??.08);
+ function vehicleMayReach(c,x,z,r){
+  // Conservative under any yaw, with room for boundary rounding. Unknown
+  // numerical inputs fall through to the original exact collision routines.
+  const spec=R.vehicles.SPECS[c.model],reach=(Math.abs(spec.length)+Math.abs(spec.width))*.5+Math.abs(r),pad=(Math.abs(c.x)+Math.abs(c.z)+Math.abs(x)+Math.abs(z)+reach+1)*Number.EPSILON*8;
+  return !(Math.abs(c.x-x)>reach+pad||Math.abs(c.z-z)>reach+pad);
+ }
  function staticBlocked(x,z,r=.28,y=ground(x,z),height=1.8){
   if(roomRegion(x,z))return room.blocked(x,z,r,y,height);
   if(!land(x,z,r))return true;const core=inCore(x-r,z-r)&&inCore(x+r,z+r);if(!core&&cityStream?.blocked?.(x,z,r,y,height))return true;
@@ -17451,7 +17507,12 @@ function create({savedCity=null}={}){
   const ix0=Math.floor((x-r)/8),ix1=Math.floor((x+r)/8),iz0=Math.floor((z-r)/8),iz1=Math.floor((z+r)/8);
   const local=core&&ix0===ix1&&iz0===iz1,nearby=local?buckets.get(ix0+','+iz0):candidates(x,z,r);
   if(nearby)for(const q of nearby)if(q.maxY>y+.22&&q.minY<y+height&&disk(q,x,z,r))return true;
-  if(!ignoreVehicle)for(const c of fleet){const q=carBox(c,carBounds);if(q.maxY>y+.22&&q.minY<y+height&&disk(q,x,z,r))return true;}return false;
+  if(!ignoreVehicle)for(const c of fleet){
+   // A yawed rectangle fits within this conservative L1 radius. Reject far
+   // vehicles before refreshing their full OBB; live poses/specs remain valid.
+   if(!vehicleMayReach(c,x,z,r))continue;
+   const q=carBox(c,carBounds);if(q.maxY>y+.22&&q.minY<y+height&&disk(q,x,z,r))return true;
+  }return false;
  }
  const clearance=R.clearance.create({bodies:()=>dynamicBodies,staticBlocked});
  const blocked=(x,z,r=.28,y=ground(x,z),height=1.8)=>clearance.blocked(x,z,r,y,height);
@@ -17474,7 +17535,7 @@ function create({savedCity=null}={}){
  function carContact(c){
   const a=carBox(c);
   if(c.ai&&actor&&!actorSeated&&actor.y<a.maxY&&actor.y+1.8>a.minY&&disk(a,actor.x,actor.z,.36)){const dx=c.x-actor.x,dz=c.z-actor.z,d=Math.hypot(dx,dz)||1;return {nx:dx/d,nz:dz/d,depth:.05};}
-  for(const other of fleet)if(other!==c){const h=overlap(a,carBox(other));if(h)return h;}
+  for(const other of fleet)if(other!==c&&vehicleMayReach(other,a.x,a.z,Math.abs(a.a)+Math.abs(a.b))){const q=carBox(other,carBounds),h=overlap(a,q);if(h){h.obstacle={...q};return h;}}
   for(const q of dynamicBodies){const h=overlap(a,q);if(h)return h;}
   for(const q of candidates(c.x,c.z,3.6)){const h=overlap(a,q);if(h)return h;}
   for(const u of [-a.a,0,a.a])for(const v of [-a.b,a.b])if(!land(c.x+u*a.c-v*a.s,c.z+u*a.s+v*a.c,.08))return {nx:-Math.cos(c.cap)*(c.u>=0?1:-1),nz:-Math.sin(c.cap)*(c.u>=0?1:-1),depth:.1};
@@ -17510,36 +17571,62 @@ function create({savedCity=null}={}){
  // keep their geometry. Generic replaceScenery calls always validate all fields.
  // Cache construction happens during loading, without replacing active colliders.
  function prepareSceneryDelta(value){
-  colliderGeneration++;const slots=new Array(value.length),staged=[];stagedBoxes=staged;
-  try{for(let i=0;i<value.length;i++){const at=staged.length,m=value[i];if(m.collision)fromMesh(m);slots[i]=staged.length>at?staged[at]:null;}}
+  colliderGeneration++;const positions=[],staged=[];stagedBoxes=staged;
+  try{for(let i=0;i<value.length;i++){const at=staged.length,m=value[i];if(m.collision)fromMesh(m);if(staged.length>at)positions.push(i);}}
   finally{stagedBoxes=null;}
   // Rebind only an identical occurrence sequence; active collisions stay intact.
   if(value.length===scenery.length&&value.every((m,i)=>m===scenery[i]))scenery=value;
-  colliderSource=value;colliderSourceWorld=scenery;colliderSlots=slots;
+  colliderSource=value;colliderSourceWorld=scenery;colliderSourceLength=value.length;colliderList=staged;colliderPositions=positions;
+  colliderAligned=staged.length<=boxes.length&&staged.every((q,i)=>q===boxes[i]);
  }
- function patchedColliderSlots(value,delta){
-  if(!delta||delta.full||taintedBoxes.size||colliderSlots?.length!==delta.before?.length||delta.before!==colliderSource||delta.after!==value||colliderSourceWorld!==scenery||!colliderSlots||!Array.isArray(delta.splices))return null;
+ function patchedColliders(value,delta){
+  if(!delta||delta.full||taintedBoxes.size||!colliderAligned||delta.before!==colliderSource||delta.before?.length!==colliderSourceLength||delta.after!==value||colliderSourceWorld!==scenery||!colliderList||!Array.isArray(delta.splices))return null;
   let end=0,length=colliderSource.length,offset=0;
   for(const q of delta.splices){if(!q||!Number.isInteger(q.start)||!Number.isInteger(q.deleteCount)||q.start<end||q.deleteCount<0||q.start+q.deleteCount>colliderSource.length||!Array.isArray(q.items))return null;
    for(let i=0;i<q.items.length;i++)if(q.items[i]!==value[q.start+offset+i])return null;
    end=q.start+q.deleteCount;offset+=q.items.length-q.deleteCount;length+=q.items.length-q.deleteCount;
   }if(length!==value.length)return null;
-  // Array copies retain occurrence order, including duplicate mesh references.
-  const slots=new Array(length);let read=0,write=0;const staged=[];stagedBoxes=staged;
-  try{for(const q of delta.splices){while(read<q.start)slots[write++]=colliderSlots[read++];read+=q.deleteCount;
-    for(const m of q.items){const at=staged.length;if(m.collision)fromMesh(m,true);slots[write++]=staged.length>at?staged[at]:null;}
-   }while(read<colliderSlots.length)slots[write++]=colliderSlots[read++];}
-  finally{stagedBoxes=null;}
-  return slots;
+  // Index only solid occurrences. Most city meshes have no collider; retaining
+  // them must not require copying and filtering a city-sized null-slot array.
+  const lowerBound=position=>{let lo=0,hi=colliderPositions.length;while(lo<hi){const mid=(lo+hi)>>>1;if(colliderPositions[mid]<position)lo=mid+1;else hi=mid;}return lo;};
+  const parts=[],positions=[],removed=[],added=[];let read=0;offset=0;
+  const retain=to=>{if(to>read)parts.push(colliderList.slice(read,to));while(read<to)positions.push(colliderPositions[read++]+offset);};
+  try{for(const q of delta.splices){
+    const from=lowerBound(q.start),to=lowerBound(q.start+q.deleteCount);retain(from);
+    while(read<to)removed.push(colliderList[read++]);
+    const inserted=[];stagedBoxes=inserted;
+    for(let i=0;i<q.items.length;i++){const at=inserted.length,m=q.items[i];if(m.collision)fromMesh(m,true);if(inserted.length>at)positions.push(q.start+offset+i);}
+    if(inserted.length){parts.push(inserted);for(const box of inserted)added.push(box);}offset+=q.items.length-q.deleteCount;
+   }retain(colliderList.length);
+  }finally{stagedBoxes=null;}
+  // Standalone bridge/public colliders follow the scenery prefix. Replacement
+  // always removes them, even when the producer's mesh delta is empty.
+  for(let i=colliderList.length;i<boxes.length;i++)removed.push(boxes[i]);
+  let next;if(parts.length<4096)next=[].concat(...parts);else{next=[];for(const part of parts)for(const q of part)next.push(q);}
+  return {next,positions,removed,added};
+ }
+ function publishColliderPatch(patch){
+  const dirty=new Set(),insertions=new Map();
+  for(const q of patch.removed){const index=boxIndex.get(q);index.active=false;for(const cell of index.cells)dirty.add(cell);}
+  for(const q of patch.added){const cells=cellsForBox(q);boxIndex.set(q,{active:true,cells,order:0,seen:colliderGeneration,nextOrder:0});for(const cell of cells){dirty.add(cell);let list=insertions.get(cell);if(!list){list=[];insertions.set(cell,list);}list.push(q);}}
+  // Integer order remains exact, including coincident contacts and duplicated
+  // source meshes. One compact pass replaces several full-scene/index scans.
+  boxes.length=patch.next.length;for(let i=0;i<patch.next.length;i++){const q=patch.next[i],index=boxIndex.get(q);index.active=true;index.order=i;boxes[i]=q;}
+  for(const cell of dirty){const list=buckets.get(cell)||[];let at=0;
+   for(let i=0,n=list.length;i<n;i++){const q=list[i];if(boxIndex.get(q).active)list[at++]=q;}list.length=at;
+   const added=insertions.get(cell);if(added){for(const q of added)list.push(q);list.sort((a,b)=>boxIndex.get(a).order-boxIndex.get(b).order);}
+   if(list.length)buckets.set(cell,list);else buckets.delete(cell);
+  }
  }
  function replaceScenery(value,options){
-  colliderGeneration++;const next=[];let slots=patchedColliderSlots(value,options?.meshDelta);
-  sceneryDelta=slots?options.meshDelta:null;
+  colliderGeneration++;const patch=patchedColliders(value,options?.meshDelta);let next,positions;
+  sceneryDelta=patch?options.meshDelta:null;
   if(sceneryDelta&&(!sceneryChanges.length||sceneryChanges.at(-1).after===sceneryDelta.before)&&sceneryChanges.length<16)sceneryChanges.push(sceneryDelta);else sceneryChanges=sceneryDelta?[sceneryDelta]:[];
-  if(slots){for(const q of slots)if(q)next.push(q);}else{
-   slots=new Array(value.length);stagedBoxes=next;try{for(let i=0;i<value.length;i++){const at=next.length,m=value[i];if(m.collision)fromMesh(m);slots[i]=next.length>at?next[at]:null;}}finally{stagedBoxes=null;}
+  if(patch){next=patch.next;positions=patch.positions;}else{
+   next=[];positions=[];stagedBoxes=next;try{for(let i=0;i<value.length;i++){const at=next.length,m=value[i];if(m.collision)fromMesh(m);if(next.length>at)positions.push(i);}}finally{stagedBoxes=null;}
   }
-  scenery=value;colliderSource=value;colliderSourceWorld=value;colliderSlots=slots;
+  scenery=value;colliderSource=value;colliderSourceWorld=value;colliderSourceLength=value.length;colliderList=next;colliderPositions=positions;colliderAligned=true;
+  if(patch){publishColliderPatch(patch);return;}
   if(!taintedBoxes.size&&next.length===boxes.length&&next.every((q,i)=>q===boxes[i]))return;
   const dirty=new Set(),added=new Map();let previousOrder=-1,reordered=false;
   for(let i=0;i<next.length;i++){const q=next[i];let index=boxIndex.get(q);if(!index){index={active:false,cells:[],order:0,seen:-1,nextOrder:0};boxIndex.set(q,index);}
@@ -17608,11 +17695,17 @@ function create(world,n=480,{hurt=()=>{},notify=()=>{},allowAggression=false}={}
   people.push({hp:100,x:nav.centreX(cell)/1000,z:nav.centreZ(cell)/1000,cap:0,goal:i%goals.length,speed:.85+random()*.6,panic:0,fear:0,temperament:temperament(10000+i),hostility:0,aggression:0,encounter:0,provocationCooldown:8+(i%13),blocked:0,moveSpeed:0,walkDistance:0,gait:{phase:i*.618,amount:0},threat:null,turnWait:0,escapeX:0,escapeZ:0});
  }
  let tick=0,avoids=0;const angles=[0,.58,-.58,1.16,-1.16,1.8,-1.8,Math.PI];
+ const turns=[-1,1].map(sign=>angles.map(a=>[Math.cos(a*sign),Math.sin(a*sign)])),noiseNames=['shot','enemyShot','explosion','vehicleExplosion'];
+ // Scratch belongs to a single invocation. A callback can re-enter update;
+ // its own depth slot must not overwrite the outer call's traffic or hash.
+ let updateDepth=0;const scratch=[];
+ function workAt(depth){return scratch[depth]||(scratch[depth]={moving:[],selected:[],vehicles:[],noises:[],hash:new Map(),rows:[],buckets:[]});}
+ function move(p,dx,dz){if(!world.blocked(p.x+dx,p.z,.24))p.x+=dx;if(!world.blocked(p.x,p.z+dz,.24))p.z+=dz;}
  function route(p,vx,vz,i){
   const d=Math.hypot(vx,vz);if(d<.001)return [0,0];vx/=d;vz/=d;
   let best=-Infinity,bx=0,bz=0;
   for(let k=0;k<angles.length;k++){
-   const a=angles[k]*(i%2?1:-1),c=Math.cos(a),s=Math.sin(a),x=vx*c-vz*s,z=vx*s+vz*c;
+   const turn=turns[i%2][k],c=turn[0],s=turn[1],x=vx*c-vz*s,z=vx*s+vz*c;
    const tx=p.x+x*1.35,tz=p.z+z*1.35,cell=nav.caseDe(tx*1000,tz*1000);
    if(cell<0||cell>=nav.n||!nav.libre[cell]||world.blocked(p.x+x*.6,p.z+z*.6,.27)||world.blocked(tx,tz,.27))continue;
    const score=x*vx+z*vz+(x*p.escapeX+z*p.escapeZ)*.16;
@@ -17622,10 +17715,14 @@ function create(world,n=480,{hurt=()=>{},notify=()=>{},allowAggression=false}={}
  }
  function update(dt,events=[]){
   dt=Number.isFinite(dt)?Math.max(0,Math.min(.2,dt)):0;tick++;
-  const moving=world.fleet.filter(c=>!c.hidden&&c.v>.3).map(c=>({x:c.x,z:c.z,cc:Math.cos(c.cap),ss:Math.sin(c.cap),direction:c.u<0?-1:1,speed:c.v}));
-  let aggressors=people.filter(p=>p.hp>0&&p.aggression>0).length;
-  const noises=events.filter(e=>['shot','enemyShot','explosion','vehicleExplosion'].includes(e.name)&&Number.isFinite(e.x)&&Number.isFinite(e.z));
-  const hash=new Map();for(let i=0;i<n;i++){const p=people[i];if(p.hp<=0)continue;const key=Math.floor(p.x/2)+','+Math.floor(p.z/2);if(!hash.has(key))hash.set(key,[]);hash.get(key).push(i);}
+  const work=workAt(updateDepth++);try{
+  const {moving,selected,vehicles,noises,hash,rows,buckets}=work;moving.length=selected.length=0;
+  const fleet=world.fleet;for(let i=0,length=fleet.length;i<length;i++){if(!(i in fleet))continue;const c=fleet[i];if(!c.hidden&&c.v>.3)selected.push(c);}
+  for(const c of selected){const index=moving.length,q=vehicles[index]||(vehicles[index]={});q.x=c.x;q.z=c.z;q.cc=Math.cos(c.cap);q.ss=Math.sin(c.cap);q.direction=c.u<0?-1:1;q.speed=c.v;moving.push(q);}
+  let aggressors=0;for(const p of people)if(p.hp>0&&p.aggression>0)aggressors++;
+  noises.length=0;for(let i=0,length=events.length;i<length;i++){if(!(i in events))continue;const e=events[i];if(noiseNames.includes(e.name)&&Number.isFinite(e.x)&&Number.isFinite(e.z))noises.push(e);}
+  hash.clear();let rowCount=0,bucketCount=0;
+  for(let i=0;i<n;i++){const p=people[i];if(p.hp<=0)continue;const hx=Math.floor(p.x/2),hz=Math.floor(p.z/2);let row=hash.get(hz);if(!row){row=rows[rowCount]||(rows[rowCount]=new Map());rowCount++;row.clear();hash.set(hz,row);}let bucket=row.get(hx);if(!bucket){bucket=buckets[bucketCount]||(buckets[bucketCount]=[]);bucketCount++;bucket.length=0;row.set(hx,bucket);}bucket.push(i);}
   for(let i=0;i<n;i++){
    const p=people[i];if(p.hp<=0){p.moveSpeed=0;packed[i*4]=p.x;packed[i*4+1]=p.z;packed[i*4+2]=p.cap;packed[i*4+3]=PDR.regles.coder(3,i%10,0,0,0);continue;}
    const cell=nav.caseDe(p.x*1000,p.z*1000),field=nav.champs[p.goal],code=cell>=0&&cell<nav.n&&field?field.dir[cell]:PDR.nav.AUCUN;
@@ -17668,10 +17765,9 @@ function create(world,n=480,{hurt=()=>{},notify=()=>{},allowAggression=false}={}
     vx=p.escapeX;vz=p.escapeZ;
    }else{p.threat=null;if(p.blocked>.25){const direction=route(p,vx||Math.sin(p.cap),vz||Math.cos(p.cap),i);vx=direction[0];vz=direction[1];}}
    const hx=Math.floor(p.x/2),hz=Math.floor(p.z/2);
-   for(let zz=-1;zz<=1;zz++)for(let xx=-1;xx<=1;xx++)for(const j of hash.get((hx+xx)+','+(hz+zz))||[]){if(j===i)continue;const q=people[j],a=p.x-q.x,b=p.z-q.z,d=Math.hypot(a,b);if(d>.001&&d<.78){vx+=a/d*(.78-d)*2;vz+=b/d*(.78-d)*2;}}
+   for(let zz=-1;zz<=1;zz++){const row=hash.get(hz+zz);if(!row)continue;for(let xx=-1;xx<=1;xx++){const bucket=row.get(hx+xx);if(!bucket)continue;for(const j of bucket){if(j===i)continue;const q=people[j],a=p.x-q.x,b=p.z-q.z,d=Math.hypot(a,b);if(d>.001&&d<.78){vx+=a/d*(.78-d)*2;vz+=b/d*(.78-d)*2;}}}}
    const length=Math.hypot(vx,vz),speed=p.injury?.leg?.35:p.panic?3.1:pursuing?2.25:p.speed,scale=length>.001?speed*dt/Math.max(1,length):0,dx2=vx*scale,dz2=vz*scale,ox=p.x,oz=p.z;
-   const move=()=>{if(!world.blocked(p.x+dx2,p.z,.24))p.x+=dx2;if(!world.blocked(p.x,p.z+dz2,.24))p.z+=dz2;};
-   if(world.blocked(p.x,p.z,.24))world.withoutCar(move);else move();
+   if(world.blocked(p.x,p.z,.24))world.withoutCar(()=>move(p,dx2,dz2));else move(p,dx2,dz2);
    const moved=Math.hypot(p.x-ox,p.z-oz);p.moveSpeed=dt?moved/dt:0;p.walkDistance+=moved;p.blocked=moved<.002?p.blocked+dt:0;
    const gait=p.gait,previousPhase=gait.phase,previousAmount=gait.amount;R.people.advanceGait(gait,moved,p.moveSpeed,dt);locomotion[i*4]=previousPhase;locomotion[i*4+1]=gait.phase;locomotion[i*4+2]=previousAmount;locomotion[i*4+3]=gait.amount;
    if(p.blocked>.4)p.turnWait=0;
@@ -17679,6 +17775,7 @@ function create(world,n=480,{hurt=()=>{},notify=()=>{},allowAggression=false}={}
    if(moved>.001){const target=Math.atan2(p.x-ox,p.z-oz),delta=Math.atan2(Math.sin(target-p.cap),Math.cos(target-p.cap));p.cap+=Math.max(-dt*9,Math.min(dt*9,delta));}
    packed[i*4]=p.x;packed[i*4+1]=p.z;packed[i*4+2]=p.cap;packed[i*4+3]=PDR.regles.coder(p.injury||p.aggression>0?3:i%3,i%10,moved>.001?(p.panic?8:1):0,63,0);
   }
+  }finally{updateDepth--;}
  }
  update(0);return {people,packed,locomotion,nav,update,get avoids(){return avoids;},n,get version(){return tick;}};
 }R.crowd={create,temperament};})(globalThis.RADE=globalThis.RADE||{});
@@ -19166,7 +19263,7 @@ function subtract(a,b){const lo=a.lo.map((n,i)=>Math.max(n,b.lo[i])),hi=a.hi.map
 }
 function create(world,interiors,baseMeshes,{saved=[],legacyDamage=null,onProject=()=>{}}={}){
  const openings=new Map(),indices=new WeakMap();let uniqueSources=true;for(let i=0;i<baseMeshes.length;i++){if(indices.has(baseMeshes[i]))uniqueSources=false;indices.set(baseMeshes[i],i);}let selected=[],lights=[],lastX=Infinity,lastZ=Infinity,elapsed=1,revision=-1,selectionKey='',dirty=false,controller=null;const shellCache=new WeakMap();
- let openingRevision=0,exteriorController=null,exteriorSource=null,exteriorOpeningRevision=-1,exteriorMeshes=null,combinedMeshes=null,combinedPrefix=null,deltaGeneration=0;
+ let openingRevision=0,exteriorController=null,exteriorSource=null,exteriorOpeningRevision=-1,exteriorMeshes=null,exteriorCuts=null,combinedMeshes=null,combinedPrefix=null,deltaGeneration=0;
  function register(sourceId,point,floor){const match=/^piece-(\d+)$/.exec(sourceId||''),index=match?Number(match[1]):-1,mesh=baseMeshes[index];if(!mesh||!validPoint(point)||!interiors?.breachFootprint)return false;const found=interiors.breachFootprint(mesh);if(!found)return false;const base=mesh.p[1]-mesh.s[1]/2;
   floor=Number.isInteger(floor)?floor:Math.floor(Math.max(0,point[1]-base)/3.1);if(floor<0||floor>=found.building.floors||base+(floor+1)*3.1>mesh.p[1]+mesh.s[1]/2+.2)return false;const id=sourceId+':'+floor;if(openings.has(id)||openings.size>=256)return false;
   openings.set(id,{id,sourceId,index,point:point.slice(),floor,buildingId:found.building.id,footprint:found.q});openingRevision++;dirty=true;return true;
@@ -19182,27 +19279,52 @@ function create(world,interiors,baseMeshes,{saved=[],legacyDamage=null,onProject
   const records=[...openings.values()].filter(o=>!controller||controller.isAlive(o.sourceId)).map(o=>({o,d:Math.hypot(o.point[0]-x,o.point[2]-z)})).filter(q=>q.d<=80).sort((a,b)=>a.d-b.d||a.o.id.localeCompare(b.o.id)).slice(0,8),key=records.map(q=>q.o.id).sort().join('|');if(key===selectionKey)return false;
   selectionKey=key;selected=records.map(({o})=>interiors.breachProjection({mesh:baseMeshes[o.index],point:o.point,buildingId:o.buildingId,floor:o.floor})).filter(Boolean);for(const bridge of selected)onProject(bridge);dirty=true;return true;
  }
+ // Refine only proposed local replacements. Equal fragments remain retained
+ // occurrences, so downstream collision/render deltas never reinsert them.
+ function localDelta(before,after,splices){
+  const refined=[];for(const q of splices){if(!q.deleteCount&&!q.items.length)continue;
+   if(R.world?.diffScenery){const d=R.world.diffScenery(before.slice(q.start,q.start+q.deleteCount),q.items);for(const r of d.splices)refined.push({...r,start:q.start+r.start});}
+   else refined.push(q);
+  }return {before,after,generation:deltaGeneration,full:false,splices:refined};
+ }
  function rebuild(dc){controller=dc;if(!dc)return false;
   // Without a cutaway interior, the destruction output is already the exact
   // visible street. Keep its array identity so world can apply the local delta.
   if(!openings.size&&!selected.length){lights=[];deltaGeneration=Math.max(deltaGeneration,dc.meshDelta?.generation||0);world.replaceScenery(dc.meshes,{meshDelta:dc.meshDelta});revision=dc.revision;dirty=false;return true;}
+  let prefixDelta=null;
   // Damage inside a projected room does not change the street controller or
   // its openings. Reuse that exact exterior instead of scanning the city once
   // again for every room touched by the same explosion.
   if(exteriorController!==dc||exteriorSource!==dc.meshes||exteriorOpeningRevision!==openingRevision){
-   const groups=new Map();for(const o of openings.values()){if(!groups.has(o.index))groups.set(o.index,[]);groups.get(o.index).push(o);}const exterior=[],source=dc.meshes,spans=[];
+   const groups=new Map();for(const o of openings.values()){if(!groups.has(o.index))groups.set(o.index,[]);groups.get(o.index).push(o);}const source=dc.meshes,spans=[];
    let spanMode=uniqueSources&&typeof dc.sourceSpan==='function';
    if(spanMode){for(const index of groups.keys()){const q=dc.sourceSpan(index);if(!q||!Number.isInteger(q.start)||!Number.isInteger(q.length)||q.start<0||q.length<0||q.start+q.length>source.length){spanMode=false;break;}if(q.length)spans.push(q);}spans.sort((a,b)=>a.start-b.start);for(let i=1;i<spans.length;i++)if(spans[i].start<spans[i-1].start+spans[i-1].length)spanMode=false;}
-   const transform=m=>{const index=indices.get(m)??Number(/^piece-(\d+)$/.exec(m.destructibleId||'')?.[1]),records=groups.get(index);if(records&&m.shape==='box')exterior.push(...hollow(m,records));else exterior.push(m);};
-   if(spanMode){let at=0;for(const q of spans){while(at<q.start)exterior.push(source[at++]);const end=q.start+q.length;while(at<end)transform(source[at++]);}while(at<source.length)exterior.push(source[at++]);}
-   else for(const m of source)transform(m);
-   exteriorController=dc;exteriorSource=dc.meshes;exteriorOpeningRevision=openingRevision;exteriorMeshes=exterior;
+   const transform=(m,out)=>{const index=indices.get(m)??Number(/^piece-(\d+)$/.exec(m.destructibleId||'')?.[1]),records=groups.get(index);if(records&&m.shape==='box')out.push(...hollow(m,records));else out.push(m);};
+   let exterior,cuts=null;
+   if(spanMode){
+    // Native copies preserve every untouched occurrence; only open building
+    // slots execute the shell transformation. No whole-city JS push loop.
+    const parts=[];cuts=[];let at=0;
+    for(const q of spans){if(q.start>at)parts.push(source.slice(at,q.start));const items=[],end=q.start+q.length;for(let i=q.start;i<end;i++)transform(source[i],items);parts.push(items);cuts.push({start:q.start,deleteCount:q.length,items});at=end;}
+    if(at<source.length)parts.push(source.slice(at));exterior=[].concat(...parts);
+    // Rebase the existing exterior through the controller's exact edit log.
+    // Undo/redo spans are small; composition never visits retained city meshes.
+    const change=exteriorSource===source?{before:source,after:source,full:false,splices:[]}:dc.meshDelta;
+    if(exteriorController===dc&&exteriorCuts&&change&&!change.full&&change.before===exteriorSource&&change.after===source&&R.world?.composeSceneDeltas){
+     let offset=0;const undo=[];for(const q of exteriorCuts){undo.push({start:q.start+offset,deleteCount:q.items.length,items:exteriorSource.slice(q.start,q.start+q.deleteCount)});offset+=q.items.length-q.deleteCount;}
+     const composed=R.world.composeSceneDeltas(exteriorMeshes,[{before:exteriorMeshes,after:exteriorSource,full:false,splices:undo},change,{before:source,after:exterior,full:false,splices:cuts}]);
+     if(composed)prefixDelta=localDelta(exteriorMeshes,exterior,composed.splices);
+    }
+   }else{exterior=[];for(const m of source)transform(m,exterior);}
+   exteriorController=dc;exteriorSource=source;exteriorOpeningRevision=openingRevision;exteriorMeshes=exterior;exteriorCuts=cuts;
   }
-  const meshes=exteriorMeshes.slice(),suffix=[];lights=[];
-  for(const bridge of selected){bridge.refresh();meshes.push(...bridge.scenery);suffix.push(...bridge.scenery);lights.push(...bridge.lights);}
-  let meshDelta=null;deltaGeneration++;
-  if(combinedMeshes&&combinedPrefix===exteriorMeshes){const start=exteriorMeshes.length,removed=combinedMeshes.slice(start);meshDelta={before:combinedMeshes,after:meshes,generation:deltaGeneration,full:false,splices:removed.length||suffix.length?[{start,deleteCount:removed.length,items:suffix}]:[],removed,added:suffix};}
-  else if(R.world?.diffScenery)meshDelta=R.world.diffScenery(world.scenery,meshes);
+  const suffix=[];lights=[];
+  for(const bridge of selected){bridge.refresh();suffix.push(...bridge.scenery);lights.push(...bridge.lights);}
+  const meshes=exteriorMeshes.concat(suffix);let meshDelta=null;deltaGeneration++;
+  if(combinedMeshes&&world.scenery===combinedMeshes&&(combinedPrefix===exteriorMeshes||prefixDelta?.before===combinedPrefix)){
+   const start=combinedPrefix.length,splices=prefixDelta?prefixDelta.splices.slice():[];
+   splices.push({start,deleteCount:combinedMeshes.length-start,items:suffix});meshDelta=localDelta(combinedMeshes,meshes,splices);
+  }else if(R.world?.diffScenery)meshDelta=R.world.diffScenery(world.scenery,meshes);
   world.replaceScenery(meshes,meshDelta?{meshDelta}:undefined);combinedMeshes=meshes;combinedPrefix=exteriorMeshes;
   for(const bridge of selected)for(const collider of bridge.colliders)world.addBox({...collider});revision=dc.revision;dirty=false;return true;
  }
@@ -19235,6 +19357,10 @@ function create(world,sim,{saved=null,interiors,campaign,traffic,notify=()=>{}}=
  const baseMeshes=world.scenery.slice(),baseBoxes=world.boxes.slice(),physicsOptions={cell:8,ground:null,gravity:-9.81,capacity:256,maxStatics:8192,maxContacts:4096,maxAwake:96,maxJoints:0,massMin:.035,massMax:12000,iterations:4,maxSubsteps:4},engines=new Map(),ZONE=1024,PADDING=128,MAX_ZONES=24;
  const projectedRooms=new Map(),breaches=R.breaches?.create(world,interiors,baseMeshes,{saved:saved?.openings,legacyDamage:saved?.damage,onProject:prepareProjected});
  let projectionMembers=null,projectionRoom=null,projectedSyncDepth=0,projectedSyncPending=false;
+ // Transient reads never escape this owner. Render/collider poses copy their
+ // position; persistence and engine migration still request independent bodies.
+ const bodyRead={};
+ const readBody=q=>q.engine.bodyInto(q.handle,bodyRead);
  const publishBodies=value=>{if(world.publishBodies)world.publishBodies(value);else world.dynamicBodies=value;};
  const currentScene=()=>world.room?(world.room.sceneId||world.room.building.id+':'+world.room.floor):'street';
  const sceneGround=(scene,x,z)=>scene==='street'?world.ground(x,z):.08,fireHeight=f=>{const c=f.vehicleId!==undefined?world.fleet.find(c=>c.id===f.vehicleId):null;return c?(c.y??world.ground(c.x,c.z)):sceneGround(f.scene,f.x,f.z);};
@@ -19259,7 +19385,7 @@ function create(world,sim,{saved=null,interiors,campaign,traffic,notify=()=>{}}=
  }
  function migrateBodies(){
   const rebuild=new Set();
-  for(let i=bodies.length-1;i>=0;i--){const q=bodies[i],b=q.engine.body(q.handle);if(!b||b.lost){if(held===q)held=null;for(const record of engines.values())if(record.engine===q.engine)rebuild.add(record);bodies.splice(i,1);continue;}
+  for(let i=bodies.length-1;i>=0;i--){const q=bodies[i],b=readBody(q);if(!b||b.lost){if(held===q)held=null;for(const record of engines.values())if(record.engine===q.engine)rebuild.add(record);bodies.splice(i,1);continue;}
    if(q.scene!=='street')continue;const record=[...engines.values()].find(r=>r.engine===q.engine),bounds=record?.bounds;if(!bounds)continue;
    if(b.pos[0]>bounds.minX+48&&b.pos[0]<bounds.maxX-48&&b.pos[2]>bounds.minZ+48&&b.pos[2]<bounds.maxZ-48)continue;
    const next=physicsFor(q.scene,b.pos,q.engine);
@@ -19277,7 +19403,7 @@ function create(world,sim,{saved=null,interiors,campaign,traffic,notify=()=>{}}=
  function sync(dc){if(dc===outdoor){if(breaches)breaches.sync(dc,world.room?interiors?.outside:p);else world.replaceScenery(dc.meshes,{meshDelta:dc.meshDelta});}else{if(dc===indoor&&world.room)applyRoom(dc,world.room);for(const record of projectedRooms.values())if(record.dc===dc)for(const room of record.rooms){applyRoom(dc,room);breaches?.roomChanged(room);}if(!world.room&&outdoor&&breaches){if(projectedSyncDepth)projectedSyncPending=true;else breaches.update(1,p);}}version++;staticClock=0;}
  function exposedDamage(bridge,point,power,radius,direction){const dc=prepareProjected(bridge),local=bridge.toRoom(point),end=direction?bridge.toRoom(point.map((v,i)=>v+direction[i])):null,delta=end?.map((v,i)=>v-local[i]),length=delta?Math.hypot(...delta):1,result=radius>0?dc.blast(local,radius/Math.min(...bridge.scale),power):dc.hit(local,power,delta?.map(v=>v/(length||1)));if(result.changed)sync(dc);structuralDebris(result.debris,bridge.room.sceneId);return {...result,debris:[],events:result.events.map(e=>{const at=bridge.toWorld([e.x,e.y,e.z]);return {...e,x:at[0],y:at[1],z:at[2],sourceRoom:bridge.room.sceneId};})};}
 
- function bodyMesh(q){const b=q.engine.body(q.handle);if(!b||b.lost)return null;const r=FPhysics.quatToEuler(...b.quat);return {...q.mesh,p:b.pos,r,material:q.material,mass:q.mass};}
+ function bodyMesh(q){const b=readBody(q);if(!b||b.lost)return null;const r=FPhysics.quatToEuler(...b.quat);return {...q.mesh,p:b.pos.slice(),r,material:q.material,mass:q.mass};}
  function spawnBody(mesh,velocity=[0,0,0],spin=[.3,.1,.2],mass=describe(mesh).mass,scene=currentScene()){if(bodies.length>=240)return null;const engine=physicsFor(scene,mesh.p);if(!engine)return null;const h=addToEngine(engine,mesh,mass,velocity,spin);if(h<0)return null;const q={handle:h,engine,mesh:{...mesh,collision:false},mass,material:material(mesh),scene};if(!bodies.length)physicsClock=0;bodies.push(q);staticClock=0;return q;}
  function addDust(scene,pos,size,volume=0){
   if(!(volume>0))return;report.crumbleVolume+=volume;
@@ -19320,7 +19446,7 @@ function create(world,sim,{saved=null,interiors,campaign,traffic,notify=()=>{}}=
   let y=ground;
   for(const q of world.dynamicBodies){
    if(q.maxY<=y||q.minY>previous+maxRise||Math.abs(x-q.x)>q.a+r||Math.abs(z-q.z)>q.b+r)continue;
-   const body=q.body,b=body?.engine.body(body.handle);if(!b||b.lost||Math.hypot(...b.vel)>.35||Math.hypot(...b.ang)>.5)continue;
+   const body=q.body,b=body?readBody(body):null;if(!b||b.lost||Math.hypot(...b.vel)>.35||Math.hypot(...b.ang)>.5)continue;
    const m=q.mesh,axes=BITUME.voiture.euler(...m.r),half=m.s.map(v=>v/2);
    for(let sample=0;sample<17;sample++){
     const a=(sample-1)*Math.PI/8,px=x+(sample?Math.cos(a)*(r+.025):0),pz=z+(sample?Math.sin(a)*(r+.025):0);let low=-Infinity,high=Infinity,slope=0,valid=true;
@@ -19346,7 +19472,7 @@ function create(world,sim,{saved=null,interiors,campaign,traffic,notify=()=>{}}=
    finally{projectedSyncDepth--;if(!projectedSyncDepth&&projectedSyncPending){projectedSyncPending=false;breaches.update(1,p);}}
   }
   structuralDebris(result.debris,scene);
-  for(const q of bodies){if(q.scene!==scene)continue;const b=q.engine.body(q.handle);if(!b||b.lost)continue;const d=Math.hypot(...b.pos.map((n,i)=>n-point[i]));if(d<Math.max(radius,1.2)){const dir=direction||b.pos.map((n,i)=>(n-point[i])/(d||1));const impulse=q.mesh.structural&&power>=25?Math.max(power*6,q.mass*Math.min(2.5,power*.018)):power*6;q.engine.impulse(q.handle,...point,...dir.map((n,i)=>n*impulse+(q.mesh.structural&&i===1&&power>=25?q.mass*.35:0)));}}
+  for(const q of bodies){if(q.scene!==scene)continue;const b=readBody(q);if(!b||b.lost)continue;const d=Math.hypot(...b.pos.map((n,i)=>n-point[i]));if(d<Math.max(radius,1.2)){const dir=direction||b.pos.map((n,i)=>(n-point[i])/(d||1));const impulse=q.mesh.structural&&power>=25?Math.max(power*6,q.mass*Math.min(2.5,power*.018)):power*6;q.engine.impulse(q.handle,...point,...dir.map((n,i)=>n*impulse+(q.mesh.structural&&i===1&&power>=25?q.mass*.35:0)));}}
   for(const c of world.fleet){const base=c.y??world.ground(c.x,c.z),spec=R.vehicles.SPECS[c.model],d=Math.hypot(point[0]-c.x,point[2]-c.z,Math.max(0,base-point[1],point[1]-base-spec.height));if(d<(radius||0)+spec.width)hitVehicle(c,power*(radius?clamp(1-d/(radius+2)):1)*.65,point);}
   if(radius>2&&power>25){ignite(point[0],point[2],scene,.75);campaign?.crime(1.4);}
   return {...result,debris:[]};
@@ -19358,7 +19484,7 @@ function create(world,sim,{saved=null,interiors,campaign,traffic,notify=()=>{}}=
   if(item.meshes.length!==1||mass>65||Math.max(...mesh.s)>1.8){notify('Élément ancré ou trop lourd · '+Math.round(mass)+' kg');return false;}
   if(bodies.length>=240){notify('Trop de débris physiques actifs dans ce secteur.');return false;}dc.detach(hit.id);sync(dc);held=spawnBody(mesh,[0,0,0],[0,0,0],mass);notify('Objet saisi · '+Math.round(mass*10)/10+' kg · G poser · B lancer');return !!held;
  }
- function throwHeld(){if(!held)return false;const {dir}=aim(3),b=held.engine.body(held.handle),speed=clamp(150/Math.max(5,held.mass),2,12);held.engine.impulse(held.handle,...b.pos,...dir.map(n=>n*held.mass*speed));held=null;return true;}
+ function throwHeld(){if(!held)return false;const {dir}=aim(3),b=readBody(held),speed=clamp(150/Math.max(5,held.mass),2,12);held.engine.impulse(held.handle,...b.pos,...dir.map(n=>n*held.mass*speed));held=null;return true;}
  function ignite(x,z,scene='street',strength=1){if(fires.length>=32||fires.some(f=>f.scene===scene&&Math.hypot(f.x-x,f.z-z)<2&&f.heat>0))return false;const f={id:++report.ignitions,x,z,scene,heat:strength,age:0,fuel:110,spread:false};fires.push(f);alarm=Math.max(alarm,1);return true;}
  function igniteAhead(){const {hit}=aim(4);if(!hit){notify('Aucun objet combustible à portée.');return false;}const item=activeController().describe(hit.id);if(!item.meshes.some(m=>describe(m).fuel>.05)){notify('Ce matériau ne prend pas feu.');return false;}if(ignite(hit.point[0],hit.point[2],world.room?roomKey:'street')){campaign?.crime(1);notify('Incendie déclenché.');return true;}return false;}
  function startVehicleFire(c){
@@ -19386,7 +19512,7 @@ function create(world,sim,{saved=null,interiors,campaign,traffic,notify=()=>{}}=
   parts.forEach((m,i)=>{const a=i*2.399+c.cap,speed=m.mass>8?6:10;spawnBody(m,[Math.cos(a)*speed,5+i%5,Math.sin(a)*speed],[1+i%3,.8+i%2,1.2],m.mass,'street');});
   let f=fires.find(f=>f.vehicleId===c.id);if(f)Object.assign(f,{heat:1.35,fuel:48});else ignite(c.x,c.z,'street',1.35);campaign?.crime(1.6);notify('Véhicule détruit.');return true;
  }
- function vehicleImpact(c,h){const speed=Math.abs((c.u||0)*Math.cos(c.cap)*h.nx+(c.u||0)*Math.sin(c.cap)*h.nz),mass=R.vehicles.SPECS[c.model].mass,energy=.5*mass*speed*speed,point=[c.x-h.nx*R.vehicles.SPECS[c.model].length*.4,(c.y??world.ground(c.x,c.z))+.8,c.z-h.nz*R.vehicles.SPECS[c.model].length*.4];if(speed<1.5)return;hitVehicle(c,energy/4500,point);const other=h.obstacle?.vehicle;if(other)hitVehicle(other,energy/4500,point);if(h.obstacle?.body){const q=h.obstacle.body,b=q.engine.body(q.handle);q.engine.impulse(q.handle,...b.pos,-h.nx*mass*speed*.65,0,-h.nz*mass*speed*.65);}else if(speed>3&&h.obstacle?.mesh)damage(point,Math.min(150,energy/1800),Math.min(2.7,1+speed*.07),[-h.nx,0,-h.nz]);}
+ function vehicleImpact(c,h){const speed=Math.abs((c.u||0)*Math.cos(c.cap)*h.nx+(c.u||0)*Math.sin(c.cap)*h.nz),mass=R.vehicles.SPECS[c.model].mass,energy=.5*mass*speed*speed,point=[c.x-h.nx*R.vehicles.SPECS[c.model].length*.4,(c.y??world.ground(c.x,c.z))+.8,c.z-h.nz*R.vehicles.SPECS[c.model].length*.4];if(speed<1.5)return;hitVehicle(c,energy/4500,point);const other=h.obstacle?.vehicle;if(other)hitVehicle(other,energy/4500,point);if(h.obstacle?.body){const q=h.obstacle.body,b=readBody(q);q.engine.impulse(q.handle,...b.pos,-h.nx*mass*speed*.65,0,-h.nz*mass*speed*.65);}else if(speed>3&&h.obstacle?.mesh)damage(point,Math.min(150,energy/1800),Math.min(2.7,1+speed*.07),[-h.nx,0,-h.nz]);}
  function repair(c){if(c.exploded){notify('Épave irréparable.');return false;}const site=campaign?.near(),room=interiors?.active;if(!(site?.name.includes('Garage')||room?.building.type==='garage')){notify('Réparation dans un garage · 180 €');return false;}if(campaign.state.cash<180){notify('Il faut 180 €.');return false;}campaign.state.cash-=180;c.condition={body:1,engine:1,tires:1,steering:1};c.burned=false;c.burning=false;c.glassBroken=false;c.fireAge=0;c.blowFuse=undefined;for(const f of fires)if(f.vehicleId===c.id)f.heat=0;notify('Véhicule réparé · −180 €');return true;}
  function dispatch(){const f=fires.find(f=>f.heat>0);if(!f||!traffic)return;const door=f.scene==='street'?f:interiors.entries.find(b=>f.scene.startsWith(b.id+':')),target=door||f,choices=traffic.nodes.filter(n=>n.links.length&&Math.hypot(n.x-target.x,n.z-target.z)<120).sort((a,b)=>Math.abs(Math.hypot(a.x-target.x,a.z-target.z)-65)-Math.abs(Math.hypot(b.x-target.x,b.z-target.z)-65));
   for(const n of choices){const next=traffic.nodes[n.links[0]],c=BITUME.conduite.creer(n.x,n.z,Math.atan2(next.z-n.z,next.x-n.x));Object.assign(c,{id:900,model:'firetruck',color:'#b72d21',y:world.ground(n.x,n.z),moteur:true,mass:5200,ai:false,emergency:true});if(world.carContact(c))continue;const path=traffic.route(n.x,n.z,target.x,target.z);if(!path.length)continue;const first=traffic.nodes[path[0]];c.cap=Math.atan2(first.z-c.z,first.x-c.x);if(world.carContact(c))continue;truck=c;world.fleet.push(c);job={target,path,stuck:0,scene:f.scene};report.dispatches++;notify('Sirène des pompiers dans le quartier.');break;}
@@ -19403,12 +19529,12 @@ function create(world,sim,{saved=null,interiors,campaign,traffic,notify=()=>{}}=
  }
  function update(dt,events=[]){clock+=dt;for(let i=dust.length-1;i>=0;i--){dust[i].age+=dt;if(dust[i].age>=3.5)dust.splice(i,1);}for(const c of world.fleet)vehicleFireStep(c,dt);for(const c of world.fleet)c.impactHandler=h=>vehicleImpact(c,h);if(world.room)activeController();else if(roomKey){if(indoor)roomStates.set(roomKey,indoor.snapshot());roomKey=null;indoor=null;held=null;}
   if(breaches?.update(dt,world.room?interiors?.outside:p)){version++;staticClock=0;}if(breaches&&(projectionMembers!==breaches.projections||projectionRoom!==world.room)){projectionMembers=breaches.projections;projectionRoom=world.room;const exposedKeys=new Set(projectionMembers.map(b=>b.room.sceneId)),retainedRooms=new Set(projectionMembers.map(b=>b.room));if(world.room)retainedRooms.add(world.room);for(const [key,record]of projectedRooms){if(!exposedKeys.has(key)&&key!==roomKey){roomStates.set(key,record.dc.snapshot());projectedRooms.delete(key);}else for(const room of record.rooms)if(!retainedRooms.has(room))record.rooms.delete(room);}}
-  if(held){const b=held.engine.body(held.handle),{origin,dir}=aim(3),want=origin.map((v,i)=>v+dir[i]*1.8);if(b){const force=want.map((v,i)=>(v-b.pos[i])*18-b.vel[i]*6);held.engine.impulse(held.handle,...b.pos,...force.map(v=>v*held.mass*dt));if(Math.hypot(...b.pos.map((v,i)=>v-want[i]))>3)held=null;}}
+  if(held){const b=readBody(held),{origin,dir}=aim(3),want=origin.map((v,i)=>v+dir[i]*1.8);if(b){const force=want.map((v,i)=>(v-b.pos[i])*18-b.vel[i]*6);held.engine.impulse(held.handle,...b.pos,...force.map(v=>v*held.mass*dt));if(Math.hypot(...b.pos.map((v,i)=>v-want[i]))>3)held=null;}}
   physicsClock+=dt;if(bodies.length&&physicsClock>=1/60){
    staticClock-=physicsClock;
    migrateBodies();
    for(const {scene,engine}of [...engines.values()]){if(scene!=='street'&&scene!==currentScene())continue;
-    if(staticClock<=0){const set=new Set(),floors=new Map();for(const q of bodies){if(q.engine!==engine)continue;const b=engine.body(q.handle);if(!b||b.lost)continue;if(scene!=='street'){for(const k of world.room?.colliders||[])set.add(k);}else for(const k of world.candidates(b.pos[0],b.pos[2],8))set.add(k);
+    if(staticClock<=0){const set=new Set(),floors=new Map();for(const q of bodies){if(q.engine!==engine)continue;const b=readBody(q);if(!b||b.lost)continue;if(scene!=='street'){for(const k of world.room?.colliders||[])set.add(k);}else for(const k of world.candidates(b.pos[0],b.pos[2],8))set.add(k);
       const fx=Math.floor(b.pos[0]/8),fz=Math.floor(b.pos[2]/8);for(let x=fx-1;x<=fx+1;x++)for(let z=fz-1;z<=fz+1;z++){const key=x+','+z;if(floors.has(key))continue;const px=x*8+4,pz=z*8+4,y=scene==='street'?world.ground(px,pz):.08;floors.set(key,{x:px,z:pz,w:8,d:8,y:Number.isFinite(y)?y:.08});}
      }
      let floorList=[...floors.values()];if(floorList.length&&floorList.every(f=>Math.abs(f.y-floorList[0].y)<1e-6)){const x0=Math.min(...floorList.map(f=>f.x-4)),x1=Math.max(...floorList.map(f=>f.x+4)),z0=Math.min(...floorList.map(f=>f.z-4)),z1=Math.max(...floorList.map(f=>f.z+4));floorList=[{x:(x0+x1)/2,z:(z0+z1)/2,w:x1-x0,d:z1-z0,y:floorList[0].y}];}
@@ -19417,7 +19543,7 @@ function create(world,sim,{saved=null,interiors,campaign,traffic,notify=()=>{}}=
    }if(staticClock<=0)staticClock=.3;physicsClock=0;
   }
   publishBodies(bodies.filter(q=>q!==held&&q.scene===currentScene()).map(bodyBox).filter(Boolean));
-  for(const q of bodies){if(q.scene!==currentScene())continue;const b=q.engine.body(q.handle);if(!b||b.lost||q===held)continue;const dx=b.pos[0]-p.x,dz=b.pos[2]-p.z,d=Math.hypot(dx,dz),rad=Math.min(.7,Math.max(q.mesh.s[0],q.mesh.s[2])/2)+.35;if(d<rad&&b.pos[1]<world.ground(p.x,p.z)+2&&b.mass<400)q.engine.impulse(q.handle,...b.pos,dx/(d||1)*90*dt,0,dz/(d||1)*90*dt);}
+  for(const q of bodies){if(q.scene!==currentScene())continue;const b=readBody(q);if(!b||b.lost||q===held)continue;const dx=b.pos[0]-p.x,dz=b.pos[2]-p.z,d=Math.hypot(dx,dz),rad=Math.min(.7,Math.max(q.mesh.s[0],q.mesh.s[2])/2)+.35;if(d<rad&&b.pos[1]<world.ground(p.x,p.z)+2&&b.mass<400)q.engine.impulse(q.handle,...b.pos,dx/(d||1)*90*dt,0,dz/(d||1)*90*dt);}
   if(fires.some(f=>f.heat>0)){if(!truck){alarm+=dt;if(alarm>6)dispatch();}crewStep(dt);if(Math.floor(clock/.8)!==Math.floor((clock-dt)/.8)&&truck)events.push({name:'policeSiren',level:.15});}
   fireClock+=dt;if(fireClock>=1){const elapsed=fireClock;fireClock=0;for(const f of fires){if(f.heat<=0)continue;f.age+=elapsed;f.fuel-=elapsed;f.heat=clamp(f.heat+elapsed*(.012-(f.scene==='street'?(world.weather?.rain||0)*.04:0)),0,1.5);if(f.fuel<=0)f.heat=0;const here=f.scene==='street'?!world.room:roomKey===f.scene;
     if((here||f.scene==='street')&&f.age%4<elapsed){const dc=f.scene==='street'?streetController():activeController(),point=[f.x,fireHeight(f)+1.3,f.z],streamed=f.scene==='street'?world.cityStream?.damage?.(point,9*f.heat,2.3):null,result=streamed?.changed?streamed:dc.blast(point,2.3,9*f.heat);let recolored=false;for(const e of result.events){charred.add((f.scene||'street')+'|'+e.sourceId);const item=streamed?.changed?null:dc.describe(e.sourceId);for(const m of item?.meshes||[]){m.color=(m.color||[.4,.4,.4]).map(n=>n*.88);m.renderRevision=(m.renderRevision||0)+1;recolored=true;}}if(result.changed){if(streamed?.changed){version++;staticClock=0;}else{if(f.scene==='street')breaches?.observe(result);sync(dc);}report.breaches++;structuralDebris(result.debris,f.scene);}else if(recolored)version++;if(recolored)world.invalidateSceneryRender?.();}

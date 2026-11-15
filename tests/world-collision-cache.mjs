@@ -13,7 +13,7 @@ const oldStatic=` function staticBlocked(x,z,r=.28,y=ground(x,z),height=1.8){
   if(!ignoreVehicle)for(const c of fleet){const q=carBox(c);if(q.maxY>y+.22&&q.minY<y+height&&disk(q,x,z,r))return true;}return false;
  }
 `;
-const oldCar=` const carBox=c=>{const base=Number.isFinite(c.y)?c.y:ground(c.x,c.z);return {vehicle:c,x:c.x,z:c.z,a:R.vehicles.SPECS[c.model].length/2,b:R.vehicles.SPECS[c.model].width/2,c:Math.cos(c.cap),s:Math.sin(c.cap),cap:c.cap,minY:base+.1,maxY:base+R.vehicles.SPECS[c.model].height};};`;
+const oldCar=` const carBounds=null;const carBox=c=>{const base=Number.isFinite(c.y)?c.y:ground(c.x,c.z);return {vehicle:c,x:c.x,z:c.z,a:R.vehicles.SPECS[c.model].length/2,b:R.vehicles.SPECS[c.model].width/2,c:Math.cos(c.cap),s:Math.sin(c.cap),cap:c.cap,minY:base+.1,maxY:base+R.vehicles.SPECS[c.model].height};};`;
 const source=fs.readFileSync(new URL('../src/world.js',import.meta.url),'utf8');
 const start=source.indexOf(' function staticBlocked('),end=source.indexOf(' const clearance=',start),carStart=source.indexOf(' const carBounds='),carEnd=source.indexOf('\n function overlap(',carStart);
 assert(start>=0&&end>start&&carStart>=end&&carEnd>carStart);

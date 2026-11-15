@@ -1,0 +1,1325 @@
+{
+  "version": "0.6.3",
+  "build": "702ff88469",
+  "buildSha256": "28e5ca4e00ae4d852d3ce430588d6c0602cdf63ae848a964d0ff903d51e70bc3",
+  "baselineCommit": "d22a5ebea842b23228f42897f6b5ba3b798347d7",
+  "baselineSha256": "365a85a73310a028f29d8d82556514b84e1b3b492a2557e4f1c0c7c7ad8d26a7",
+  "fixtureSha256": "5fea977bb185e6bf98affb8c3bd6ba029c641d9de24f44d839e4e36ea4a98b75",
+  "date": "2026-11-15",
+  "hardware": {
+    "chip": "Apple M5",
+    "memoryGiB": 24,
+    "os": "macOS 27.2.1 (26B131)",
+    "browser": "Chrome 157.0.8103.39"
+  },
+  "mode": "600 measured frames,1200 fixed1/120 simulation ticks,3 paired runs alternating order; no CPU profiler",
+  "quality": "1440x900 DPR1 MSAA4 shadows SSR bloom;960PNJ39traffic;unchanged graphics,simulation budgets and cadence",
+  "metricsNote": "CPU draw submission intervals, browser rAF timestamps and callback CPU are separate. Actual GPU presentation is NOT measured.",
+  "checks": [
+    {
+      "before": "fluidity-before-1",
+      "after": "fluidity-after-1",
+      "exactFields": [
+        "identity",
+        "hashes",
+        "counts",
+        "events",
+        "simulationTicks",
+        "finalStateHashes"
+      ],
+      "identicalPngSha256": "a13133109d9599e43f2cd7d93de0218afd5dd3a200ce446aa2bf9e0fe9c08601"
+    },
+    {
+      "before": "fluidity-before-2",
+      "after": "fluidity-after-2",
+      "exactFields": [
+        "identity",
+        "hashes",
+        "counts",
+        "events",
+        "simulationTicks",
+        "finalStateHashes"
+      ],
+      "identicalPngSha256": "a13133109d9599e43f2cd7d93de0218afd5dd3a200ce446aa2bf9e0fe9c08601"
+    },
+    {
+      "before": "fluidity-before-3",
+      "after": "fluidity-after-3",
+      "exactFields": [
+        "identity",
+        "hashes",
+        "counts",
+        "events",
+        "simulationTicks",
+        "finalStateHashes"
+      ],
+      "identicalPngSha256": "a13133109d9599e43f2cd7d93de0218afd5dd3a200ce446aa2bf9e0fe9c08601"
+    }
+  ],
+  "measures": {
+    "callbackCpu": {
+      "p50": {
+        "before": [
+          4.300000011920929,
+          4.300000011920929,
+          4.300000011920929
+        ],
+        "after": [
+          3.900000035762787,
+          4,
+          4
+        ],
+        "beforeMedian": 4.300000011920929,
+        "afterMedian": 4,
+        "reductionPercent": 6.976744443935723
+      },
+      "p95": {
+        "before": [
+          14.399999976158142,
+          14.100000023841858,
+          14.300000011920929
+        ],
+        "after": [
+          9.699999988079071,
+          9.699999988079071,
+          9.899999976158142
+        ],
+        "beforeMedian": 14.300000011920929,
+        "afterMedian": 9.699999988079071,
+        "reductionPercent": 32.16783230774233
+      },
+      "p99": {
+        "before": [
+          16.899999976158142,
+          16.600000023841858,
+          17.099999964237213
+        ],
+        "after": [
+          12.300000011920929,
+          12.599999964237213,
+          12.799999952316284
+        ],
+        "beforeMedian": 16.899999976158142,
+        "afterMedian": 12.599999964237213,
+        "reductionPercent": 25.443787088681656
+      },
+      "max": {
+        "before": [
+          65.69999998807907,
+          63,
+          65.30000001192093
+        ],
+        "after": [
+          38.30000001192093,
+          39.19999998807907,
+          40.10000002384186
+        ],
+        "beforeMedian": 65.30000001192093,
+        "afterMedian": 39.19999998807907,
+        "reductionPercent": 39.969372157851666
+      },
+      "over25": {
+        "before": [
+          2,
+          2,
+          2
+        ],
+        "after": [
+          2,
+          2,
+          2
+        ],
+        "beforeMedian": 2,
+        "afterMedian": 2,
+        "reductionPercent": 0.0
+      },
+      "over50": {
+        "before": [
+          1,
+          1,
+          1
+        ],
+        "after": [
+          0,
+          0,
+          0
+        ],
+        "beforeMedian": 1,
+        "afterMedian": 0,
+        "reductionPercent": 100.0
+      }
+    },
+    "simulation": {
+      "p50": {
+        "before": [
+          1.5,
+          1.5,
+          1.5
+        ],
+        "after": [
+          0.8999999761581421,
+          0.8999999761581421,
+          0.8999999761581421
+        ],
+        "beforeMedian": 1.5,
+        "afterMedian": 0.8999999761581421,
+        "reductionPercent": 40.00000158945719
+      },
+      "p95": {
+        "before": [
+          11.200000047683716,
+          11,
+          11.200000047683716
+        ],
+        "after": [
+          6.5,
+          6.5,
+          6.600000023841858
+        ],
+        "beforeMedian": 11.200000047683716,
+        "afterMedian": 6.5,
+        "reductionPercent": 41.964285961371296
+      },
+      "p99": {
+        "before": [
+          13.300000011920929,
+          13.400000035762787,
+          13.600000023841858
+        ],
+        "after": [
+          7.799999952316284,
+          7.800000011920929,
+          8
+        ],
+        "beforeMedian": 13.400000035762787,
+        "afterMedian": 7.800000011920929,
+        "reductionPercent": 41.79104484250907
+      },
+      "max": {
+        "before": [
+          62,
+          59.80000001192093,
+          62
+        ],
+        "after": [
+          34.19999998807907,
+          35.200000047683716,
+          36.19999998807907
+        ],
+        "beforeMedian": 62,
+        "afterMedian": 35.200000047683716,
+        "reductionPercent": 43.22580637470368
+      },
+      "over25": {
+        "before": [
+          2,
+          2,
+          2
+        ],
+        "after": [
+          2,
+          2,
+          2
+        ],
+        "beforeMedian": 2,
+        "afterMedian": 2,
+        "reductionPercent": 0.0
+      },
+      "over50": {
+        "before": [
+          1,
+          1,
+          1
+        ],
+        "after": [
+          0,
+          0,
+          0
+        ],
+        "beforeMedian": 1,
+        "afterMedian": 0,
+        "reductionPercent": 100.0
+      }
+    },
+    "observedRaf": {
+      "p50": {
+        "before": [
+          16.69999999999891,
+          16.69999999999891,
+          16.69999999999891
+        ],
+        "after": [
+          16.69999999999891,
+          16.69999999999891,
+          16.700000000000728
+        ],
+        "beforeMedian": 16.69999999999891,
+        "afterMedian": 16.69999999999891,
+        "reductionPercent": 0.0
+      },
+      "p95": {
+        "before": [
+          17.400000000001455,
+          17.30000000000109,
+          17.30000000000109
+        ],
+        "after": [
+          17.399999999999636,
+          17.19999999999891,
+          17.30000000000109
+        ],
+        "beforeMedian": 17.30000000000109,
+        "afterMedian": 17.30000000000109,
+        "reductionPercent": 0.0
+      },
+      "p99": {
+        "before": [
+          17.600000000000364,
+          17.600000000000364,
+          17.600000000000364
+        ],
+        "after": [
+          17.600000000000364,
+          17.5,
+          17.600000000000364
+        ],
+        "beforeMedian": 17.600000000000364,
+        "afterMedian": 17.600000000000364,
+        "reductionPercent": 0.0
+      },
+      "max": {
+        "before": [
+          50.600000000000364,
+          50,
+          49.899999999999636
+        ],
+        "after": [
+          33.69999999999891,
+          32.899999999999636,
+          33.399999999999636
+        ],
+        "beforeMedian": 50,
+        "afterMedian": 33.399999999999636,
+        "reductionPercent": 33.20000000000073
+      },
+      "over25": {
+        "before": [
+          2,
+          2,
+          2
+        ],
+        "after": [
+          1,
+          1,
+          1
+        ],
+        "beforeMedian": 2,
+        "afterMedian": 1,
+        "reductionPercent": 50.0
+      },
+      "over50": {
+        "before": [
+          1,
+          0,
+          0
+        ],
+        "after": [
+          0,
+          0,
+          0
+        ],
+        "beforeMedian": 0,
+        "afterMedian": 0,
+        "reductionPercent": null
+      }
+    },
+    "drawSubmission": {
+      "p50": {
+        "before": [
+          16.69999998807907,
+          16.69999998807907,
+          16.69999998807907
+        ],
+        "after": [
+          16.69999998807907,
+          16.69999998807907,
+          16.69999998807907
+        ],
+        "beforeMedian": 16.69999998807907,
+        "afterMedian": 16.69999998807907,
+        "reductionPercent": 0.0
+      },
+      "p95": {
+        "before": [
+          17.400000035762787,
+          17.399999976158142,
+          17.399999976158142
+        ],
+        "after": [
+          17.5,
+          17.299999952316284,
+          17.399999976158142
+        ],
+        "beforeMedian": 17.399999976158142,
+        "afterMedian": 17.399999976158142,
+        "reductionPercent": 0.0
+      },
+      "p99": {
+        "before": [
+          17.69999998807907,
+          17.69999998807907,
+          18
+        ],
+        "after": [
+          17.899999976158142,
+          17.69999998807907,
+          17.700000047683716
+        ],
+        "beforeMedian": 17.69999998807907,
+        "afterMedian": 17.700000047683716,
+        "reductionPercent": -3.3674940613792614e-07
+      },
+      "max": {
+        "before": [
+          74.30000001192093,
+          71.10000002384186,
+          73
+        ],
+        "after": [
+          48.60000002384186,
+          47.80000001192093,
+          48.39999997615814
+        ],
+        "beforeMedian": 73,
+        "afterMedian": 48.39999997615814,
+        "reductionPercent": 33.69863016964638
+      },
+      "over25": {
+        "before": [
+          3,
+          3,
+          3
+        ],
+        "after": [
+          2,
+          2,
+          2
+        ],
+        "beforeMedian": 3,
+        "afterMedian": 2,
+        "reductionPercent": 33.333333333333336
+      },
+      "over50": {
+        "before": [
+          1,
+          1,
+          1
+        ],
+        "after": [
+          0,
+          0,
+          0
+        ],
+        "beforeMedian": 1,
+        "afterMedian": 0,
+        "reductionPercent": 100.0
+      }
+    },
+    "render": {
+      "p50": {
+        "before": [
+          1,
+          1.0999999642372131,
+          1
+        ],
+        "after": [
+          1.0999999642372131,
+          1.100000023841858,
+          1.100000023841858
+        ],
+        "beforeMedian": 1,
+        "afterMedian": 1.100000023841858,
+        "reductionPercent": -10.000002384185791
+      },
+      "p95": {
+        "before": [
+          1.300000011920929,
+          1.300000011920929,
+          1.2999999523162842
+        ],
+        "after": [
+          1.399999976158142,
+          1.399999976158142,
+          1.399999976158142
+        ],
+        "beforeMedian": 1.300000011920929,
+        "afterMedian": 1.399999976158142,
+        "reductionPercent": -7.692304870786071
+      },
+      "p99": {
+        "before": [
+          1.600000023841858,
+          1.5999999642372131,
+          1.4000000357627869
+        ],
+        "after": [
+          1.600000023841858,
+          1.600000023841858,
+          1.5
+        ],
+        "beforeMedian": 1.5999999642372131,
+        "afterMedian": 1.600000023841858,
+        "reductionPercent": -3.725290387279756e-06
+      },
+      "max": {
+        "before": [
+          2.600000023841858,
+          3,
+          2.699999988079071
+        ],
+        "after": [
+          2.900000035762787,
+          3,
+          2.699999988079071
+        ],
+        "beforeMedian": 2.699999988079071,
+        "afterMedian": 2.900000035762787,
+        "reductionPercent": -7.407409206175841
+      },
+      "over25": {
+        "before": [
+          0,
+          0,
+          0
+        ],
+        "after": [
+          0,
+          0,
+          0
+        ],
+        "beforeMedian": 0,
+        "afterMedian": 0,
+        "reductionPercent": null
+      },
+      "over50": {
+        "before": [
+          0,
+          0,
+          0
+        ],
+        "after": [
+          0,
+          0,
+          0
+        ],
+        "beforeMedian": 0,
+        "afterMedian": 0,
+        "reductionPercent": null
+      }
+    }
+  },
+  "standardSinglePair": [
+    {
+      "frame": {
+        "n": 599,
+        "p50": 16.69999998807907,
+        "p95": 17.30000001192093,
+        "p99": 17.69999998807907,
+        "max": 52.80000001192093,
+        "over25": 1,
+        "over50": 1
+      },
+      "render": {
+        "n": 600,
+        "p50": 1,
+        "p95": 1.2999999523162842,
+        "p99": 1.600000023841858,
+        "max": 2.900000035762787,
+        "over25": 0,
+        "over50": 0
+      },
+      "simulation": {
+        "n": 600,
+        "p50": 1.199999988079071,
+        "p95": 10.699999988079071,
+        "p99": 12.300000011920929,
+        "max": 42.09999996423721,
+        "over25": 1,
+        "over50": 0
+      },
+      "game": {
+        "n": 601,
+        "p50": 4.100000023841858,
+        "p95": 13.600000023841858,
+        "p99": 15.099999964237213,
+        "max": 45.5,
+        "over25": 1,
+        "over50": 0
+      },
+      "raf": {
+        "n": 601,
+        "p50": 16.69999999999891,
+        "p95": 17.30000000000109,
+        "p99": 17.5,
+        "max": 33.399999999999636,
+        "over25": 1,
+        "over50": 0
+      },
+      "drawSubmission": {
+        "n": 599,
+        "p50": 16.69999998807907,
+        "p95": 17.30000001192093,
+        "p99": 17.69999998807907,
+        "max": 52.80000001192093,
+        "over25": 1,
+        "over50": 1
+      }
+    },
+    {
+      "frame": {
+        "n": 599,
+        "p50": 16.69999998807907,
+        "p95": 17.399999976158142,
+        "p99": 17.899999976158142,
+        "max": 35.89999997615814,
+        "over25": 1,
+        "over50": 0
+      },
+      "render": {
+        "n": 600,
+        "p50": 1.0999999642372131,
+        "p95": 1.300000011920929,
+        "p99": 1.600000023841858,
+        "max": 2.899999976158142,
+        "over25": 0,
+        "over50": 0
+      },
+      "simulation": {
+        "n": 600,
+        "p50": 0.800000011920929,
+        "p95": 6.5,
+        "p99": 7.400000035762787,
+        "max": 24.69999998807907,
+        "over25": 0,
+        "over50": 0
+      },
+      "game": {
+        "n": 601,
+        "p50": 3.899999976158142,
+        "p95": 9.600000023841858,
+        "p99": 11.399999976158142,
+        "max": 28.399999976158142,
+        "over25": 1,
+        "over50": 0
+      },
+      "raf": {
+        "n": 601,
+        "p50": 16.69999999999891,
+        "p95": 17.299999999999272,
+        "p99": 17.600000000000364,
+        "max": 17.700000000000728,
+        "over25": 0,
+        "over50": 0
+      },
+      "drawSubmission": {
+        "n": 599,
+        "p50": 16.69999998807907,
+        "p95": 17.399999976158142,
+        "p99": 17.899999976158142,
+        "max": 35.89999997615814,
+        "over25": 1,
+        "over50": 0
+      }
+    }
+  ],
+  "webgl2": {
+    "label": "fluidity-webgl2",
+    "measures": {
+      "frame": {
+        "n": 599,
+        "p50": 16.69999998807907,
+        "p95": 16.900000035762787,
+        "p99": 17.600000023841858,
+        "max": 47.80000001192093,
+        "over25": 2,
+        "over50": 0
+      },
+      "render": {
+        "n": 600,
+        "p50": 1.5,
+        "p95": 2.099999964237213,
+        "p99": 2.300000011920929,
+        "max": 2.899999976158142,
+        "over25": 0,
+        "over50": 0
+      },
+      "simulation": {
+        "n": 600,
+        "p50": 1.100000023841858,
+        "p95": 6.399999976158142,
+        "p99": 8.099999964237213,
+        "max": 35.10000002384186,
+        "over25": 2,
+        "over50": 0
+      },
+      "game": {
+        "n": 600,
+        "p50": 4.5,
+        "p95": 9.800000011920929,
+        "p99": 12.599999964237213,
+        "max": 39,
+        "over25": 2,
+        "over50": 0
+      },
+      "raf": {
+        "n": 600,
+        "p50": 16.69999999999891,
+        "p95": 16.80000000000109,
+        "p99": 17.5,
+        "max": 33.30000000000109,
+        "over25": 2,
+        "over50": 0
+      },
+      "observedRaf": {
+        "n": 600,
+        "p50": 16.69999999999891,
+        "p95": 16.80000000000109,
+        "p99": 17.5,
+        "max": 33.30000000000109,
+        "over25": 2,
+        "over50": 0
+      },
+      "drawSubmission": {
+        "n": 599,
+        "p50": 16.69999998807907,
+        "p95": 16.900000035762787,
+        "p99": 17.600000023841858,
+        "max": 47.80000001192093,
+        "over25": 2,
+        "over50": 0
+      },
+      "callbackDelay": {
+        "n": 600,
+        "p50": 0.2000000000007276,
+        "p95": 0.2999999999992724,
+        "p99": 0.30000003576242307,
+        "max": 6.200000011920565,
+        "over25": 0,
+        "over50": 0
+      },
+      "preRenderCpu": {
+        "n": 600,
+        "p50": 1.699999988079071,
+        "p95": 2,
+        "p99": 2.5,
+        "max": 13.599999964237213,
+        "over25": 0,
+        "over50": 0
+      },
+      "postRenderCpu": {
+        "n": 600,
+        "p50": 1.199999988079071,
+        "p95": 6.5,
+        "p99": 8.199999988079071,
+        "max": 35.19999998807907,
+        "over25": 2,
+        "over50": 0
+      },
+      "callbackCpu": {
+        "n": 600,
+        "p50": 4.5,
+        "p95": 9.800000011920929,
+        "p99": 12.599999964237213,
+        "max": 39,
+        "over25": 2,
+        "over50": 0
+      }
+    },
+    "gpu": null,
+    "exactFinalStates": true
+  },
+  "productionRealtime": [
+    {
+      "label": "fluidity-production-before",
+      "measures": {
+        "frame": {
+          "n": 899,
+          "p50": 16.600000023841858,
+          "p95": 26.5,
+          "p99": 28.600000023841858,
+          "max": 85.10000002384186,
+          "over25": 111,
+          "over50": 2
+        },
+        "render": {
+          "n": 900,
+          "p50": 1,
+          "p95": 1.199999988079071,
+          "p99": 1.5,
+          "max": 2.600000023841858,
+          "over25": 0,
+          "over50": 0
+        },
+        "simulation": {
+          "n": 900,
+          "p50": 1.5,
+          "p95": 10.900000035762787,
+          "p99": 12.899999976158142,
+          "max": 61.59999996423721,
+          "over25": 2,
+          "over50": 1
+        },
+        "game": {
+          "n": 901,
+          "p50": 4.199999988079071,
+          "p95": 13.800000011920929,
+          "p99": 15.800000011920929,
+          "max": 73.19999998807907,
+          "over25": 3,
+          "over50": 1
+        },
+        "raf": {
+          "n": 901,
+          "p50": 16.69999999999891,
+          "p95": 17.299999999999272,
+          "p99": 17.5,
+          "max": 66.70000000000073,
+          "over25": 2,
+          "over50": 1
+        },
+        "observedRaf": {
+          "n": 900,
+          "p50": 16.69999999999891,
+          "p95": 17.299999999999272,
+          "p99": 17.5,
+          "max": 66.70000000000073,
+          "over25": 2,
+          "over50": 1
+        },
+        "drawSubmission": {
+          "n": 899,
+          "p50": 16.600000023841858,
+          "p95": 26.5,
+          "p99": 28.600000023841858,
+          "max": 85.10000002384186,
+          "over25": 111,
+          "over50": 2
+        },
+        "callbackDelay": {
+          "n": 900,
+          "p50": 0.10000003576351446,
+          "p95": 0.20000003576205927,
+          "p99": 0.49999998807834345,
+          "max": 15.600000023841858,
+          "over25": 0,
+          "over50": 0
+        },
+        "preRenderCpu": {
+          "n": 900,
+          "p50": 3.199999988079071,
+          "p95": 12.700000047683716,
+          "p99": 14.800000011920929,
+          "max": 71.5,
+          "over25": 3,
+          "over50": 1
+        },
+        "postRenderCpu": {
+          "n": 900,
+          "p50": 0,
+          "p95": 0.20000004768371582,
+          "p99": 0.40000003576278687,
+          "max": 1.5999999642372131,
+          "over25": 0,
+          "over50": 0
+        },
+        "callbackCpu": {
+          "n": 900,
+          "p50": 4.199999988079071,
+          "p95": 13.800000011920929,
+          "p99": 15.800000011920929,
+          "max": 73.19999998807907,
+          "over25": 3,
+          "over50": 1
+        }
+      },
+      "gpu": {
+        "available": true,
+        "dropped": 2,
+        "n": 898,
+        "p50": 11.993088,
+        "p95": 13.43488,
+        "p99": 13.828096,
+        "max": 17.03936,
+        "over25": 0,
+        "over50": 0
+      },
+      "simulationTicks": 1806,
+      "productionSave": {
+        "enabled": true,
+        "window": {
+          "start": {
+            "drawCount": 96,
+            "sessionTime": 0
+          },
+          "end": {
+            "drawCount": 998,
+            "sessionTime": 15.049999999999786
+          }
+        },
+        "prewarm": [],
+        "measured": [
+          {
+            "kind": "snapshot",
+            "id": 1,
+            "phase": "measured",
+            "drawCount": 304,
+            "sessionTime": 3.516666666666657,
+            "running": true,
+            "ms": 0.699999988079071,
+            "ok": true
+          },
+          {
+            "kind": "persist",
+            "id": 1,
+            "phase": "measured",
+            "drawCount": 304,
+            "sessionTime": 3.516666666666657,
+            "running": true,
+            "ms": 0.3999999761581421,
+            "ok": true
+          },
+          {
+            "kind": "snapshot",
+            "id": 2,
+            "phase": "measured",
+            "drawCount": 603,
+            "sessionTime": 8.516666666666824,
+            "running": true,
+            "ms": 0.5,
+            "ok": true
+          },
+          {
+            "kind": "persist",
+            "id": 2,
+            "phase": "measured",
+            "drawCount": 603,
+            "sessionTime": 8.516666666666824,
+            "running": true,
+            "ms": 0.30000001192092896,
+            "ok": true
+          },
+          {
+            "kind": "snapshot",
+            "id": 3,
+            "phase": "measured",
+            "drawCount": 903,
+            "sessionTime": 13.51666666666654,
+            "running": true,
+            "ms": 0.5999999642372131,
+            "ok": true
+          },
+          {
+            "kind": "persist",
+            "id": 3,
+            "phase": "measured",
+            "drawCount": 903,
+            "sessionTime": 13.51666666666654,
+            "running": true,
+            "ms": 0.40000003576278687,
+            "ok": true
+          }
+        ],
+        "afterMeasurement": [
+          {
+            "kind": "snapshot",
+            "id": 4,
+            "phase": "measured",
+            "drawCount": 997,
+            "sessionTime": 15.049999999999786,
+            "running": false,
+            "ms": 0.2999999523162842,
+            "ok": true
+          },
+          {
+            "kind": "persist",
+            "id": 4,
+            "phase": "measured",
+            "drawCount": 997,
+            "sessionTime": 15.049999999999786,
+            "running": false,
+            "ms": 0.6000000238418579,
+            "ok": true
+          }
+        ],
+        "persistence": {
+          "key": "rade-solo-v2",
+          "exists": true,
+          "bytes": 193472,
+          "loadOk": true,
+          "version": 2,
+          "readBackMatchesString": true
+        },
+        "notes": [
+          "No test query parameter: the unmodified production game loop saves on its ordinary five-second clock. No save is manually triggered by the probe.",
+          "snapshot times session.save; persist times the original storage.save including JSON.stringify and synchronous localStorage.setItem. Probe bookkeeping and final byte counting are outside those timers.",
+          "Prewarm saves are separate. The fixture pause save has running=false and is excluded from measured autosave counts.",
+          "Persistence is read back through the existing storage.load; this checks serialized storage integrity, not a full new-session restore.",
+          "The existing fixture still controls HUD/audio and scene placement; production-save changes only the save path and timing instrumentation."
+        ],
+        "measures": {
+          "prewarm": {
+            "snapshot": {
+              "n": 0,
+              "p50": null,
+              "p95": null,
+              "p99": null,
+              "max": null,
+              "over25": 0,
+              "over50": 0
+            },
+            "persist": {
+              "n": 0,
+              "p50": null,
+              "p95": null,
+              "p99": null,
+              "max": null,
+              "over25": 0,
+              "over50": 0
+            }
+          },
+          "measured": {
+            "snapshot": {
+              "n": 3,
+              "p50": 0.5999999642372131,
+              "p95": 0.699999988079071,
+              "p99": 0.699999988079071,
+              "max": 0.699999988079071,
+              "over25": 0,
+              "over50": 0
+            },
+            "persist": {
+              "n": 3,
+              "p50": 0.3999999761581421,
+              "p95": 0.40000003576278687,
+              "p99": 0.40000003576278687,
+              "max": 0.40000003576278687,
+              "over25": 0,
+              "over50": 0
+            }
+          },
+          "afterMeasurement": {
+            "snapshot": {
+              "n": 1,
+              "p50": 0.2999999523162842,
+              "p95": 0.2999999523162842,
+              "p99": 0.2999999523162842,
+              "max": 0.2999999523162842,
+              "over25": 0,
+              "over50": 0
+            },
+            "persist": {
+              "n": 1,
+              "p50": 0.6000000238418579,
+              "p95": 0.6000000238418579,
+              "p99": 0.6000000238418579,
+              "max": 0.6000000238418579,
+              "over25": 0,
+              "over50": 0
+            }
+          }
+        }
+      }
+    },
+    {
+      "label": "fluidity-production-after",
+      "measures": {
+        "frame": {
+          "n": 899,
+          "p50": 16.600000023841858,
+          "p95": 22.600000023841858,
+          "p99": 23.599999964237213,
+          "max": 59.39999997615814,
+          "over25": 3,
+          "over50": 2
+        },
+        "render": {
+          "n": 900,
+          "p50": 1,
+          "p95": 1.2999999523162842,
+          "p99": 1.5,
+          "max": 2.600000023841858,
+          "over25": 0,
+          "over50": 0
+        },
+        "simulation": {
+          "n": 900,
+          "p50": 0.8999999761581421,
+          "p95": 6.399999976158142,
+          "p99": 7.400000035762787,
+          "max": 33.5,
+          "over25": 2,
+          "over50": 0
+        },
+        "game": {
+          "n": 901,
+          "p50": 3.800000011920929,
+          "p95": 9.399999976158142,
+          "p99": 10.400000035762787,
+          "max": 47.5,
+          "over25": 2,
+          "over50": 0
+        },
+        "raf": {
+          "n": 901,
+          "p50": 16.69999999999891,
+          "p95": 17.400000000001455,
+          "p99": 17.599999999998545,
+          "max": 33.399999999999636,
+          "over25": 2,
+          "over50": 0
+        },
+        "observedRaf": {
+          "n": 900,
+          "p50": 16.69999999999891,
+          "p95": 17.400000000001455,
+          "p99": 17.599999999998545,
+          "max": 33.399999999999636,
+          "over25": 2,
+          "over50": 0
+        },
+        "drawSubmission": {
+          "n": 899,
+          "p50": 16.600000023841858,
+          "p95": 22.600000023841858,
+          "p99": 23.599999964237213,
+          "max": 59.39999997615814,
+          "over25": 3,
+          "over50": 2
+        },
+        "callbackDelay": {
+          "n": 900,
+          "p50": 2.3843313101679087e-08,
+          "p95": 0.10000003576351446,
+          "p99": 0.20000003576205927,
+          "max": 14.899999988079799,
+          "over25": 0,
+          "over50": 0
+        },
+        "preRenderCpu": {
+          "n": 900,
+          "p50": 2.699999988079071,
+          "p95": 8.299999952316284,
+          "p99": 9.400000035762787,
+          "max": 45.5,
+          "over25": 2,
+          "over50": 0
+        },
+        "postRenderCpu": {
+          "n": 900,
+          "p50": 0,
+          "p95": 0.2999999523162842,
+          "p99": 0.40000003576278687,
+          "max": 0.5,
+          "over25": 0,
+          "over50": 0
+        },
+        "callbackCpu": {
+          "n": 900,
+          "p50": 3.800000011920929,
+          "p95": 9.399999976158142,
+          "p99": 10.5,
+          "max": 47.5,
+          "over25": 2,
+          "over50": 0
+        }
+      },
+      "gpu": {
+        "available": true,
+        "dropped": 0,
+        "n": 900,
+        "p50": 12.386304,
+        "p95": 12.910592,
+        "p99": 13.959168,
+        "max": 15.138816,
+        "over25": 0,
+        "over50": 0
+      },
+      "simulationTicks": 1804,
+      "productionSave": {
+        "enabled": true,
+        "window": {
+          "start": {
+            "drawCount": 93,
+            "sessionTime": 0
+          },
+          "end": {
+            "drawCount": 995,
+            "sessionTime": 15.03333333333312
+          }
+        },
+        "prewarm": [],
+        "measured": [
+          {
+            "kind": "snapshot",
+            "id": 1,
+            "phase": "measured",
+            "drawCount": 302,
+            "sessionTime": 3.516666666666657,
+            "running": true,
+            "ms": 0.699999988079071,
+            "ok": true
+          },
+          {
+            "kind": "persist",
+            "id": 1,
+            "phase": "measured",
+            "drawCount": 302,
+            "sessionTime": 3.516666666666657,
+            "running": true,
+            "ms": 0.30000001192092896,
+            "ok": true
+          },
+          {
+            "kind": "snapshot",
+            "id": 2,
+            "phase": "measured",
+            "drawCount": 601,
+            "sessionTime": 8.516666666666824,
+            "running": true,
+            "ms": 0.3999999761581421,
+            "ok": true
+          },
+          {
+            "kind": "persist",
+            "id": 2,
+            "phase": "measured",
+            "drawCount": 601,
+            "sessionTime": 8.516666666666824,
+            "running": true,
+            "ms": 0.40000003576278687,
+            "ok": true
+          },
+          {
+            "kind": "snapshot",
+            "id": 3,
+            "phase": "measured",
+            "drawCount": 902,
+            "sessionTime": 13.533333333333205,
+            "running": true,
+            "ms": 0.5,
+            "ok": true
+          },
+          {
+            "kind": "persist",
+            "id": 3,
+            "phase": "measured",
+            "drawCount": 902,
+            "sessionTime": 13.533333333333205,
+            "running": true,
+            "ms": 0.2999999523162842,
+            "ok": true
+          }
+        ],
+        "afterMeasurement": [
+          {
+            "kind": "snapshot",
+            "id": 4,
+            "phase": "measured",
+            "drawCount": 994,
+            "sessionTime": 15.03333333333312,
+            "running": false,
+            "ms": 0.2999999523162842,
+            "ok": true
+          },
+          {
+            "kind": "persist",
+            "id": 4,
+            "phase": "measured",
+            "drawCount": 994,
+            "sessionTime": 15.03333333333312,
+            "running": false,
+            "ms": 0.5,
+            "ok": true
+          }
+        ],
+        "persistence": {
+          "key": "rade-solo-v2",
+          "exists": true,
+          "bytes": 193903,
+          "loadOk": true,
+          "version": 2,
+          "readBackMatchesString": true
+        },
+        "notes": [
+          "No test query parameter: the unmodified production game loop saves on its ordinary five-second clock. No save is manually triggered by the probe.",
+          "snapshot times session.save; persist times the original storage.save including JSON.stringify and synchronous localStorage.setItem. Probe bookkeeping and final byte counting are outside those timers.",
+          "Prewarm saves are separate. The fixture pause save has running=false and is excluded from measured autosave counts.",
+          "Persistence is read back through the existing storage.load; this checks serialized storage integrity, not a full new-session restore.",
+          "The existing fixture still controls HUD/audio and scene placement; production-save changes only the save path and timing instrumentation."
+        ],
+        "measures": {
+          "prewarm": {
+            "snapshot": {
+              "n": 0,
+              "p50": null,
+              "p95": null,
+              "p99": null,
+              "max": null,
+              "over25": 0,
+              "over50": 0
+            },
+            "persist": {
+              "n": 0,
+              "p50": null,
+              "p95": null,
+              "p99": null,
+              "max": null,
+              "over25": 0,
+              "over50": 0
+            }
+          },
+          "measured": {
+            "snapshot": {
+              "n": 3,
+              "p50": 0.5,
+              "p95": 0.699999988079071,
+              "p99": 0.699999988079071,
+              "max": 0.699999988079071,
+              "over25": 0,
+              "over50": 0
+            },
+            "persist": {
+              "n": 3,
+              "p50": 0.30000001192092896,
+              "p95": 0.40000003576278687,
+              "p99": 0.40000003576278687,
+              "max": 0.40000003576278687,
+              "over25": 0,
+              "over50": 0
+            }
+          },
+          "afterMeasurement": {
+            "snapshot": {
+              "n": 1,
+              "p50": 0.2999999523162842,
+              "p95": 0.2999999523162842,
+              "p99": 0.2999999523162842,
+              "max": 0.2999999523162842,
+              "over25": 0,
+              "over50": 0
+            },
+            "persist": {
+              "n": 1,
+              "p50": 0.5,
+              "p95": 0.5,
+              "p99": 0.5,
+              "max": 0.5,
+              "over25": 0,
+              "over50": 0
+            }
+          }
+        }
+      }
+    }
+  ]
+}

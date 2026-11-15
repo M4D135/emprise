@@ -1,0 +1,72 @@
+{
+  "checks": [
+    "2000 vehicle pose/model/altitude mutations: exact bounds, trig and signed-zero parity",
+    "Public carBox results remain fresh mutable snapshots; neither caller mutation nor later vehicle movement leaks through aliases",
+    "Vehicle dimensions are read live, including spec changes and restoration",
+    "9753 exact collision results across 960 pedestrian probes, 39 vehicles, 180 rotated debris pieces, bucket boundaries, core edges and streamed terrain",
+    "Interior collision delegation unchanged",
+    "Returned vehicle-contact obstacle remains the original snapshot after cached probes and movement",
+    "Single-bucket path sees freshly added colliders immediately"
+  ],
+  "benchmarks": [
+    {
+      "population": 960,
+      "vehicles": 39,
+      "debris": 0,
+      "queriesPerTrial": 8640,
+      "beforeMs": [
+        11.042124999999942,
+        9.026375000000144,
+        14.209540999999945,
+        8.890750000000025,
+        8.644708000000037,
+        8.483124999999973,
+        8.369374999999991,
+        8.306167000000187
+      ],
+      "afterMs": [
+        17.3443749999999,
+        21.561124999999947,
+        3.7107079999998405,
+        3.5513750000000073,
+        3.501125000000002,
+        3.3522080000000187,
+        3.4228330000000824,
+        4.037124999999833
+      ],
+      "beforeMedianMs": 8.890750000000025,
+      "afterMedianMs": 3.7107079999998405,
+      "ratio": 0.41736726372913757
+    },
+    {
+      "population": 960,
+      "vehicles": 39,
+      "debris": 180,
+      "queriesPerTrial": 8640,
+      "beforeMs": [
+        16.012291000000005,
+        17.282916999999998,
+        16.970332999999982,
+        15.723666000000094,
+        15.317874999999958,
+        17.45662500000003,
+        16.836915999999974,
+        16.23829099999989
+      ],
+      "afterMs": [
+        10.96308399999998,
+        10.850417000000107,
+        11.64149999999995,
+        11.063875000000053,
+        10.957499999999982,
+        11.210874999999987,
+        11.880499999999984,
+        11.45004199999994
+      ],
+      "beforeMedianMs": 16.836915999999974,
+      "afterMedianMs": 11.210874999999987,
+      "ratio": 0.6658508600981322
+    }
+  ],
+  "scope": "Real Marseille collision functions and geometry; deterministic differential probes and CPU microbenchmark only. Population, AI frequencies, geometry/LOD, animation and effects unchanged."
+}

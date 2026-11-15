@@ -12,11 +12,17 @@ function create(world,n=480,{hurt=()=>{},notify=()=>{},allowAggression=false}={}
   people.push({hp:100,x:nav.centreX(cell)/1000,z:nav.centreZ(cell)/1000,cap:0,goal:i%goals.length,speed:.85+random()*.6,panic:0,fear:0,temperament:temperament(10000+i),hostility:0,aggression:0,encounter:0,provocationCooldown:8+(i%13),blocked:0,moveSpeed:0,walkDistance:0,gait:{phase:i*.618,amount:0},threat:null,turnWait:0,escapeX:0,escapeZ:0});
  }
  let tick=0,avoids=0;const angles=[0,.58,-.58,1.16,-1.16,1.8,-1.8,Math.PI];
+ const turns=[-1,1].map(sign=>angles.map(a=>[Math.cos(a*sign),Math.sin(a*sign)])),noiseNames=['shot','enemyShot','explosion','vehicleExplosion'];
+ // Scratch belongs to a single invocation. A callback can re-enter update;
+ // its own depth slot must not overwrite the outer call's traffic or hash.
+ let updateDepth=0;const scratch=[];
+ function workAt(depth){return scratch[depth]||(scratch[depth]={moving:[],selected:[],vehicles:[],noises:[],hash:new Map(),rows:[],buckets:[]});}
+ function move(p,dx,dz){if(!world.blocked(p.x+dx,p.z,.24))p.x+=dx;if(!world.blocked(p.x,p.z+dz,.24))p.z+=dz;}
  function route(p,vx,vz,i){
   const d=Math.hypot(vx,vz);if(d<.001)return [0,0];vx/=d;vz/=d;
   let best=-Infinity,bx=0,bz=0;
   for(let k=0;k<angles.length;k++){
-   const a=angles[k]*(i%2?1:-1),c=Math.cos(a),s=Math.sin(a),x=vx*c-vz*s,z=vx*s+vz*c;
+   const turn=turns[i%2][k],c=turn[0],s=turn[1],x=vx*c-vz*s,z=vx*s+vz*c;
    const tx=p.x+x*1.35,tz=p.z+z*1.35,cell=nav.caseDe(tx*1000,tz*1000);
    if(cell<0||cell>=nav.n||!nav.libre[cell]||world.blocked(p.x+x*.6,p.z+z*.6,.27)||world.blocked(tx,tz,.27))continue;
    const score=x*vx+z*vz+(x*p.escapeX+z*p.escapeZ)*.16;
@@ -26,10 +32,14 @@ function create(world,n=480,{hurt=()=>{},notify=()=>{},allowAggression=false}={}
  }
  function update(dt,events=[]){
   dt=Number.isFinite(dt)?Math.max(0,Math.min(.2,dt)):0;tick++;
-  const moving=world.fleet.filter(c=>!c.hidden&&c.v>.3).map(c=>({x:c.x,z:c.z,cc:Math.cos(c.cap),ss:Math.sin(c.cap),direction:c.u<0?-1:1,speed:c.v}));
-  let aggressors=people.filter(p=>p.hp>0&&p.aggression>0).length;
-  const noises=events.filter(e=>['shot','enemyShot','explosion','vehicleExplosion'].includes(e.name)&&Number.isFinite(e.x)&&Number.isFinite(e.z));
-  const hash=new Map();for(let i=0;i<n;i++){const p=people[i];if(p.hp<=0)continue;const key=Math.floor(p.x/2)+','+Math.floor(p.z/2);if(!hash.has(key))hash.set(key,[]);hash.get(key).push(i);}
+  const work=workAt(updateDepth++);try{
+  const {moving,selected,vehicles,noises,hash,rows,buckets}=work;moving.length=selected.length=0;
+  const fleet=world.fleet;for(let i=0,length=fleet.length;i<length;i++){if(!(i in fleet))continue;const c=fleet[i];if(!c.hidden&&c.v>.3)selected.push(c);}
+  for(const c of selected){const index=moving.length,q=vehicles[index]||(vehicles[index]={});q.x=c.x;q.z=c.z;q.cc=Math.cos(c.cap);q.ss=Math.sin(c.cap);q.direction=c.u<0?-1:1;q.speed=c.v;moving.push(q);}
+  let aggressors=0;for(const p of people)if(p.hp>0&&p.aggression>0)aggressors++;
+  noises.length=0;for(let i=0,length=events.length;i<length;i++){if(!(i in events))continue;const e=events[i];if(noiseNames.includes(e.name)&&Number.isFinite(e.x)&&Number.isFinite(e.z))noises.push(e);}
+  hash.clear();let rowCount=0,bucketCount=0;
+  for(let i=0;i<n;i++){const p=people[i];if(p.hp<=0)continue;const hx=Math.floor(p.x/2),hz=Math.floor(p.z/2);let row=hash.get(hz);if(!row){row=rows[rowCount]||(rows[rowCount]=new Map());rowCount++;row.clear();hash.set(hz,row);}let bucket=row.get(hx);if(!bucket){bucket=buckets[bucketCount]||(buckets[bucketCount]=[]);bucketCount++;bucket.length=0;row.set(hx,bucket);}bucket.push(i);}
   for(let i=0;i<n;i++){
    const p=people[i];if(p.hp<=0){p.moveSpeed=0;packed[i*4]=p.x;packed[i*4+1]=p.z;packed[i*4+2]=p.cap;packed[i*4+3]=PDR.regles.coder(3,i%10,0,0,0);continue;}
    const cell=nav.caseDe(p.x*1000,p.z*1000),field=nav.champs[p.goal],code=cell>=0&&cell<nav.n&&field?field.dir[cell]:PDR.nav.AUCUN;
@@ -72,10 +82,9 @@ function create(world,n=480,{hurt=()=>{},notify=()=>{},allowAggression=false}={}
     vx=p.escapeX;vz=p.escapeZ;
    }else{p.threat=null;if(p.blocked>.25){const direction=route(p,vx||Math.sin(p.cap),vz||Math.cos(p.cap),i);vx=direction[0];vz=direction[1];}}
    const hx=Math.floor(p.x/2),hz=Math.floor(p.z/2);
-   for(let zz=-1;zz<=1;zz++)for(let xx=-1;xx<=1;xx++)for(const j of hash.get((hx+xx)+','+(hz+zz))||[]){if(j===i)continue;const q=people[j],a=p.x-q.x,b=p.z-q.z,d=Math.hypot(a,b);if(d>.001&&d<.78){vx+=a/d*(.78-d)*2;vz+=b/d*(.78-d)*2;}}
+   for(let zz=-1;zz<=1;zz++){const row=hash.get(hz+zz);if(!row)continue;for(let xx=-1;xx<=1;xx++){const bucket=row.get(hx+xx);if(!bucket)continue;for(const j of bucket){if(j===i)continue;const q=people[j],a=p.x-q.x,b=p.z-q.z,d=Math.hypot(a,b);if(d>.001&&d<.78){vx+=a/d*(.78-d)*2;vz+=b/d*(.78-d)*2;}}}}
    const length=Math.hypot(vx,vz),speed=p.injury?.leg?.35:p.panic?3.1:pursuing?2.25:p.speed,scale=length>.001?speed*dt/Math.max(1,length):0,dx2=vx*scale,dz2=vz*scale,ox=p.x,oz=p.z;
-   const move=()=>{if(!world.blocked(p.x+dx2,p.z,.24))p.x+=dx2;if(!world.blocked(p.x,p.z+dz2,.24))p.z+=dz2;};
-   if(world.blocked(p.x,p.z,.24))world.withoutCar(move);else move();
+   if(world.blocked(p.x,p.z,.24))world.withoutCar(()=>move(p,dx2,dz2));else move(p,dx2,dz2);
    const moved=Math.hypot(p.x-ox,p.z-oz);p.moveSpeed=dt?moved/dt:0;p.walkDistance+=moved;p.blocked=moved<.002?p.blocked+dt:0;
    const gait=p.gait,previousPhase=gait.phase,previousAmount=gait.amount;R.people.advanceGait(gait,moved,p.moveSpeed,dt);locomotion[i*4]=previousPhase;locomotion[i*4+1]=gait.phase;locomotion[i*4+2]=previousAmount;locomotion[i*4+3]=gait.amount;
    if(p.blocked>.4)p.turnWait=0;
@@ -83,6 +92,7 @@ function create(world,n=480,{hurt=()=>{},notify=()=>{},allowAggression=false}={}
    if(moved>.001){const target=Math.atan2(p.x-ox,p.z-oz),delta=Math.atan2(Math.sin(target-p.cap),Math.cos(target-p.cap));p.cap+=Math.max(-dt*9,Math.min(dt*9,delta));}
    packed[i*4]=p.x;packed[i*4+1]=p.z;packed[i*4+2]=p.cap;packed[i*4+3]=PDR.regles.coder(p.injury||p.aggression>0?3:i%3,i%10,moved>.001?(p.panic?8:1):0,63,0);
   }
+  }finally{updateDepth--;}
  }
  update(0);return {people,packed,locomotion,nav,update,get avoids(){return avoids;},n,get version(){return tick;}};
 }R.crowd={create,temperament};})(globalThis.RADE=globalThis.RADE||{});

@@ -42,7 +42,7 @@ function create({savedCity=null}={}){
  const inCore=(x,z)=>x>=-550&&x<=550&&z>=-550&&z<=550;
  // Replace complete source silhouettes before collision construction; keep foliage and overhead branches non-solid.
  const vegetation=R.details.prepareVegetation(scenery,city,coreBounds),clearedTrees=vegetation.removed;
- const boxes=[],buckets=new Map(),key=(x,z)=>Math.floor(x/8)+','+Math.floor(z/8),meshBoxes=new WeakMap(),boxIndex=new WeakMap(),taintedBoxes=new Set();let colliderGeneration=0,stagedBoxes=null,colliderSource=null,colliderSourceWorld=null,colliderSlots=null,sceneryDelta=null,sceneryChanges=[],renderMutation=0;
+ const boxes=[],buckets=new Map(),key=(x,z)=>Math.floor(x/8)+','+Math.floor(z/8),meshBoxes=new WeakMap(),boxIndex=new WeakMap(),taintedBoxes=new Set();let colliderGeneration=0,stagedBoxes=null,colliderSource=null,colliderSourceWorld=null,colliderSourceLength=-1,colliderList=null,colliderPositions=null,colliderAligned=false,sceneryDelta=null,sceneryChanges=[],renderMutation=0;
  const boxFields=['x','z','a','b','c','s','cap','minY','maxY','minX','maxX','minZ','maxZ'];
  function cellsForBox(q){const cells=[];for(let z=Math.floor(q.minZ/8);z<=Math.floor(q.maxZ/8);z++)for(let x=Math.floor(q.minX/8);x<=Math.floor(q.maxX/8);x++)cells.push(x+','+z);return cells;}
  function appendBox(q){
@@ -85,12 +85,34 @@ function create({savedCity=null}={}){
  const rings=city.eau;
  function inRing(p,x,z){let inside=false;for(let i=0,j=p.length-2;i<p.length;j=i,i+=2){if((p[i+1]>z)!==(p[j+1]>z)&&x<(p[j]-p[i])*(z-p[i+1])/(p[j+1]-p[i+1])+p[i])inside=!inside;}return inside;}
  const water=(x,z)=>inCore(x,z)?rings.some(p=>inRing(p,x,z)):(coast?.water(x,z)??cityStream?.water(x,z)??false);
- function land(x,z,r=0){if(x-r<bounds.minX||x+r>bounds.maxX||z-r<bounds.minZ||z+r>bounds.maxZ)return false;for(const [dx,dz]of [[0,0],[r,0],[-r,0],[0,r],[0,-r]])if(water(x+dx,z+dz))return false;return true;}
+ function land(x,z,r=0){
+  if(x-r<bounds.minX||x+r>bounds.maxX||z-r<bounds.minZ||z+r>bounds.maxZ)return false;
+  if(inCore(x-r,z-r)&&inCore(x+r,z+r)){
+   // The three horizontal probes share the same polygon crossings. Compute
+   // each intersection once, retaining the exact five original point tests.
+   // Read ring vertices live: callers may still edit the geographic data.
+   const left=x-r,right=x+r,back=z-r,front=z+r;
+   for(const p of rings){let mask=0;
+    for(let i=0,j=p.length-2;i<p.length;j=i,i+=2){const zi=p[i+1],zj=p[j+1],xi=p[i],xj=p[j];
+     if((zi>z)!==(zj>z)){const edge=(xj-xi)*(z-zi)/(zj-zi)+xi;if(x<edge)mask^=1;if(right<edge)mask^=2;if(left<edge)mask^=4;}
+     if((zi>front)!==(zj>front)&&x<(xj-xi)*(front-zi)/(zj-zi)+xi)mask^=8;
+     if((zi>back)!==(zj>back)&&x<(xj-xi)*(back-zi)/(zj-zi)+xi)mask^=16;
+    }if(mask)return false;
+   }return true;
+  }
+  return !water(x,z)&&!water(x+r,z)&&!water(x-r,z)&&!water(x,z+r)&&!water(x,z-r);
+ }
  function candidates(x,z,r){const set=new Set();for(let j=Math.floor((z-r)/8);j<=Math.floor((z+r)/8);j++)for(let i=Math.floor((x-r)/8);i<=Math.floor((x+r)/8);i++)for(const q of buckets.get(i+','+j)||[])set.add(q);if(!inCore(x-r,z-r)||!inCore(x+r,z+r))for(const q of cityStream?.candidates(x,z,r)||[])set.add(q);return set;}
  function disk(q,x,z,r){const dx=x-q.x,dz=z-q.z,u=dx*q.c+dz*q.s,v=-dx*q.s+dz*q.c;return (u-clamp(u,-q.a,q.a))**2+(v-clamp(v,-q.b,q.b))**2<r*r;}
  let vehicle=null,ignoreVehicle=false,actor=null,actorSeated=false,weather=null,room=null,dynamicBodies=[];const fleet=[];
  const roomRegion=(x,z)=>room&&Math.abs(x-1000)<room.w/2+4&&Math.abs(z-1000)<room.d/2+4;
  const ground=(x=0,z=0)=>(roomRegion(x,z)||inCore(x,z)) ? .08 :(landmarks?.groundHeight(x,z)??coast?.heightAt(x,z)??.08);
+ function vehicleMayReach(c,x,z,r){
+  // Conservative under any yaw, with room for boundary rounding. Unknown
+  // numerical inputs fall through to the original exact collision routines.
+  const spec=R.vehicles.SPECS[c.model],reach=(Math.abs(spec.length)+Math.abs(spec.width))*.5+Math.abs(r),pad=(Math.abs(c.x)+Math.abs(c.z)+Math.abs(x)+Math.abs(z)+reach+1)*Number.EPSILON*8;
+  return !(Math.abs(c.x-x)>reach+pad||Math.abs(c.z-z)>reach+pad);
+ }
  function staticBlocked(x,z,r=.28,y=ground(x,z),height=1.8){
   if(roomRegion(x,z))return room.blocked(x,z,r,y,height);
   if(!land(x,z,r))return true;const core=inCore(x-r,z-r)&&inCore(x+r,z+r);if(!core&&cityStream?.blocked?.(x,z,r,y,height))return true;
@@ -99,7 +121,12 @@ function create({savedCity=null}={}){
   const ix0=Math.floor((x-r)/8),ix1=Math.floor((x+r)/8),iz0=Math.floor((z-r)/8),iz1=Math.floor((z+r)/8);
   const local=core&&ix0===ix1&&iz0===iz1,nearby=local?buckets.get(ix0+','+iz0):candidates(x,z,r);
   if(nearby)for(const q of nearby)if(q.maxY>y+.22&&q.minY<y+height&&disk(q,x,z,r))return true;
-  if(!ignoreVehicle)for(const c of fleet){const q=carBox(c,carBounds);if(q.maxY>y+.22&&q.minY<y+height&&disk(q,x,z,r))return true;}return false;
+  if(!ignoreVehicle)for(const c of fleet){
+   // A yawed rectangle fits within this conservative L1 radius. Reject far
+   // vehicles before refreshing their full OBB; live poses/specs remain valid.
+   if(!vehicleMayReach(c,x,z,r))continue;
+   const q=carBox(c,carBounds);if(q.maxY>y+.22&&q.minY<y+height&&disk(q,x,z,r))return true;
+  }return false;
  }
  const clearance=R.clearance.create({bodies:()=>dynamicBodies,staticBlocked});
  const blocked=(x,z,r=.28,y=ground(x,z),height=1.8)=>clearance.blocked(x,z,r,y,height);
@@ -122,7 +149,7 @@ function create({savedCity=null}={}){
  function carContact(c){
   const a=carBox(c);
   if(c.ai&&actor&&!actorSeated&&actor.y<a.maxY&&actor.y+1.8>a.minY&&disk(a,actor.x,actor.z,.36)){const dx=c.x-actor.x,dz=c.z-actor.z,d=Math.hypot(dx,dz)||1;return {nx:dx/d,nz:dz/d,depth:.05};}
-  for(const other of fleet)if(other!==c){const h=overlap(a,carBox(other));if(h)return h;}
+  for(const other of fleet)if(other!==c&&vehicleMayReach(other,a.x,a.z,Math.abs(a.a)+Math.abs(a.b))){const q=carBox(other,carBounds),h=overlap(a,q);if(h){h.obstacle={...q};return h;}}
   for(const q of dynamicBodies){const h=overlap(a,q);if(h)return h;}
   for(const q of candidates(c.x,c.z,3.6)){const h=overlap(a,q);if(h)return h;}
   for(const u of [-a.a,0,a.a])for(const v of [-a.b,a.b])if(!land(c.x+u*a.c-v*a.s,c.z+u*a.s+v*a.c,.08))return {nx:-Math.cos(c.cap)*(c.u>=0?1:-1),nz:-Math.sin(c.cap)*(c.u>=0?1:-1),depth:.1};
@@ -158,36 +185,62 @@ function create({savedCity=null}={}){
  // keep their geometry. Generic replaceScenery calls always validate all fields.
  // Cache construction happens during loading, without replacing active colliders.
  function prepareSceneryDelta(value){
-  colliderGeneration++;const slots=new Array(value.length),staged=[];stagedBoxes=staged;
-  try{for(let i=0;i<value.length;i++){const at=staged.length,m=value[i];if(m.collision)fromMesh(m);slots[i]=staged.length>at?staged[at]:null;}}
+  colliderGeneration++;const positions=[],staged=[];stagedBoxes=staged;
+  try{for(let i=0;i<value.length;i++){const at=staged.length,m=value[i];if(m.collision)fromMesh(m);if(staged.length>at)positions.push(i);}}
   finally{stagedBoxes=null;}
   // Rebind only an identical occurrence sequence; active collisions stay intact.
   if(value.length===scenery.length&&value.every((m,i)=>m===scenery[i]))scenery=value;
-  colliderSource=value;colliderSourceWorld=scenery;colliderSlots=slots;
+  colliderSource=value;colliderSourceWorld=scenery;colliderSourceLength=value.length;colliderList=staged;colliderPositions=positions;
+  colliderAligned=staged.length<=boxes.length&&staged.every((q,i)=>q===boxes[i]);
  }
- function patchedColliderSlots(value,delta){
-  if(!delta||delta.full||taintedBoxes.size||colliderSlots?.length!==delta.before?.length||delta.before!==colliderSource||delta.after!==value||colliderSourceWorld!==scenery||!colliderSlots||!Array.isArray(delta.splices))return null;
+ function patchedColliders(value,delta){
+  if(!delta||delta.full||taintedBoxes.size||!colliderAligned||delta.before!==colliderSource||delta.before?.length!==colliderSourceLength||delta.after!==value||colliderSourceWorld!==scenery||!colliderList||!Array.isArray(delta.splices))return null;
   let end=0,length=colliderSource.length,offset=0;
   for(const q of delta.splices){if(!q||!Number.isInteger(q.start)||!Number.isInteger(q.deleteCount)||q.start<end||q.deleteCount<0||q.start+q.deleteCount>colliderSource.length||!Array.isArray(q.items))return null;
    for(let i=0;i<q.items.length;i++)if(q.items[i]!==value[q.start+offset+i])return null;
    end=q.start+q.deleteCount;offset+=q.items.length-q.deleteCount;length+=q.items.length-q.deleteCount;
   }if(length!==value.length)return null;
-  // Array copies retain occurrence order, including duplicate mesh references.
-  const slots=new Array(length);let read=0,write=0;const staged=[];stagedBoxes=staged;
-  try{for(const q of delta.splices){while(read<q.start)slots[write++]=colliderSlots[read++];read+=q.deleteCount;
-    for(const m of q.items){const at=staged.length;if(m.collision)fromMesh(m,true);slots[write++]=staged.length>at?staged[at]:null;}
-   }while(read<colliderSlots.length)slots[write++]=colliderSlots[read++];}
-  finally{stagedBoxes=null;}
-  return slots;
+  // Index only solid occurrences. Most city meshes have no collider; retaining
+  // them must not require copying and filtering a city-sized null-slot array.
+  const lowerBound=position=>{let lo=0,hi=colliderPositions.length;while(lo<hi){const mid=(lo+hi)>>>1;if(colliderPositions[mid]<position)lo=mid+1;else hi=mid;}return lo;};
+  const parts=[],positions=[],removed=[],added=[];let read=0;offset=0;
+  const retain=to=>{if(to>read)parts.push(colliderList.slice(read,to));while(read<to)positions.push(colliderPositions[read++]+offset);};
+  try{for(const q of delta.splices){
+    const from=lowerBound(q.start),to=lowerBound(q.start+q.deleteCount);retain(from);
+    while(read<to)removed.push(colliderList[read++]);
+    const inserted=[];stagedBoxes=inserted;
+    for(let i=0;i<q.items.length;i++){const at=inserted.length,m=q.items[i];if(m.collision)fromMesh(m,true);if(inserted.length>at)positions.push(q.start+offset+i);}
+    if(inserted.length){parts.push(inserted);for(const box of inserted)added.push(box);}offset+=q.items.length-q.deleteCount;
+   }retain(colliderList.length);
+  }finally{stagedBoxes=null;}
+  // Standalone bridge/public colliders follow the scenery prefix. Replacement
+  // always removes them, even when the producer's mesh delta is empty.
+  for(let i=colliderList.length;i<boxes.length;i++)removed.push(boxes[i]);
+  let next;if(parts.length<4096)next=[].concat(...parts);else{next=[];for(const part of parts)for(const q of part)next.push(q);}
+  return {next,positions,removed,added};
+ }
+ function publishColliderPatch(patch){
+  const dirty=new Set(),insertions=new Map();
+  for(const q of patch.removed){const index=boxIndex.get(q);index.active=false;for(const cell of index.cells)dirty.add(cell);}
+  for(const q of patch.added){const cells=cellsForBox(q);boxIndex.set(q,{active:true,cells,order:0,seen:colliderGeneration,nextOrder:0});for(const cell of cells){dirty.add(cell);let list=insertions.get(cell);if(!list){list=[];insertions.set(cell,list);}list.push(q);}}
+  // Integer order remains exact, including coincident contacts and duplicated
+  // source meshes. One compact pass replaces several full-scene/index scans.
+  boxes.length=patch.next.length;for(let i=0;i<patch.next.length;i++){const q=patch.next[i],index=boxIndex.get(q);index.active=true;index.order=i;boxes[i]=q;}
+  for(const cell of dirty){const list=buckets.get(cell)||[];let at=0;
+   for(let i=0,n=list.length;i<n;i++){const q=list[i];if(boxIndex.get(q).active)list[at++]=q;}list.length=at;
+   const added=insertions.get(cell);if(added){for(const q of added)list.push(q);list.sort((a,b)=>boxIndex.get(a).order-boxIndex.get(b).order);}
+   if(list.length)buckets.set(cell,list);else buckets.delete(cell);
+  }
  }
  function replaceScenery(value,options){
-  colliderGeneration++;const next=[];let slots=patchedColliderSlots(value,options?.meshDelta);
-  sceneryDelta=slots?options.meshDelta:null;
+  colliderGeneration++;const patch=patchedColliders(value,options?.meshDelta);let next,positions;
+  sceneryDelta=patch?options.meshDelta:null;
   if(sceneryDelta&&(!sceneryChanges.length||sceneryChanges.at(-1).after===sceneryDelta.before)&&sceneryChanges.length<16)sceneryChanges.push(sceneryDelta);else sceneryChanges=sceneryDelta?[sceneryDelta]:[];
-  if(slots){for(const q of slots)if(q)next.push(q);}else{
-   slots=new Array(value.length);stagedBoxes=next;try{for(let i=0;i<value.length;i++){const at=next.length,m=value[i];if(m.collision)fromMesh(m);slots[i]=next.length>at?next[at]:null;}}finally{stagedBoxes=null;}
+  if(patch){next=patch.next;positions=patch.positions;}else{
+   next=[];positions=[];stagedBoxes=next;try{for(let i=0;i<value.length;i++){const at=next.length,m=value[i];if(m.collision)fromMesh(m);if(next.length>at)positions.push(i);}}finally{stagedBoxes=null;}
   }
-  scenery=value;colliderSource=value;colliderSourceWorld=value;colliderSlots=slots;
+  scenery=value;colliderSource=value;colliderSourceWorld=value;colliderSourceLength=value.length;colliderList=next;colliderPositions=positions;colliderAligned=true;
+  if(patch){publishColliderPatch(patch);return;}
   if(!taintedBoxes.size&&next.length===boxes.length&&next.every((q,i)=>q===boxes[i]))return;
   const dirty=new Set(),added=new Map();let previousOrder=-1,reordered=false;
   for(let i=0;i<next.length;i++){const q=next[i];let index=boxIndex.get(q);if(!index){index={active:false,cells:[],order:0,seen:-1,nextOrder:0};boxIndex.set(q,index);}
