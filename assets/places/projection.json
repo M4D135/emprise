@@ -1,0 +1,19 @@
+{
+  "source": "/Users/david/Projects/point-de-rupture/Jeu/outils/plans/extraire.py:774",
+  "name": "WGS84 local ellipsoidal scale (same as source city extractor)",
+  "origin": {
+    "lat": 43.2962,
+    "lon": 5.3734
+  },
+  "kx": 81148.19357771498,
+  "kz": 111098.50934829589,
+  "formula": "x=(lon-lon0)*kx; z=-(lat-lat0)*kz",
+  "note": "Verified actual source extraction formula. Use this in preference to initial spherical approximation.",
+  "worldBounds": {
+    "minX": -550,
+    "maxX": 550,
+    "minZ": -550,
+    "maxZ": 550
+  },
+  "worldBoundsNote": "Root confirmed extension to actual 1100m world on 2026-11-15; assignment should use supplied world.bounds dynamically."
+}

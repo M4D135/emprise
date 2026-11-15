@@ -1,0 +1,20 @@
+{
+  "checks": [
+    "Achat réel, débit unique, objet en inventaire et soin consommable dehors une seule fois",
+    "Plan papier : achat à portée uniquement, 60 € débités une fois, fonds insuffisants et répétition refusés",
+    "Vol/racket : argent réel, menace réelle et temporisations conservées après sauvegarde",
+    "Protection : un vrai responsable rival METAL dehors, une seule mission, reprise sans doublon",
+    "Mission jouée avec tirs normaux : chef éliminé, retour au commerçant obligatoire puis revenus hors du bâtiment",
+    "Protection et revenus persistants, aucune récompense répétée lors du chargement",
+    "Hôtels : bagages par chambre et étage, argent/objets une seule fois, coffre vide après reprise",
+    "PNJ intérieurs visibles, collidants et blessables ; identités et morts conservées entre visites",
+    "Cache intérieure : pas de vision ni arrestation àx1000, menace retombée sans nouvelle infraction",
+    "Commerce dont le commerçant est mort : revenus suspendus même après sortie",
+    "Données partielles ou corrompues ignorées sans valeur invalide ni personnage répliqué"
+  ],
+  "combat": {
+    "seconds": 0.3416666666666669,
+    "shots": 3,
+    "rate": 36
+  }
+}

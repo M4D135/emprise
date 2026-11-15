@@ -1,0 +1,134 @@
+{
+  "checks": [
+    "Initialisation déterministe : 12 civils, 3 policiers, mêmes positions et même graphe",
+    "Vision réelle : point mémorisé figé hors ligne de vue, recherche routière locale, jamais la position cachée",
+    "Recherche bornée : mémoire et poursuite retombent après 22–32 s selon le niveau",
+    "Nouvelle infraction explicite : la mémoire et la poursuite repartent",
+    "Radio : un autre équipage ne rajeunit pas un point jamais revu",
+    "Réacquisition uniquement par ligne de vue réelle",
+    "1/2/3 équipages selon la recherche ; chauffeur et intercepteurs ont des nœuds routiers distincts",
+    "Recherche à zéro : mémoire effacée et patrouilles normales",
+    "Route bornée : 320 expansions maximum, aucun parcours complet du graphe",
+    "Replanification étalée : au plus une demande de route par voiture et par seconde",
+    "Mur statique : freinage anticipé, marche arrière bornée à une seconde puis reprise",
+    "Le frein se relâche dès que l’obstacle disparaît",
+    "Recul refusé quand l’arrière est bloqué",
+    "Arrêt volontaire près du joueur : aucune marche arrière ni fausse panne",
+    "Interpellation valide : agent en poursuite, ligne de vue, distance et vitesse réelles",
+    "Interpellation refusée hors ligne de vue, hors portée, en vitesse ou pendant le délai",
+    "Cooldown de 10 s, infraction nouvelle pendant le délai, sauvegarde/reprise bornée",
+    "Session réelle : un tir déclenche la poursuite et l’interpellation réelle en moins de 90 s",
+    "Mur proche : information figée, réacquisition après retrait, équipage neutralisé sans vision",
+    "Grand graphe connecté : cible inaccessible, arrêt exactement à320 expansions",
+    "Extension carte : spawns initiaux préservés, routes accessibles au-delà de320m",
+    "Sauvegarde au-delà de320m restaurée selon les limites réelles de la ville"
+  ],
+  "fixtures": [
+    {
+      "test": "12 civils + 3 policiers, graphe et tirages initiaux identiques",
+      "cars": 15,
+      "nodes": 3011,
+      "edges": 2973
+    },
+    {
+      "test": "Ligne de vue réelle, point figé puis recherche locale",
+      "lastKnown": {
+        "seq": 32,
+        "time": 7.149999999999983,
+        "x": 0,
+        "z": 12,
+        "vx": 0,
+        "vz": 0,
+        "valid": true
+      },
+      "searchNode": [
+        6.666666666666671,
+        20
+      ],
+      "hidden": [
+        150,
+        150
+      ]
+    },
+    {
+      "test": "Niveaux de recherche et objectifs distincts",
+      "wanted": 3,
+      "roles": [
+        [
+          0,
+          "interceptor",
+          67
+        ],
+        [
+          1,
+          "chaser",
+          -1
+        ],
+        [
+          2,
+          "interceptor",
+          174
+        ]
+      ],
+      "metrics": {
+        "pathRequests": 3,
+        "pathExpansions": 45,
+        "maxPathExpansions": 34,
+        "recoveries": 0
+      }
+    },
+    {
+      "test": "Graphe large déconnecté : recherche de route plafonnée",
+      "requests": 8,
+      "expansions": 24,
+      "max": 3
+    },
+    {
+      "test": "Cadence de replanification sur 8 s",
+      "requests": 4,
+      "seconds": 8,
+      "max": 26
+    },
+    {
+      "test": "Route bloquée : freinage, marche arrière finie",
+      "recoveries": 1,
+      "maxReverse": 1,
+      "cop": [
+        -2.6694236020682927,
+        0.082015589472609
+      ]
+    },
+    {
+      "test": "Sécurité arrière : aucun recul dans un obstacle",
+      "recoveries": 2,
+      "reverse": 0
+    },
+    {
+      "test": "Contrat d’interpellation",
+      "eligible": {
+        "eligible": true,
+        "reason": "ok",
+        "officerId": 0,
+        "stationId": null
+      }
+    },
+    {
+      "test": "Délai d’interpellation et sauvegarde bornée",
+      "fine": 80,
+      "revision": 2,
+      "cooldown": 9
+    },
+    {
+      "test": "Session réelle : tir, poursuite, interpellation",
+      "arrestTime": 11.666666666666645,
+      "minDistance": 4.771588491715865,
+      "maxJump": 0.2289871837701712,
+      "eligibleFrames": 480
+    },
+    {
+      "test": "Budget saturé sur grand composant connecté",
+      "nodes": 1685,
+      "expansions": 320
+    }
+  ]
+}

@@ -1,8 +1,8 @@
 {
-  "version": "0.2.0",
-  "build": "406c86cc1b",
-  "bytes": 7326105,
-  "sha256": "c6e3935427e6a36e138ba67c45bf38299073cd6c9d82eac0d85d4e8ae6062e39",
+  "version": "0.3.0",
+  "build": "e7e1550b58",
+  "bytes": 3736363,
+  "sha256": "0f99e612444e2d68db3d9b7ed6140986b98fc618ec96df10d5dbd35c3fe63ad8",
   "modules": [
     "ferro/renderer",
     "ferro/destruction",
@@ -32,9 +32,11 @@
     "pdr/foule",
     "vehicles",
     "mobility",
+    "marine",
     "details",
     "architecture",
     "people",
+    "boundaries",
     "world",
     "crowd",
     "traffic",
@@ -42,10 +44,14 @@
     "replay",
     "replays",
     "weather",
+    "places-data",
+    "places",
     "interiors",
     "urban",
     "injuries",
+    "business",
     "session",
+    "gamepad",
     "game"
   ]
 }

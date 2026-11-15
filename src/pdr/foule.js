@@ -48,7 +48,7 @@
     VEHICULE: 9, TOURELLE: 10, ANNEAU: 11, BANDEROLE: 12, POUTRE: 13, CUIVRE: 14, TAMBOUR: 15 });
   // Teintes : la couleur de chaque partie est tirée dans le shader, par unité.
   const TEINTE = Object.freeze({ PEAU: 0, HAUT: 1, BAS: 2, CAMP: 3, SOMBRE: 4, METAL: 5, SAC: 6, CLAIR: 7, VERRE: 8, BOIS: 9,
-    BLANC: 10, LUMIERE: 11, CHEVEUX: 12, CASQUE: 13, DORE: 14 });
+    BLANC: 10, LUMIERE: 11, CHEVEUX: 12, CASQUE: 13, DORE: 14, FOULARD: 15 });
   const MATIERE = Object.freeze({ TISSU: 0, LAQUE: 1, METAL: 2, PEAU: 3, VERRE: 4, EMISSIF: 5 });
   const SOMMET = 36;                      // octets : position 3 × f32, normale 3 × f32, uv 2 × f32, infos 4 × u8
 
@@ -172,15 +172,15 @@
     }
     // Smooth garment profile: [height, half-width, half-depth], with connected rings.
     function profil(x,z,rings,n){const rows=[];for(let j=0;j<rings.length;j++){const [y,rx,rz]=rings[j],row=[];for(let i=0;i<=n;i++){const a=i*Math.PI*2/n,ca=Math.cos(a),sa=Math.sin(a);const before=rings[Math.max(0,j-1)],after=rings[Math.min(rings.length-1,j+1)],dy=after[0]-before[0]||1,ny=-((after[1]-before[1])*ca*ca+(after[2]-before[2])*sa*sa)/dy;row.push(sommet([x+rx*ca,y,z+rz*sa],unite([ca,ny,sa]),[i/n,j/(rings.length-1)]));}rows.push(row);}for(let j=0;j<rows.length-1;j++)for(let i=0;i<n;i++){const a=(i+.5)*Math.PI*2/n,norm=[Math.cos(a),0,Math.sin(a)];triangle(rows[j][i],rows[j][i+1],rows[j+1][i+1],norm);triangle(rows[j][i],rows[j+1][i+1],rows[j+1][i],norm);}for(const j of [0,rings.length-1]){const normal=[0,j?1:-1,0],mid=sommet([x,rings[j][0],z],normal,[.5,.5]);for(let i=0;i<n;i++)triangle(mid,rows[j][i],rows[j][i+1],normal);}}
-    function corps(data,feminine=false){const start=b.length/4;for(let i=0;i<data.positions.length;i++){const [a,second,weight]=data.bones[i],t=data.materials[i];regler(a,t,t===0?MATIERE.PEAU:MATIERE.TISSU,32);const p=data.positions[i].slice(),n=data.normals[i].slice();if(feminine){const scale=p[1]>1.15?.92:p[1]>.74?1.07:1;p[0]*=scale;n[0]/=scale;}sommet(p,unite(n),[second,weight]);}for(const i of data.indices)idx.push(start+i);}
+    function corps(data,feminine=false){const start=b.length/4;for(let i=0;i<data.positions.length;i++){const [a,second,weight]=data.bones[i],t=data.materials[i];regler(a,t,t===0?MATIERE.PEAU:MATIERE.TISSU,32);const p=data.positions[i].slice(),n=data.normals[i].slice();if(globalThis.RADE?.human?.fit){const fitted=RADE.human.fit(p,n,feminine);for(let k=0;k<3;k++){p[k]=fitted.p[k];n[k]=fitted.n[k];}}sommet(p,unite(n),[second,weight]);}for(const i of data.indices)idx.push(start+i);}
     function maillage(data){const start=b.length/4;for(let i=0;i<data.positions.length;i++)sommet(data.positions[i],data.normals[i],[0,0]);for(const i of data.indices)idx.push(start+i);}
     return { f, b, idx, regler, boite, cylindre, sphere, anneau, profil, maillage, corps, get sommets() { return b.length / 4; } };
   }
 
   // Everyday clothing variants are chosen by civilian identity, never by faction or aggression.
   function tenue(m,t,detail){const R=m.regler,T=TEINTE,veil=t===5||t===7,feminine=[2,5,7,9].includes(t),street=[0,3,8].includes(t);
-   if(veil&&globalThis.RADE?.human){R(OS.TETE,T.SAC);m.maillage(RADE.human.scarf);R(OS.CORPS,T.SAC);m.profil(0,-.012,[[1.39,.21,.115],[1.46,.155,.10],[1.56,.068,.071]],detail?20:10);}
-   if(feminine){R(OS.CORPS,T.HAUT);m.profil(0,0,[[.70,.24,.19],[.94,.22,.185],[1.10,.205,.18],[1.30,.215,.185]],detail?18:8);}
+   if(veil&&globalThis.RADE?.human){R(OS.TETE,T.FOULARD);m.maillage(RADE.human.scarf);if(RADE.human.scarfDrape){R(OS.CORPS,T.FOULARD);m.maillage(RADE.human.scarfDrape);}}
+   // Clothing follows the continuous skinned body; no rigid torso sleeve.
    if(street){R(OS.TETE,T.SAC);m.sphere([0,1.80,-.005],[.105,.062,.106],detail?20:8,detail?8:4,.6);m.boite([0,1.788,.123],[.17,.012,.13]);R(OS.CORPS,T.SOMBRE);m.boite([.015,1.25,.16],[.024,.52,.018],[0,0,-.55]);m.boite([.14,1.055,.18],[.155,.18,.075]);if(detail){R(OS.CORPS,T.METAL,MATIERE.METAL);m.boite([.14,1.11,.221],[.12,.007,.006]);R(OS.CORPS,T.SAC);m.boite([.14,1.032,.22],[.12,.07,.009]);}}
   }
   // RADE civilians: rounded anatomy, articulated knees/elbows, faces and ten outfits.
@@ -188,7 +188,7 @@
     const R=m.regler,T=TEINTE,M=MATIERE,lon=detail?12:7,lat=detail?8:4;
     if(detail&&globalThis.RADE?.human?.body){
       m.corps(RADE.human.body,[2,5,7,9].includes(t));R(OS.TETE,T.PEAU,M.PEAU);m.maillage(RADE.human.head);if(t!==5&&t!==7){R(OS.TETE,T.CHEVEUX);m.maillage(RADE.human.hair);}
-      for(const eye of RADE.human.head.eyes){R(OS.TETE,T.BLANC);m.sphere(eye,[.011,.009,.010],12,8);R(OS.TETE,T.SOMBRE);m.sphere([eye[0],eye[1],eye[2]+.009],[.004,.004,.002],10,6);}
+      for(const eye of RADE.human.head.eyes){R(OS.TETE,T.BLANC);m.sphere(eye,[.009,.0045,.004],12,8);R(OS.TETE,T.SOMBRE);m.sphere([eye[0],eye[1],eye[2]+.005],[.0025,.0025,.0015],10,6);}
       for(const [os,x]of [[16,-.105],[17,.105]]){R(os,T.SOMBRE);m.profil(x,.035,[[.022,.055,.111],[.047,.059,.124],[.086,.052,.112],[.142,.043,.052]],16);R(os,T.CLAIR);m.profil(x,.035,[[.015,.056,.116],[.032,.060,.125]],16);}
       R(OS.CORPS,T.HAUT);m.cylindre([0,1.518,0],.066,.067,.025,20);
       R(OS.CORPS,T.SOMBRE);m.boite([0,1.035,.095],[.30,.027,.022]);R(OS.CORPS,T.METAL,M.METAL);m.boite([0,1.035,.112],[.038,.025,.006]);tenue(m,t,detail);return;
@@ -215,7 +215,7 @@
       if(detail){oval([x+(x>0?-.044:.044),.91,.033],[.019,.038,.022]);R(fore,T.SOMBRE);m.cylindre([x,.952,.013],.059,.066,.025,lon);}
     }
     if(detail){
-      for(const eye of RADE.human.head.eyes){R(OS.TETE,T.BLANC);oval(eye,[.011,.009,.010]);R(OS.TETE,T.SOMBRE);oval([eye[0],eye[1],eye[2]+.009],[.004,.004,.002]);}
+      for(const eye of RADE.human.head.eyes){R(OS.TETE,T.BLANC);oval(eye,[.009,.0045,.004]);R(OS.TETE,T.SOMBRE);oval([eye[0],eye[1],eye[2]+.005],[.0025,.0025,.0015]);}
       R(OS.CORPS,T.SOMBRE);m.boite([0,1.015,.12],[.32*wide,.035,.035]);R(OS.CORPS,T.METAL,M.METAL);m.boite([0,1.015,.144],[.045,.027,.009]);
       if(t!==1&&t!==5){R(OS.CORPS,T.CLAIR);m.boite([0,1.272,.133],[.014,.40,.008]);R(OS.CORPS,T.SAC);for(const x of [-.12,.12])m.boite([x,1.13,.125],[.105,.035,.016]);}
       if(t===1){R(OS.CORPS,T.BLANC);for(let j=0;j<5;j++)m.boite([0,1.16+j*.053,.13],[.34,.013,.012]);}
@@ -426,8 +426,8 @@
   out vec3 vMonde;out vec3 vNormale;out vec2 vUV;
   flat out vec3 vBase;flat out vec4 vMatiere;flat out vec3 vMotif;flat out uint vFaction;
   #endif
-  const vec3 PIV_HANCHES=vec3(0.,.95,0.),PIV_COU=vec3(0.,1.52,0.),PIV_JAMBE_G=vec3(-.1,.92,0.),PIV_JAMBE_D=vec3(.1,.92,0.);
-  const vec3 PIV_BRAS_G=vec3(-.27,1.45,0.),PIV_BRAS_D=vec3(.27,1.45,0.),PIV_BANDEROLE=vec3(.27,1.85,.05),PIV_TOURELLE=vec3(0.,3.12,.6);
+  const vec3 PIV_HANCHES=vec3(0.,.95,0.),PIV_COU=vec3(0.,1.52,0.),PIV_JAMBE_G=vec3(-.105,.97,0.),PIV_JAMBE_D=vec3(.105,.97,0.);
+  const vec3 PIV_BRAS_G=vec3(-.235,1.43,0.),PIV_BRAS_D=vec3(.235,1.43,0.),PIV_BANDEROLE=vec3(.27,1.85,.05),PIV_TOURELLE=vec3(0.,3.12,.6);
   struct Pose{float jg;float jd;float bg;float bd;float torse;float tete;float haut;float roulis;float tourelle;float bouclier;float banderole;float poutre;};
   vec3 tourneX(vec3 v,float a){float c=cos(a),s=sin(a);return vec3(v.x,v.y*c+v.z*s,-v.y*s+v.z*c);}
   void tourner(inout vec3 p,inout vec3 n,vec3 pivot,float a){p=pivot+tourneX(p-pivot,a);n=tourneX(n,a);}
@@ -435,9 +435,9 @@
     Pose q=Pose(0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.);
     float t=uReglages.y,ph=float(u.h&1023u)*.0061419;
     uint e=u.etat;bool court=e==8u;bool marche=u.vitesse>.25||e==1u||court;
-    float amp=court?.95:.6*clamp(max(u.vitesse,e==1u?2.4:0.)/3.4,0.,1.);
-    float w=t*(court?2.6:1.75)*6.2831853+ph,s=sin(w);
-    if(marche){q.jg=amp*s;q.jd=-amp*s;q.bg=-amp*.8*s;q.bd=amp*.8*s;q.haut=abs(cos(w))*amp*.06;if(court)q.torse=.3;}
+    float amp=court?.65:.32*clamp(max(u.vitesse,e==1u?1.1:0.)/1.4,0.,1.);
+    float w=t*(court?1.55:.85)*6.2831853+ph,s=sin(w);
+    if(marche){q.jg=amp*s;q.jd=-amp*s;q.bg=-amp*.8*s;q.bd=amp*.8*s;q.haut=(1.-abs(cos(w)))*amp*.025;if(court)q.torse=.3;}
     else{q.torse=.025*sin(t*1.3+ph);q.bg=.05*sin(t*1.1+ph);q.bd=-q.bg;q.tete=.06*sin(t*.7+ph*1.7);}
     if(e==2u){float k=.5+.5*sin(t*7.5+ph);q.bd=1.25+.45*k;q.bg=1.05+.4*(1.-k);q.torse=.1+.18*k;if(!marche){q.jg=.3;q.jd=-.22;}}
     else if(e==3u){float k=.5+.5*sin(t*5.+ph);q.torse=.78;q.bg=.55+.5*k;q.bd=.55+.5*(1.-k);q.jg=q.jd=.15;q.haut=-.06;q.tete=-.3;}
@@ -465,7 +465,7 @@
     return q;
   }
   void poserOs(inout vec3 p,inout vec3 n,uint os,Pose q){
-    if(os==16u||os==17u){float a=os==16u?q.jg:q.jd;vec3 knee=vec3(os==16u?-.1:.1,.52,0.);tourner(p,n,knee,-max(0.,-a)*1.1);tourner(p,n,os==16u?PIV_JAMBE_G:PIV_JAMBE_D,a);}
+    if(os==16u||os==17u){float a=os==16u?q.jg:q.jd;vec3 knee=vec3(os==16u?-.105:.105,.52,0.);tourner(p,n,knee,-max(0.,a)*1.25);tourner(p,n,os==16u?PIV_JAMBE_G:PIV_JAMBE_D,a);}
     else if(os==18u||os==19u){float a=os==18u?q.bg:q.bd;vec3 elbow=vec3(os==18u?-.255:.255,1.19,0.);tourner(p,n,elbow,.13+max(0.,a)*.4);tourner(p,n,os==18u?PIV_BRAS_G:PIV_BRAS_D,a);}
     else if(os==4u)tourner(p,n,PIV_JAMBE_G,q.jg);
     else if(os==5u)tourner(p,n,PIV_JAMBE_D,q.jd);
@@ -525,6 +525,7 @@
     else if(tt==11u)b=mix(camp,vec3(1.),.35);
     else if(tt==12u){const vec3 P[4]=vec3[4](vec3(.10,.08,.07),vec3(.30,.20,.12),vec3(.55,.42,.25),vec3(.16,.15,.15));b=P[(h>>14)&3u];}
     else if(tt==13u)b=u.faction==1u?vec3(.95,.72,.18):u.faction==2u?vec3(.13,.22,.48):camp;
+    else if(tt==15u)b=((h>>12)&1u)==0u?vec3(.09,.12,.17):vec3(.30,.14,.12);
     else b=vec3(.80,.62,.25);
     uint mat=aInfo.z;
     vMatiere=mat==1u?vec4(.22,.35,0.,0.):mat==2u?vec4(.38,.75,0.,0.):mat==3u?vec4(.7,0.,0.,0.):mat==4u?vec4(.1,.5,0.,0.):mat==5u?vec4(.5,0.,1.6,0.):vec4(.92,0.,0.,0.);

@@ -40,18 +40,27 @@ Les positions de véhicule/joueur et les événements partagent la session. Entr
 
 ## Coût et arbitrages
 
-Le décor demeure dans un lot statique permanent : `allStatic` évite la disparition de la rive opposée provoquée par le culling à 64 m. L’atlas d’ombre couvre la zone proche du joueur. La foule n’est retransmise qu’à chaque tick de 20 Hz, pas à chaque image ; interpolation entre états côté GPU. Les mesures de la version 0.2.0 sont conservées dans `sandbox-browser.json` ; `browser-performance.json` décrit le premier prototype.
+Le décor est précalculé en chunks GPU conservés entre les images. Leur volume englobant est testé contre la caméra, avec distances de détail pour les ornements ; les volumes principaux conservent la rive lointaine. L’ombre solaire sélectionne séparément ses casters pour ne pas perdre les ombres venant de hors champ. Les morceaux inchangés sont réutilisés après destruction. Les structures de destruction et de physique sont préparées au chargement pour éviter leur construction lors du premier choc.
+
+La foule est transmise à 20 Hz et interpolée sur le GPU. Les acteurs proches utilisent un nombre borné de maillages déformés avec les mêmes poids articulaires. L’ATH affiche désormais la moyenne et le pire intervalle récent, au lieu d’une médiane qui dissimulait les pauses.
 
 L’ensemble privilégie un jalon cohérent : pas de chargement entre trois moteurs séparés, pas de serveur requis, ni d’assets empruntés à GTA. Les limites fonctionnelles sont listées dans le README.
 
-## Ajouts de la version 0.2.0
+## Socle hérité de la version 0.2.0
 
 `campaign.js` possède la progression solo, les douze sites et la loi ; `traffic.js` utilise le graphe routier à 944 nœuds. `interiors.js` catalogue 746 adresses et génère sept usages avec des étages chargés par interaction. `injuries.js` unifie les volumes de tir des adversaires, civils et commerçants à pied. Les conducteurs ont un état propre, utilisé pour l’extraction et la persistance.
 
 `urban.js` branche les dégâts sur `ferro/destruction.js` et le solveur rigide METAL. Les coupures conservent les orientations du décor ; les volumes statiques orientés évitent de boucher une rue avec une boîte englobante. Les corps rigides sont isolés par scène intérieure ou extérieure. Les masses proviennent du volume, du matériau et d’une approximation de coque. Les budgets sont volontairement finis. Les explosions de véhicules déclenchent les effets METAL, les dégâts de proximité, le feu et des fragments, une seule fois par épave.
 
-`weather.js` intègre un déplacement continu des nuages selon le vent, au lieu d’un aller-retour sinusoïdal. Le renderer partage ciel et réflexions d’environnement ; une passe SSR en demi-résolution suit la profondeur du monde avant l’arme FPS. Les six JPEG PBR sont embarqués en base64 par `build.py`, décodés avant création des textures GPU. Ils ne requièrent aucun réseau.
+`weather.js` intègre un déplacement continu des nuages selon le vent, au lieu d’un aller-retour sinusoïdal. Le renderer partage ciel et réflexions d’environnement ; une passe SSR en demi-résolution suit la profondeur du monde avant l’arme FPS. Les cartes de matériaux sont générées au chargement par `materials.js`, sans JPEG, image source ni réseau.
 
-`tools/prepare-head.py` et `tools/prepare-body.py` convertissent les sources MakeHuman CC0 conservées dans `assets/human`. La foule anime deux influences articulaires par sommet et utilise des indices 32 bits. Les acteurs individuels utilisent des sous-maillages articulés ; leur déformation est plus simple que celle de la foule. Des niveaux de détail limitent le coût des personnages éloignés.
+`human-data.js` et `body-data.js` sont des générateurs paramétriques originaux exécutés en mémoire, sans MakeHuman ni maillage importé. Les validateurs `tools/prepare-head.py` et `tools/prepare-body.py` ne lisent aucun asset externe. Voir `MODELS.md` et `ASSETS.md`.
 
 `replay.js` enregistre les commandes consommées à 120 Hz. Les données RLE validées dans `src/replays.js` sont rejouées dans une session isolée ; la session du joueur est restaurée à la fin et aucune sauvegarde de démo n’est écrite. Les fixtures des tests de destruction sont explicitement identifiées comme telles.
+
+
+## Comparaison actuelle des autres jeux
+
+Le 15 novembre, les sources locales BITUME `ba6de78` et Point de rupture `5398fd3` ont été relues sans modification. EMPRISE reprend les conventions manette, réglages et vibrations de conduite de BITUME, les carènes pour les embarcations et les passes de foule de PDR. Son rendu conserve ses reflets de scène et son mouillage piloté par la météo : le renforcement analytique du ciel de BITUME ne remplace pas cette passe. Le clone METAL disponible dans ce travail reste `731ace7` ; sa simulation FPS, ses dégâts et sa physique restent intégrés. Il ne s’agit pas d’une fusion globale des trois dépôts ni de l’importation de tout leur travail en cours.
+
+`business.js` réserve ses adversaires avant la création de la simulation METAL et utilise ses vrais tirs et PV. `marine.js` possède la pose en nage et en bateau ; la simulation continue à traiter les autres acteurs. Les données de ces modules sont isolées dans la sauvegarde solo.

@@ -1,5 +1,5 @@
 {
-  "delaySeconds": 5.377298332983628,
+  "delaySeconds": 5.2245529589708894,
   "recordings": [
     "Tir et conduite \u00b7 clavier / souris r\u00e9els",
     "Commerce contest\u00e9 \u00b7 session de test valid\u00e9e",
@@ -12,5 +12,5 @@
   "explosionReplayValidated": true,
   "errors": [],
   "url": "file://dist/index.html",
-  "buildSha256": "c6e3935427e6a36e138ba67c45bf38299073cd6c9d82eac0d85d4e8ae6062e39"
+  "buildSha256": "0f99e612444e2d68db3d9b7ed6140986b98fc618ec96df10d5dbd35c3fe63ad8"
 }

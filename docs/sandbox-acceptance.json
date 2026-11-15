@@ -15,93 +15,93 @@
   ],
   "traffic": {
     "seconds": 120,
-    "movingMean": 11.05,
+    "movingMean": 11.008333333333333,
     "travel": [
       {
         "model": "tmax",
         "police": false,
-        "metres": 62
+        "metres": 63
       },
       {
         "model": "r5",
         "police": false,
-        "metres": 465
+        "metres": 450
       },
       {
         "model": "gti",
         "police": false,
-        "metres": 240
+        "metres": 328
       },
       {
         "model": "tmax",
         "police": false,
-        "metres": 500
+        "metres": 445
       },
       {
         "model": "gti",
         "police": false,
-        "metres": 404
+        "metres": 415
       },
       {
         "model": "r5",
         "police": false,
-        "metres": 430
+        "metres": 400
       },
       {
         "model": "tmax",
         "police": false,
-        "metres": 771
+        "metres": 746
       },
       {
         "model": "r5",
         "police": false,
-        "metres": 441
+        "metres": 499
       },
       {
         "model": "gti",
         "police": false,
-        "metres": 351
+        "metres": 421
       },
       {
         "model": "tmax",
         "police": false,
-        "metres": 488
+        "metres": 678
       },
       {
         "model": "gti",
         "police": false,
-        "metres": 253
+        "metres": 401
       },
       {
         "model": "r5",
         "police": false,
-        "metres": 525
+        "metres": 477
       },
       {
         "model": "tmax",
         "police": true,
-        "metres": 92
+        "metres": 45
       },
       {
         "model": "gti",
         "police": true,
-        "metres": 462
+        "metres": 539
       },
       {
         "model": "gti",
         "police": true,
-        "metres": 413
+        "metres": 318
       }
     ]
   },
   "police": {
-    "arrestTime": 9.70000000000009,
-    "minDistance": 1.499173584858304,
+    "arrestTime": 11.666666666666645,
+    "minDistance": 4.771588491715865,
     "cash": 120
   },
   "scenario": {
     "complete": true,
-    "time": 16.258333333333052,
+    "time": 16.233333333333054,
     "stage": "done",
     "cash": 243.75624999999658,
     "earned": 3.7562500000000365,
@@ -112,56 +112,56 @@
     "log": [
       {
         "stage": "approach",
-        "time": 5.07,
+        "time": 5.04,
         "hp": 100,
         "position": [
-          60.67282262205854,
-          107.30022964108272
+          60.654318792359895,
+          107.3031696943755
         ]
       },
       {
         "stage": "buy",
-        "time": 5.08,
+        "time": 5.05,
         "hp": 100,
         "position": [
-          60.65163067541558,
-          107.26872533000639
+          60.63357600114136,
+          107.27136785745722
         ]
       },
       {
         "stage": "contest",
-        "time": 5.08,
+        "time": 5.06,
         "hp": 100,
         "position": [
-          60.63669696301834,
-          107.2465246172161
+          60.61895880322213,
+          107.24895748174973
         ]
       },
       {
         "stage": "fight",
-        "time": 6.27,
+        "time": 6.24,
         "hp": 100,
         "position": [
-          60.6011542502161,
-          107.19368621121761
+          60.58416940499371,
+          107.19562007130729
         ]
       },
       {
         "stage": "occupy",
-        "time": 11.26,
+        "time": 11.23,
         "hp": 100,
         "position": [
-          60.6011542502161,
-          107.19368621121761
+          60.58416940499371,
+          107.19562007130729
         ]
       },
       {
         "stage": "income",
-        "time": 16.26,
+        "time": 16.23,
         "hp": 100,
         "position": [
-          60.6011542502161,
-          107.19368621121761
+          60.58416940499371,
+          107.19562007130729
         ]
       }
     ]

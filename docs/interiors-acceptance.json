@@ -1,18 +1,26 @@
 {
-  "buildings": 746,
-  "passages": 177,
+  "buildings": 3952,
+  "passages": 633,
   "types": {
-    "supermarche": 143,
-    "hotel": 102,
-    "public": 105,
-    "commerce": 102,
-    "logement": 102,
-    "bureau": 96,
-    "garage": 96
+    "logement": 3296,
+    "commerce": 328,
+    "restaurant": 264,
+    "public": 30,
+    "supermarche": 17,
+    "hotel": 16,
+    "garage": 1
   },
   "checks": [
-    "Chaque bâtiment : adresse unique, porte libre, apparition intérieure libre, murs solides, tous les paliers libres",
-    "Sept usages : entrer, marcher, sortir sans soin gratuit ni collision de sortie",
-    "Escalier, étage, sauvegarde/reprise intérieure et sortie validés"
+    "Tous les bâtiments : identifiants/portes uniques, places sourcées, aucun hôtel inventé, tous les paliers libres",
+    "Types représentatifs : caractéristiques, services, portails et escaliers atteignables au maillage 0,5 m",
+    "Appartements : cuisine, salle de bain, séjour, chambre, variantes distinctes ; étages d’hôtel seulement si sourcés",
+    "Tous les POI réels : services, portails, escaliers et sortie atteignables",
+    "Restauration : soin borné à 100, débit 12 €, refus à PV pleins, sans argent ou à terre",
+    "Accueil public : renseignements sans carte possédée ni débit, même après consultation répétée",
+    "Plan payant : un seul débit de 60 €, doublon refusé",
+    "Armurerie : équipe un indice d’arme de simulation existant, sans débit ni munitions inventées",
+    "Plusieurs commerces : portail nommé change de placeIndex sans changer la porte extérieure",
+    "Escaliers, sauvegarde/reprise du placeIndex, sortie hors de l’ancien bâtiment, aucun soin gratuit",
+    "Repopulation au commissariat réel, 42 La Canebière, accueil et cellule procéduraux"
   ]
 }

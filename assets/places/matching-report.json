@@ -1,0 +1,70 @@
+{
+  "bounds": {
+    "minX": -550,
+    "maxX": 550,
+    "minZ": -550,
+    "maxZ": 550
+  },
+  "sourceTimestamp": "2026-11-14T23:48:06Z",
+  "sourceElements": 1093,
+  "activePlaces": 1021,
+  "inBounds": 964,
+  "matched": 837,
+  "buildings": 3962,
+  "buildingsWithPlaces": 656,
+  "buildingsWithAddress": 815,
+  "addressPointsMatched": 1111,
+  "types": {
+    "restaurant": 359,
+    "public": 36,
+    "commerce": 394,
+    "supermarche": 23,
+    "hotel": 24,
+    "garage": 1
+  },
+  "multiPlaceBuildings": 111,
+  "priority": [
+    {
+      "id": "node/6967474368",
+      "name": "Carrefour Market",
+      "address": "28 Rue Bir Hakeim 13001 Marseille",
+      "buildingId": "building-1653",
+      "x": 126.97,
+      "z": -52.82
+    },
+    {
+      "id": "node/8731323039",
+      "name": "Carrefour City",
+      "address": "87 Rue Sainte 13007 Marseille",
+      "buildingId": "building-4307",
+      "x": -247.48,
+      "z": 546.59
+    },
+    {
+      "id": "node/9697856682",
+      "name": "Shawarmax",
+      "address": "32 Rue Caisserie 13002 Marseille",
+      "buildingId": "building-1386",
+      "x": -472.28,
+      "z": -87.27
+    },
+    {
+      "id": "node/12120449600",
+      "name": "Police municipale - Poste Canebière",
+      "address": "42 La Canebière 13001 Marseille",
+      "buildingId": "building-2701",
+      "x": 385.08,
+      "z": -18.1
+    }
+  ],
+  "checks": [
+    "WGS84 source projection",
+    "rotated source containment",
+    "dynamic world bounds",
+    "multiple POIs per building",
+    "no nearby-building fallback",
+    "direct residential address points only",
+    "official priority addresses",
+    "no invented arms dealer or car dealer"
+  ]
+}

@@ -1,60 +1,59 @@
-# EMPRISE 0.2.0 — vérification des 14–15 novembre 2026
+# EMPRISE 0.3.0 — vérification du 15 novembre 2026
 
-Les tests ci-dessous sont exécutés sur les copies du nouveau projet. Les scénarios et rapports JSON sont livrés dans le dépôt. Ils distinguent les commandes du joueur, les scénarios automatisés et les fixtures préparées pour un cas précis.
+Les reçus JSON et les scripts sont livrés dans le dépôt. Les tests de composants, les fixtures de placement et les commandes réelles dans Chrome sont distingués ci-dessous. Aucun serveur ni port d'automatisation n'est nécessaire : Chrome est piloté par CDP sur un tube local.
 
-## Commandes et jeu réel
+## Jeu et commandes
 
-`python3 tests/inputs.py` envoie de vrais événements clavier et souris Chromium, sans contrôleur de scénario : Z/W, entrée, démarrage automatique, accélération, freinage, marche arrière, sortie, clic unique, rafale, visée et pause. Le dernier passage atteint 7,16 m/s, puis −4,77 m/s en recul. Un clic produit un tir ; après relâchement, aucune voix de tir ne reste active et la file d’événements est vide. La rafale de ce passage compte huit tirs avant relâchement. Aucune erreur JavaScript. Rapport : `input-regression.json`.
+- `tests/inputs.py` : véritables événements clavier/souris, AZERTY/WASD, marche, montée, accélération, freinage, recul et sortie. Dernière mesure : 7,33 m/s, recul −4,77 m/s. Un clic produit un tir ; relâcher termine son, recul et rafale. Pause silencieuse, aucune erreur JavaScript.
+- `tests/gamepad.py` : Gamepad API virtuelle Xbox standard dans Chrome, sans contrôleur de scénario. Sticks, gâchettes analogiques, tir, conduite, menus, réglages persistants, vibrations finies, pause au débranchement et relâchement obligatoire avant reprise. Aucune manette physique n'a été testée.
+- `tests/new-features.py` : positions initiales explicitement préparées, puis événements clavier/souris réels. Menu du vrai Shawarmax, achat d'une provision, plan payé, proposition de protection et adversaire METAL déployé ; étage d'un hôtel réel, occupants et butin ; échelle, nage, canot, voilier et jet-ski, accélération/freinage/sortie. Ce test ne prétend pas parcourir tout le trajet depuis le départ.
 
-`python3 tests/sandbox-browser.py` pilote des commandes de simulation dans Chrome avec 480 passants et 15 véhicules de trafic. Parcours sans téléportation : rejoindre un commerce, acheter le plan, provoquer ses défenseurs, tirer, occuper et recevoir un revenu. Capture après 16,26 secondes simulées, huit tirs, 100 PV. L’interface confirme absence de minimap, plan seulement après achat, panneaux publics, temps qui continue pendant la lecture et persistance après rechargement. Rapport : `sandbox-browser.json`.
+Rapports : `input-regression.json`, `gamepad-validation.json`, `new-features-browser.json`. Captures : `business-counter.png`, `hotel-room.png`, `swimming-port.png`, `marine-*.png`.
 
-## Dégradation, feu, explosion et carcasse
+## Régressions de simulation
 
-`node tests/vehicle-explosion.mjs` vérifie la fumée avant le feu, puis **8.49 secondes de combustion visible avant l’explosion**, sans raccourci sous les tirs. Le test traverse le vrai chemin de tir ; la collision utilise le balayage de véhicule et son contact, pas un appel de dégâts substitué. Deux chocs de 19 m/s dans la fixture provoquent un incendie, puis l’explosion. Une sauvegarde au bout de trois secondes de feu reprend avec ce temps conservé. La réaction en chaîne est différée ; une épave n’explose qu’une fois et n’est plus utilisable.
+| Test | Couverture |
+|---|---|
+| `acceptance.mjs` | Parcours marche/conduite/combat, sorties bloquées, rayons, collisions, vélo/trottinette/TMAX |
+| `sandbox.mjs` | Capture/défense, revenus, sauvegarde, trafic, interpellation |
+| `police.mjs` | Visibilité, mur réel, mémoire sans poursuite omnisciente, radio, retour en patrouille, cap A*320, recul, arrêt à distance et interpellation intégrée |
+| `business.mjs` | Acheter/voler/racketter, plan à60€ unique, chef combattu avec vrais tirs, retour au commerçant, revenus persistants, cache, loot hôtel unique, résidents collidants/blessables, fermeture après décès |
+| `interiors.mjs` | 3952 entrées, 633 passages, locaux et paliers, POI réels, appartements distincts, halls, services, sauvegarde et commissariat42LaCanebière |
+| `places.mjs` | Projection, rattachement aux empreintes et adresses sourcées, bornes dynamiques, données déterministes |
+| `marine.mjs` | Trois coques séparées, propulsion/vent,13échelles, nage, SAT obstacles/bateaux, mur empêchant l'embarquement, sauvegardes invalides et reprise |
+| `injuries.mjs` | Tête/bras/jambe, occultation, décès, carjacking, conducteur, commerçants persistants |
+| `urban.mjs` | Brèche et retrait de collision, masses/impulsions, objets, intérieurs isolés, chocs, incendie, pompiers |
+| `vehicle-explosion.mjs` | Dégradation/fumée/feu, délai de combustion, explosion unique, pièces projetées, chaîne et carcasse persistante |
+| `weather.mjs` | Cinq phases, vent, éclairs, abri, dérive continue des nuages et sauvegarde |
+| `models.mjs` | Générateurs originaux, indices/normales/poids, marche/assis/rampement/sol, vêtements CPU/GPU, skinning proche |
 
-`python3 tests/explosion-browser.py` prépare un véhicule et une position de tir sur le quai, puis enregistre uniquement les commandes de la simulation en temps réel. Cette passe compte **73 tirs**, une explosion et **33 corps rigides** après projection de carrosserie et fragments. Elle capture successivement la fumée, le feu croissant, l’explosion et la carcasse brûlée. Audio arrêté en pause, aucune erreur JS. Rapports : `vehicle-explosion-acceptance.json`, `explosion-browser.json`.
+Ces suites passent. Les dernières vérifications business/police/interiors/acceptance/sandbox utilisent le raccordement final des nouveaux modules. Les validatrices tête/corps passent sans aucun fichier de modèle externe. Les tests de passage ne certifient pas chaque itinéraire extérieur de la ville.
 
-Le délai normal est 8,5 s pour les compactes, 7 s pour les deux-roues et 10 s pour le fourgon. L’extinction ou la réparation peut interrompre un incendie avant l’explosion. Les gros morceaux sont des pièces physiques simplifiées ; la carcasse est un modèle dédié calciné.
+## Démonstrations
 
-## Autres régressions
+Le nouvel enregistrement clavier remplace l'ancien dont le résultat dépendait de l'interpellation précédente. `node tests/replays.mjs` valide exactement les positions, tirs, argent et résultats des trois séquences : commandes réelles, commerce contesté, véhicule sous le feu. La séquence d'explosion garde son état initial préparé et73tirs ; son résultat correspond toujours à une seule explosion.
 
-| Commande | Couverture | Rapport |
-|---|---|---|
-| `node tests/acceptance.mjs` | Parcours initial marche/conduite/combat, sortie bloquée, rayons et collisions, trois types de deux-roues | `acceptance.json` |
-| `node tests/sandbox.mjs` | Progression, revenus, plafond hors ligne, sauvegardes invalides, prises/défenses, 120 s de trafic, interpellation | `sandbox-acceptance.json` |
-| `node tests/injuries.mjs` | Tête, bras, jambe, occlusion par mur, décès, carjacking, conduite après extraction, commerçants persistants | `injuries-acceptance.json` |
-| `node tests/interiors.mjs` | 746 adresses, 177 passages, accès distincts, points d’apparition et paliers libres, sept usages, entrée/sortie/étage/reprise | `interiors-acceptance.json` |
-| `node tests/weather.mjs` | 750 s, cinq phases météo, éclairs/tonnerre, abri, dérive et sauvegarde des nuages | `weather-acceptance.json` |
-| `node tests/urban.mjs` | Brèche réelle et retrait de collision, roquette, masse/impulsion, G/B, débris isolés par intérieur, contacts orientés, véhicule dégradé, pompiers et jet | `urban-acceptance.json` |
-| `node tests/models.mjs` | Indices, normales, poids et poses anatomiques : marche, assis, au sol, ramper, variantes de tenue | `models-acceptance.json` |
+`tests/attract.py` valide le départ après **5,14 secondes**, les trois séquences, leur silence, l'absence de modification de sauvegarde, retour au titre par touche/clic et reprise du jeu. La première session de démo est préparée avant l'affichage du titre : son constructeur ne retarde plus le départ. Reçus : `replay-validation.json`, `attract-validation.json` avec empreinte du build.
 
-Le test de secours livre trois pompiers et maîtrise le foyer préparé en environ 48 s. Les validations d’accès intérieur ne constituent pas une preuve de cheminement extérieur exhaustif depuis toutes les rues.
+## Fluidité et rendu
 
-## Démonstrations enregistrées
+Le profil initial a identifié une longue tâche d'environ331ms : la première collision construisait paresseusement les structures de destruction de toute la ville. Elles sont désormais préparées pendant le chargement. Les lots statiques sont conservés sur le GPU ; sélection par caméra et distance, ombres sélectionnées séparément, reconstruction des seuls lots modifiés. Les petites lames de volets/traverses ne sont plus classées comme du sol visible à l'infini. La coupe des corps est précalculée pour supprimer les allocations par sommet pendant l'animation.
 
-Les enregistrements `input-recording.json`, `sandbox-recording.json` et `explosion-recording.json` sont validés par `node tests/replays.mjs`, qui reconstruit `src/replays.js`. Positions finales, tirs, argent, contrôle et explosion doivent correspondre à la capture. La troisième séquence comprend explicitement son état de départ préparé ; ce n’est pas présenté comme un trajet depuis le point d’apparition.
+La passe finale `tests/streaming.py` utilise Chrome157/WebGL2 sur Mac AppleM5, canevas1758×1024, MSAA4×, ombres, reflets et480passants ; autosauvegarde active, sans profileur d'échantillonnage. Elle dure40secondes, dont20secondes de rotation de caméra. Résultat :
 
-`python3 tests/attract.py` contrôle l’attente de 5 s au titre, les trois séquences, le silence audio, la conservation de la sauvegarde, le retour au titre par touche/clic et la reprise du jeu. `attract-validation.json` identifie précisément le build validé.
+- 2398images ; médiane16,7ms, p9516,8ms, p9918ms.
+- Un seul intervalle au-delà de25ms :66,7ms. Aucun au-delà de100ms ; aucune saccade à cadence d'une seconde observée dans cette passe.
+- Vue finale :271942éléments statiques,25386dessinés et246556écartés ; environ2,58millions de triangles, ombres comprises.
+- Lots retenus entre images et restauration du contexte WebGL vérifiés ; aucune erreur JavaScript.
 
-## Vérification visuelle
+Le reçu `frame-pacing.json` conserve les intervalles, longues tâches, mesures CPU, configuration et SHA-256. Ces valeurs décrivent cette passe locale, pas une garantie sur tous les appareils. Une passe précédente plafonnait à30Hz, y compris sur une page vide ; elle n'est pas utilisée pour revendiquer60FPS. Les captures/debug et transitions de pièce peuvent produire leurs propres pics, distincts de cette mesure continue.
 
-Captures propres au jeu : `emprise-title.png`, `crowd-outfits.png`, `anatomical-body.png`, `traffic-driver.png`, `facade-corners.png`, `weather-storm.png` et les quatre étapes `vehicle-damaged/burning/explosion/wreck.png`. Les vues rapprochées de modèles utilisent une caméra de contrôle et des positions préparées.
+## Provenance et limites
 
-La foule de 480 personnages utilise 359 carnations de la palette foncée à mate, 96 variantes avec voile et 144 tenues avec casquette et sacoche. Ce sont des choix de direction artistique pour une population fictive, pas des statistiques de Marseille. Leur attribution dépend de l’identité stable du personnage, sans condition sur son gang ou son agressivité.
+Aucun asset graphique ou sonore importé dans le build : géométrie, textures, animation et son générés par le code. Les données géographiques OpenStreetMap/BAN sont conservées ; les photographies sont des références de formes, non des textures du jeu. Aucun asset GTA n'est fourni.
 
-## Mesure locale
+Le rendu est stylisé, pas photoréaliste ; pas de ray tracing matériel. Le jeu reste solo. Nage de surface, pas de plongée ; embarcations sans destruction/incendie complet. Les intérieurs sont des compositions de jeu, pas des relevés de pièces réelles. Aucun concessionnaire ni armurerie réel n'a été inventé dans la zone en l'absence de POI vérifié. Les anciennes captures/mesures0.2.0 sont des archives ; les reçus nommés ci-dessus décrivent cette version.
 
-MacBook Air Mac17,4, Apple M5, 24 Go ; Chrome 157.0.0.0, WebGL2 ; canvas 1440 × 900, pixels 1:1, MSAA 4×, SSR, ombres et matériaux PBR actifs. Deux passes :
+La correction finale de l’enchaînement automatique conserve aussi une pause de titre de cinq secondes entre deux replays, afin que la prochaine session puisse être préparée hors de la frame de démarrage. La mesure de fluidité et les captures fonctionnelles précèdent uniquement cette modification de transition de démo ; leurs empreintes propres restent dans les reçus.
 
-| Scénario | Images | Médiane / p95 image | Médiane / p95 CPU |
-|---|---:|---:|---:|
-| Commerce | 976 | 16.7 / 16.8 ms | 3.6 / 7.4 ms |
-| Incendie et explosion | 2021 | 16.7 / 17.0 ms | 3.4 / 7.4 ms |
-
-L’intervalle d’image est celui de requestAnimationFrame, soumis à la synchronisation de l’écran ; le CPU mesure le JavaScript et l’envoi de commandes, pas le GPU. Les rapports conservent leur SHA-256. La passe commerce précède les derniers habits et le feu progressif ; la passe explosion les inclut. Les anciens `browser-performance.json`, `browser-input.json` et captures du premier prototype restent des archives et ne constituent pas la mesure de cette version.
-
-## Limites et dépôts d’origine
-
-Voir le périmètre du README : solo local, intérieurs chargés séparément, terrain/eau exclus de la destruction, budget de corps physiques, animations simplifiées. Le rendu reste stylisé ; pas de photoréalisme établi ni de ray tracing matériel. Les conducteurs sont extractibles ; leurs volumes de tir à travers les vitres ne sont pas encore intégrés au système de blessures des personnages à pied. Aucun test global de chaque ruelle ou de chaque navigateur/mobile n’est revendiqué.
-
-Au contrôle final, METAL et Point de rupture ont des arbres de travail propres aux commits d’origine. BITUME garde son commit d’origine mais contient maintenant des modifications locales dans `src/conduite.js`, `src/decor.js`, `src/jeu.js` et l’entrée non suivie `.claude/worktrees/`. Ces changements extérieurs au dépôt EMPRISE sont laissés en place ; aucun nettoyage, commit ni modification de ces fichiers n’est effectué par cette livraison.
+`tests/demo-cycle.py` vérifie également la fin naturelle du premier replay et le passage au suivant : retour au titre, pause de 5,20 s, deuxième séquence et aucune erreur. Rapport `demo-cycle.json`.

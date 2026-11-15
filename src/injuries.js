@@ -1,7 +1,7 @@
 /* RADE — human hit regions shared by gang combat, civilians and vehicle drivers. */
 (function(R){'use strict';
 function create(world,sim,crowd,{interiors,urban,campaign,saved}={}){const dead=[],p=sim.state.player,merchants=new Map(),records=new Map((Array.isArray(saved?.people)?saved.people:[]).filter(d=>Number.isInteger(d?.id)).map(d=>[d.id,d])),registered=new WeakSet();let hits=0,headshots=0,lastRoom=[];
- const civils=()=>[...crowd.people,...world.fleet.map(c=>c.driver).filter(e=>e&&!e.inside),...(world.room?.civil||[]),...(urban?.crew||[]),...merchants.values()];
+ const civils=()=>[...crowd.people,...(world.boundaryOfficers||[]),...world.fleet.map(c=>c.driver).filter(e=>e&&!e.inside),...(world.room?.civil||[]),...(urban?.crew||[]),...merchants.values()];
  function initialize(e,id){
   if(e.hp===undefined)e.hp=100;e.radeCivil=true;if(e.id===undefined)e.id=id;if(e.baseY===undefined)e.baseY=.08;
   if(!registered.has(e)){registered.add(e);const d=records.get(e.id);if(d&&[d.x,d.z,d.hp].every(Number.isFinite)&&Math.abs(d.x)<1100&&Math.abs(d.z)<1100){Object.assign(e,{x:d.x,z:d.z,hp:Math.max(0,Math.min(100,d.hp)),yaw:Number.isFinite(d.yaw)?d.yaw:0,injury:d.injury?{head:!!d.injury.head,leg:!!d.injury.leg,arm:!!d.injury.arm,dead:d.hp<=0}:null});if(typeof d.inside==='boolean')e.inside=d.inside;}}
@@ -9,7 +9,7 @@ function create(world,sim,crowd,{interiors,urban,campaign,saved}={}){const dead=
  }
  function remember(e){if(e.injury||e.hp<100||e.inside===false)records.set(e.id,{id:e.id,x:e.x,z:e.z,hp:e.hp,injury:e.injury,yaw:e.yaw,inside:e.inside});}
  function drivers(){for(const c of world.fleet){if(!c.driver&&!c.parked&&(c.ai||c.emergency||records.has(14000+c.id)))c.driver=initialize({id:14000+c.id,inside:true,civil:true,hp:100,x:c.x,z:c.z},14000+c.id);if(c.driver){if(c.driver.inside){c.driver.x=c.x;c.driver.z=c.z;c.driver.yaw=c.cap+Math.PI/2;}else{c.ai=false;c.emergency=false;}if(c.driver.hp<=0&&c.driver.inside){c.ai=false;c.moteur=false;}}}}
- drivers();
+ drivers();for(const e of world.boundaryOfficers||[])initialize(e,e.id);
  for(let i=0;i<crowd.people.length;i++)initialize(crowd.people[i],i+10000);
  for(const site of campaign?.sites||[])if(site.kind==='shop')merchants.set(site.id,initialize({x:site.x+.7,z:site.z-1.45,yaw:Math.PI,civil:true},12000+merchants.size));
  function hitShape(e,o,d,far){const prone=!!e.injury?.leg,base=e.baseY??.08,yaw=e.yaw??Math.PI-e.cap,c=Math.cos(yaw),s=Math.sin(yaw),v=[o[0]-e.x,o[1]-base,o[2]-e.z],origin=[v[0]*c+v[2]*s,v[1],-v[0]*s+v[2]*c],dir=[d[0]*c+d[2]*s,d[1],-d[0]*s+d[2]*c];let best=null;
@@ -29,7 +29,7 @@ function create(world,sim,crowd,{interiors,urban,campaign,saved}={}){const dead=
   for(const ev of events)if(ev.name==='explosion')for(const e of civils()){if(e.inside||e.hp<=0)continue;const d=Math.hypot(e.x-ev.x,e.z-ev.z);if(d<ev.radius&&world.ray([ev.x,1,ev.z],[(e.x-ev.x)/(d||1),0,(e.z-ev.z)/(d||1)],Math.max(0,d-.3))>=d-.4)hurtCivil(e,(1-d/ev.radius)*2,'torso');}
   for(const e of [...world.fleet.map(c=>c.driver).filter(e=>e&&!e.inside),...merchants.values()]){if(e.hp<=0)continue;e.thrown=Math.max(0,(e.thrown||0)-dt);if(e.thrown)continue;if(e.panic>0){e.panic-=dt;const dx=e.x-p.x,dz=e.z-p.z,d=Math.hypot(dx,dz)||1,v=e.injury?.leg?.35:2.1;e.yaw=Math.atan2(dx,-dz);if(!world.blocked(e.x+dx/d*v*dt,e.z,.28))e.x+=dx/d*v*dt;if(!world.blocked(e.x,e.z+dz/d*v*dt,.28))e.z+=dz/d*v*dt;e.moveSpeed=v;}}
  }
- function geometry(time){const out=[];for(const e of [...crowd.people.filter(e=>e.injury),...world.fleet.map(c=>c.driver).filter(e=>e&&!e.inside),...merchants.values(),...sim.state.enemies.filter(e=>e.hp<=0&&e.injury)])if(Math.hypot(e.x-p.x,e.z-p.z)<100)out.push(...R.people.build({...e,civil:e.radeCivil,renderBody:true,yaw:e.yaw??Math.PI-e.cap},{time,distance:Math.hypot(e.x-p.x,e.z-p.z)}));return out;}
+ function geometry(time){const out=[];for(const e of [...crowd.people.filter(e=>e.injury),...(world.boundaryOfficers||[]).filter(e=>e.hp<=0),...world.fleet.map(c=>c.driver).filter(e=>e&&!e.inside),...merchants.values(),...sim.state.enemies.filter(e=>e.hp<=0&&e.injury)])if(Math.hypot(e.x-p.x,e.z-p.z)<100)out.push(...R.people.build({...e,civil:e.radeCivil,renderBody:true,yaw:e.yaw??Math.PI-e.cap},{time,distance:Math.hypot(e.x-p.x,e.z-p.z)}));return out;}
  function save(){for(const e of [...lastRoom,...civils(),...world.fleet.map(c=>c.driver).filter(Boolean)])remember(e);return {people:[...records.values()],enemies:sim.state.enemies.filter(e=>e.injury).map(e=>({id:e.id,injury:e.injury}))};}
  if(saved){for(const d of saved.enemies||[]){const e=sim.state.enemies[d?.id];if(e&&d.injury)e.injury={head:!!d.injury.head,leg:!!d.injury.leg,arm:!!d.injury.arm,dead:e.hp<=0};}}
  update(0,[]);

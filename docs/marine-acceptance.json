@@ -1,0 +1,19 @@
+{
+  "boats": [
+    "motorboat",
+    "sailboat",
+    "jetski"
+  ],
+  "ladders": 13,
+  "checks": [
+    "Échelle, nage avec visée, retour sur quai libre",
+    "Trois embarcations : monter, accélérer, arrêter, descendre",
+    "Voile : arrêt face au vent, relance au travers",
+    "Berges infranchissables en bateau, état fini et reprise embarquée",
+    "Sauvegarde invalide rejetée sans apparition hors zone",
+    "Coques orientées : poteau intérieur, rotation, collision par longueur et flotte initiale sans chevauchement",
+    "Toutes les échelles dans l’eau ; extrémité invalide refusée sans déplacer le joueur",
+    "Embarquement bloqué par un mur, autorisé après dégagement",
+    "Conteneurs de sauvegarde malformés ignorés ; échange simultané de positions restauré sans NaN"
+  ]
+}

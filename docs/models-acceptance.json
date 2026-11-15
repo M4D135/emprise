@@ -1,4 +1,6 @@
 {
+  "provenance": "original-parametric-runtime",
+  "importedVisualAssets": 0,
   "wardrobe": {
     "people": 480,
     "darkerToOlive": 359,
@@ -6,12 +8,18 @@
     "capsAndCrossbodyBags": 144,
     "independentFromGang": true
   },
-  "headVertices": 4328,
-  "headTriangles": 8608,
-  "bodyVertices": 7340,
-  "bodyTriangles": 14200,
-  "crowdAtlasVertices": 189254,
+  "headVertices": 2540,
+  "headTriangles": 4944,
+  "bodyVertices": 6644,
+  "bodyTriangles": 12688,
+  "crowdAtlasVertices": 146906,
   "indices32bit": true,
+  "sleeveDiameters": [
+    0.11652790319747836,
+    0.11775475504933014
+  ],
+  "continuousSkinning": true,
+  "sharedGarmentFit": true,
   "poses": [
     "marche",
     "assis",
@@ -21,6 +29,9 @@
   "checks": [
     "Indices et normales valides",
     "Influences articulaires bornées",
-    "Aucun nombre invalide dans les quatre poses"
+    "Aucun nombre invalide dans les quatre poses",
+    "Manches amples et coupe cohérente CPU/GPU",
+    "Déformation CPU à deux influences effectivement utilisée",
+    "Coiffe et drapé partagés, couronne couverte"
   ]
 }

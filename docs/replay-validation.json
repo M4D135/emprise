@@ -2,21 +2,21 @@
   {
     "label": "Tir et conduite · clavier / souris réels",
     "source": "tests/inputs.py / événements Chromium clavier et souris",
-    "ticks": 1427,
-    "duration": 11.891666666666667,
-    "recordingSha256": "981111d25dc5541aa897fc6d7f451c8c821c1f2cfee9caa470f819430ecdbaa1",
+    "ticks": 1463,
+    "duration": 12.191666666666666,
+    "recordingSha256": "23156a75fe8edaa3f897a9313637c205825dc93a6e43c816684e2f8990121d59",
     "expected": {
       "shots": 10,
       "mode": "foot",
       "player": [
-        74.5,
-        130
+        76.28520714572898,
+        125.4881739203713
       ],
       "car": [
-        77.77216745589763,
-        125.66642398541484
+        77.72903667527515,
+        125.31231448897664
       ],
-      "cash": 120
+      "cash": 200
     },
     "validated": true
   },

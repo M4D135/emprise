@@ -47,19 +47,33 @@ function model(type='gti',color='#bb2729'){
   box([.64,.94,side*(W+.12)],[.21,.11,.20],r5?paint:DARK,r5?17:7);box([.536,.945,side*(W+.12)],[.006,.078,.147],[.43,.55,.56],8);
   if(r5)text('GT TURBO',-.39,.39,side*(W+.031),.014,SILVER,'side');else{text('GTI',-1.31,1.01,side*.712,.014,RED,'side');text('1.9',-1.30,1.10,side*.682,.011,SILVER,'side');}
  }
- surface('hood',[[[.80,.85,-W+.04],[L-.02,.76,-W+.08],[L-.02,.76,W-.08],[.80,.85,W-.04]]],paint,17,{double:true});
+ const hood=[];const hx=[.80,L-.27,L-.02],hy=[.85,.805,.765],hz=[-1,-.90,-.52,0,.52,.90,1];
+ for(let i=0;i<hx.length-1;i++)for(let j=0;j<hz.length-1;j++){const at=(k,t)=>[hx[k],hy[k]+.024*(1-t*t),t*(W-.045-(k===2?.035:0))];hood.push([at(i,hz[j]),at(i+1,hz[j]),at(i+1,hz[j+1]),at(i,hz[j+1])]);}
+ surface('hood',hood,paint,17,{double:true,smooth:true});
  box([L-.025,.62,0],[.06,.25,1.45],paint);box([-L+.035,.64,0],[.07,.36,1.48],paint);
  const frontRoof=r5?.22:.27,rearRoof=r5?-1.18:-1.04,roofY=1.35,rearBottom=r5?-1.69:-1.72;
  part('bevel',[(rearRoof+frontRoof)/2,roofY,0],[frontRoof-rearRoof+.045,.045,1.25],paint,17);box([(rearRoof+frontRoof)/2,roofY-.03,0],[frontRoof-rearRoof-.06,.018,1.17],[.35,.34,.31],7);for(const side of [-1,1])bar([rearRoof,roofY+.006,side*.622],[frontRoof,roofY+.006,side*.622],.015,DARK,7);
  const wind=[[.84,.86,-.70],[frontRoof,roofY-.015,-.60],[frontRoof,roofY-.015,.60],[.84,.86,.70]];
- surface('windshield',[wind],GLASS,8,{fx:true,alpha:.12,double:true,window:true});for(let j=0;j<wind.length;j++)bar(wind[j],wind[(j+1)%wind.length],.022,BLACK,7);
+ surface('windshield',[wind],GLASS,8,{fx:true,alpha:.24,double:true,window:true});for(let j=0;j<wind.length;j++)bar(wind[j],wind[(j+1)%wind.length],.022,BLACK,7);
  const rear=[[rearBottom,.86,.69],[rearRoof,roofY-.015,.60],[rearRoof,roofY-.015,-.60],[rearBottom,.86,-.69]];
- surface('rear-window',[rear],GLASS,8,{fx:true,alpha:.22,double:true,window:true});for(let j=1;j<9;j++){const t=j/10,x=rearBottom+(rearRoof-rearBottom)*t,y=.86+(roofY-.015-.86)*t;bar([x-.006,y,-.66+t*.06],[x-.006,y,.66-t*.06],.0025,[.34,.22,.12],0);}
+ surface('rear-window',[rear],GLASS,8,{fx:true,alpha:.30,double:true,window:true});for(let j=1;j<9;j++){const t=j/10,x=rearBottom+(rearRoof-rearBottom)*t,y=.86+(roofY-.015-.86)*t;bar([x-.006,y,-.66+t*.06],[x-.006,y,.66-t*.06],.0025,[.34,.22,.12],0);}
+ // Pressed-metal cabin surrounds, with separate inset door and quarter glass.
+ // These are broad panels; the window openings remain empty in cockpit view.
  for(const side of [-1,1]){
-  const A=[.84,.86,side*.70],B=[frontRoof,roofY,side*.61],C=[rearRoof,roofY,side*.61],D=[rearBottom,.86,side*.70];
-  for(const [a,b,w]of [[A,B,.045],[B,C,.038],[C,D,r5?.085:.13],[D,A,.035]])bar(a,b,w,paint,17);
-  bar([-.53,.86,side*.71],[-.53,roofY,side*.61],.055,DARK,7);
-  surface('side-window'+side,[[A,B,C,D]],GLASS,8,{fx:true,alpha:.13,double:true,window:true});
+  const q=(x,y,z)=>[x,y,side*z],A=q(.84,.86,.70),B=q(frontRoof,roofY,.61),C=q(rearRoof,roofY,.61),D=q(rearBottom,.86,.70);
+  const F0=q(.775,.89,.697),F1=q(frontRoof-.025,roofY-.055,.608),F2=q(-.48,roofY-.055,.608),F3=q(-.48,.89,.697);
+  const Q0=q(-.585,.89,.697),Q1=q(-.585,roofY-.055,.608),Q2=q(rearRoof+.145,roofY-.065,.611),Q3=q(rearBottom+(r5?.17:.255),.89,.697);
+  const panel=(name,polys,color=paint,mat=17)=>surface(name+side,polys,color,mat,{double:true});
+  panel('a-pillar',[[A,B,F1,F0]]);panel('roof-rail',[[B,C,Q2,Q1,F2,F1]]);
+  panel('c-pillar',[[C,D,Q3,Q2]]);panel('belt-rail',[[D,A,F0,F3,Q0,Q3]]);
+  panel('b-pillar',[[F3,F2,Q1,Q0]],DARK,7);
+  if(!r5){const badge=[q(rearRoof+.04,1.19,.637),q(rearBottom+.05,.925,.703),q(rearBottom+.20,.925,.703),q(rearRoof+.13,1.19,.637)];panel('quarter-trim',[badge],DARK,7);}
+  for(const [label,win]of [['door',[F0,F1,F2,F3]],['quarter',[Q0,Q1,Q2,Q3]]]){
+   panel(label+'-glass',[win],GLASS,8);const glass=pieces[pieces.length-1];glass.fx=true;glass.alpha=.25;glass.window=true;
+   for(let j=0;j<win.length;j++)bar(win[j],win[(j+1)%win.length],.013,BLACK,7);
+  }
+  // The rear hatch corner joins the side shell instead of leaving an open wedge.
+  panel('hatch-corner',[[D,C,q(rearRoof,roofY-.015,.60),q(rearBottom,.86,.69)]]);
  }
  // Model-specific grille, bumpers, optics and tail lights.
  for(const sign of [-1,1]){
@@ -71,12 +85,13 @@ function model(type='gti',color='#bb2729'){
  }
  for(const side of [-1,1]){
   box([L+.014,.655,side*.515],[.025,r5?.20:.175,.335],[.83,.87,.80],8);
-  box([L+.03,r5?.535:.645,side*.70],[.027,r5?.055:.15,.095],r5?[1,.38,.04]:[.85,.89,.82],8);
+  box([L+.03,r5?.535:.645,side*(r5?.515:.70)],[.027,r5?.055:.15,r5?.335:.095],r5?[1,.38,.04]:[.85,.89,.82],8);
   box([L+.075,.29,side*.53],[.025,.105,.17],r5?[1,.75,.15]:[.92,.9,.72],8);
   for(let j=0;j<7;j++)box([L+.03,.58+j*.025,side*.51],[.008,.004,.30],[.58,.65,.65],8);
   box([-L-.009,.75,side*.635],[.023,r5?.31:.22,.18],RED,6);
   box([-L-.025,.81,side*.635],[.006,.064,.18],[.9,.32,.05],5);box([-L-.025,.70,side*.635],[.006,.052,.18],[.78,.82,.78],8);
  }
+ if(r5){box([L+.075,.285,0],[.012,.11,.69],BLACK,7);for(let k=0;k<3;k++)box([L+.084,.245+k*.035,0],[.009,.012,.68],paint,17);}
  box([L+.025,.635,0],[.035,.17,.63],BLACK,7);for(let j=0;j<4;j++)box([L+.046,.575+j*.037,0],[.009,.012,.62],r5?DARK:paint,r5?7:17);
  if(r5){bar([L+.057,.61,.15],[L+.057,.67,.19],.013,SILVER,0);bar([L+.057,.67,.19],[L+.057,.73,.15],.013,SILVER,0);bar([L+.057,.73,.15],[L+.057,.67,.11],.013,SILVER,0);bar([L+.057,.67,.11],[L+.057,.61,.15],.013,SILVER,0);}
  else box([L+.055,.65,0],[.015,.08,.055],SILVER,0);
@@ -89,16 +104,20 @@ function model(type='gti',color='#bb2729'){
  const before=pieces.length;box([-.18,.23,0],[2.45,.035,1.38],r5?[.17,.06,.055]:[.33,.018,.03],18);
  for(const side of [-1,1]){
   box([-.3,.44,side*.35],[.57,.14,.51],DARK,18);box([-.57,.72,side*.35],[.15,.62,.52],DARK,18,[0,0,-.13]);
-  box([-.59,1.09,side*.35],[.13,.18,.30],DARK,18);
+  part('bevel',[-.59,1.09,side*.35],[.13,.18,.30],DARK,18);
+  for(const edge of [-1,1]){part('bevel',[-.29,.51,side*.35+edge*.205],[.55,.16,.11],DARK,18);part('bevel',[-.48,.76,side*.35+edge*.20],[.12,.50,.12],DARK,18,[0,0,-.13]);}
   box([-.28,.516,side*.35],[.46,.01,.31],[.16,.13,.14],18);box([-.477,.75,side*.35],[.015,.45,.30],[.16,.13,.14],18,[0,0,-.13]);
   for(let j=0;j<7;j++)for(let k=0;k<4;k++)box([-.39+j*.044,.523,side*.35-.11+k*.07],[.018,.006,.02],RED,18);
   box([-.15,.66,side*.747],[1.35,.32,.025],DARK,7);box([-.2,.69,side*.72],[.29,.05,.07],[.075,.083,.085],7);box([-.24,.53,side*.728],[.8,.014,.025],RED,17);
+  box([-.18,.65,side*.727],[.88,.15,.012],[.16,.15,.15],18);
+  part('cylinder',[.30,.43,side*.727],[.17,.014,.17],BLACK,7,[PI/2,0,0]);
+  box([-.38,.75,side*.712],[.13,.035,.022],BLACK,7);
  }
  box([-1.2,.5,0],[.45,.2,1.24],DARK,18);box([-1.43,.75,0],[.16,.5,1.24],DARK,18);
  // The dashboard's major shapes are distinct: Peugeot hood + three rotary knobs; Renault five pods and shelf.
  const dash=r5?[.13,.15,.16]:[.055,.066,.075];
- box([.56,.76,0],[.44,.24,1.38],dash,7);box([.61,.88,0],[.48,.06,1.39],dash,7);
- box([.36,.84,-.34],[.21,.19,.58],dash,7);box([.241,.845,-.34],[.012,.133,.53],BLACK,7);
+ box([.56,.76,0],[.44,.24,1.38],dash,7);part('bevel',[.61,.875,0],[.48,.085,1.39],dash,7);
+ part('bevel',[.36,.85,-.34],[.23,.22,.60],dash,7);box([.241,.845,-.34],[.012,.133,.53],BLACK,7);
  if(r5)box([.348,.80,.41],[.018,.045,.48],BLACK,7);else box([.328,.77,.44],[.025,.11,.47],dash,7);
  for(const z of [-.64,.1,.29,.64]){box([.316,.85,z],[.018,.09,.11],BLACK,7);for(let j=0;j<5;j++)box([.303,.817+j*.015,z],[.006,.004,.105],[.22,.24,.24],7);}
  box([.31,.63,.075],[.15,.28,.24],dash,7,[0,0,.13]);box([.205,.58,.075],[.015,.09,.19],BLACK,7);
@@ -121,18 +140,19 @@ function render(car,out,options={}){
  const mod=model(car.model||'gti',car.color||'#bb2729'),M=BITUME.voiture.attitude(car.cap,car.tangage||0,car.roulis||0),rot=BITUME.voiture.angles(M),pos=[car.x,car.y||.16,car.z];
  function put(m){if(options.cockpit&&m.window)return;const p=BITUME.voiture.mul(M,m.p),r=BITUME.voiture.angles(BITUME.voiture.mulM(M,BITUME.voiture.euler(...(m.r||[0,0,0]))));out.push({...m,p:p.map((v,i)=>v+pos[i]),r});}
  for(const m of mod.pieces)put(m);
- // Rolling wheels. Peugeot pepper-pot holes / Renault five-spoke wheels.
+ // Rolling wheels. Peugeot perforated alloy / Renault dished, finely vented alloy.
  for(const axle of [-1,1])for(const side of [-1,1]){
   const x=axle*mod.wb,z=side*.72,y=mod.wr,steer=axle>0?-(car.braquage||0):0,roll=(car.distance||0)/mod.wr;
   const base={p:[x,y,z],r:[PI/2,steer,0],shape:'cylinder',surface:'object'};
-  put({...base,s:[mod.wr*2,.185,mod.wr*2],mat:7,color:BLACK});put({...base,p:[x,y,z+side*.075],s:[mod.wr*1.42,.025,mod.wr*1.42],mat:0,color:[.25,.27,.28]});put({shape:'bevel',p:[x+.10,y,z+side*.084],s:[.08,.23,.055],mat:0,color:[.32,.32,.29]});for(let j=0;j<28;j++){const a=j*2*PI/28+roll;put({shape:'box',p:[x+Math.sin(a)*mod.wr*.992,y+Math.cos(a)*mod.wr*.992,z],s:[.010,.008,.16],r:[0,steer,-a],mat:7,color:[.009,.01,.011],surface:'object'});}
+  put({...base,s:[mod.wr*2,.185,mod.wr*2],mat:7,color:BLACK});
+  put({...base,shape:'ring',p:[x,y,z+side*.087],s:[mod.wr*1.91,.035,mod.wr*1.91],mat:7,color:[.022,.024,.026]});put({...base,p:[x,y,z+side*.075],s:[mod.wr*1.42,.025,mod.wr*1.42],mat:0,color:[.25,.27,.28]});put({shape:'bevel',p:[x+.10,y,z+side*.084],s:[.08,.23,.055],mat:0,color:[.32,.32,.29]});for(let j=0;j<28;j++){const a=j*2*PI/28+roll;put({shape:'box',p:[x+Math.sin(a)*mod.wr*.992,y+Math.cos(a)*mod.wr*.992,z],s:[.010,.008,.16],r:[0,steer,-a],mat:7,color:[.009,.01,.011],surface:'object'});}
   put({...base,p:[x,y,z+side*.098],s:[mod.wr*1.50,.012,mod.wr*1.50],mat:0,color:SILVER});
-  for(let j=0;j<(mod.type==='gti'?8:5);j++){
-   const a=j*2*PI/(mod.type==='gti'?8:5)+roll,rad=mod.wr*.51;
+  for(let j=0;j<(mod.type==='gti'?8:12);j++){
+   const a=j*2*PI/(mod.type==='gti'?8:12)+roll,rad=mod.wr*.51;
    if(mod.type==='gti')put({...base,p:[x+Math.sin(a)*rad,y+Math.cos(a)*rad,z+side*.107],s:[.062,.013,.062],mat:7,color:BLACK});
-   else{const mid=mod.wr*.43;put({shape:'box',p:[x+Math.sin(a)*mid,y+Math.cos(a)*mid,z+side*.11],s:[.04,mod.wr*.65,.018],r:[0,steer,-a],mat:7,color:DARK,surface:'object'});}
+   else{const mid=mod.wr*.55;put({shape:'bevel',p:[x+Math.sin(a)*mid,y+Math.cos(a)*mid,z+side*.11],s:[.018,mod.wr*.25,.013],r:[0,steer,-a-.12],mat:7,color:DARK,surface:'object'});}
   }
-  put({...base,p:[x,y,z+side*.12],s:[.074,.015,.074],mat:0,color:SILVER});
+  put({...base,p:[x,y,z+side*.12],s:[mod.type==='gti'?.074:.13,.015,mod.type==='gti'?.074:.13],mat:0,color:SILVER});
  }
  // Steering wheel: three spokes in its true cabin position, driven by BITUME's filtered steering.
  const turn=(car.volant||0)*1.7,cx=.10,cy=.79,cz=-.34,rad=.185;

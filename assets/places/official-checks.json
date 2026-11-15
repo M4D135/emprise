@@ -1,0 +1,12 @@
+{
+  "checkedAt": "2026-11-15",
+  "method": "Manual reading of official public websites; addresses only, coordinates remain OSM source points",
+  "checks": [
+    {"osmId":"node/8731323039","name":"Carrefour City Marseille Sainte","number":"87","street":"Rue Sainte","postcode":"13007","city":"Marseille","sourceUrl":"https://www.carrefour.fr/magasin/city-marseille-sainte"},
+    {"osmId":"node/9697856682","name":"Shawarmax","number":"32","street":"Rue Caisserie","postcode":"13002","city":"Marseille","sourceUrl":"https://shawarmaxfrance.fr/"},
+    {"osmId":"node/6967474368","name":"Carrefour Market Marseille Centre Bourse","number":"28","street":"Rue Bir Hakeim","postcode":"13001","city":"Marseille","sourceUrl":"https://www.carrefour.fr/magasin/market-marseille-centre-bourse"},
+    {"osmId":"node/13958097053","name":"Carrefour Express Marseille Caisserie","number":"3","street":"Rue Caisserie","postcode":"13002","city":"Marseille","sourceUrl":"https://www.carrefour.fr/magasin/express-marseille-caisserie"},
+    {"osmId":"node/12120449600","name":"Police municipale - Poste Canebière","number":"42","street":"La Canebière","postcode":"13001","city":"Marseille","sourceUrl":"https://www.marseille.fr/marseillereussit/secteur-1-7"},
+    {"name":"ISTANBUL GRILL KEBAB - VIEUX PORT","number":"132","street":"Quai du Port","postcode":"13002","city":"Marseille","sourceUrl":"https://acceslibre.beta.gouv.fr/app/13-marseille/a/restauration-rapide/erp/istanbul-grill-kebab-vieux-port/","note":"No corresponding source point confirmed in snapshot; not automatically inserted or assigned."}
+  ]
+}

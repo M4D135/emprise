@@ -1,0 +1,10 @@
+{
+  "checks": [
+    "Vrai kebab : menu E, achat, plan payé et contrat avec cible METAL",
+    "Hôtel réel : étage, occupants et butin via menu E",
+    "Échelle et trois embarcations : E/W/Espace réels, navigation et sortie en nage"
+  ],
+  "fixture": "Positions de départ préparées, puis interactions clavier/souris réelles. Ce test ne représente pas un trajet complet.",
+  "errors": [],
+  "buildSha256": "939ba8cb171fa17b6ac718ac135050368a41446ee5eb50f19986748fd4562fa5"
+}

@@ -9,9 +9,9 @@
     "Sauvegarde/reprise en cours d’incendie conserve sa progression",
     "Chocs balayés réels : dégradation, feu puis explosion"
   ],
-  "seconds": 30.816666666666666,
-  "shots": 74,
-  "fireStart": 22.325,
+  "seconds": 31.316666666666666,
+  "shots": 77,
+  "fireStart": 22.825,
   "flameDuration": 8.491666666666667,
   "collisions": 2,
   "explosions": 1

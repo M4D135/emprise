@@ -18,7 +18,7 @@ with tempfile.TemporaryDirectory(prefix='rade-chrome-') as profile, tempfile.Tem
         while not ev('!!globalThis.RADE?.game'):
             if time.monotonic()-start>30:raise RuntimeError('Initialization timeout')
             time.sleep(.1)
-        assert ev('document.title').startswith('EMPRISE');assert 'V0.2.0' in ev('document.querySelector(".game-version").textContent')
+        assert ev('document.title').startswith('EMPRISE');assert 'V'+json.loads((root/'VERSION.json').read_text())['version'] in ev('document.querySelector(".game-version").textContent')
         ready=time.monotonic();ev('RADE.game.testing=true;window.liveReference=RADE.game.session;window.persistBefore=localStorage.getItem("rade-solo-v2");true')
         time.sleep(4.0);assert not ev('RADE.game.demo')
         while not ev('RADE.game.demo'):
