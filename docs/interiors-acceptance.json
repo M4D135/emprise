@@ -1,14 +1,14 @@
 {
-  "buildings": 3952,
-  "passages": 633,
+  "buildings": 4943,
+  "passages": 815,
   "types": {
-    "logement": 3296,
-    "commerce": 328,
-    "restaurant": 264,
-    "public": 30,
-    "supermarche": 17,
-    "hotel": 16,
-    "garage": 1
+    "logement": 4236,
+    "commerce": 342,
+    "supermarche": 19,
+    "restaurant": 290,
+    "public": 31,
+    "hotel": 23,
+    "garage": 2
   },
   "checks": [
     "Tous les bâtiments : identifiants/portes uniques, places sourcées, aucun hôtel inventé, tous les paliers libres",

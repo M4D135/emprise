@@ -1,6 +1,12 @@
 /* Visible perimeter: anchored worksite fencing, police roadblocks and floating booms. */
 (function(R){'use strict';
-function add(world){const b=world.bounds,officers=[],gates=[],booms=[],B=[.07,.16,.28],metal=[.36,.40,.41],stone=[.48,.48,.43];
+function external(world){const b=world.bounds,gates=[],booms=[],officers=[],step=28;
+ const put=(p,s,color)=>world.addMesh({shape:'box',p,s,color,mat:7,boundary:true,collision:true,outdoor:true});
+ for(let side=0;side<4;side++){const vertical=side<2,fixed=side===0?b.minX+7:side===1?b.maxX-7:side===2?b.minZ+7:b.maxZ-7,lo=vertical?b.minZ+7:b.minX+7,hi=vertical?b.maxZ-7:b.maxX-7,n=Math.ceil((hi-lo)/step),length=(hi-lo)/n;
+  for(let i=0;i<n;i++){const t=lo+(i+.5)*length,x=vertical?fixed:t,z=vertical?t:fixed;if(world.water(x,z)){world.marineBuoys.push({x,z,boundary:true});continue;}const y=world.ground(x,z);put([x,y+.48,z],vertical?[.48,.96,length+.1]:[length+.1,.96,.48],[.30,.34,.34]);put([x,y+1.8,z],vertical?[.05,.07,length]:[length,.07,.05],[.36,.4,.41]);for(const v of [-length/2,0,length/2])put([x+(vertical?0:v),y+1.1,z+(vertical?v:0)],[.1,2.2,.1],[.36,.4,.41]);if(i%5===0)gates.push({x,z,nx:side===0?1:side===1?-1:0,nz:side===2?1:side===3?-1:0});}
+ }
+ world.boundaryOfficers=officers;return {gates,officers,booms,inset:7};}
+function add(world){if(world.expanded)return external(world);const b=world.bounds,officers=[],gates=[],booms=[],B=[.07,.16,.28],metal=[.36,.40,.41],stone=[.48,.48,.43];
  const put=(shape,p,s,color,cap=0,solid=true)=>{const m={shape,p,s,color,mat:7,r:[0,-cap,0],boundary:true};if(solid)world.addMesh(m);else world.scenery.push(m);return m;};
  const text=(label,x,y,z,cap)=>{const glyphs={P:['110','101','110','100','100'],O:['111','101','101','101','111'],L:['100','100','100','100','111'],I:['111','010','010','010','111'],C:['111','100','100','100','111'],E:['111','100','110','100','111']},c=Math.cos(cap),s=Math.sin(cap),step=.13;for(let j=0;j<label.length;j++)for(let yy=0;yy<5;yy++)for(let xx=0;xx<3;xx++)if(glyphs[label[j]][yy][xx]==='1'){const u=(j*4+xx-label.length*2)*step;put('box',[x+u*c,y+(2-yy)*step,z+u*s],[step*.8,step*.8,.025],[.85,.87,.84],cap,false);}};
  for(const side of [0,1,2,3]){const vertical=side<2,fixed=side===0?b.minX+5:side===1?b.maxX-5:side===2?b.minZ+5:b.maxZ-5,lo=vertical?b.minZ+5:b.minX+5,hi=vertical?b.maxZ-5:b.maxX-5,cap=vertical?Math.PI/2:0,n=Math.ceil((hi-lo)/5.8),step=(hi-lo)/n;

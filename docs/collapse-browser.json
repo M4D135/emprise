@@ -1,0 +1,66 @@
+{
+  "checks": [
+    "Plaque1600kg tombée sur la capsule : dégagement progressif puis marche W réelle opérationnelle",
+    "Tirs lance-roquettes par clics réels jusqu’à la brèche : collision statique retirée et débris physiques"
+  ],
+  "recovery": {
+    "x": 63.02843253421143,
+    "z": 188.89157302749643,
+    "origin": [
+      61.5,
+      189
+    ],
+    "blocked": false,
+    "hp": 100
+  },
+  "demolition": {
+    "shots": 3,
+    "rayBefore": 8.000000000000025,
+    "rayAfter": 7.90509520403118,
+    "bodies": 61,
+    "report": {
+      "breaches": 1,
+      "ignitions": 1,
+      "extinguished": 0,
+      "dispatches": 1,
+      "impacts": 0,
+      "vehicleExplosions": 0,
+      "crumbleVolume": 120.20205603272905
+    },
+    "staticAfter": 20,
+    "hp": 100,
+    "errors": [],
+    "pacing": {
+      "frames": 527,
+      "p95": 16.899999999999636,
+      "max": 150,
+      "over50": 9,
+      "over100": 2
+    }
+  },
+  "shots": [
+    {
+      "shots": 1,
+      "hp": 100,
+      "dead": false,
+      "heat": 0.24208333333332932,
+      "staticAfter": 8.000000000000025
+    },
+    {
+      "shots": 2,
+      "hp": 100,
+      "dead": false,
+      "heat": 0.48124999999999196,
+      "staticAfter": 8.000000000000025
+    },
+    {
+      "shots": 3,
+      "hp": 100,
+      "dead": false,
+      "heat": 0.6212499999999961,
+      "staticAfter": 20
+    }
+  ],
+  "fixture": "Départ joueur et plaque préparés ; puis marche clavier réelle. Façade réelle choisie et joueur placé devant, tirs par clics réels. Pas de parcours complet ni reproduction de la sauvegarde exacte de David.",
+  "buildSha256": "5a58818efc8b8388c9f58ef9586288460631b864cb2c41a54b5559a8e29f0934"
+}

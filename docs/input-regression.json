@@ -7,23 +7,23 @@
         "z": 124.8634466990708,
         "v": 7.241683105878102
       },
-      "reverse": -4.867712346041771
+      "reverse": -4.735733935099314
     },
     {
       "singleShotAndRelease": {
         "shots": 1,
         "queue": 0,
         "events": 0,
-        "voices": 1,
+        "voices": 2,
         "gunVoices": 0,
-        "kick": 1.8004871716994964e-16
+        "kick": 2.6983796338507214e-16
       }
     },
     {
       "burstShots": 8
     },
     {
-      "mouseDragFallbackUsed": true
+      "mouseDragFallbackUsed": false
     },
     {
       "mouseAfterExit": true,

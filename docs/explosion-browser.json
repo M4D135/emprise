@@ -7,7 +7,7 @@
     "tires": 0,
     "steering": 0
   },
-  "physics": 33,
+  "physics": 35,
   "errors": [],
   "audio": {
     "voices": 0,
@@ -28,14 +28,14 @@
   },
   "metrics": {
     "frame": {
-      "n": 2050,
+      "n": 2052,
       "p50": 16.69999999999891,
-      "p95": 18.69999999999709
+      "p95": 16.80000000000291
     },
     "cpu": {
-      "n": 2049,
-      "p50": 1.800000011920929,
-      "p95": 6.899999976158142
+      "n": 2051,
+      "p50": 2.399999976158142,
+      "p95": 6.699999988079071
     },
     "resolution": [
       1440,
@@ -44,19 +44,19 @@
     "pedestrians": 480,
     "traffic": 15,
     "renderer": {
-      "drawCalls": 1235,
-      "triangles": 2378912,
-      "instances": 30657,
+      "drawCalls": 1649,
+      "triangles": 2659369,
+      "instances": 35568,
       "contextLost": false,
       "webglVersion": 2,
       "backend": "webgl2",
       "bloom": true,
       "shadows": true,
       "pbrLayers": 2,
-      "staticTotal": 225995,
+      "staticTotal": 308270,
       "biome": "ville",
-      "worldRevision": 5,
-      "chunks": 3607,
+      "worldRevision": 4,
+      "chunks": 9493,
       "chunkBuildBytes": 0,
       "renderScale": 1,
       "pixelRatio": 1,
@@ -64,25 +64,27 @@
       "height": 900,
       "msaa": 4,
       "viewDistance": 64,
-      "staticVisible": 29509,
-      "staticCulled": 196486,
+      "staticVisible": 34179,
+      "staticCulled": 274090,
       "dynamicLights": 7,
       "blackoutLights": 0,
       "shadowMaps": 1,
       "shadowMode": "sun-atlas",
-      "uploadBytes": 42752,
-      "fxInstances": 16,
+      "uploadBytes": 58112,
+      "fxInstances": 13,
       "crowdInstances": 0,
       "pdrLotInstances": 0,
-      "shadowChunks": 238,
-      "shadowStatic": 30563,
-      "visibleChunks": 372,
+      "shadowChunks": 242,
+      "shadowStatic": 33911,
+      "backgroundWater": 1,
+      "backgroundDrawCalls": 1,
+      "visibleChunks": 572,
       "lotsVisibles": 0,
       "reflections": true,
       "reflectionSteps": 48
     },
     "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/157.0.0.0 Safari/537.36"
   },
-  "duration": 34.34166666666667,
-  "buildSha256": "781f53172ff57a22e635bef03bd33f2d13d05bcced394442d4d3a29ba365da74"
+  "duration": 34.333333333333336,
+  "buildSha256": "5a58818efc8b8388c9f58ef9586288460631b864cb2c41a54b5559a8e29f0934"
 }

@@ -1,0 +1,104 @@
+{
+  "baseline": "509b2ec",
+  "steps": [
+    {
+      "label": "initial",
+      "chunks": 378,
+      "reused": 0,
+      "uploadedBytes": 156224
+    },
+    {
+      "label": "unchanged references",
+      "chunks": 378,
+      "reused": 378,
+      "uploadedBytes": 0
+    },
+    {
+      "label": "two removals",
+      "chunks": 378,
+      "reused": 376,
+      "uploadedBytes": 11520
+    },
+    {
+      "label": "replacement with retained neighbours",
+      "chunks": 378,
+      "reused": 377,
+      "uploadedBytes": 448
+    },
+    {
+      "label": "new small and large chunks",
+      "chunks": 379,
+      "reused": 377,
+      "uploadedBytes": 8576
+    },
+    {
+      "label": "reordered entries and chunk keys",
+      "chunks": 379,
+      "reused": 28,
+      "uploadedBytes": 154432
+    },
+    {
+      "label": "in-place category changes invalidate scalar cache",
+      "chunks": 380,
+      "reused": 378,
+      "uploadedBytes": 9664
+    },
+    {
+      "label": "nonstandard size array remains uncached",
+      "chunks": 380,
+      "reused": 378,
+      "uploadedBytes": 9792
+    },
+    {
+      "label": "retained metadata radius threshold change",
+      "chunks": 380,
+      "reused": 378,
+      "uploadedBytes": 9792
+    },
+    {
+      "label": "fresh spatial metadata on setWorld",
+      "chunks": 380,
+      "reused": 0,
+      "uploadedBytes": 156224
+    },
+    {
+      "label": "context restore uploads every chunk",
+      "chunks": 380,
+      "reused": 0,
+      "uploadedBytes": 156224
+    },
+    {
+      "label": "empty world deletes all buffers",
+      "chunks": 0,
+      "reused": 0,
+      "uploadedBytes": 0
+    }
+  ],
+  "benchmark": {
+    "entries": 226000,
+    "changedMeshesPerUpdate": 1,
+    "method": "CPU only, spatialIndex and GPU excluded; 3 warmups, 10 measured alternating-order rebuilds",
+    "before": {
+      "samples": 10,
+      "medianMs": 219.565,
+      "minMs": 209.385,
+      "maxMs": 241.323
+    },
+    "after": {
+      "samples": 10,
+      "medianMs": 13.869,
+      "minMs": 12.578,
+      "maxMs": 15.035
+    }
+  },
+  "checks": [
+    "Exact keys, insertion order and conservative bounds",
+    "Identical frustum decisions",
+    "Byte-identical batches and shape groups",
+    "Identical buffer reuse, upload and deletion sequence",
+    "Scalar cache invalidates on in-place category changes",
+    "No links from new chunks to replaced generations",
+    "setWorld, context restoration and empty-world cleanup"
+  ],
+  "limitation": "This measures rebuildChunks in Node with a buffer-call recorder, not browser frame time or a proven cause of the destruction spikes."
+}

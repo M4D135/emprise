@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-for(const f of ['metal/fmath','metal/physics','metal/simulation','pdr/villes/marseille','pdr/ville-reelle','pdr/sim/nav','pdr/sim/regles','bitume/carene','bitume/conduite','vehicles','mobility','details','architecture','world','crowd','session'])await import('../src/'+f+'.js');
+for(const f of ['metal/fmath','metal/physics','metal/simulation','pdr/villes/marseille','pdr/ville-reelle','pdr/sim/nav','pdr/sim/regles','bitume/carene','bitume/conduite','vehicles','mobility','details','architecture','clearance','world','people','crowd','session'])await import('../src/'+f+'.js');
 await import('./scenario.js');
 const s=RADE.session.create(),auto=radeScenario(s);
 let prev='';while(!auto.finished){s.update(1/120,auto.step());if(prev!==auto.stage){prev=auto.stage;console.log(prev,s.player.x.toFixed(1),s.player.z.toFixed(1),s.player.hp,s.phase);}}

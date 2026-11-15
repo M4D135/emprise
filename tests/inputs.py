@@ -12,6 +12,11 @@ with tempfile.TemporaryDirectory(prefix='rade-inputs-') as profile,tempfile.Temp
    r=cmd('Runtime.evaluate',{'expression':js,'returnByValue':True,'awaitPromise':True,'userGesture':True});assert 'exceptionDetails' not in r,r;return r.get('result',{}).get('value')
   def key(code,down=True):cmd('Input.dispatchKeyEvent',{'type':'keyDown' if down else 'keyUp','key':code[3:].lower() if code.startswith('Key') else code,'code':code})
   def tap(code):key(code);time.sleep(.08);key(code,False)
+  def handbrake():
+   key('Space');end=time.monotonic()+5
+   while ev('RADE.game.session.car.v')>=.2:
+    assert time.monotonic()<end,'Handbrake did not stop vehicle within 5 s';time.sleep(.05)
+   key('Space',False)
   def mouse(down):cmd('Input.dispatchMouseEvent',{'type':'mousePressed' if down else 'mouseReleased','x':720,'y':450,'button':'left','clickCount':1})
   cmd('Page.enable');cmd('Runtime.enable');cmd('Emulation.setDeviceMetricsOverride',{'width':1440,'height':900,'deviceScaleFactor':1,'mobile':False});cmd('Page.navigate',{'url':(root/'dist/index.html').as_uri()+'?test=1'});cmd('Page.bringToFront')
   start=time.monotonic()
@@ -27,9 +32,9 @@ with tempfile.TemporaryDirectory(prefix='rade-inputs-') as profile,tempfile.Temp
   tap('KeyE');time.sleep(.25);assert ev('RADE.game.session.mode')=='car';assert ev('RADE.game.session.car.moteur')
   before=ev('({x:RADE.game.session.car.x,z:RADE.game.session.car.z})');key('KeyZ');time.sleep(1.4);key('KeyZ',False)
   drive=ev('({x:RADE.game.session.car.x,z:RADE.game.session.car.z,v:RADE.game.session.car.v})');assert drive['v']>2 and abs(drive['x']-before['x'])+abs(drive['z']-before['z'])>2,drive
-  key('Space');time.sleep(1);key('Space',False);assert ev('RADE.game.session.car.v')<.2
+  handbrake()
   key('KeyS');time.sleep(.8);key('KeyS',False);reverse=ev('RADE.game.session.car.u');assert reverse<-.5
-  key('Space');time.sleep(.8);key('Space',False);tap('KeyE');time.sleep(.2);assert ev('RADE.game.session.mode')=='foot';checks.append({'driving':drive,'reverse':reverse});print('AZERTY/WASD, enter, drive, brake, reverse, exit: passed',flush=True)
+  handbrake();tap('KeyE');time.sleep(.2);assert ev('RADE.game.session.mode')=='foot';checks.append({'driving':drive,'reverse':reverse});print('AZERTY/WASD, enter, drive, brake, reverse, exit: passed',flush=True)
   mouse(True);time.sleep(.06);mouse(False);time.sleep(1.3)
   one=ev('({shots:RADE.game.session.sim.state.shots,queue:RADE.game.session.sim.state.events.length,events:RADE.game.session.events.filter(e=>e.name==="shot").length,voices:RADE.game.audio.stats.voices,gunVoices:RADE.game.audio.stats.activeCues.shot||0,kick:RADE.game.motion.view.weapon.slide})')
   assert one['shots']==1,one;assert one['queue']==0 and one['events']==0 and one['gunVoices']==0 and one['kick']<.001,one;checks.append({'singleShotAndRelease':one});print('single shot: quiet after release',flush=True)

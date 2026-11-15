@@ -1,0 +1,16 @@
+{
+  "checks": [
+    "Stable actual OBB supports feet; >42cm, falling/spinning and empty AABB corners rejected",
+    "Actual rocket + 1.4s settling + 4.2s W crosses b640; solid rubble, exact mass/volume and bounded dust",
+    "Save on rubble restores same validated support, health and economy",
+    "Low ceiling prevents climbing block; capsule cannot cross overhead solid"
+  ],
+  "progress": 8.825177341058662,
+  "maxHeight": 0.6312673657898239,
+  "walkingSeconds": 4.191666666666666,
+  "fragments": 48,
+  "removedVolume": 2.410342334814883,
+  "retainedVolume": 1.4891021956038903,
+  "pulverisedVolume": 0.9212401392109942,
+  "maxStep": 0.42
+}

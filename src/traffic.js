@@ -156,7 +156,7 @@ function create(world,{count=12}={}){
  }
 
  function spawn(i,police=false){
-  const type=police?(i%3===0?'tmax':'gti'):i%3===0?'tmax':i%2?'r5':'gti';
+  const type=police?(i%3===0?'policebike':'gti'):i%3===0?'tmax':i%2?'r5':'gti';
   let car=null;
   const preferred=candidates.slice().sort((a,b)=>Math.abs(nodes[a].x-70)+Math.abs(nodes[a].z-90)-Math.abs(nodes[b].x-70)-Math.abs(nodes[b].z-90));
   for(let attempt=0;attempt<400;attempt++){
@@ -418,6 +418,7 @@ function create(world,{count=12}={}){
    if(!person||person.hp<=0)continue;
    considerPerson(person.x,person.z,'pedestrian');
   }
+  for(const person of world.policeOfficers||[])if(person&&!person.inside&&person.hp>0)considerPerson(person.x,person.z,'officer');
   if(direction>0){
    const look=clamp(3+c.v,4.5,16);
    for(let d=halfLength+.15;d<=halfLength+look;d+=.8){

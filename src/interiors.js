@@ -75,9 +75,9 @@ function roomFor(b,floor,world,placeIndex=0){
  const rack=(x,z,label)=>{box(x,1.35,z,[.58,2.1,2.3],furniture.dark,7);collide(x,z,.34,1.16,.15,2.3);for(let j=0;j<3;j++){const y=.72+j*.58;box(x+.34,y,z,[.05,.10,1.9],[.09,.10,.09],0,false);box(x+.38,y+.12,z-.55,[.06,.22,1.1],[.16,.17,.16],0,false);box(x+.38,y+.16,z+.5,[.08,.30,.85],[.20,.22,.20],0,false);}sign(label,x,2.62,z, .065);};
  // Floor, ceiling and shell.
  box(0,.025,0,[w,.08,d],[.49,.45,.36],7,false);box(0,ceiling+.06,0,[w,.12,d],[.78,.77,.71],3,false);
- for(const x of [-w/2,w/2])box(x,ceiling/2,0,[.2,ceiling,d]);
- for(const z of [-d/2,d/2])box(0,ceiling/2,z,[w,ceiling,.2]);
- box(0,1.25,d/2-.12,[1.7,2.5,.08],colors[type],7);box(.6,1.08,d/2-.20,[.04,.24,.06],[.7,.62,.35],0);
+ for(const x of [-w/2,w/2])box(x,ceiling/2,0,[.2,ceiling,d]).interiorShell=true;
+ for(const z of [-d/2,d/2])box(0,ceiling/2,z,[w,ceiling,.2]).interiorShell=true;
+ box(0,1.25,d/2-.12,[1.7,2.5,.08],colors[type],7).interiorShell=true;box(.6,1.08,d/2-.20,[.04,.24,.06],[.7,.62,.35],0).interiorShell=true;
  sign(floor?'HALL':'RUE',0,2.83,d/2-.24,.10);sign(String(floor),w/2-2.2,2.8,-1,.15);
  for(const z of [-d/2+4,0,d/2-4]){box(0,3.38,z,[2,.06,.55],[.88,.83,.62],5,false).emissive=1.8;lights.push({p:[C,3.1,C+z],color:[1,.82,.60],power:18,range:10});}
  for(const x of [-w/2+.12,w/2-.12])for(const z of [-6,0,6]){box(x,2,z,[.05,1.3,1.6],furniture.glass,19,false);box(x,1.28,z,[.18,.09,1.8],furniture.paper,3,false);}
@@ -200,11 +200,67 @@ function roomFor(b,floor,world,placeIndex=0){
   services,portals,features,placeIndex:pIndex,place:chosen||null,layoutVariant:ground?(concourse?'commercial-hall':type==='logement'?'residential-hall':chosen?.kind==='police'?'police-ground':type+'-ground'):(type==='hotel'?'hotel-floor-'+((floor-1)%3):'apartment-variant-'+(((b.index||0)*5+floor)%3)),
   reconstruction:'procedural',serviceNotes,vehicleDisplay,zones};
 }
+// A bounded bridge between the portal room and its actual, oriented building box.
+// The façade and floor slabs belong to urban.js; projections contain furnishing only.
+function breachBridges(entries,world,sim,getActive,activate,setOutside){
+ const cache=new Map(),rooms=new Map(),grid=new Map(),limit=8,point=v=>Array.isArray(v)?v:[v?.x,v?.y??.08,v?.z],finite=v=>v?.length===3&&v.every(Number.isFinite);
+ for(const building of entries)(building.boxes||[]).forEach((q,index)=>{const key=Math.floor(q.x/16)+','+Math.floor(q.z/16);if(!grid.has(key))grid.set(key,[]);grid.get(key).push({building,q,index});});
+ function match(mesh,id){if(!mesh?.p||!mesh?.s||mesh.shape!=='box'||mesh.s.some(n=>!Number.isFinite(n)||n<=3)||Math.abs(mesh.r?.[0]||0)>.01||Math.abs(mesh.r?.[2]||0)>.01)return null;
+  const list=[];for(let x=-1;x<=1;x++)for(let z=-1;z<=1;z++)list.push(...grid.get((Math.floor(mesh.p[0]/16)+x)+','+(Math.floor(mesh.p[2]/16)+z))||[]);
+  let best=null,distance=Infinity;for(const item of list){if(id&&item.building.id!==id)continue;const q=item.q,d=Math.hypot(q.x-mesh.p[0],q.z-mesh.p[2]),error=Math.abs(q.lx-mesh.s[0])+Math.abs(q.lz-mesh.s[2]);if(d>.7||error>1||Math.abs(Math.sin(q.lacet-(mesh.r?.[1]||0)))>.025)continue;if(d+error<distance){distance=d+error;best=item;}}return best;
+ }
+ const faces=q=>{const c=Math.cos(-q.lacet),s=Math.sin(-q.lacet);return [{nx:-s,nz:c,width:q.lx,depth:q.lz},{nx:s,nz:-c,width:q.lx,depth:q.lz},{nx:c,nz:s,width:q.lz,depth:q.lx},{nx:-c,nz:-s,width:q.lz,depth:q.lx}].map((f,i)=>({...f,index:i,x:q.x+f.nx*f.depth/2,z:q.z+f.nz*f.depth/2}));};
+ function project(options={}){const mesh=options.mesh||options.baseMesh,found=match(mesh,options.buildingId);if(!found)return null;const {building,q,index}=found,hit=point(options.point||mesh.p);if(!finite(hit))return null;
+  const baseY=mesh.p[1]-mesh.s[1]/2,floor=Number.isInteger(options.floor)?options.floor:Math.floor(Math.max(0,hit[1]-baseY)/3.1);if(floor<0||floor>=building.floors||baseY+(floor+1)*3.1>mesh.p[1]+mesh.s[1]/2+.2)return null;
+  let placeIndex=Number.isInteger(options.placeIndex)?options.placeIndex:0;
+  if(!Number.isInteger(options.placeIndex)&&floor===0&&building.places?.length>1){let distance=Infinity;building.places.forEach((place,i)=>{const d=Math.hypot(place.x-hit[0],place.z-hit[2]);if(d<distance){distance=d;placeIndex=i;}});}
+  placeIndex=Math.max(0,Math.min(Math.max(0,(building.places?.length||1)-1),placeIndex));
+  const fs=faces(q),normal=point(options.normal||[0,0,0]);let face=fs.reduce((a,b)=>Math.abs((hit[0]-b.x)*b.nx+(hit[2]-b.z)*b.nz)<Math.abs((hit[0]-a.x)*a.nx+(hit[2]-a.z)*a.nz)?b:a);
+  if(finite(normal)&&Math.hypot(normal[0],normal[2])>.4)face=fs.reduce((a,b)=>b.nx*normal[0]+b.nz*normal[2]>a.nx*normal[0]+a.nz*normal[2]?b:a);
+  const key=building.id+':box-'+index+':'+floor+':'+placeIndex+':face-'+face.index;
+  if(cache.has(key)){const result=cache.get(key);cache.delete(key);cache.set(key,result);return result;}
+  const roomKey=building.id+':'+floor+':'+placeIndex;let room=getActive();if(!room||room.building!==building||room.floor!==floor||room.placeIndex!==placeIndex)room=rooms.get(roomKey)||roomFor(building,floor,world,placeIndex);rooms.set(roomKey,room);
+  // Orient once from the mapped street entrance, never from the latest impact.
+  const front=fs.reduce((a,b)=>b.nx*(building.nx||0)+b.nz*(building.nz||0)>a.nx*(building.nx||0)+a.nz*(building.nz||0)?b:a),nx=front.nx,nz=front.nz,tx=nz,tz=-nx,inset=.30;
+  const scale=[(front.width-2*inset)/room.w,.82,(front.depth-2*inset)/room.d],y0=baseY+floor*3.1+.08-.08*scale[1],yaw=Math.atan2(nx,nz);
+  const toWorld=v=>{const a=point(v),x=(a[0]-C)*scale[0],z=(a[2]-C)*scale[2];return [q.x+tx*x+nx*z,y0+a[1]*scale[1],q.z+tz*x+nz*z];};
+  const toRoom=v=>{const a=point(v),x=a[0]-q.x,z=a[2]-q.z;return [C+(x*tx+z*tz)/scale[0],(a[1]-y0)/scale[1],C+(x*nx+z*nz)/scale[2]];};
+  const vector=v=>[tx*v[0]*scale[0]+nx*v[2]*scale[2],v[1]*scale[1],tz*v[0]*scale[0]+nz*v[2]*scale[2]];
+  const toRoomYaw=a=>{const x=Math.sin(a),z=-Math.cos(a);return Math.atan2((x*tx+z*tz)/scale[0],-(x*nx+z*nz)/scale[2]);};
+  const toWorldYaw=a=>{const v=vector([Math.sin(a),0,-Math.cos(a)]);return Math.atan2(v[0],-v[2]);};
+  function transformMesh(m){const e=BITUME.voiture.euler(...(m.r||[0,0,0])),axes=e.map(vector),lengths=axes.map(a=>Math.hypot(...a)),rotation=BITUME.voiture.angles(axes.map((a,i)=>a.map(n=>n/lengths[i])));return {...m,p:toWorld(m.p),s:m.s.map((n,i)=>n*lengths[i]),r:rotation,room:false,outdoor:true,breachInterior:true,sourceRoom:room.sceneId,collision:false};}
+  const projected={id:key,buildingId:building.id,building,footprint:q,boxIndex:index,mesh,room,floor,placeIndex,floorHeight:3.1,scale,yaw,baseY,toWorld,toRoom,toRoomYaw,toWorldYaw,face:{...face,normal:[face.nx,0,face.nz],tangent:[face.nz,0,-face.nx],center:[face.x,baseY+floor*3.1,face.z],threshold:.35},void:{center:[q.x,baseY+floor*3.1+1.55,q.z],size:[q.lx-.6,2.94,q.lz-.6],r:[0,q.lacet,0],minY:baseY+floor*3.1+.08,maxY:baseY+(floor+1)*3.1-.08,inset},scenery:[],colliders:[],lights:[],refresh(){
+   this.scenery=room.scenery.filter(m=>!m.interiorShell&&!m.destroyed).map(transformMesh);const bySource=new Map(room.scenery.filter(m=>!m.interiorShell&&!m.destroyed).map((m,i)=>[m,this.scenery[i]]));
+   this.colliders=room.colliders.filter(c=>!c.destroyed&&!c.mesh?.interiorShell).map(c=>{const pos=toWorld([c.x,0,c.z]),a=c.a*scale[0],b=c.b*scale[2];return {...c,x:pos[0],z:pos[2],a,b,c:tx,s:tz,cap:-yaw,minY:y0+c.minY*scale[1],maxY:y0+c.maxY*scale[1],mesh:bySource.get(c.mesh)||null,breachInterior:true};});
+   this.lights=room.lights.map(l=>({...l,p:toWorld(l.p),range:l.range*Math.min(scale[0],scale[2])}));return this;
+  }};
+  projected.refresh();cache.set(key,projected);while(cache.size>limit)cache.delete(cache.keys().next().value);const retained=new Set([...cache.values()].map(b=>b.room));for(const [key,r]of rooms)if(!retained.has(r)&&r!==getActive())rooms.delete(key);return projected;
+ }
+ function enter(bridge,previous,current){if(getActive()||!bridge?.room||bridge.room.building!==bridge.building||!entries.includes(bridge.building)||sim.state.dead||sim.state.player.hp<=0)return false;
+  const a=point(previous),b=point(current);if(!finite(a)||!finite(b))return false;const distance=Math.hypot(...a.map((v,i)=>v-b[i]));if(distance<1e-6||distance>2)return false;
+  const f=faces(bridge.footprint).map(f=>({...f,threshold:.35})).find(f=>((a[0]-f.x)*f.nx+(a[2]-f.z)*f.nz+f.threshold)>0&&((b[0]-f.x)*f.nx+(b[2]-f.z)*f.nz+f.threshold)<=0);if(!f)return false;const signed=v=>(v[0]-f.x)*f.nx+(v[2]-f.z)*f.nz+f.threshold,da=signed(a),db=signed(b);
+  const t=da/(da-db),cross=a.map((v,i)=>v+(b[i]-v)*t),tangent=(cross[0]-f.x)*f.nz-(cross[2]-f.z)*f.nx,base=bridge.baseY+bridge.floor*3.1;
+  if(Math.abs(tangent)>f.width/2-.4||cross[1]<base-.10||cross[1]+1.8>base+3.1-.08)return false;
+  // A registered breach is not permission to cross an intact section of its façade.
+  for(let k=0,n=Math.max(1,Math.ceil(distance/.10));k<=n;k++){const v=a.map((x,i)=>x+(b[i]-x)*k/n);if(world.blocked(v[0],v[2],.28,v[1],1.8))return false;}
+  const room=bridge.room,original=bridge.toRoom(b);let destination=null;
+  // The opening may already have destroyed the portal room's thin shell. Try
+  // only an inward boundary clearance, never a general nearest-free search.
+  for(let margin=.29;margin<=.60;margin+=.05){const q=original.slice();q[0]=Math.max(C-room.w/2+margin,Math.min(C+room.w/2-margin,q[0]));q[2]=Math.max(C-room.d/2+margin,Math.min(C+room.d/2-margin,q[2]));if(Math.hypot((q[0]-original[0])*bridge.scale[0],(q[2]-original[2])*bridge.scale[2])<=1&&!room.blocked(q[0],q[2],.28,.08,1.8)){destination=q;break;}}
+  if(!destination)return false;
+  const streetYaw=sim.state.player.yaw,returnPoint=cross.map((v,i)=>v+(i===0?f.nx:i===2?f.nz:0)*(.75+f.threshold));
+  if(world.blocked(returnPoint[0],returnPoint[2],.28,returnPoint[1],1.8))return false;
+  setOutside({x:returnPoint[0],y:returnPoint[1],z:returnPoint[2],yaw:streetYaw,breach:true});activate(bridge.building,bridge.floor,bridge.placeIndex,room,{x:destination[0],z:destination[2],yaw:bridge.toRoomYaw(streetYaw)});return true;
+ }
+ return {project,enter,match,get size(){return cache.size;}};
+}
+
 function stableHash(value){let h=2166136261;for(const c of String(value))h=Math.imul(h^c.charCodeAt(0),16777619);return h>>>0;}
 function create(world,sim,{saved=null,notify=()=>{}}={}){const data=world.addresses||catalog(world),entries=data.entries,p=sim.state.player,visits=new Set(Array.isArray(saved?.visited)?saved.visited.filter(id=>entries.some(b=>b.id===id)):[]),purchased=new Set(Array.isArray(saved?.purchased)?saved.purchased.filter(id=>typeof id==='string').slice(0,200):[]);let active=null,outside=null,revision=0;const serviceHandlers=new Map();
+ const bridges=breachBridges(entries,world,sim,()=>active,load,value=>{outside=value;});
  function near(){let best=null;for(const b of entries){const distance=Math.hypot(p.x-b.x,p.z-b.z);if(distance<1.85&&(!best||distance<best.distance))best={kind:'building',target:b,label:'E · '+(b.passage?'Passage vers ':'Entrer · ')+b.name,distance};}return best;}
  function context(){if(!active)return near();const q=active,items=[];const add=(v,label,extra)=>{const distance=Math.hypot(p.x-v.x,p.z-v.z);if(distance<1.65)items.push({kind:'interior',distance,label:'E · '+label,...extra});};add(q.exit,q.floor?'Rejoindre le rez-de-chaussée':'Sortir dans la rue',{action:q.floor?'lobby':'exit'});if(q.floor<q.building.floors-1)add(q.stairs.up,'Escalier · étage '+(q.floor+1),{action:'up'});if(q.floor>0)add(q.stairs.down,q.floor===1?'Escalier · rez-de-chaussée':'Escalier · étage '+(q.floor-1),{action:'down'});for(const s of q.services)add(s,s.label+(s.price?' ('+s.price+' €)':''),{action:'service',service:s,placeIndex:q.placeIndex});for(const portal of q.portals)if(portal.placeIndex!==q.placeIndex)add(portal,'Changer · '+portal.label,{action:'local',placeIndex:portal.placeIndex,portal});return items.sort((a,b)=>a.distance-b.distance)[0]||null;}
- function load(b,floor=0,placeIndex=0){active=roomFor(b,floor,world,placeIndex);world.room=active;revision++;visits.add(b.id);const q=active.spawn;sim.relocate(q.x,q.z,q.yaw);notify(b.name+' · '+(floor?'étage '+floor:'rez-de-chaussée')+(active.place&&active.place.name?' · '+active.place.name:''));}
+ function load(b,floor=0,placeIndex=0,room=null,position=null){active=room||roomFor(b,floor,world,placeIndex);world.room=active;revision++;visits.add(b.id);const q=position||active.spawn;sim.relocate(q.x,q.z,q.yaw);notify(b.name+' · '+(floor?'étage '+floor:'rez-de-chaussée')+(active.place&&active.place.name?' · '+active.place.name:''));}
  function enter(b,placeIndex=null){if(active||!entries.includes(b)||Math.hypot(p.x-b.x,p.z-b.z)>1.85)return false;outside={x:p.x,z:p.z,yaw:p.yaw};load(b,0,Number.isInteger(placeIndex)?placeIndex:b.places?.length>1?-1:0);return true;}
  function respawnPolice(){for(const b of entries){const placeIndex=(b.places||[]).findIndex(place=>place.kind==='police'&&sourcedPlace(b,place));if(placeIndex<0)continue;outside={x:b.x,z:b.z,yaw:Math.atan2(b.nx,-b.nz)};load(b,0,placeIndex);notify('Commissariat · '+active.place.name+' · '+(active.place.address||b.address||''));return true;}return false;}
  function leave(){if(!active)return false;const b=active.building;active=null;world.room=null;revision++;const q=world.freeNear(outside?.x??b.x,outside?.z??b.z,.36);sim.relocate(q[0],q[1],outside?.yaw??Math.atan2(b.nx,-b.nz));notify('Rue · '+(b.address||b.name));return true;}
@@ -219,6 +275,6 @@ function create(world,sim,{saved=null,notify=()=>{}}={}){const data=world.addres
   notify('Service indisponible.');return false;}
  function interact(campaign){const target=context();if(!target)return false;if(!active)return enter(target.target);switch(target.action){case'exit':return leave();case'lobby':load(active.building,0,active.placeIndex);return true;case'up':load(active.building,active.floor+1,active.placeIndex);return true;case'down':load(active.building,active.floor-1,active.placeIndex);return true;case'service':return useService(target.service?.id,campaign);case'local':if(Number.isInteger(target.placeIndex)){load(active.building,0,target.placeIndex);return true;}return false;}return false;}
  function save(){return {visited:[...visits],purchased:[...purchased],active:active?{id:active.building.id,floor:active.floor,placeIndex:active.placeIndex,x:p.x,z:p.z,yaw:p.yaw,outside}:null};}
- if(saved?.active){const v=saved.active,b=entries.find(b=>b.id===v.id);if(b&&Number.isInteger(v.floor)&&v.floor>=0&&v.floor<b.floors){const placeIndex=Number.isInteger(v.placeIndex)?v.placeIndex:0;outside={x:b.x,z:b.z,yaw:Math.atan2(b.nx,-b.nz)};load(b,v.floor,placeIndex);if(Number.isFinite(v.x)&&Number.isFinite(v.z)&&!active.blocked(v.x,v.z,.35))sim.relocate(v.x,v.z,Number.isFinite(v.yaw)?v.yaw:0);}}
- return {entries,shared:data.shared,visits,purchased,near,context,interact,useService,setServiceHandler(kind,handler){if(typeof handler==='function')serviceHandlers.set(kind,handler);},respawnPolice,enter,leave,save,get active(){return active;},get outside(){return outside;},get revision(){return revision;},roomFor:(b,f=0,placeIndex=0)=>roomFor(b,f,world,placeIndex)};}
+ if(saved?.active){const v=saved.active,b=entries.find(b=>b.id===v.id);if(b&&Number.isInteger(v.floor)&&v.floor>=0&&v.floor<b.floors){const placeIndex=Number.isInteger(v.placeIndex)?v.placeIndex:0;outside=v.outside?.breach&&[v.outside.x,v.outside.z,v.outside.yaw].every(Number.isFinite)&&Math.abs(v.outside.x)<900&&Math.abs(v.outside.z)<900?{...v.outside}:{x:b.x,z:b.z,yaw:Math.atan2(b.nx,-b.nz)};load(b,v.floor,placeIndex);if(Number.isFinite(v.x)&&Number.isFinite(v.z)&&!active.blocked(v.x,v.z,.35))sim.relocate(v.x,v.z,Number.isFinite(v.yaw)?v.yaw:0);}}
+ return {entries,shared:data.shared,visits,purchased,near,context,interact,useService,setServiceHandler(kind,handler){if(typeof handler==='function')serviceHandlers.set(kind,handler);},respawnPolice,enter,leave,save,breachProjection:bridges.project,breachFootprint:bridges.match,enterBreach:bridges.enter,get breachCacheSize(){return bridges.size;},get active(){return active;},get outside(){return outside;},get revision(){return revision;},roomFor:(b,f=0,placeIndex=0)=>roomFor(b,f,world,placeIndex)};}
 R.interiors={create,roomFor,catalog,types,names,colors};})(globalThis.RADE);

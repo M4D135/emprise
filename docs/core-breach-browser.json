@@ -1,0 +1,321 @@
+{
+  "checks": [
+    "Real source facade mapped to the existing ground-floor room",
+    "Digit3 and genuine mouse clicks fire finite-reserve rockets",
+    "Broken facade exposes projected room furnishing in the street",
+    "No proximity entry before walking",
+    "W movement crosses the physical threshold into the same room instance",
+    "Breach return point survives interior save"
+  ],
+  "fixture": {
+    "buildingId": "building-1710",
+    "name": "Immeuble · 1 Quai des belges 13001 Marseille",
+    "address": "1 Quai des belges 13001 Marseille",
+    "point": [
+      103.40612966606719,
+      1.25,
+      110.80629958978835
+    ],
+    "origin": [
+      99.85606610334656,
+      0.08,
+      101.99454331191484
+    ],
+    "yaw": 2.7586076270720237,
+    "pitch": -0.04733304076656673,
+    "normal": [
+      -0.3736909013390132,
+      0,
+      -0.9275532924077386
+    ],
+    "roomScene": "building-1710:0:local-0:v2",
+    "rayBefore": 9.510651922975617
+  },
+  "initial": {
+    "shots": 0,
+    "ammo": 12,
+    "player": [
+      99.85606610334656,
+      0.08,
+      101.99454331191484
+    ],
+    "hp": 100,
+    "time": 0.3166666666666668
+  },
+  "shots": [
+    {
+      "shots": 1,
+      "ammo": 11,
+      "hp": 100,
+      "dead": false,
+      "time": 1.1999999999999982,
+      "projectiles": 0,
+      "bridge": null,
+      "openRay": 2.9999999999999876
+    },
+    {
+      "shots": 2,
+      "ammo": 10,
+      "hp": 100,
+      "dead": false,
+      "time": 2.5999999999999934,
+      "projectiles": 0,
+      "bridge": {
+        "id": "building-1710:box-0:0:0:face-3",
+        "buildingId": "building-1710",
+        "floor": 0,
+        "room": "building-1710:0:local-0:v2",
+        "scenery": 120,
+        "visibleInWorld": 120
+      },
+      "openRay": 12
+    }
+  ],
+  "exposed": {
+    "shots": 2,
+    "ammo": 10,
+    "hp": 100,
+    "dead": false,
+    "time": 6.283333333333435,
+    "projectiles": 0,
+    "bridge": {
+      "id": "building-1710:box-0:0:0:face-3",
+      "buildingId": "building-1710",
+      "floor": 0,
+      "room": "building-1710:0:local-0:v2",
+      "scenery": 120,
+      "visibleInWorld": 120
+    },
+    "openRay": 12
+  },
+  "inputs": [
+    {
+      "key": "W",
+      "down": true,
+      "time": 6.416666666666775
+    },
+    {
+      "key": "W",
+      "down": false,
+      "time": 8.283333333333504
+    }
+  ],
+  "trace": [
+    {
+      "x": 99.85606610334656,
+      "y": 0.08,
+      "z": 101.99454331191484,
+      "hp": 100,
+      "time": 6.416666666666775,
+      "active": null
+    },
+    {
+      "x": 100.02625821668639,
+      "y": 0.08,
+      "z": 102.41698403633312,
+      "hp": 100,
+      "time": 6.533333333333448,
+      "active": null
+    },
+    {
+      "x": 100.19255464623603,
+      "y": 0.08,
+      "z": 102.82975512653549,
+      "hp": 100,
+      "time": 6.616666666666785,
+      "active": null
+    },
+    {
+      "x": 100.36056250632437,
+      "y": 0.08,
+      "z": 103.2467742276613,
+      "hp": 100,
+      "time": 6.700000000000123,
+      "active": null
+    },
+    {
+      "x": 100.52871084918613,
+      "y": 0.08,
+      "z": 103.66414202675793,
+      "hp": 100,
+      "time": 6.78333333333346,
+      "active": null
+    },
+    {
+      "x": 100.69687072357613,
+      "y": 0.08,
+      "z": 104.08153844872702,
+      "hp": 100,
+      "time": 6.866666666666798,
+      "active": null
+    },
+    {
+      "x": 100.86503154453159,
+      "y": 0.08,
+      "z": 104.49893722020454,
+      "hp": 100,
+      "time": 6.950000000000135,
+      "active": null
+    },
+    {
+      "x": 101.0331924431859,
+      "y": 0.08,
+      "z": 104.91633618454146,
+      "hp": 100,
+      "time": 7.033333333333473,
+      "active": null
+    },
+    {
+      "x": 101.20135334821809,
+      "y": 0.08,
+      "z": 105.33373516470927,
+      "hp": 100,
+      "time": 7.11666666666681,
+      "active": null
+    },
+    {
+      "x": 101.36951425377384,
+      "y": 0.08,
+      "z": 105.75113414617655,
+      "hp": 100,
+      "time": 7.200000000000148,
+      "active": null
+    },
+    {
+      "x": 101.57130734049294,
+      "y": 0.08,
+      "z": 106.25201292406685,
+      "hp": 100,
+      "time": 7.300000000000153,
+      "active": null
+    },
+    {
+      "x": 101.73946824609531,
+      "y": 0.08,
+      "z": 106.66941190564987,
+      "hp": 100,
+      "time": 7.38333333333349,
+      "active": null
+    },
+    {
+      "x": 101.90762915169786,
+      "y": 0.08,
+      "z": 107.08681088723327,
+      "hp": 100,
+      "time": 7.4666666666668275,
+      "active": null
+    },
+    {
+      "x": 102.07579005730041,
+      "y": 0.08,
+      "z": 107.50420986881682,
+      "hp": 100,
+      "time": 7.550000000000165,
+      "active": null
+    },
+    {
+      "x": 102.24395096290296,
+      "y": 0.08,
+      "z": 107.92160885040036,
+      "hp": 100,
+      "time": 7.6333333333335025,
+      "active": null
+    },
+    {
+      "x": 102.4121118685055,
+      "y": 0.08,
+      "z": 108.3390078319839,
+      "hp": 100,
+      "time": 7.71666666666684,
+      "active": null
+    },
+    {
+      "x": 102.58027277410805,
+      "y": 0.08,
+      "z": 108.75640681356745,
+      "hp": 100,
+      "time": 7.8000000000001775,
+      "active": null
+    },
+    {
+      "x": 102.7484336797106,
+      "y": 0.08,
+      "z": 109.173805795151,
+      "hp": 100,
+      "time": 7.883333333333515,
+      "active": null
+    },
+    {
+      "x": 102.95022676643366,
+      "y": 0.08,
+      "z": 109.67468457305125,
+      "hp": 100,
+      "time": 7.98333333333352,
+      "active": null
+    },
+    {
+      "x": 103.1183876720362,
+      "y": 0.08,
+      "z": 110.0920835546348,
+      "hp": 96.58457333333334,
+      "time": 8.06666666666685,
+      "active": null
+    },
+    {
+      "x": 103.38744512100028,
+      "y": 0.08,
+      "z": 110.75992192516847,
+      "hp": 96.58457333333334,
+      "time": 8.200000000000175,
+      "active": null
+    },
+    {
+      "x": 1000.0000000000002,
+      "y": 0.08,
+      "z": 1009.5881491923805,
+      "hp": 96.58457333333334,
+      "time": 8.283333333333504,
+      "active": "building-1710"
+    }
+  ],
+  "entered": {
+    "active": {
+      "buildingId": "building-1710",
+      "scene": "building-1710:0:local-0:v2",
+      "floor": 0,
+      "sameRoom": true,
+      "name": "Immeuble · 1 Quai des belges 13001 Marseille"
+    },
+    "player": [
+      1000.0000000000002,
+      0.08,
+      1009.5881491923805
+    ],
+    "outside": {
+      "x": 103.12586149006277,
+      "y": 0.08,
+      "z": 110.11063462048261,
+      "yaw": 2.7586076270720237,
+      "breach": true
+    },
+    "saved": {
+      "id": "building-1710",
+      "floor": 0,
+      "placeIndex": 0,
+      "x": 1000.0000000000002,
+      "z": 1009.5881491923805,
+      "yaw": -5.554037669698771e-17,
+      "outside": {
+        "x": 103.12586149006277,
+        "y": 0.08,
+        "z": 110.11063462048261,
+        "yaw": 2.7586076270720237,
+        "breach": true
+      }
+    },
+    "hp": 96.58457333333334
+  },
+  "errors": [],
+  "buildSha256": "616770fbad1de53c0f9eea178c603cf4fc683ac908e0fa597956f58858f570aa",
+  "limits": "Initial position/aim are prepared. No damage, projectile, ammunition, enemies, health or entry state is injected. Furnishing is an original procedural interpretation, not an architectural survey. Screenshots require visual inspection."
+}

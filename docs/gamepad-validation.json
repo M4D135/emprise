@@ -1,7 +1,7 @@
 {
   "checks": [
     "Titre : A démarre sans capture souris",
-    "X entrée/sortie · RT analogique · LT frein/recul · B frein · Y vue",
+    "X entrée/sortie · RT analogique · LT frein/recul · B frein à main · Y vue",
     "Déplacement, visée, zone morte, tir unique, rafale et silence au relâchement",
     "Pause au débranchement et barrière de relâchement (aucun tir bloqué)",
     "Menu des actions, navigation et choix d’arme",

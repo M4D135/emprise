@@ -1,9 +1,10 @@
 import './load.mjs';import assert from 'node:assert/strict';import fs from 'node:fs';import crypto from 'node:crypto';
-const files=['input-recording.json','sandbox-recording.json','explosion-recording.json'],verified=[];
+const files=['input-recording.json','sandbox-recording.json','explosion-recording.json','police-recording.json'],verified=[];
 for(const name of files){const bytes=fs.readFileSync(new URL('../docs/'+name,import.meta.url)),tape=JSON.parse(bytes),s=RADE.session.create({saved:tape.initial||null,now:tape.initial?.savedAt||Date.now()}),p=RADE.replay.player(tape);let c,count=0;
  while((c=p.next())){if(c.paint){const palette=RADE.vehicles.PALETTE;s.car.color=palette[(palette.indexOf(s.car.color)+1)%palette.length];}if(Number.isInteger(c.siteAction)){if(c.siteAction>=200)s.campaign.heal(s.campaign.sites[c.siteAction-200]);else if(c.siteAction>=100)s.campaign.buyMap(s.campaign.sites[c.siteAction-100]);else s.campaign.begin(s.campaign.sites[c.siteAction]);}s.update(1/120,c);count++;}
  const result={shots:s.sim.state.shots,mode:s.mode,player:[s.player.x,s.player.z],car:[s.car.x,s.car.z],cash:s.campaign.state.cash,owner:s.campaign.sites[0].gang,mapOwned:s.campaign.state.mapOwned},expected=tape.expected;
  assert.equal(count,tape.ticks);assert.equal(result.shots,expected.shots);assert.equal(result.mode,expected.mode);for(const key of ['player','car'])for(let i=0;i<2;i++)assert(Math.abs(result[key][i]-expected[key][i])<.0001,JSON.stringify({name,key,result,expected}));assert(Math.abs(result.cash-expected.cash)<.001);if('owner'in expected){assert.equal(result.owner,expected.owner);assert.equal(result.mapOwned,expected.mapOwned);}
+ if('arrested' in expected){assert.equal(!!s.campaign.law.lastArrest,expected.arrested);assert.equal(s.interiors.active?.place?.kind==='police',expected.policeStation);assert.deepEqual(s.sim.state.inventory.ammo,expected.ammo);}
  if('exploded' in expected){assert.equal(s.car.exploded,expected.exploded);assert.equal(s.urban.report.vehicleExplosions,expected.explosions);}
  tape.recordingSha256=crypto.createHash('sha256').update(bytes).digest('hex');verified.push(tape);console.log(name,tape.duration+' s',result);
 }

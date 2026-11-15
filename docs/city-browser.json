@@ -1,0 +1,433 @@
+{
+  "checks": [
+    "Cinq quartiers : coordonnées préparées sur routes OSM, marche W réelle, sols solides et chunks résidents limités à neuf",
+    "Ancienne limite du centre franchie à pied avec W, sans téléportation pendant le déplacement",
+    "Îles d’If/Riou, Calanques et terre au nord contrôlées ; mer extérieure navigable et bouées de limite présentes"
+  ],
+  "neighbourhoods": [
+    {
+      "area": "panier",
+      "location": {
+        "x": -630.8499999999999,
+        "z": -510.1,
+        "cap": 0.20693927856742078,
+        "name": "path",
+        "d": 39.58361163071034
+      },
+      "walkDistance": 5.888335332243102,
+      "metrics": {
+        "frame": {
+          "n": 109,
+          "p50": 16.69999999999891,
+          "p95": 16.80000000000109
+        },
+        "cpu": {
+          "n": 109,
+          "p50": 1.7000000476837158,
+          "p95": 6
+        },
+        "resolution": [
+          1440,
+          900
+        ],
+        "pedestrians": 480,
+        "traffic": 15,
+        "renderer": {
+          "drawCalls": 1471,
+          "triangles": 822209,
+          "instances": 40188,
+          "contextLost": false,
+          "webglVersion": 2,
+          "backend": "webgl2",
+          "bloom": true,
+          "shadows": true,
+          "pbrLayers": 2,
+          "staticTotal": 254362,
+          "biome": "ville",
+          "worldRevision": 7,
+          "chunks": 8455,
+          "chunkBuildBytes": 368640,
+          "renderScale": 1,
+          "pixelRatio": 1,
+          "width": 1440,
+          "height": 900,
+          "msaa": 4,
+          "viewDistance": 64,
+          "staticVisible": 39397,
+          "staticCulled": 214965,
+          "dynamicLights": 0,
+          "blackoutLights": 0,
+          "shadowMaps": 1,
+          "shadowMode": "sun-atlas",
+          "uploadBytes": 19904,
+          "fxInstances": 1,
+          "crowdInstances": 0,
+          "pdrLotInstances": 0,
+          "shadowChunks": 184,
+          "shadowStatic": 12905,
+          "visibleChunks": 801,
+          "lotsVisibles": 0,
+          "reflections": true,
+          "reflectionSteps": 48
+        },
+        "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/157.0.0.0 Safari/537.36"
+      },
+      "stream": {
+        "residentChunks": 7,
+        "queuedChunks": 0,
+        "pendingBuildings": 0,
+        "lastBuildMs": 0,
+        "totalBuilt": 7,
+        "instances": 29921
+      }
+    },
+    {
+      "area": "prado",
+      "location": {
+        "x": 1439,
+        "z": 2918.45,
+        "cap": -0.40872009722177605,
+        "name": "Rue Négresko",
+        "d": 13.168093874376837
+      },
+      "walkDistance": 5.888405054297469,
+      "metrics": {
+        "frame": {
+          "n": 108,
+          "p50": 16.700000000000728,
+          "p95": 16.80000000000291
+        },
+        "cpu": {
+          "n": 108,
+          "p50": 2,
+          "p95": 7.300000011920929
+        },
+        "resolution": [
+          1440,
+          900
+        ],
+        "pedestrians": 480,
+        "traffic": 15,
+        "renderer": {
+          "drawCalls": 790,
+          "triangles": 180996,
+          "instances": 11297,
+          "contextLost": false,
+          "webglVersion": 2,
+          "backend": "webgl2",
+          "bloom": true,
+          "shadows": true,
+          "pbrLayers": 2,
+          "staticTotal": 283606,
+          "biome": "ville",
+          "worldRevision": 17,
+          "chunks": 9949,
+          "chunkBuildBytes": 403328,
+          "renderScale": 1,
+          "pixelRatio": 1,
+          "width": 1440,
+          "height": 900,
+          "msaa": 4,
+          "viewDistance": 64,
+          "staticVisible": 10506,
+          "staticCulled": 273100,
+          "dynamicLights": 0,
+          "blackoutLights": 0,
+          "shadowMaps": 1,
+          "shadowMode": "sun-atlas",
+          "uploadBytes": 19904,
+          "fxInstances": 1,
+          "crowdInstances": 0,
+          "pdrLotInstances": 0,
+          "shadowChunks": 122,
+          "shadowStatic": 5488,
+          "visibleChunks": 408,
+          "lotsVisibles": 0,
+          "reflections": true,
+          "reflectionSteps": 48
+        },
+        "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/157.0.0.0 Safari/537.36"
+      },
+      "stream": {
+        "residentChunks": 9,
+        "queuedChunks": 0,
+        "pendingBuildings": 0,
+        "lastBuildMs": 0,
+        "totalBuilt": 16,
+        "instances": 59165
+      }
+    },
+    {
+      "area": "saint-barnabe",
+      "location": {
+        "x": 3316.5,
+        "z": -800.35,
+        "cap": 3.0483949584173304,
+        "name": "Rue Fontaine Sainte-Anne",
+        "d": 51.12207218851273
+      },
+      "walkDistance": 5.88840505430325,
+      "metrics": {
+        "frame": {
+          "n": 108,
+          "p50": 16.700000000000728,
+          "p95": 16.799999999999272
+        },
+        "cpu": {
+          "n": 108,
+          "p50": 2,
+          "p95": 6.799999952316284
+        },
+        "resolution": [
+          1440,
+          900
+        ],
+        "pedestrians": 480,
+        "traffic": 15,
+        "renderer": {
+          "drawCalls": 1818,
+          "triangles": 966369,
+          "instances": 62889,
+          "contextLost": false,
+          "webglVersion": 2,
+          "backend": "webgl2",
+          "bloom": true,
+          "shadows": true,
+          "pbrLayers": 2,
+          "staticTotal": 321739,
+          "biome": "ville",
+          "worldRevision": 27,
+          "chunks": 10411,
+          "chunkBuildBytes": 763328,
+          "renderScale": 1,
+          "pixelRatio": 1,
+          "width": 1440,
+          "height": 900,
+          "msaa": 4,
+          "viewDistance": 64,
+          "staticVisible": 62098,
+          "staticCulled": 259641,
+          "dynamicLights": 0,
+          "blackoutLights": 0,
+          "shadowMaps": 1,
+          "shadowMode": "sun-atlas",
+          "uploadBytes": 19904,
+          "fxInstances": 1,
+          "crowdInstances": 0,
+          "pdrLotInstances": 0,
+          "shadowChunks": 192,
+          "shadowStatic": 16047,
+          "visibleChunks": 1051,
+          "lotsVisibles": 0,
+          "reflections": true,
+          "reflectionSteps": 48
+        },
+        "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/157.0.0.0 Safari/537.36"
+      },
+      "stream": {
+        "residentChunks": 9,
+        "queuedChunks": 0,
+        "pendingBuildings": 0,
+        "lastBuildMs": 0,
+        "totalBuilt": 25,
+        "instances": 97298
+      }
+    },
+    {
+      "area": "estaque",
+      "location": {
+        "x": -4496.5,
+        "z": -7297.05,
+        "cap": -1.2770589305420725,
+        "name": "Résidence Saumaty",
+        "d": 28.920648193320964
+      },
+      "walkDistance": 5.978335332234361,
+      "metrics": {
+        "frame": {
+          "n": 109,
+          "p50": 16.700000000000728,
+          "p95": 16.80000000000291
+        },
+        "cpu": {
+          "n": 109,
+          "p50": 1.800000011920929,
+          "p95": 7.199999988079071
+        },
+        "resolution": [
+          1440,
+          900
+        ],
+        "pedestrians": 480,
+        "traffic": 15,
+        "renderer": {
+          "drawCalls": 826,
+          "triangles": 305958,
+          "instances": 17988,
+          "contextLost": false,
+          "webglVersion": 2,
+          "backend": "webgl2",
+          "bloom": true,
+          "shadows": true,
+          "pbrLayers": 2,
+          "staticTotal": 281869,
+          "biome": "ville",
+          "worldRevision": 37,
+          "chunks": 9224,
+          "chunkBuildBytes": 491776,
+          "renderScale": 1,
+          "pixelRatio": 1,
+          "width": 1440,
+          "height": 900,
+          "msaa": 4,
+          "viewDistance": 64,
+          "staticVisible": 17197,
+          "staticCulled": 264672,
+          "dynamicLights": 0,
+          "blackoutLights": 0,
+          "shadowMaps": 1,
+          "shadowMode": "sun-atlas",
+          "uploadBytes": 19904,
+          "fxInstances": 1,
+          "crowdInstances": 0,
+          "pdrLotInstances": 0,
+          "shadowChunks": 120,
+          "shadowStatic": 12613,
+          "visibleChunks": 430,
+          "lotsVisibles": 0,
+          "reflections": true,
+          "reflectionSteps": 48
+        },
+        "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/157.0.0.0 Safari/537.36"
+      },
+      "stream": {
+        "residentChunks": 9,
+        "queuedChunks": 0,
+        "pendingBuildings": 0,
+        "lastBuildMs": 0,
+        "totalBuilt": 34,
+        "instances": 57428
+      }
+    },
+    {
+      "area": "pointe-rouge",
+      "location": {
+        "x": -204.3,
+        "z": 6014.1,
+        "cap": -2.0837576240697486,
+        "name": "Traverse Prat",
+        "d": 21.796712634228015
+      },
+      "walkDistance": 5.978335332243563,
+      "metrics": {
+        "frame": {
+          "n": 108,
+          "p50": 16.69999999999709,
+          "p95": 16.80000000000291
+        },
+        "cpu": {
+          "n": 108,
+          "p50": 1.800000011920929,
+          "p95": 6.900000035762787
+        },
+        "resolution": [
+          1440,
+          900
+        ],
+        "pedestrians": 480,
+        "traffic": 15,
+        "renderer": {
+          "drawCalls": 1528,
+          "triangles": 829931,
+          "instances": 47991,
+          "contextLost": false,
+          "webglVersion": 2,
+          "backend": "webgl2",
+          "bloom": true,
+          "shadows": true,
+          "pbrLayers": 2,
+          "staticTotal": 288143,
+          "biome": "ville",
+          "worldRevision": 47,
+          "chunks": 9428,
+          "chunkBuildBytes": 503680,
+          "renderScale": 1,
+          "pixelRatio": 1,
+          "width": 1440,
+          "height": 900,
+          "msaa": 4,
+          "viewDistance": 64,
+          "staticVisible": 47200,
+          "staticCulled": 240943,
+          "dynamicLights": 0,
+          "blackoutLights": 0,
+          "shadowMaps": 1,
+          "shadowMode": "sun-atlas",
+          "uploadBytes": 19904,
+          "fxInstances": 1,
+          "crowdInstances": 0,
+          "pdrLotInstances": 0,
+          "shadowChunks": 157,
+          "shadowStatic": 14336,
+          "visibleChunks": 899,
+          "lotsVisibles": 0,
+          "reflections": true,
+          "reflectionSteps": 48
+        },
+        "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/157.0.0.0 Safari/537.36"
+      },
+      "stream": {
+        "residentChunks": 9,
+        "queuedChunks": 0,
+        "pendingBuildings": 0,
+        "lastBuildMs": 0,
+        "totalBuilt": 43,
+        "instances": 63702
+      }
+    }
+  ],
+  "coast": [
+    {
+      "place": "if",
+      "x": -3834,
+      "z": 1826,
+      "water": false,
+      "ground": 3.350805561946625,
+      "bounds": {
+        "minX": -12428.58,
+        "minZ": -11555.02,
+        "maxX": 13498.05,
+        "maxZ": 16274.98
+      }
+    },
+    {
+      "place": "riou",
+      "x": 1264,
+      "z": 13446,
+      "water": false,
+      "ground": 47.07958545028498,
+      "bounds": {
+        "minX": -12428.58,
+        "minZ": -11555.02,
+        "maxX": 13498.05,
+        "maxZ": 16274.98
+      }
+    },
+    {
+      "place": "calanques",
+      "x": 3600,
+      "z": 9100,
+      "water": false,
+      "ground": 182.40240818781638,
+      "bounds": {
+        "minX": -12428.58,
+        "minZ": -11555.02,
+        "maxX": 13498.05,
+        "maxZ": 16274.98
+      }
+    }
+  ],
+  "errors": [],
+  "fixture": "Points de départ et caméras préparés ; déplacements clavier et chargement de quartiers exécutés par le jeu. Contours géographiques OSM, relief côtier procédural non mesuré. Les mesures ci-dessus concernent cette machine et ces vues, sans garantie 60 FPS générale.",
+  "buildSha256": "6ace258819d07eed4f086670e4f67a008f7fdbc703dd6e4b651e6f24cd3097d5"
+}

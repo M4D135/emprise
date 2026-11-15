@@ -1,0 +1,60 @@
+{
+  "buildSha256": "03abf0396a0a2b0e343774a71f114d4a687215e50e325775d74272a5f6424d5c",
+  "scene": "Bonne-Mère scenic camera; native WebGL2 depth24, 1440x900; actual generated road ribbons; same view for all cases",
+  "checks": [
+    {
+      "cameraNear": 0.035,
+      "shadows": true,
+      "image": "road-debug-baseline.png",
+      "observation": "Triangular road dropouts remain despite road geometry clearance."
+    },
+    {
+      "cameraNear": 0.035,
+      "shadows": false,
+      "image": "road-debug-no-shadows.png",
+      "observation": "Dropouts remain, so shadow-map acne does not explain them."
+    },
+    {
+      "cameraNear": 1,
+      "shadows": false,
+      "image": "road-debug-near1.png",
+      "observation": "Road dropouts gone. Weapon is clipped; diagnostic only."
+    },
+    {
+      "cameraNear": 0.035,
+      "shaderDepthBiasUnits": 2,
+      "image": "road-bias-after.png",
+      "observation": "Only partial improvement. Temporary HTML; rejected."
+    },
+    {
+      "cameraNear": 0.035,
+      "shaderDepthBiasUnits": 8,
+      "image": "road-bias8-after.png",
+      "observation": "Road dropouts gone, but bias could occlude distant objects. Rejected, not integrated."
+    },
+    {
+      "cameraNear": 0.035,
+      "relativeMatrix": true,
+      "shaderDepthBiasUnits": 2,
+      "image": "road-relative-matrix-after.png",
+      "observation": "Road dropouts gone; near-coplanar night facade shells still unstable. Prototype not integrated."
+    },
+    {
+      "cameraNear": 0.15,
+      "image": "road-near-0.15.png",
+      "observation": "Smallest near distance tested that removes road dropouts with no road depth bias."
+    },
+    {
+      "cameraNear": 0.2,
+      "image": "road-near-0.2.png",
+      "observation": "Road dropouts gone."
+    },
+    {
+      "cameraNear": 0.5,
+      "image": "road-near-0.5.png",
+      "observation": "Road dropouts gone; foreground weapon visibly clipped without independent overlay projection."
+    }
+  ],
+  "retainedFix": "Independent optional camera.overlayNear in existing overlay pass. Game selects a bounded world near distance based on camera clearance; proximity and cockpit require validation. No road depth bias, no relative-matrix prototype retained.",
+  "remainingObservation": "Bonne-Mère duplicated night facade shells reveal moire at increased depth precision. Reported to owner, separate geometry issue."
+}

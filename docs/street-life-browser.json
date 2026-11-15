@@ -1,0 +1,22 @@
+{
+  "checks": [
+    "Dernière cartouche consommée par clic réel ; maintien à vide sans nouveau tir ni boucle sonore",
+    "Réapprovisionnement au comptoir protégé via E et clic, 24 cartouches débitées35€ ; revenus simultanés pris en compte",
+    "Conducteur visible descendu, approche physique, interpellation puis réapparition au commissariat dans la session active"
+  ],
+  "arrest": {
+    "last": {
+      "fine": 80,
+      "time": 14.766666666666469
+    },
+    "inside": true,
+    "kind": "police",
+    "place": "Police municipale - Poste Canebière",
+    "arrest": 0,
+    "exits": 1
+  },
+  "elapsedAfterDismount": 5.808336957998108,
+  "fixture": "Réserve, propriété du commerce et rencontre de patrouille préparées. Tir/achats par événements réels ; poursuite et arrestation par la simulation courante, après le délai réel du répartiteur, sans déplacer le policier ni déclencher respawn directement.",
+  "errors": [],
+  "buildSha256": "4e241e658a62dbeacdc9904de1acad7d42b99bd4cbcbdcc4af6370a8ec20b5d3"
+}

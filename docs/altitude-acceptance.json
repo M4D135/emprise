@@ -1,0 +1,24 @@
+{
+  "checks": [
+    "Notre-Dame: collisions piéton/véhicule, murs et ponts aux altitudes locales",
+    "Rayon balistique sur châssis élevé, aucune collision fantôme au niveau du port",
+    "Recherche de position libre et sortie de voiture sur le relief",
+    "Sauvegarde/reprise du joueur et de la voiture avec altitude recalculée",
+    "Déplacement automobile par sous-pas arrêté par un mur élevé",
+    "Conducteur élevé touché à la tête par le tir réel",
+    "Terrain : rayon montant, descendant, projectile épais et sol plat central inchangé",
+    "Dégâts, flammes, explosion et fragments de véhicule à altitude locale",
+    "Rendu carcasse et fourgon pompier à altitude locale"
+  ],
+  "position": {
+    "x": -75.4748537925,
+    "z": 1361.4844574361,
+    "y": 135.59060668945312
+  },
+  "carBox": {
+    "minY": 135.69060668945312,
+    "maxY": 136.95060668945314
+  },
+  "rayDistance": 3.1475,
+  "contactDistance": 1.0294117647058414
+}

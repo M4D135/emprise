@@ -1,0 +1,83 @@
+{
+  "bonneMerePerformance": {
+    "scene": "Bonne-Mère at 23:00, loaded chunks, scenic camera",
+    "durationSeconds": 10,
+    "metrics": {
+      "frame": {
+        "n": 601,
+        "p50": 16.69999999999709,
+        "p95": 18.299999999999272
+      },
+      "cpu": {
+        "n": 601,
+        "p50": 2.199999988079071,
+        "p95": 8
+      },
+      "resolution": [
+        1440,
+        900
+      ],
+      "pedestrians": 480,
+      "traffic": 15,
+      "renderer": {
+        "drawCalls": 515,
+        "triangles": 692340,
+        "instances": 106233,
+        "contextLost": false,
+        "webglVersion": 2,
+        "backend": "webgl2",
+        "bloom": true,
+        "shadows": true,
+        "pbrLayers": 2,
+        "staticTotal": 442911,
+        "biome": "ville",
+        "worldRevision": 8,
+        "chunks": 11126,
+        "chunkBuildBytes": 2393344,
+        "renderScale": 1,
+        "pixelRatio": 1,
+        "width": 1440,
+        "height": 900,
+        "msaa": 4,
+        "viewDistance": 64,
+        "staticVisible": 105328,
+        "staticCulled": 337582,
+        "dynamicLights": 8,
+        "blackoutLights": 0,
+        "shadowMaps": 1,
+        "shadowMode": "sun-atlas",
+        "uploadBytes": 27136,
+        "fxInstances": 1,
+        "crowdInstances": 0,
+        "pdrLotInstances": 0,
+        "shadowChunks": 33,
+        "shadowStatic": 27654,
+        "backgroundWater": 1,
+        "backgroundDrawCalls": 1,
+        "visibleChunks": 232,
+        "lotsVisibles": 0,
+        "reflections": true,
+        "reflectionSteps": 48
+      },
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/157.0.0.0 Safari/537.36"
+    },
+    "stream": {
+      "residentChunks": 9,
+      "queuedChunks": 0,
+      "pendingBuildings": 0,
+      "lastBuildMs": 0,
+      "totalBuilt": 12,
+      "instances": 214799
+    },
+    "gpu": {
+      "available": true,
+      "extension": "EXT_disjoint_timer_query_webgl2",
+      "n": 600,
+      "p50Ms": 12.081374,
+      "p95Ms": 14.203333,
+      "disjointEvents": 0
+    }
+  },
+  "errors": [],
+  "buildSha256": "03abf0396a0a2b0e343774a71f114d4a687215e50e325775d74272a5f6424d5c"
+}

@@ -1,0 +1,10 @@
+{
+  "checks": [
+    "Clic réel : headshot du conducteur à travers vitre latérale ; moteur coupé et vitre brisée",
+    "Vol par E ; propriétaire rejoint physiquement la portière et récupère le véhicule arrêté",
+    "Profil provocateur : approche et agression non provoquée, dégâts réels, animation de coup, peur nulle"
+  ],
+  "fixture": "Positions et tempéraments préparés ; clic de tir et touche E réels, décisions de récupération et agression exécutées par la simulation. Pas de téléportation de PNJ pour déclencher le résultat.",
+  "errors": [],
+  "buildSha256": "4e241e658a62dbeacdc9904de1acad7d42b99bd4cbcbdcc4af6370a8ec20b5d3"
+}

@@ -23,7 +23,7 @@ function create(world,sim,{interiors,campaign,saved=null,notify=()=>{}}={}){
  const slots=(world.businessSlots||[]).filter(id=>sim.state.enemies[id]?.businessReserve);
  const initial=new Map(slots.map(id=>[id,structuredClone(sim.state.enemies[id])]));
  const inventory={bandage:0,provision:0,valuable:0,ammo:0};
- let clock=0,mission=null,roomRef=null,roomLoot=[],earned=0,income=0;
+ let clock=0,mission=null,roomRef=null,roomLoot=[],earned=0,income=0,raid=null,retreats=[],nextRaidAt=480,raidCount=0,raidCheckAt=0;
  for(const building of interiors?.entries||world.addresses?.entries||[]){
   for(const place of building.places||[]){
    if(place.kind==='police'||!shops.has(place.type)&&!place.shop)continue;
@@ -35,7 +35,7 @@ function create(world,sim,{interiors,campaign,saved=null,notify=()=>{}}={}){
  function record(key){
   if(!records.has(key)){
    const n=hash(key);
-   records.set(key,{status:'independent',gang:1+n%3,rate:24+n%25,robUntil:0,extortUntil:0,earned:0,closed:false});
+   records.set(key,{status:'independent',gang:1+n%3,rivalGang:1+n%3,eligibleAt:clock+480+n%181,lastRaid:null,rate:24+n%25,robUntil:0,extortUntil:0,earned:0,closed:false});
   }
   return records.get(key);
  }
@@ -104,10 +104,12 @@ function create(world,sim,{interiors,campaign,saved=null,notify=()=>{}}={}){
   ensureRoom();
   return roomLoot.map(q=>({...q,distance:Math.hypot(q.x-p.x,q.z-p.z)})).filter(q=>q.distance<1.6).sort((a,b)=>a.distance-b.distance)[0]||null;
  }
+ function ammoOffer(){const weapon=sim.state.weapon||0,amount=[24,6,2][weapon]||24;return {item:'ammo',price:35,amount,label:amount+' '+['cartouches de mitraillette','cartouches de pompe','roquettes'][weapon]+' · 35 €'};}
+ function ammoFull(){const weapon=sim.state.weapon||0;return !sim.state.inventory?.ammo||!Number.isFinite(sim.ammoCaps?.[weapon])||sim.state.inventory.ammo[weapon]>=sim.ammoCaps[weapon];}
  function offer(entry){
   const type=entry.place.type;
   if(type==='restaurant'||type==='kebab'||type==='supermarche'||type==='hotel')return {item:'provision',price:12,label:'Acheter une provision · 12 €'};
-  if(type==='armurerie')return {item:'ammo',price:35,label:'Acheter des munitions · 35 €'};
+  if(type==='armurerie'){const goods=ammoOffer();return {...goods,label:'Acheter '+goods.label};}
   return {item:'bandage',price:25,label:'Acheter un bandage · 25 €'};
  }
  function streetAt(x,z){
@@ -145,18 +147,96 @@ function create(world,sim,{interiors,campaign,saved=null,notify=()=>{}}={}){
    status:claimed.has(loot.id)?'Déjà fouillée':'Bagage laissé dans la chambre',actions:[{id:'loot:'+loot.id,label:claimed.has(loot.id)?'Bagage vide':'Fouiller le bagage',disabled:claimed.has(loot.id)}],inventory:{...inventory},mission:missionView(),income};
   const q=shopHere();if(!q)return null;
   const living=!q.room.merchant||q.room.merchant.hp>0,owned=q.data.status==='protected',goods=offer(q);
-  const actions=[{id:'buy',label:goods.label,disabled:!living||(campaign?.state.cash||0)<goods.price||inventory[goods.item]>=20},
+  const actions=[{id:'buy',label:goods.label,disabled:!living||(campaign?.state.cash||0)<goods.price||inventory[goods.item]>=20||goods.item==='ammo'&&ammoFull()},
    {id:'rob',label:'Voler la caisse',disabled:owned||clock<q.data.robUntil},
    {id:'extort',label:'Racketter le commerçant',disabled:!living||owned||clock<q.data.extortUntil},
-   {id:'protect',label:owned?'Protection en place':'Proposer sa protection',disabled:!living||owned||!!mission}];
+   {id:'protect',label:owned?'Protection en place':'Proposer sa protection',disabled:!living||owned||!!mission||!!raid}];
+  if(owned)actions.push({id:'resupply',label:'Réapprovisionnement du réseau · '+ammoOffer().label,disabled:!living||(campaign?.state.cash||0)<35||ammoFull()});
   if(!campaign.state.mapOwned)actions.push({id:'buy_map',label:'Acheter un plan papier · 60 €',disabled:!living||campaign.state.cash<60});
   if(mission?.key===q.key&&mission.stage==='return')actions.push({id:'claim',label:'Confirmer la protection · +'+q.data.rate+' €/min',disabled:!living});
   if(inventory.provision)actions.push({id:'use_provision',label:'Consommer une provision · +20 PV',disabled:p.hp>=100});
   if(inventory.bandage)actions.push({id:'use_bandage',label:'Utiliser un bandage · +35 PV',disabled:p.hp>=100});
   if(inventory.valuable)actions.push({id:'sell',label:'Vendre un objet de valeur · 30 €',disabled:!living});
   return {kind:'business',label:'E · '+(q.place.name||'Commerce'),distance:q.distance,place:q.place,buildingId:q.building.id,
-   status:owned?'Votre protection · '+q.data.rate+' €/min':living?'Affaires de quartier':'Commerçant hors d’état de servir',actions,inventory:{...inventory},mission:missionView(),income};
+   status:owned?(raid?.key===q.key&&occupying()?'Seuil occupé · revenus suspendus':'Votre protection · '+q.data.rate+' €/min'):living?'Affaires de quartier':'Commerçant hors d’état de servir',actions,inventory:{...inventory},mission:missionView(),income};
  }
+ // Retaliation targets a known shop entrance, never an unseen player position.
+ const raidRules={warning:90,assault:150,occupation:60,globalCooldown:480,shopCooldown:1080};
+ function inStreet(x,z,r=.5){const b=world.bounds;return Number.isFinite(x)&&Number.isFinite(z)&&(!b||x>b.minX+r&&x<b.maxX-r&&z>b.minZ+r&&z<b.maxZ-r)&&!world.blocked(x,z,r);}
+ function clearStreet(a,b){const dx=b.x-a.x,dz=b.z-a.z,d=Math.hypot(dx,dz);return d<.1||[.55,1.4].every(y=>world.ray([a.x,y,a.z],[dx/d,0,dz/d],d)>=d-.1);}
+ function visibleSpawn(q){if(interiors?.active||p.hp<=0)return false;const dx=q.x-p.x,dz=q.z-p.z,d=Math.hypot(dx,dz);return d<12||d<135&&[.55,1.4].some(y=>{const dy=y-(finite(p.y,.08)+1.6),length=Math.hypot(d,dy);return world.ray([p.x,finite(p.y,.08)+1.6,p.z],[dx/length,dy/length,dz/length],length)>=length-.1;});}
+ function raidActors(){return raid?raid.ids.map(id=>sim.state.enemies[id]).filter(e=>e?.hp>0&&e.deployed):[];}
+ function occupying(){return !!raid&&raid.stage==='assault'&&raidActors().some(e=>Math.hypot(e.x-raid.x,e.z-raid.z)<8&&clearStreet(e,raid));}
+ function defending(){return p.hp>0&&!interiors?.active&&Math.hypot(p.x-raid.x,p.z-raid.z)<12&&clearStreet(p,raid);}
+ function guide(e,target){if(e.seen||e.hasMemory)return;Object.assign(e,{hasMemory:true,memory:8,lastSeenX:target.x,lastSeenZ:target.z,lastSeenY:1.45,awareness:'investigate',alert:.45,goalX:target.x,goalZ:target.z,planWait:0,thinkWait:0});}
+ function guideRetreat(e,target){
+  // A retreat order uses the normal navigator, but ends fire and perception of the player.
+  if(e.seen||Math.hypot(e.lastSeenX-target.x,e.lastSeenZ-target.z)>.1)e.hasMemory=false;
+  e.seen=false;e.senseWait=Math.max(finite(e.senseWait),1);e.windup=e.burstLeft=e.rushTime=0;e.cooldown=Math.max(finite(e.cooldown),1);e.attackState='recover';guide(e,target);
+ }
+ function actorSnapshot(e){return {id:e.id,x:e.x,z:e.z,hp:e.hp,yaw:e.yaw,injury:e.injury?{...e.injury}:null,hasMemory:!!e.hasMemory,lastSeenX:e.lastSeenX,lastSeenZ:e.lastSeenZ,memory:e.memory};}
+ function restoreActor(v,key,gang,retreat=false){
+  if(!v||!slots.includes(v.id)||![v.x,v.z,v.hp].every(Number.isFinite)||!inStreet(v.x,v.z,.1))return null;
+  const e=sim.state.enemies[v.id],base=initial.get(v.id);Object.assign(e,structuredClone(base),{x:v.x,z:v.z,baseY:.08,y:.08+(base.type===1?1.05:1.35),yaw:finite(v.yaw),hp:clamp(v.hp,0,base.maxHp),gang,deployed:true,combatEnabled:true,encounterReleased:true,businessMission:false,businessRaid:!retreat,businessRetreat:retreat,businessKey:key,injury:v.injury||null,seen:false,hasMemory:false,memory:0,alert:0,goalX:v.x,goalZ:v.z});
+  if(v.hasMemory&&Number.isFinite(v.lastSeenX)&&Number.isFinite(v.lastSeenZ)){const b=world.bounds;if(!b||v.lastSeenX>b.minX&&v.lastSeenX<b.maxX&&v.lastSeenZ>b.minZ&&v.lastSeenZ<b.maxZ)Object.assign(e,{hasMemory:true,lastSeenX:v.lastSeenX,lastSeenZ:v.lastSeenZ,lastSeenY:1.45,memory:clamp(finite(v.memory),0,10),awareness:'search'});}
+  Object.assign(world.combatWorld.enemies[v.id],{x:v.x,z:v.z});return e;
+ }
+ function retireRaid(){
+  for(const e of raidActors()){
+   const dx=e.x-raid.x,dz=e.z-raid.z,d=Math.hypot(dx,dz)||1;let target={x:e.x+dx/d*24,z:e.z+dz/d*24};
+   try{const q=world.freeNear(target.x,target.z,.6);target={x:q[0],z:q[1]};}catch{target={x:e.x,z:e.z};}
+   retreats.push({id:e.id,key:raid.key,gang:raid.gang,...target});e.businessRaid=false;e.businessRetreat=true;guideRetreat(e,target);
+  }
+ }
+ function finishRaid(result){
+  const entry=registry.get(raid.key),data=record(raid.key);retireRaid();data.eligibleAt=clock+raidRules.shopCooldown;data.lastRaid=result;
+  if(result==='lost'){data.status='independent';data.gang=raid.gang;notify('Protection perdue · '+entry.place.name+' · revenus interrompus. Le contrat peut être repris au comptoir.');}
+  else notify((result==='deferred'?'Représailles reportées':'Commerce défendu')+' · '+entry.place.name+' · votre protection est conservée.');
+  raid=null;nextRaidAt=clock+raidRules.globalCooldown+hash(entry.key+':'+raidCount)%181;
+ }
+ function updateRetreats(){
+  retreats=retreats.filter(q=>{const e=sim.state.enemies[q.id];if(!e||e.hp<=0)return false;
+   if(!e.seen&&!visibleSpawn(e)&&Math.hypot(e.x-p.x,e.z-p.z)>28){e.deployed=false;e.combatEnabled=false;e.encounterReleased=false;e.businessRetreat=false;e.hasMemory=false;e.memory=0;return false;}
+   guideRetreat(e,q);return true;
+  });
+ }
+ function deployRaid(){
+  const available=slots.filter(id=>!sim.state.enemies[id].deployed||sim.state.enemies[id].hp<=0).slice(0,2);if(available.length<2)return false;
+  const spots=[],entry=registry.get(raid.key),angle=Math.atan2(entry.building.nz||0,entry.building.nx||1);
+  for(let ring=4;ring<=7&&spots.length<2;ring+=1.5)for(let j=0;j<24&&spots.length<2;j++){
+   const a=angle+j*Math.PI/12,q={x:raid.x+Math.cos(a)*ring,z:raid.z+Math.sin(a)*ring};
+   if(!inStreet(q.x,q.z,.6)||visibleSpawn(q)||!clearStreet(q,raid)||spots.some(s=>Math.hypot(q.x-s.x,q.z-s.z)<2)||sim.state.enemies.some(e=>e.deployed&&e.hp>0&&Math.hypot(q.x-e.x,q.z-e.z)<1.4))continue;spots.push(q);
+  }
+  if(spots.length<2)return false;
+  raid.ids=available;raid.stage='assault';raid.remaining=raidRules.assault;raid.hold=0;
+  for(let i=0;i<available.length;i++){const id=available[i],base=initial.get(id),e=restoreActor({id,...spots[i],hp:base.maxHp},raid.key,raid.gang);guide(e,raid);}
+  notify('Représailles · '+entry.place.name+' · deux assaillants au seuil. Défendez la rue : 60 s d’occupation sans opposition font perdre la protection.');return true;
+ }
+ function updateRaids(dt){
+  updateRetreats();
+  if(raid&&campaign?.state)campaign.state.nextRaid=Math.max(finite(campaign.state.nextRaid),raid.remaining+30);
+  if(p.hp<=0||campaign?.state.raid||campaign?.state.active)return;
+  if(!raid){
+   if(mission||clock<nextRaidAt||clock<raidCheckAt)return;raidCheckAt=clock+15;
+   const candidates=[...records].filter(([key,v])=>v.status==='protected'&&!v.closed&&clock>=v.eligibleAt).sort((a,b)=>a[1].eligibleAt-b[1].eligibleAt||hash(a[0])-hash(b[0]));
+   const selected=candidates.find(([key])=>{const b=registry.get(key).building;return inStreet(b.x,b.z,.35);});if(!selected)return;
+   const [key,data]=selected,entry=registry.get(key);raidCount++;raid={key,gang:data.rivalGang,stage:'warning',remaining:raidRules.warning,retry:60,hold:0,x:entry.building.x,z:entry.building.z,ids:[]};
+   if(campaign?.state)campaign.state.nextRaid=Math.max(finite(campaign.state.nextRaid),raidRules.warning+raidRules.assault+30);
+   notify('Avertissement · '+entry.place.name+' · '+(entry.place.address||entry.building.address||'adresse du commerce')+' · '+R.campaign.GANGS[raid.gang].name+' prépare des représailles. Vous avez 90 s pour rejoindre le seuil extérieur.');return;
+  }
+  if(record(raid.key).closed||record(raid.key).status!=='protected'){finishRaid('deferred');return;}
+  if(raid.stage==='warning'){
+   if(raid.remaining>0){const before=raid.remaining;raid.remaining=Math.max(0,raid.remaining-dt);if(raid.remaining>0)return;dt=Math.max(0,dt-before);}
+   raid.retry=Math.max(0,raid.retry-dt);if(clock<raidCheckAt)return;raidCheckAt=clock+3;
+   if(!deployRaid()&&raid.retry<=0)finishRaid('deferred');return;
+  }
+  if(!raidActors().length){finishRaid('defended');return;}
+  const occupied=occupying(),present=defending();raid.remaining=Math.max(0,raid.remaining-dt);raid.hold=occupied&&!present?Math.min(raidRules.occupation,raid.hold+dt):Math.max(0,raid.hold-dt*.5);
+  for(const e of raidActors())guide(e,raid);
+  if(raid.hold>=raidRules.occupation)finishRaid('lost');else if(raid.remaining<=0)finishRaid(present||!occupied?'defended':'lost');
+ }
+ function raidView(){if(!raid)return null;const entry=registry.get(raid.key),paused=p.hp<=0||!!campaign?.state.raid||!!campaign?.state.active;return {key:raid.key,stage:raid.stage,name:entry.place.name,address:entry.place.address||entry.building.address||'',buildingId:entry.building.id,placeId:entry.place.id,gang:raid.gang,timer:raid.remaining,hold:raid.hold,holdRequired:raidRules.occupation,attackers:raidActors().length,paused,occupied:occupying(),hint:'Seuil extérieur · '+(entry.place.address||entry.building.address||entry.place.name),label:raid.stage==='warning'?'Rejoindre le commerce menacé':'Défendre le seuil extérieur',fictional:true};}
+
  function spawnBoss(entry,gang){
   const id=slots.find(id=>{const e=sim.state.enemies[id];return !e.deployed||e.hp<=0;});
   if(id===undefined)return null;
@@ -164,7 +244,7 @@ function create(world,sim,{interiors,campaign,saved=null,notify=()=>{}}={}){
   let spot=null;
   for(let j=0;j<24;j++){
    const a=baseAngle+j*Math.PI/12,radius=38+(seed%19),x=b.x+Math.cos(a)*radius,z=b.z+Math.sin(a)*radius;
-   const q=world.freeNear(x,z,.65),bounds=world.bounds;
+   let q;try{q=world.freeNear(x,z,.65);}catch{continue;}const bounds=world.bounds;
    if(bounds&&(q[0]<bounds.minX+5||q[0]>bounds.maxX-5||q[1]<bounds.minZ+5||q[1]>bounds.maxZ-5))continue;
    if(Math.hypot(q[0]-b.x,q[1]-b.z)<24||world.blocked(q[0],q[1],.6))continue;
    spot={x:q[0],z:q[1]};break;
@@ -172,7 +252,7 @@ function create(world,sim,{interiors,campaign,saved=null,notify=()=>{}}={}){
   if(!spot)return null;
   const e=sim.state.enemies[id],base=initial.get(id);
   Object.assign(e,structuredClone(base),spot,{baseY:.08,y:.08+(base.type===1?1.05:1.35),hp:base.maxHp,deployed:true,combatEnabled:true,encounterReleased:true,
-   gang,businessMission:true,businessKey:entry.key,injury:null,hasMemory:false,seen:false,memory:0,alert:0,awareness:'patrol',goalX:spot.x,goalZ:spot.z});
+   gang,businessMission:true,businessRaid:false,businessRetreat:false,businessKey:entry.key,injury:null,hasMemory:false,seen:false,memory:0,alert:0,awareness:'patrol',goalX:spot.x,goalZ:spot.z});
   Object.assign(world.combatWorld.enemies[id],spot);
   return id;
  }
@@ -188,12 +268,12 @@ function create(world,sim,{interiors,campaign,saved=null,notify=()=>{}}={}){
   }
   const q=shopHere();if(!q)return false;
   if(action==='buy_map'){if(campaign.state.mapOwned||campaign.state.cash<60||!bank(-60))return false;campaign.state.mapOwned=true;notify('Plan acheté · M / Retour pour le consulter');return true;}
-  if(action==='buy'){
-   const goods=offer(q);if((campaign?.state.cash||0)<goods.price)return false;
+  if(action==='buy'||action==='resupply'){
+   const goods=action==='resupply'?ammoOffer():offer(q);if((campaign?.state.cash||0)<goods.price)return false;
    if(goods.item==='ammo'){
     const weapon=sim.state.weapon||0,caps=sim.ammoCaps,bag=sim.state.inventory;
     if(!bag?.ammo||bag.ammo[weapon]>=caps[weapon]){notify('Munitions déjà au maximum.');return false;}
-    if(!bank(-goods.price))return false;bag.ammo[weapon]=Math.min(caps[weapon],bag.ammo[weapon]+24);notify('Munitions achetées · −35 €');return true;
+    if(!bank(-goods.price))return false;bag.ammo[weapon]=Math.min(caps[weapon],bag.ammo[weapon]+goods.amount);notify('Munitions achetées · −35 €');return true;
    }
    if(!bank(-goods.price))return false;inventory[goods.item]++;notify(itemNames[goods.item]+' acheté · −'+goods.price+' €');return true;
   }
@@ -206,15 +286,15 @@ function create(world,sim,{interiors,campaign,saved=null,notify=()=>{}}={}){
    notify((action==='rob'?'Caisse volée':'Racket obtenu')+' · +'+cash+' € · la police est alertée');return true;
   }
   if(action==='protect'){
-   if(mission||q.data.status==='protected')return false;
+   if(mission||raid||q.data.status==='protected')return false;
    const id=spawnBoss(q,q.data.gang);if(id===null){notify('Le responsable rival est indisponible.');return false;}
    mission={key:q.key,gang:q.data.gang,enemyId:id,stage:'hunt',hint:locationHint(q,sim.state.enemies[id])};q.data.status='contested';
    notify('Protection proposée · éliminez le responsable de '+R.campaign.GANGS[q.data.gang].name+', puis revenez ici.');return true;
   }
   if(action==='claim'){
    if(!mission||mission.key!==q.key||mission.stage!=='return')return false;
-   q.data.status='protected';q.data.gang=0;mission=null;campaign.state.xp+=60;
-   notify('Protection confirmée · '+q.data.rate+' €/min de revenus passifs');return true;
+   q.data.status='protected';q.data.rivalGang=mission.gang;q.data.gang=0;q.data.eligibleAt=clock+480+hash(q.key)%181;mission=null;campaign.state.xp+=60;
+   notify('Protection confirmée · '+q.data.rate+' €/min ; des représailles restent possibles');return true;
   }
   return false;
  }
@@ -227,10 +307,11 @@ function create(world,sim,{interiors,campaign,saved=null,notify=()=>{}}={}){
   }
   income=0;
   if(room?.place&&room.merchant?.hp<=0&&registry.has(keyFor(room.building,room.place)))record(keyFor(room.building,room.place)).closed=true;
+  const suspendedAtStart=occupying()?raid.key:null;updateRaids(dt);
   for(const [key,data] of records){
    if(data.status!=='protected'||data.closed)continue;
    if(room&&room.floor===0&&room.place&&keyFor(room.building,room.place)===key&&room.merchant?.hp<=0)continue;
-   income+=data.rate;const credit=data.rate*dt/60;data.earned+=credit;earned+=credit;bank(credit);
+   if(!(raid?.key===key&&occupying()))income+=data.rate;if(key===suspendedAtStart)continue;const credit=data.rate*dt/60;data.earned+=credit;earned+=credit;bank(credit);
   }
   if(!room)return;
   for(const e of room.civil){
@@ -256,16 +337,16 @@ function create(world,sim,{interiors,campaign,saved=null,notify=()=>{}}={}){
  }
  function save(){
   rememberRoom();const boss=mission?sim.state.enemies[mission.enemyId]:null;
-  return {version:1,clock,earned,inventory:{...inventory},records:Object.fromEntries(records),claimed:[...claimed],residents:[...residents.values()],
+  return {version:2,clock,earned,nextRaidAt,raidCount,raidCheckAt,raid:raid?{...raid,actors:raid.ids.map(id=>actorSnapshot(sim.state.enemies[id]))}:null,retreats:retreats.map(q=>({...q,actor:actorSnapshot(sim.state.enemies[q.id])})),inventory:{...inventory},records:Object.fromEntries(records),claimed:[...claimed],residents:[...residents.values()],
    mission:mission?{...mission,boss:boss?{x:boss.x,z:boss.z,hp:boss.hp,injury:boss.injury||null}:null}:null};
  }
- if(saved?.version===1){
-  clock=clamp(finite(saved.clock),0,1e9);earned=Math.max(0,finite(saved.earned));
+ if(saved?.version===1||saved?.version===2){
+  clock=clamp(finite(saved.clock),0,1e9);earned=Math.max(0,finite(saved.earned));nextRaidAt=saved.version===2?clock+clamp(finite(saved.nextRaidAt,clock+480)-clock,0,660):clock+480;raidCount=clamp(Math.floor(finite(saved.raidCount)),0,1e8);raidCheckAt=clock+clamp(finite(saved.raidCheckAt,clock)-clock,0,15);
   for(const key of Object.keys(inventory))inventory[key]=clamp(Math.floor(finite(saved.inventory?.[key])),0,99);
   for(const [key,value] of Object.entries(saved.records||{})){
    if(!registry.has(key)||!value||typeof value!=='object')continue;
    const q=record(key);q.status=['independent','contested','protected'].includes(value.status)?value.status:'independent';q.gang=q.status==='protected'?0:clamp(Math.floor(finite(value.gang,q.gang)),1,3);
-   q.robUntil=clock+clamp(finite(value.robUntil)-clock,0,180);q.extortUntil=clock+clamp(finite(value.extortUntil)-clock,0,300);q.earned=Math.max(0,finite(value.earned));q.closed=value.closed===true;
+   q.robUntil=clock+clamp(finite(value.robUntil)-clock,0,180);q.extortUntil=clock+clamp(finite(value.extortUntil)-clock,0,300);q.earned=Math.max(0,finite(value.earned));q.closed=value.closed===true;q.rivalGang=clamp(Math.floor(finite(value.rivalGang,hash(key)%3+1)),1,3);q.eligibleAt=saved.version===2?clock+clamp(finite(value.eligibleAt,clock+480)-clock,0,1080):clock+480+hash(key)%181;q.lastRaid=['defended','lost','deferred'].includes(value.lastRaid)?value.lastRaid:null;
   }
   for(const id of Array.isArray(saved.claimed)?saved.claimed:[])if(typeof id==='string'&&id.length<250&&id.includes(':floor:'))claimed.add(id);
   for(const e of Array.isArray(saved.residents)?saved.residents:[])if(Number.isInteger(e?.id)&&[e.x,e.z,e.hp].every(Number.isFinite)&&e.x>970&&e.x<1030&&e.z>970&&e.z<1030)residents.set(e.id,{...e,hp:clamp(e.hp,0,100)});
@@ -276,12 +357,23 @@ function create(world,sim,{interiors,campaign,saved=null,notify=()=>{}}={}){
    Object.assign(e,structuredClone(base),{x:b.x,z:b.z,hp:clamp(b.hp,0,base.maxHp),deployed:true,combatEnabled:true,encounterReleased:true,gang:mission.gang,businessMission:true,businessKey:m.key,goalX:b.x,goalZ:b.z,injury:b.injury||null});
    if(e.hp<=0)mission.stage='return';mission.hint=locationHint(registry.get(mission.key),e);
   }
+  if(saved.version===2){
+   const q=saved.raid,entry=q&&registry.get(q.key);if(!mission&&entry&&record(q.key).status==='protected'&&!record(q.key).closed&&['warning','assault'].includes(q.stage)){
+    const actors=Array.isArray(q.actors)?q.actors:[],ids=Array.isArray(q.ids)?[...new Set(q.ids)].filter(id=>slots.includes(id)).slice(0,2):[];
+    if(q.stage==='warning'||ids.length===2&&ids.every(id=>actors.some(a=>a?.id===id&&[a.x,a.z,a.hp].every(Number.isFinite)&&inStreet(a.x,a.z,.1)))){
+     raid={key:q.key,gang:record(q.key).rivalGang,stage:q.stage,remaining:clamp(finite(q.remaining,q.stage==='warning'?90:150),0,q.stage==='warning'?90:150),retry:clamp(finite(q.retry,60),0,60),hold:clamp(finite(q.hold),0,60),x:entry.building.x,z:entry.building.z,ids:q.stage==='assault'?ids:[]};
+     for(const id of raid.ids)restoreActor(actors.find(a=>a.id===id),raid.key,raid.gang);
+    }
+   }
+   for(const q of (Array.isArray(saved.retreats)?saved.retreats:[]).slice(0,8)){if(!q||q.actor?.id!==q.id||!registry.has(q.key)||raid?.ids.includes(q.id)||mission?.enemyId===q.id||retreats.some(r=>r.id===q.id)||!inStreet(q.x,q.z,.1))continue;const e=restoreActor(q.actor,q.key,clamp(Math.floor(finite(q.gang,1)),1,3),true);if(e&&e.id===q.id)retreats.push({id:q.id,key:q.key,gang:e.gang,x:q.x,z:q.z});}
+  }
  }
+ for(const id of slots){const e=sim.state.enemies[id];if(e.hp>0&&e.deployed&&mission?.enemyId!==id&&!raid?.ids.includes(id)&&!retreats.some(q=>q.id===id)){e.deployed=false;e.combatEnabled=false;e.encounterReleased=false;}}
  update(0,[]);
  function journal(){
-  return [...records].map(([key,data])=>{const q=registry.get(key);return {key,name:q.place.name||'Commerce',address:q.place.address||q.building.address||'',status:data.closed?'closed':data.status,gang:data.gang,rate:data.status==='protected'&&!data.closed?data.rate:0,earned:data.earned};});
+  return [...records].map(([key,data])=>{const q=registry.get(key);return {key,name:q.place.name||'Commerce',address:q.place.address||q.building.address||'',status:data.closed?'closed':data.status,gang:data.gang,rate:data.status==='protected'&&!data.closed&&!(raid?.key===key&&occupying())?data.rate:0,earned:data.earned,raid:raid?.key===key?raidView():null,lastRaid:data.lastRaid};});
  }
- return {context,act,consume,update,save,geometry,journal,registry,records,inventory,slots,get mission(){return missionView();},get income(){return income;},get earned(){return earned;},get time(){return clock;}};
+ return {context,act,consume,update,save,geometry,journal,registry,records,inventory,slots,get mission(){return missionView();},get raid(){return raidView();},get income(){return income;},get earned(){return earned;},get time(){return clock;}};
 }
 R.business={prepare,create};
 })(globalThis.RADE);

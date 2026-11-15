@@ -816,6 +816,11 @@
           if (!available()) return;
           pcm('swish',.19,0,null,.9);
         },
+        phoneMessage: function () {
+          if(!available()||!playing)return;
+          tone(880,880,.085,.055,'sine',0,0,2400);
+          tone(1174.66,1174.66,.12,.045,'sine',.10,0,2400);
+        },
         alerted: function (event) {
           if (!available() || ctx.currentTime - lastAlert < .45) return;
           lastAlert = ctx.currentTime; event = event || {};

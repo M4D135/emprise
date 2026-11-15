@@ -1,0 +1,293 @@
+{
+  "date": "2026-11-15",
+  "tests": [
+    {
+      "test": "ammunition.mjs",
+      "passed": true,
+      "seconds": 9.06,
+      "error": null
+    },
+    {
+      "test": "breach-interiors.mjs",
+      "passed": true,
+      "seconds": 0.39,
+      "error": null
+    },
+    {
+      "test": "breach-urban.mjs",
+      "passed": true,
+      "seconds": 3.33,
+      "error": null
+    },
+    {
+      "test": "business-raids.mjs",
+      "passed": true,
+      "seconds": 0.44,
+      "error": null
+    },
+    {
+      "test": "business.mjs",
+      "passed": true,
+      "seconds": 3.69,
+      "error": null
+    },
+    {
+      "test": "camera.mjs",
+      "passed": true,
+      "seconds": 0.02,
+      "error": null,
+      "note": "Revalidated after adaptive near plane: frontal and corner walls, cockpit minimum; command successful."
+    },
+    {
+      "test": "clearance-review.mjs",
+      "passed": true,
+      "seconds": 0.41,
+      "error": null
+    },
+    {
+      "test": "clearance.mjs",
+      "passed": true,
+      "seconds": 4.39,
+      "error": null,
+      "note": "Validated after rubble fracture/support correction by police_regression; report rubble-support-validation.json."
+    },
+    {
+      "test": "coast.mjs",
+      "passed": true,
+      "seconds": 0.52,
+      "error": null
+    },
+    {
+      "test": "cockpit.mjs",
+      "passed": true,
+      "seconds": 0.38,
+      "error": null
+    },
+    {
+      "test": "combat.mjs",
+      "passed": true,
+      "seconds": 0.44,
+      "error": null
+    },
+    {
+      "test": "crowd.mjs",
+      "passed": true,
+      "seconds": 0.03,
+      "error": null
+    },
+    {
+      "test": "day-night.mjs",
+      "passed": true,
+      "seconds": 0.4,
+      "error": null
+    },
+    {
+      "test": "environment.mjs",
+      "passed": true,
+      "seconds": 1.77,
+      "error": null
+    },
+    {
+      "test": "fragmentation.mjs",
+      "passed": true,
+      "seconds": 7.49,
+      "error": null,
+      "note": "Validated after rubble fracture/support correction by police_regression; report rubble-support-validation.json."
+    },
+    {
+      "test": "interiors.mjs",
+      "passed": true,
+      "seconds": 11.56,
+      "error": null
+    },
+    {
+      "test": "loot.mjs",
+      "passed": true,
+      "seconds": 0.03,
+      "error": null
+    },
+    {
+      "test": "marine.mjs",
+      "passed": true,
+      "seconds": 12.79,
+      "error": null
+    },
+    {
+      "test": "mobility-models.mjs",
+      "passed": true,
+      "seconds": 0.25,
+      "error": null
+    },
+    {
+      "test": "models.mjs",
+      "passed": true,
+      "seconds": 0.59,
+      "error": null
+    },
+    {
+      "test": "places.mjs",
+      "passed": true,
+      "seconds": 0.77,
+      "error": null
+    },
+    {
+      "test": "police-foot.mjs",
+      "passed": true,
+      "seconds": 3.86,
+      "error": null
+    },
+    {
+      "test": "police-motorcycle.mjs",
+      "passed": true,
+      "seconds": 0.22,
+      "error": null
+    },
+    {
+      "test": "police.mjs",
+      "passed": true,
+      "seconds": 20.13,
+      "error": null
+    },
+    {
+      "test": "realism.mjs",
+      "passed": true,
+      "seconds": 0.46,
+      "error": null
+    },
+    {
+      "test": "renderer-chunks.mjs",
+      "passed": true,
+      "seconds": 7.2,
+      "error": null
+    },
+    {
+      "test": "sailing.mjs",
+      "passed": true,
+      "seconds": 0.47,
+      "error": null
+    },
+    {
+      "test": "urban-zones.mjs",
+      "passed": true,
+      "seconds": 0.47,
+      "error": null,
+      "note": "Validated after rubble fracture/support correction by police_regression; report rubble-support-validation.json."
+    },
+    {
+      "test": "acceptance.mjs",
+      "passed": true,
+      "seconds": 3.16,
+      "error": null
+    },
+    {
+      "test": "drivers.mjs",
+      "passed": true,
+      "seconds": 21.8,
+      "error": null
+    },
+    {
+      "test": "injuries.mjs",
+      "passed": true,
+      "seconds": 22.19,
+      "error": null
+    },
+    {
+      "test": "urban.mjs",
+      "passed": true,
+      "seconds": 30.21,
+      "error": null
+    },
+    {
+      "test": "vehicle-explosion.mjs",
+      "passed": true,
+      "seconds": 27.12,
+      "error": null,
+      "note": "Validated after rubble fracture/support correction by police_regression; report rubble-support-validation.json."
+    },
+    {
+      "test": "police-render.mjs",
+      "passed": true,
+      "seconds": 0.48,
+      "error": null
+    },
+    {
+      "test": "altitude.mjs",
+      "passed": true,
+      "seconds": 4.44,
+      "error": null
+    },
+    {
+      "test": "city-stream.mjs",
+      "passed": true,
+      "seconds": 0.4,
+      "error": null
+    },
+    {
+      "test": "city-destruction.mjs",
+      "passed": true,
+      "seconds": 0.4,
+      "error": null
+    },
+    {
+      "test": "city-lights.mjs",
+      "passed": true,
+      "seconds": 0.41,
+      "error": null
+    },
+    {
+      "test": "sandbox.mjs",
+      "passed": true,
+      "seconds": 47.13,
+      "error": null
+    },
+    {
+      "test": "phone.mjs",
+      "passed": true,
+      "seconds": 5.84,
+      "error": null
+    },
+    {
+      "test": "weather.mjs",
+      "passed": true,
+      "seconds": 0.53,
+      "error": null
+    },
+    {
+      "test": "shadow-bias.mjs",
+      "passed": true,
+      "seconds": 0.03,
+      "error": null
+    },
+    {
+      "test": "city-road-terrain.mjs",
+      "passed": true,
+      "seconds": 0.36,
+      "error": null
+    },
+    {
+      "test": "landmarks.mjs",
+      "passed": true,
+      "seconds": 0.36,
+      "error": null,
+      "note": "Validated after absolute night-shell separation and destruction filtering."
+    },
+    {
+      "test": "renderer-pack.mjs",
+      "passed": true,
+      "seconds": 0.06,
+      "error": null
+    },
+    {
+      "test": "renderer-overlay.mjs",
+      "passed": true,
+      "seconds": 0.03,
+      "error": null
+    },
+    {
+      "test": "rubble-support.mjs",
+      "passed": true,
+      "error": null,
+      "note": "Validated after rubble fracture/support correction by police_regression; report rubble-support-validation.json."
+    }
+  ]
+}

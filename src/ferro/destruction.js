@@ -26,6 +26,13 @@
     const [x,y,z]=r,a=Math.cos(x),b=Math.sin(x),c=Math.cos(y),d=Math.sin(y),e=Math.cos(z),f=Math.sin(z);
     return [e*c,e*d*b-f*a,e*d*a+f*b,f*c,f*d*b+e*a,f*d*a-e*b,-d,c*b,c*a];
   }
+  // Bounded local cells, sampled only after their dimensions are fixed. Missing
+  // volume is explicit crumble, never a giant rigid plate kept to save slots.
+  function fragment(mesh,limit=40,maxEdge=1.4){
+    const size=mesh.s,counts=size.map(n=>Math.max(1,Math.ceil(n/maxEdge))),total=counts.reduce((a,b)=>a*b,1),count=Math.min(Math.max(0,Math.floor(limit)),total),shape=mesh.shape||'box',factor=({sphere:Math.PI/6,cylinder:Math.PI/4,octa:1/6,ring:2*Math.PI*Math.PI*.435*.065*.065,foliage:.55}[shape]||1),volume=size.reduce((a,b)=>a*b,1)*factor,a=rotation(mesh.r),pieces=[];
+    for(let i=0;i<count;i++){let cell=Math.min(total-1,Math.floor((i+.5)*total/count));const local=[];for(let k=0;k<3;k++){const at=cell%counts[k];cell=Math.floor(cell/counts[k]);local[k]=-size[k]/2+(at+.5)*size[k]/counts[k];}pieces.push({mesh:{...mesh,shape:total>1&&!['box','bevel','foliage'].includes(shape)?'bevel':shape,p:mesh.p.map((v,k)=>v+a[k*3]*local[0]+a[k*3+1]*local[1]+a[k*3+2]*local[2]),s:size.map((v,k)=>v/counts[k]),structural:true,fragment:true},volume:volume/total});}
+    return {pieces,total,volume,crumbleVolume:Math.max(0,volume-volume*count/total)};
+  }
   function bounds(m){
     const a=rotation(m.r),p=m.p||[0,0,0],s=m.s||[1,1,1],h=[0,1,2].map(i=>(Math.abs(a[i*3]*s[0])+Math.abs(a[i*3+1]*s[1])+Math.abs(a[i*3+2]*s[2]))/2);
     return {minX:p[0]-h[0],maxX:p[0]+h[0],minY:p[1]-h[1],maxY:p[1]+h[1],minZ:p[2]-h[2],maxZ:p[2]+h[2]};
@@ -215,22 +222,21 @@
       }
     }
     function fallingDebris(raw){
-      const worth=q=>Math.pow(q.mesh.s.reduce((v,n)=>v*n,1),.35)*Math.max(...q.mesh.s),ordered=raw.sort((a,b)=>worth(b)-worth(a)),selected=[],seen=new Set();
-      // Give each collapsed body a representative piece before spending the
-      // remaining finite budget on detail. Small chips have a separate allowance.
-      for(const q of ordered)if(!seen.has(q.sourceId)&&selected.length<MAX_DEBRIS-8){seen.add(q.sourceId);selected.push(q);}
-      for(const q of ordered)if(selected.length<MAX_DEBRIS-8&&!selected.includes(q))selected.push(q);
-      const splitAxis=q=>{if(!['box','bevel','cylinder'].includes(q.mesh.shape||'box'))return -1;const s=q.mesh.s;let axis=-1,ratio=1;for(let k=0;k<3;k++){if(q.mesh.shape==='cylinder'&&k!==1)continue;const target=q.kind==='roof'&&k===1&&s[1]<1.2?.35:2.4,r=s[k]/target;if(r>ratio){ratio=r;axis=k;}}return axis;};
-      while(selected.length<MAX_DEBRIS-8){
-        let at=-1,axis=-1,best=0;for(let i=0;i<selected.length;i++){const k=splitAxis(selected[i]);if(k>=0&&worth(selected[i])>best){at=i;axis=k;best=worth(selected[i]);}}
-        if(at<0)break;const q=selected[at],m=q.mesh,s=m.s.slice(),a=rotation(m.r);s[axis]/=2;
-        const pieces=[-1,1].map(sign=>({...q,mesh:{...m,s:s.slice(),p:m.p.map((v,k)=>v+sign*a[k*3+axis]*s[axis]/2)}}));selected.splice(at,1,...pieces);
-      }
-      return selected.map((q,i)=>{
-        const m=q.mesh,seed=(q.source*977+(revision+1)*911+i*131)>>>0,random=randomFor(seed),material=materialOf(m),volume=m.s.reduce((v,n)=>v*n,1)*({sphere:Math.PI/6,cylinder:Math.PI/4,octa:1/6,ring:2*Math.PI*Math.PI*.435*.065*.065,foliage:.55}[m.shape]||1),mass=clamp(volume*({metal:7800,stone:2200,wood:550,glass:2500,dirt:1500}[material]),.035,12000);
+      const worth=q=>Math.pow(q.mesh.s.reduce((v,n)=>v*n,1),.35)*Math.max(...q.mesh.s),ordered=raw.slice().sort((a,b)=>worth(b)-worth(a)),selected=[],alloc=new Map(),seen=new Set(),capacity=MAX_DEBRIS-8;
+      for(const q of ordered)if(!seen.has(q.sourceId)&&alloc.size<capacity){seen.add(q.sourceId);alloc.set(q,1);}
+      for(const q of ordered)if(alloc.size<capacity&&!alloc.has(q))alloc.set(q,1);
+      let used=alloc.size;while(used<capacity){let best=null,score=0;for(const [q,n] of alloc){const total=q.mesh.s.reduce((v,s)=>v*Math.max(1,Math.ceil(s/1.4)),1),value=worth(q)/(n+1);if(n<total&&value>score){best=q;score=value;}}if(!best)break;alloc.set(best,alloc.get(best)+1);used++;}
+      let crumbleVolume=0,totalVolume=0;const center=[0,0,0];let radius=0;
+      for(const q of ordered){const parts=fragment(q.mesh,alloc.get(q)||0);crumbleVolume+=parts.crumbleVolume;totalVolume+=parts.volume;for(let k=0;k<3;k++)center[k]+=q.mesh.p[k]*parts.volume;for(const part of parts.pieces)selected.push({...q,mesh:part.mesh,volume:part.volume});}
+      if(totalVolume)for(let k=0;k<3;k++)center[k]/=totalVolume;
+      for(const q of ordered)radius=Math.max(radius,Math.hypot(...q.mesh.p.map((v,k)=>v-center[k]))+Math.max(...q.mesh.s)/2);
+      const debris=selected.map((q,i)=>{
+        const m=q.mesh,seed=(q.source*977+(revision+1)*911+i*131)>>>0,random=randomFor(seed),material=materialOf(m),volume=q.volume,mass=clamp(volume*({metal:7800,stone:2200,wood:550,glass:2500,dirt:1500}[material]),.035,12000);
         const angle=random()*Math.PI*2,dx=m.p[0]-q.point[0],dz=m.p[2]-q.point[2],length=Math.hypot(dx,dz),speed=clamp(Math.sqrt(q.power)*.30/Math.pow(Math.max(1,mass),.22),.35,3.2),dir=q.direction||[length>.03?dx/length:Math.cos(angle),0,length>.03?dz/length:Math.sin(angle)],spin=Math.max(...m.s)>Math.min(...m.s)*8?.55:1.4;
-        return {structural:true,sourceId:q.sourceId,shape:m.shape||'box',x:m.p[0],y:m.p[1],z:m.p[2],size:m.s.slice(),rotation:(m.r||[0,0,0]).slice(),angularVelocity:[(random()-.5)*spin,(random()-.5)*spin,(random()-.5)*spin],velocity:[dir[0]*speed,q.kind==='roof'?-.25:.35+random()*.9+dir[1]*speed,dir[2]*speed],resting:false,mat:m.mat||0,color:m.color?.slice(),material,mass,life:1e7,seed};
+        return {structural:true,sourceId:q.sourceId,shape:m.shape||'box',x:m.p[0],y:m.p[1],z:m.p[2],size:m.s.slice(),rotation:(m.r||[0,0,0]).slice(),angularVelocity:[(random()-.5)*spin,(random()-.5)*spin,(random()-.5)*spin],velocity:[dir[0]*speed,q.kind==='roof'?-.25:.35+random()*.9+dir[1]*speed,dir[2]*speed],resting:false,mat:m.mat||0,color:m.color?.slice(),material,mass,volume,life:1e7,seed};
       });
+      if(crumbleVolume>EPS)debris.push({dust:true,structural:false,x:center[0],y:center[1],z:center[2],size:[clamp(radius*2,1,18),clamp(radius,1,7),clamp(radius*2,1,18)],volume:crumbleVolume,life:3.5,seed:revision+1});
+      return debris;
     }
     function damage(point,radius,power,bullet,ignoreId,direction){
       const result={changed:false,revision,debris:[],events:[],pipeLeaks:[],collapsed:[]},fallen=[];
@@ -300,5 +306,5 @@
     return {detach(id){const g=groups.get(id);if(!g||!isAlive(id))return [];const out=g.active.map(e=>e.mesh);states.set(id,{damage:0,cuts:[],removed:true});rebuild();revision++;return out;},describe(id){const g=groups.get(id);return g?{id:g.id,meshes:g.active.map(e=>e.mesh),strength:g.strength,bounds:g.bounds}:null;},get meshes(){return meshes;},get colliders(){return colliders;},get lights(){return lights;},get revision(){return revision;},isAlive,raycast,
       hit:(point,power,direction)=>damage(point,.22,power,true,undefined,validPoint(direction)?direction:undefined),blast:(point,radius,power,ignoreId)=>damage(point,radius,power,false,ignoreId),snapshot,restore};
   }
-  G.FDestruction={create};
+  G.FDestruction={create,fragment};
 })(typeof window!=='undefined'?window:globalThis);

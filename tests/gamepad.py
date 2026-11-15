@@ -18,9 +18,9 @@ with Browser() as b:
  tap(2);time.sleep(.2);assert ev('RADE.game.session.mode')=='car';assert ev('RADE.game.session.car.moteur')
  button(7,.55);time.sleep(.7);assert .3<ev('RADE.game.lastCommand.forward')<.7;drive=ev('({v:RADE.game.session.car.v,u:RADE.game.session.car.u,engine:RADE.game.session.car.moteur,condition:RADE.game.session.car.condition,cmd:RADE.game.lastCommand,errors:RADE.game.errors})');assert drive['v']>1,drive
  neutral();tap(3);assert ev('RADE.game.view')=='cockpit'
- button(1);time.sleep(.8);neutral();assert ev('RADE.game.session.car.v')<.2
+ button(1);b.wait('RADE.game.session.car.v<.2',5);neutral();assert ev('RADE.game.session.car.v')<.2
  button(6,.65);time.sleep(.6);neutral();assert ev('RADE.game.session.car.u')<-.5
- button(1);time.sleep(.8);neutral();tap(2);time.sleep(.15);assert ev('RADE.game.session.mode')=='foot';checks.append('X entrée/sortie · RT analogique · LT frein/recul · B frein · Y vue')
+ button(1);b.wait('RADE.game.session.car.v<.2',5);neutral();tap(2);time.sleep(.15);assert ev('RADE.game.session.mode')=='foot';checks.append('X entrée/sortie · RT analogique · LT frein/recul · B frein à main · Y vue')
  axis(3,-.7);time.sleep(.6);neutral()
  button(7);time.sleep(.07);button(7,0);time.sleep(1);shots=ev('RADE.game.session.sim.state.shots');assert shots==1,shots
  button(7);time.sleep(.8);button(7,0);time.sleep(1.2);shots=ev('RADE.game.session.sim.state.shots');time.sleep(.3);assert ev('RADE.game.session.sim.state.shots')==shots;assert ev('RADE.game.audio.stats.activeCues.shot||0')==0

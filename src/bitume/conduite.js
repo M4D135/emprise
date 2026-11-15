@@ -305,13 +305,14 @@
   }
 
   function dynamique(etat, cmd, monde, dt, gaz, frein, aide, ev) {
-    const dr = etat.derive, m = etat.mass || P.masse, IZ = m * P.giration * P.giration;
+    const road=etat.model==='gti'||etat.model==='r5',spec=globalThis.RADE?.vehicles?.SPECS[etat.model],L=spec?.wheelbase||P.empattement,A=L*(1-P.repartition),BR=L*P.repartition;
+    const dr = etat.derive, m = spec?.mass || etat.mass || P.masse, IZ = m * P.giration * P.giration;
     const e=monde.surface(etat.x,etat.z), k=etat.omega/Math.max(etat.v,1), v=etat.v;
     let mu=e.mu, surf=e.type;
     const enPiste=surf==='piste', dg=null;
     etat.surface=surf;etat.vibreur=false;
     // Dérive au bouton
-    piloterDerive(etat, cmd, k, frein, surf, enPiste, dt, ev);
+    if(road){eteindre(dr,true);couperTurbo(etat);}else piloterDerive(etat, cmd, k, frein, surf, enPiste, dt, ev);
     // l'arrière passe en glisse par un fondu en S (deux filtres en cascade) ; le tirage de l'avant suit au
     // rythme du volant, pour que le contre-braquage ne creuse pas l'effort de l'avant au départ
     const cible = dr.actif ? 1 : 0, kM = expTau(dr.actif ? P.deriveEntree : P.deriveSortie, dt);
@@ -357,6 +358,10 @@
     const auRupteur = brut >= P.maxUtile && !libre;
     if (auRupteur && gaz > 0.05 && etat.rapport < 5 && etat.rupteurT <= 0) { ev.push({ type: 'rupteur' }); etat.rupteurT = P.rupteurCadence; }
     let aMot = gaz * POUSSEE[etat.rapport - 1] * couple(etat.regime);
+    if(road){
+      const request=etat.regime>2200?gaz:0;etat.boost=(etat.boost||0)+(request-(etat.boost||0))*expTau(request>(etat.boost||0)?.42:.15,dt);
+      aMot*=etat.model==='r5'?.78+.28*etat.boost:1;
+    }
     if (etat.coupure > 0 || auRupteur) aMot = 0;
     if (surf === 'herbe') aMot *= P.herbeMoteur;
 
@@ -376,7 +381,8 @@
     // virage à droite (chargeY > 0) : la charge passe sur les roues gauches
     R[0].charge = Math.max(0, fzAv / 2 + tAv); R[1].charge = Math.max(0, fzAv / 2 - tAv);
     R[2].charge = Math.max(0, fzAr / 2 + tAr); R[3].charge = Math.max(0, fzAr / 2 - tAr);
-    const muAr = mu * P.gripArriere * (1 - (1 - P.deriveMuAr) * bd);
+    const hand=road?borne01(cmd.handbrake||cmd.derive):0;
+    const muAr = mu * P.gripArriere * (1 - (1 - P.deriveMuAr) * bd)*(1-.62*hand);
     const capAv = adherence(mu, R[0].charge) + adherence(mu, R[1].charge);
     const capAr = adherence(muAr, R[2].charge) + adherence(muAr, R[3].charge);
     etat.capAv = capAv; etat.capAr = capAr; etat.chargeAv = (fzAv + fzAr) > 0 ? fzAv / (fzAv + fzAr) : P.repartition;
@@ -399,10 +405,10 @@
     const fMot = m * aMot;
     const fTurbo = Math.min(m * aTurbo, Math.max(0, capArG * (1 - fAr * fAr) - Math.max(0, fMot)));
     // RADE : les deux compactes sont des tractions. La courbe BITUME et les freins restent partagés.
-    const demAr = fTurbo - fFrein * (1 - P.freinAvant);
+    const demAr = fTurbo - fFrein * (1 - P.freinAvant)-hand*capArG*(Math.abs(u)>.05?Math.sign(u):0);
     const demAv = fMot - freinMoteur - fFrein * P.freinAvant;
     const fxAr = transmis(demAr, capArG), fxAv = transmis(demAv, capAv);
-    etat.patinage = demAr > 0 ? rampe(demAr / Math.max(capArG, 1), 0.85, 1.15) : 0;
+    etat.patinage = demAv > 0 ? rampe(demAv / Math.max(capAv, 1), 0.85, 1.15) : 0;
     etat.blocage = rampe(-Math.min(demAv / Math.max(capAv, 1), demAr / Math.max(capArG, 1)), 0.9, 1.2);
     const latAv = Math.sqrt(Math.max(0, capAv * capAv - fxAv * fxAv));
     // Sous la poussée, l'arrière perd plus d'adhérence latérale que ne le dit l'ellipse (exposant ellipseMotrice) ;
@@ -498,8 +504,8 @@
 
     // Glisse par essieu et par roue, pour le son et les effets
     const gAv = rampe(Math.abs(alphaAv) / P.alphaAv, 0.8, 1.6);
-    const gAr = Math.max(rampe(Math.abs(alphaAr) / P.alphaAr, 0.8, 1.6), etat.patinage);
-    etat.glisseAv = Math.max(gAv, etat.blocage); etat.glisseAr = Math.max(gAr, etat.blocage);
+    const gAr = Math.max(rampe(Math.abs(alphaAr) / P.alphaAr, 0.8, 1.6),hand);
+    etat.glisseAv = Math.max(gAv, etat.blocage,etat.patinage); etat.glisseAr = Math.max(gAr, etat.blocage);
     const pAv = Math.max(fzAv, 1), pAr = Math.max(fzAr, 1);
     R[0].glisse = etat.glisseAv * clamp(2 * R[0].charge / pAv, 0, 1); R[1].glisse = etat.glisseAv * clamp(2 * R[1].charge / pAv, 0, 1);
     R[2].glisse = etat.glisseAr * clamp(2 * R[2].charge / pAr, 0, 1); R[3].glisse = etat.glisseAr * clamp(2 * R[3].charge / pAr, 0, 1);
@@ -536,7 +542,8 @@
   function filtrerVolant(etat, cible, dt) {
     const x = etat.volant;
     const retour = cible * x < 0 || Math.abs(cible) < Math.abs(x);
-    const tau = retour ? P.volantRetour : P.volantMontee + P.volantMonteeV * etat.v;
+    const road=etat.model==='gti'||etat.model==='r5';
+    const tau = road?(retour?.10:.15+Math.min(40,etat.v)*.0018):(retour ? P.volantRetour : P.volantMontee + P.volantMonteeV * etat.v);
     etat.volant = x + (cible - x) * expTau(tau, dt);
     if (Math.abs(etat.volant) < 1e-6) etat.volant = 0;
   }

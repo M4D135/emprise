@@ -68,14 +68,14 @@
   },
   "metrics": {
     "frame": {
-      "n": 978,
-      "p50": 16.699999999999818,
-      "p95": 18.600000000000364
+      "n": 977,
+      "p50": 16.69999999999891,
+      "p95": 16.80000000000291
     },
     "cpu": {
-      "n": 977,
-      "p50": 2.199999988079071,
-      "p95": 6.899999976158142
+      "n": 976,
+      "p50": 2.900000035762787,
+      "p95": 7.600000023841858
     },
     "resolution": [
       1440,
@@ -84,39 +84,41 @@
     "pedestrians": 480,
     "traffic": 15,
     "renderer": {
-      "drawCalls": 1404,
-      "triangles": 2689072,
-      "instances": 33142,
+      "drawCalls": 2041,
+      "triangles": 3319088,
+      "instances": 80763,
       "contextLost": false,
       "webglVersion": 2,
       "backend": "webgl2",
       "bloom": true,
       "shadows": true,
       "pbrLayers": 2,
-      "staticTotal": 225997,
+      "staticTotal": 308272,
       "biome": "ville",
       "worldRevision": 0,
-      "chunks": 3607,
-      "chunkBuildBytes": 14463808,
+      "chunks": 9493,
+      "chunkBuildBytes": 19729344,
       "renderScale": 1,
       "pixelRatio": 1,
       "width": 1440,
       "height": 900,
       "msaa": 4,
       "viewDistance": 64,
-      "staticVisible": 29923,
-      "staticCulled": 196074,
+      "staticVisible": 77210,
+      "staticCulled": 231061,
       "dynamicLights": 6,
       "blackoutLights": 0,
       "shadowMaps": 1,
       "shadowMode": "sun-atlas",
-      "uploadBytes": 175296,
-      "fxInstances": 22,
+      "uploadBytes": 196608,
+      "fxInstances": 21,
       "crowdInstances": 0,
       "pdrLotInstances": 0,
-      "shadowChunks": 253,
-      "shadowStatic": 38058,
-      "visibleChunks": 357,
+      "shadowChunks": 252,
+      "shadowStatic": 39846,
+      "backgroundWater": 1,
+      "backgroundDrawCalls": 1,
+      "visibleChunks": 646,
       "lotsVisibles": 0,
       "reflections": true,
       "reflectionSteps": 48
@@ -125,8 +127,8 @@
   },
   "architecture": {
     "facades": 240,
-    "windows": 4462,
-    "pieces": 53966
+    "windows": 4716,
+    "pieces": 56814
   },
   "errors": [],
   "ui": {
@@ -136,10 +138,10 @@
     "worldRunsWhileReading": true,
     "cityPlanBoard": true,
     "persistenceOnReload": true,
-    "cashBefore": 246.94374999999368,
-    "cashAfter": 247.10274999999368
+    "cashBefore": 247.01249999999362,
+    "cashAfter": 247.25024999999363
   },
-  "buildSha256": "781f53172ff57a22e635bef03bd33f2d13d05bcced394442d4d3a29ba365da74",
+  "buildSha256": "5a58818efc8b8388c9f58ef9586288460631b864cb2c41a54b5559a8e29f0934",
   "hardware": "MacBook Air Mac17,4, Apple M5, 24 Go",
   "url": "file://dist/index.html"
 }

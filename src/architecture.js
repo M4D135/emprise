@@ -62,7 +62,7 @@ function add(world){
      const u=-width/2+margin+spacing*(col+.5),ww=Math.min(pouillon?1.35:1.15,spacing*.43),wh=pouillon?1.75:1.65;
      const variation=(index*31+col*17+row*13)%23,glass=[[.13,.20,.23],[.18,.25,.27],[.10,.155,.18],[.23,.28,.28]][variation%4],shut=variation<4;
      // Glass lies behind thick jambs; the sill and upper reveal cast actual geometric shadows.
-     box(u,y,.235,[ww+.20,wh+.22,.07],dark,7,1);box(u,y,.286,[ww,wh,.025],glass,19,1);
+     box(u,y,.235,[ww+.20,wh+.22,.07],dark,7,1);box(u,y,.286,[ww,wh,.025],glass,19.1,1);
      for(const side of [-1,1])box(u+side*(ww/2+.048),y,.392,[.084,wh+.24,.27],frame,3,1);
      box(u,y+wh/2+.08,.397,[ww+.22,.10,.28],frame,3,1);box(u,y-wh/2-.10,.47,[ww+.35,.12,.48],frame,3,1);
      box(u,y,.328,[.038,wh,.045],[.53,.55,.49],7,2);box(u,y+.06,.328,[ww,.038,.045],[.53,.55,.49],7,2);

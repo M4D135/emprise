@@ -1,0 +1,1871 @@
+{
+  "source": {
+    "name": "IGN BD TOPO",
+    "url": "https://data.geopf.fr/wfs/ows",
+    "typeName": "BDTOPO_V3:batiment",
+    "licence": "Licence Ouverte 2.0",
+    "licenceSource": "https://www.data.gouv.fr/datasets/bd-topo-r",
+    "bbox": "5.228751,43.169636,5.532543,43.391057,EPSG:4326",
+    "fields": "cleabs,hauteur,altitude_minimale_sol,methode_d_acquisition_altimetrique,precision_altimetrique,etat_de_l_objet,geometrie",
+    "definition": "Height from lowest ground to highest gutter, not roof ridge. Source field hauteur; no derived or invented heights.",
+    "matchPolicy": "Unknown OSM heights only. OSM intersection coverage>=0.80 and intersection/union>=0.60. Competing footprint with>=20% OSM coverage and height difference>2m rejected. Height must exceed retained OSM minHeight.",
+    "uncertainty": "Source precision_altimetrique retained in metres; -1 means unspecified. Ground altitude retained as metadata only (-9999 unknown). Acquisition-method estimates/forced values rejected. Each matched footprint retains IGN cleabs reference. Geometry remains original OSM.",
+    "firstPageTimestamp": "2026-11-15T08:33:43.136Z",
+    "lastPageTimestamp": "2026-11-15T08:38:21.571Z"
+  },
+  "stats": {
+    "buildings": 281559,
+    "roads": 59119,
+    "water": 6875,
+    "green": 9565,
+    "knownHeights": 163157,
+    "unknownHeights": 118402,
+    "coreBuildingsExcluded": 4260,
+    "chunks": 1085,
+    "sourceTiles": 225,
+    "sourceBytes": 14822561,
+    "communeAreaKm2": 237.818,
+    "encodedBytes": 10382069,
+    "pooledStrings": 5147,
+    "ignHeightMatches": 154612,
+    "ignInterpolatedHeights": 58625,
+    "ignSourceMeasuredHeights": 95987,
+    "ignMatchRate": 0.5663,
+    "ignSourceBuildings": 304149
+  },
+  "consideredUnknown": 273014,
+  "existingKnownPreserved": 8545,
+  "rejections": {
+    "missingOrInvalidHeight": 5514,
+    "emptyGeometry": 27,
+    "notInService": 25,
+    "noReliableFootprintMatch": 118387
+  },
+  "sourceMethods": {
+    "BDTopo": 2597,
+    "Photogrammétrie": 13404,
+    "Corrélation": 175152,
+    "Interpolation bâti BDTopo": 108158,
+    "Pas de Z": 4758,
+    "Z corrigé": 3,
+    "Lidar HD": 77
+  },
+  "matchedMethods": {
+    "Corrélation": 91561,
+    "BDTopo": 459,
+    "Interpolation bâti BDTopo": 58625,
+    "Photogrammétrie": 3964,
+    "Lidar HD": 3
+  },
+  "heightHistogram5m": {
+    "5": 60345,
+    "0": 69437,
+    "10": 13698,
+    "15": 7008,
+    "20": 2593,
+    "25": 994,
+    "30": 347,
+    "40": 50,
+    "45": 41,
+    "35": 54,
+    "50": 22,
+    "55": 10,
+    "60": 11,
+    "65": 2
+  },
+  "examples": [
+    {
+      "chunk": "-23,21",
+      "building": "b276778",
+      "id": "BATIMENT0000002221676722",
+      "height": 7.8,
+      "ground": 4.1,
+      "precision": 1,
+      "method": "Corrélation",
+      "iou": 0.8952,
+      "osmCoverage": 0.9106
+    },
+    {
+      "chunk": "-15,-13",
+      "building": "b35034",
+      "id": "BATIMENT0000000258957889",
+      "height": 4.2,
+      "ground": 37.5,
+      "precision": 1,
+      "method": "Corrélation",
+      "iou": 0.8019,
+      "osmCoverage": 0.8998
+    },
+    {
+      "chunk": "-15,-13",
+      "building": "b35035",
+      "id": "BATIMENT0000000258957883",
+      "height": 4.7,
+      "ground": 37.7,
+      "precision": 1,
+      "method": "Corrélation",
+      "iou": 0.8604,
+      "osmCoverage": 0.8975
+    },
+    {
+      "chunk": "-14,-19",
+      "building": "b7224",
+      "id": "BATIMENT0000000258958111",
+      "height": 1.9,
+      "ground": 212.9,
+      "precision": 1,
+      "method": "Corrélation",
+      "iou": 0.9113,
+      "osmCoverage": 0.9794
+    },
+    {
+      "chunk": "-14,-14",
+      "building": "b13799",
+      "id": "BATIMENT0000000258957899",
+      "height": 9.2,
+      "ground": 2.9,
+      "precision": 1,
+      "method": "Corrélation",
+      "iou": 0.9326,
+      "osmCoverage": 0.9544
+    },
+    {
+      "chunk": "-14,-13",
+      "building": "b35036",
+      "id": "BATIMENT0000000040588820",
+      "height": 8.5,
+      "ground": 38.8,
+      "precision": 1.5,
+      "method": "BDTopo",
+      "iou": 0.7002,
+      "osmCoverage": 0.9973
+    },
+    {
+      "chunk": "-14,-13",
+      "building": "b35038",
+      "id": "BATIMENT0000000258957885",
+      "height": 3.5,
+      "ground": 34.9,
+      "precision": 1,
+      "method": "Corrélation",
+      "iou": 0.7239,
+      "osmCoverage": 0.8804
+    },
+    {
+      "chunk": "-14,6",
+      "building": "b227169",
+      "id": "BATIMENT0000000040663639",
+      "height": 4,
+      "ground": 68.1,
+      "precision": 1.5,
+      "method": "BDTopo",
+      "iou": 0.8087,
+      "osmCoverage": 0.8703
+    },
+    {
+      "chunk": "-14,6",
+      "building": "b227171",
+      "id": "BATIMENT0000000040663644",
+      "height": 5.4,
+      "ground": 68.6,
+      "precision": 1.5,
+      "method": "BDTopo",
+      "iou": 0.85,
+      "osmCoverage": 0.8576
+    },
+    {
+      "chunk": "-14,6",
+      "building": "b227173",
+      "id": "BATIMENT0000000040663642",
+      "height": 6.8,
+      "ground": 70.8,
+      "precision": 1.5,
+      "method": "BDTopo",
+      "iou": 0.742,
+      "osmCoverage": 0.8461
+    },
+    {
+      "chunk": "-13,-20",
+      "building": "b7284",
+      "id": "BATIMENT0000000258958153",
+      "height": 1.8,
+      "ground": 219.6,
+      "precision": 1,
+      "method": "Corrélation",
+      "iou": 0.9431,
+      "osmCoverage": 0.985
+    },
+    {
+      "chunk": "-13,-20",
+      "building": "b7301",
+      "id": "BATIMENT0000000258958136",
+      "height": 7.4,
+      "ground": 202.8,
+      "precision": 2.5,
+      "method": "Interpolation bâti BDTopo",
+      "iou": 0.8456,
+      "osmCoverage": 0.9176
+    },
+    {
+      "chunk": "-13,-20",
+      "building": "b7303",
+      "id": "BATIMENT0000000258958134",
+      "height": 3.7,
+      "ground": 203.8,
+      "precision": 1,
+      "method": "Corrélation",
+      "iou": 0.739,
+      "osmCoverage": 0.8441
+    },
+    {
+      "chunk": "-13,-19",
+      "building": "b7277",
+      "id": "BATIMENT0000000258958144",
+      "height": 4,
+      "ground": 158.4,
+      "precision": 1,
+      "method": "Corrélation",
+      "iou": 0.9188,
+      "osmCoverage": 0.9675
+    },
+    {
+      "chunk": "-13,-19",
+      "building": "b7278",
+      "id": "BATIMENT0000000258958145",
+      "height": 1.7,
+      "ground": 156.8,
+      "precision": 1,
+      "method": "Corrélation",
+      "iou": 0.9189,
+      "osmCoverage": 0.9818
+    },
+    {
+      "chunk": "-13,-19",
+      "building": "b277193",
+      "id": "BATIMENT0000000258958127",
+      "height": 7.8,
+      "ground": 149.6,
+      "precision": 1,
+      "method": "Corrélation",
+      "iou": 0.9895,
+      "osmCoverage": 0.9932
+    },
+    {
+      "chunk": "-13,-18",
+      "building": "b7227",
+      "id": "BATIMENT0000000258958143",
+      "height": 1.3,
+      "ground": 154.3,
+      "precision": 1,
+      "method": "Corrélation",
+      "iou": 0.894,
+      "osmCoverage": 0.9477
+    },
+    {
+      "chunk": "-13,-18",
+      "building": "b7232",
+      "id": "BATIMENT0000000258957495",
+      "height": 3.2,
+      "ground": 159.3,
+      "precision": 1,
+      "method": "Corrélation",
+      "iou": 0.712,
+      "osmCoverage": 0.8322
+    },
+    {
+      "chunk": "-13,-18",
+      "building": "b7233",
+      "id": "BATIMENT0000000258957493",
+      "height": 4.3,
+      "ground": 157.9,
+      "precision": 1,
+      "method": "Corrélation",
+      "iou": 0.7229,
+      "osmCoverage": 0.8546
+    },
+    {
+      "chunk": "-13,-18",
+      "building": "b7238",
+      "id": "BATIMENT0000000258957506",
+      "height": 4,
+      "ground": 154.7,
+      "precision": 2.5,
+      "method": "Interpolation bâti BDTopo",
+      "iou": 0.9516,
+      "osmCoverage": 0.9735
+    }
+  ],
+  "notreDameCandidates": [
+    {
+      "id": "BATIMENT0000000273400278",
+      "height": 23,
+      "ground": 136,
+      "precision": 2.5,
+      "method": "Interpolation bâti BDTopo",
+      "lat": 43.28368018773018,
+      "lon": 5.371301329156886,
+      "area": 730.7
+    },
+    {
+      "id": "BATIMENT0000000273400280",
+      "height": 17.1,
+      "ground": 138.8,
+      "precision": 2.5,
+      "method": "Interpolation bâti BDTopo",
+      "lat": 43.28410738204204,
+      "lon": 5.371432825995503,
+      "area": 573.2
+    },
+    {
+      "id": "BATIMENT0000000273400281",
+      "height": 5.8,
+      "ground": 141.4,
+      "precision": 1,
+      "method": "Corrélation",
+      "lat": 43.28388207959349,
+      "lon": 5.371629121134917,
+      "area": 32.8
+    },
+    {
+      "id": "BATIMENT0000000273400282",
+      "height": 20.7,
+      "ground": 138,
+      "precision": 2.5,
+      "method": "Interpolation bâti BDTopo",
+      "lat": 43.28424106099062,
+      "lon": 5.371224805477147,
+      "area": 170.7
+    },
+    {
+      "id": "BATIMENT0000000273400283",
+      "height": 5,
+      "ground": 141.8,
+      "precision": 1,
+      "method": "Corrélation",
+      "lat": 43.283695069206246,
+      "lon": 5.371675182708961,
+      "area": 252.0
+    },
+    {
+      "id": "BATIMENT0000000273400284",
+      "height": 2.6,
+      "ground": 142.6,
+      "precision": 1,
+      "method": "Corrélation",
+      "lat": 43.28366381372194,
+      "lon": 5.371632673042143,
+      "area": 9.9
+    },
+    {
+      "id": "BATIMENT0000000273400285",
+      "height": 2.8,
+      "ground": 142.3,
+      "precision": 1,
+      "method": "Corrélation",
+      "lat": 43.28352403821042,
+      "lon": 5.37172575385445,
+      "area": 16.3
+    },
+    {
+      "id": "BATIMENT0000000273400286",
+      "height": 17.2,
+      "ground": 138.3,
+      "precision": 2.5,
+      "method": "Interpolation bâti BDTopo",
+      "lat": 43.28421003234686,
+      "lon": 5.3710475936212125,
+      "area": 15.2
+    },
+    {
+      "id": "BATIMENT0000000273400287",
+      "height": 17.5,
+      "ground": 138,
+      "precision": 2.5,
+      "method": "Interpolation bâti BDTopo",
+      "lat": 43.28396793810026,
+      "lon": 5.370848944961987,
+      "area": 35.9
+    },
+    {
+      "id": "BATIMENT0000000273400288",
+      "height": 16.4,
+      "ground": 139.1,
+      "precision": 2.5,
+      "method": "Interpolation bâti BDTopo",
+      "lat": 43.284049953271996,
+      "lon": 5.370854172951494,
+      "area": 16.8
+    },
+    {
+      "id": "BATIMENT0000000273400886",
+      "height": 7,
+      "ground": 142,
+      "precision": 1,
+      "method": "Corrélation",
+      "lat": 43.28416174075758,
+      "lon": 5.370902525045244,
+      "area": 12.8
+    },
+    {
+      "id": "BATIMENT0000000273400893",
+      "height": 5.6,
+      "ground": 141.6,
+      "precision": 1,
+      "method": "Corrélation",
+      "lat": 43.28421793183818,
+      "lon": 5.370816756520322,
+      "area": 21.1
+    },
+    {
+      "id": "BATIMENT0000000273400895",
+      "height": 3.2,
+      "ground": 141.8,
+      "precision": 1,
+      "method": "Corrélation",
+      "lat": 43.28421622567439,
+      "lon": 5.370892204430693,
+      "area": 25.6
+    },
+    {
+      "id": "BATIMENT0000000273400964",
+      "height": 17.5,
+      "ground": 138,
+      "precision": 2.5,
+      "method": "Interpolation bâti BDTopo",
+      "lat": 43.28390844070857,
+      "lon": 5.371054853521884,
+      "area": 763.8
+    },
+    {
+      "id": "BATIMENT0000000273400965",
+      "height": 17.5,
+      "ground": 138,
+      "precision": 1.5,
+      "method": "BDTopo",
+      "lat": 43.284046288161946,
+      "lon": 5.371288693240723,
+      "area": 650.6
+    },
+    {
+      "id": "BATIMENT0000000273400985",
+      "height": 15.9,
+      "ground": 155.5,
+      "precision": 2.5,
+      "method": "Interpolation bâti BDTopo",
+      "lat": 43.284082288197084,
+      "lon": 5.371026786521587,
+      "area": 64.9
+    },
+    {
+      "id": "BATIMENT0000000273400986",
+      "height": 8,
+      "ground": 155.5,
+      "precision": 2.5,
+      "method": "Interpolation bâti BDTopo",
+      "lat": 43.283831659528445,
+      "lon": 5.371421208697689,
+      "area": 141.8
+    },
+    {
+      "id": "BATIMENT0000000273400987",
+      "height": 8,
+      "ground": 155.5,
+      "precision": 2.5,
+      "method": "Interpolation bâti BDTopo",
+      "lat": 43.28399315789468,
+      "lon": 5.3711640002739065,
+      "area": 352.3
+    },
+    {
+      "id": "BATIMENT0000000273400988",
+      "height": 12,
+      "ground": 155.5,
+      "precision": 2.5,
+      "method": "Interpolation bâti BDTopo",
+      "lat": 43.28389175319592,
+      "lon": 5.371323041834484,
+      "area": 203.3
+    }
+  ],
+  "outputBytes": 13975402,
+  "outputSha256": "5bf54910deaf88ff6ccaba645cdbce1be0fc0ee468c3b5e8afad91d541536455",
+  "pages": [
+    {
+      "path": "page-000000.geojson",
+      "startIndex": 0,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1161223,
+      "sha256": "8778a15c87f940b8d796ea6f55eee244c437d2abd576e3e57f69e66d5d5f4809",
+      "timestamp": "2026-11-15T08:33:43.136Z"
+    },
+    {
+      "path": "page-002000.geojson",
+      "startIndex": 2000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1172295,
+      "sha256": "b5d76e19c99a5ca808637c648781ab8366da39e9df818d702a756e544214bd84",
+      "timestamp": "2026-11-15T08:35:31.575Z"
+    },
+    {
+      "path": "page-004000.geojson",
+      "startIndex": 4000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1192957,
+      "sha256": "9ca50fefbfa052c763ecf8c650b2868c199de41420d683e8f3aaea01b1fcf0cf",
+      "timestamp": "2026-11-15T08:35:32.332Z"
+    },
+    {
+      "path": "page-006000.geojson",
+      "startIndex": 6000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1187871,
+      "sha256": "9f0e8eac38f7dcc39dfcaf5ef40305a683572344060ca516ae793d2a326ff3eb",
+      "timestamp": "2026-11-15T08:35:33.788Z"
+    },
+    {
+      "path": "page-008000.geojson",
+      "startIndex": 8000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1179788,
+      "sha256": "1ab652968fc287afe43b9b72bfb1fde83cfeecfe15377625c3c404c631847fe8",
+      "timestamp": "2026-11-15T08:35:34.459Z"
+    },
+    {
+      "path": "page-010000.geojson",
+      "startIndex": 10000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1179030,
+      "sha256": "ac96f93675e54c2a232b0c2f702498dced435b4add4576e3b089f9ab5bf81519",
+      "timestamp": "2026-11-15T08:35:35.123Z"
+    },
+    {
+      "path": "page-012000.geojson",
+      "startIndex": 12000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1174544,
+      "sha256": "b733d557382797112d34bada22cbb47827b83773c9d20b1e6d7f61ca3e9ee209",
+      "timestamp": "2026-11-15T08:35:36.490Z"
+    },
+    {
+      "path": "page-014000.geojson",
+      "startIndex": 14000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1201513,
+      "sha256": "8db838732b50d7ae65abfe6dac14ea7e622285513991a8e3909d97179abd6eaa",
+      "timestamp": "2026-11-15T08:35:37.778Z"
+    },
+    {
+      "path": "page-016000.geojson",
+      "startIndex": 16000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1165977,
+      "sha256": "00341ba1baf4ab7109ab70f6de6390d90549475e71f402b3cd7c6f49d7d055e3",
+      "timestamp": "2026-11-15T08:35:38.143Z"
+    },
+    {
+      "path": "page-018000.geojson",
+      "startIndex": 18000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1182728,
+      "sha256": "c858ca2f311f172c2e0a3526ad807d759f1c7cd5a4158909ec774532a1ade871",
+      "timestamp": "2026-11-15T08:35:39.230Z"
+    },
+    {
+      "path": "page-020000.geojson",
+      "startIndex": 20000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1178366,
+      "sha256": "7015ebaf47f62454a9a16b7126925e1344c7457b07dfa46e079949384fda30ab",
+      "timestamp": "2026-11-15T08:35:40.740Z"
+    },
+    {
+      "path": "page-022000.geojson",
+      "startIndex": 22000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1185932,
+      "sha256": "2975f0f8b7d3584ba13dc15b5e00d78aeab230ca2fb50b76735e721fcf62efee",
+      "timestamp": "2026-11-15T08:35:41.199Z"
+    },
+    {
+      "path": "page-024000.geojson",
+      "startIndex": 24000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1166589,
+      "sha256": "eda43c115f55882151308c2cd07f5d9a7fbe75945cfc59e80c20cfcb8d427e86",
+      "timestamp": "2026-11-15T08:35:42.597Z"
+    },
+    {
+      "path": "page-026000.geojson",
+      "startIndex": 26000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1198249,
+      "sha256": "8fbe0d1437376dcd9db02e9f726c706266b5b784f9eb325b4480db93b980f91f",
+      "timestamp": "2026-11-15T08:35:43.594Z"
+    },
+    {
+      "path": "page-028000.geojson",
+      "startIndex": 28000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1168374,
+      "sha256": "3270ba7ac576c9f787f9236e9544981dbb8ab7650181b6a9d1b898ac4221fab3",
+      "timestamp": "2026-11-15T08:35:44.093Z"
+    },
+    {
+      "path": "page-030000.geojson",
+      "startIndex": 30000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1170343,
+      "sha256": "ec3f9ce42b955f3d3a4974a651dc95873fcc7693f3566f80d24feee776f82110",
+      "timestamp": "2026-11-15T08:35:45.395Z"
+    },
+    {
+      "path": "page-032000.geojson",
+      "startIndex": 32000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1187110,
+      "sha256": "ce4f64c8a244622e16773dc46e2b8036beaf5174a07b93051e384ea391cf9142",
+      "timestamp": "2026-11-15T08:35:46.517Z"
+    },
+    {
+      "path": "page-034000.geojson",
+      "startIndex": 34000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1145415,
+      "sha256": "4eebfff65bc9ace656ceee952d06af2edb2c83d2d2773ccbc48e5540bc8ed549",
+      "timestamp": "2026-11-15T08:35:47.111Z"
+    },
+    {
+      "path": "page-036000.geojson",
+      "startIndex": 36000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1176579,
+      "sha256": "1e110cb50de41571191f3fb39631c0837f0bbf1a7958bcde52e46161c4675f0d",
+      "timestamp": "2026-11-15T08:35:48.255Z"
+    },
+    {
+      "path": "page-038000.geojson",
+      "startIndex": 38000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1160561,
+      "sha256": "96a6fc8cb125127944f60210a5ad3f8a66d91322e59a35fed9cbd311c251183d",
+      "timestamp": "2026-11-15T08:35:49.448Z"
+    },
+    {
+      "path": "page-040000.geojson",
+      "startIndex": 40000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1182272,
+      "sha256": "f1fdfac645ce3176796763a6087cc163173a154dce0ad828a097523c06dbfeae",
+      "timestamp": "2026-11-15T08:35:50.192Z"
+    },
+    {
+      "path": "page-042000.geojson",
+      "startIndex": 42000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1167043,
+      "sha256": "48db0e40db1cee54c7d73f1cadbacf53e050f4b66b77d91dc4ed60c49265c8f8",
+      "timestamp": "2026-11-15T08:35:51.272Z"
+    },
+    {
+      "path": "page-044000.geojson",
+      "startIndex": 44000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1182903,
+      "sha256": "df6cb04ee478c168d3543067d917ec9c991e448c6fcf0be2af5930940589f9cb",
+      "timestamp": "2026-11-15T08:35:52.307Z"
+    },
+    {
+      "path": "page-046000.geojson",
+      "startIndex": 46000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1135737,
+      "sha256": "7f98ee409e711424a77f6c342f140c199ebb0f26d643b76f12c4d02704547509",
+      "timestamp": "2026-11-15T08:35:53.040Z"
+    },
+    {
+      "path": "page-048000.geojson",
+      "startIndex": 48000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1131586,
+      "sha256": "2755abd97a087b6b64d837b624ccbf6245d58cee05ae0154e178e0eb3c0ad850",
+      "timestamp": "2026-11-15T08:35:54.035Z"
+    },
+    {
+      "path": "page-050000.geojson",
+      "startIndex": 50000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1140601,
+      "sha256": "ded65abeb5606b7e1232db880a5ea28fc0a11ced99faf79ae89eedf4eb5f3e78",
+      "timestamp": "2026-11-15T08:35:55.411Z"
+    },
+    {
+      "path": "page-052000.geojson",
+      "startIndex": 52000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1128776,
+      "sha256": "86476da924a82912e9453156972fdabf4bee90dd74914e86b21db16b65ec847d",
+      "timestamp": "2026-11-15T08:35:56.180Z"
+    },
+    {
+      "path": "page-054000.geojson",
+      "startIndex": 54000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1132836,
+      "sha256": "948f0378e935a4a95cf2b13fb95e0bfe0f8dc98a7e90f5b39be757c3376969d6",
+      "timestamp": "2026-11-15T08:35:57.149Z"
+    },
+    {
+      "path": "page-056000.geojson",
+      "startIndex": 56000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1132828,
+      "sha256": "5187450d259ee8d43c0c965b0fc07f00e526137bb1c0dcf5ddc6d7cfe67891c7",
+      "timestamp": "2026-11-15T08:35:58.535Z"
+    },
+    {
+      "path": "page-058000.geojson",
+      "startIndex": 58000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1128439,
+      "sha256": "738b753df5b133e6b7a2a5d0497505c8363efdbc73dcd556b809175a13548ef6",
+      "timestamp": "2026-11-15T08:35:59.019Z"
+    },
+    {
+      "path": "page-060000.geojson",
+      "startIndex": 60000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1111270,
+      "sha256": "5f4402a3c85d78308fd004d2da551044f76df61e9082e1593358e663fa54ef33",
+      "timestamp": "2026-11-15T08:36:00.349Z"
+    },
+    {
+      "path": "page-062000.geojson",
+      "startIndex": 62000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1121405,
+      "sha256": "4d84f8fdc41e93e47adcd5927a6bd1e8bc986a1574c592aabe8fb523edf5d86f",
+      "timestamp": "2026-11-15T08:36:01.552Z"
+    },
+    {
+      "path": "page-064000.geojson",
+      "startIndex": 64000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1244289,
+      "sha256": "2982fc11f4a3a9402d9654073a75866d7bc42851be0fe462dc9d175d6d234367",
+      "timestamp": "2026-11-15T08:36:02.145Z"
+    },
+    {
+      "path": "page-066000.geojson",
+      "startIndex": 66000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1175803,
+      "sha256": "87155cda295d9ae3ad86f050173f8450f8f98a0f4fbd3ab652d8d7c7212db176",
+      "timestamp": "2026-11-15T08:36:03.314Z"
+    },
+    {
+      "path": "page-068000.geojson",
+      "startIndex": 68000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1144504,
+      "sha256": "8afc706d0cb57f52bd366b41ce593ed63e2c72ecf2525eb95eee05b85e8a338d",
+      "timestamp": "2026-11-15T08:36:04.809Z"
+    },
+    {
+      "path": "page-070000.geojson",
+      "startIndex": 70000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1131747,
+      "sha256": "c3b0878cf04f486b75851505a47340dd586d07f49507edd3d3a811ec86e9b1db",
+      "timestamp": "2026-11-15T08:36:05.070Z"
+    },
+    {
+      "path": "page-072000.geojson",
+      "startIndex": 72000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1128468,
+      "sha256": "b36daa30138ceadb2d86ff12a6105338b9bb3f86f01c214698a1a7cc55383c34",
+      "timestamp": "2026-11-15T08:36:06.497Z"
+    },
+    {
+      "path": "page-074000.geojson",
+      "startIndex": 74000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1142281,
+      "sha256": "033c352b0e91de48e371a1ffebdeb2b6ffa1269239b14e8a5dfe74613ee15850",
+      "timestamp": "2026-11-15T08:36:07.843Z"
+    },
+    {
+      "path": "page-076000.geojson",
+      "startIndex": 76000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1154162,
+      "sha256": "d9a6188ea3148c18932becbfb8fe1c055fed4666cf3fee9caa481cf3be2eec14",
+      "timestamp": "2026-11-15T08:36:08.029Z"
+    },
+    {
+      "path": "page-078000.geojson",
+      "startIndex": 78000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1163184,
+      "sha256": "1946c6ab36087702fb4d98e8886f6383456ec62bc3b748a190594e9415c3bc10",
+      "timestamp": "2026-11-15T08:36:09.859Z"
+    },
+    {
+      "path": "page-080000.geojson",
+      "startIndex": 80000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1137296,
+      "sha256": "756076eb2a6f11ee8b72c3ed2af6d89568a807fbd7cc1fc2f2523a96578dd966",
+      "timestamp": "2026-11-15T08:36:10.831Z"
+    },
+    {
+      "path": "page-082000.geojson",
+      "startIndex": 82000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1155835,
+      "sha256": "3c19b7e157275eee4ecc1618b5fe6d7f7294fe70e42ad864f3da09a1fd589b14",
+      "timestamp": "2026-11-15T08:36:11.182Z"
+    },
+    {
+      "path": "page-084000.geojson",
+      "startIndex": 84000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1172842,
+      "sha256": "8e1eed508d3d3b93eca862be127c19bac94cf39b913a913728fcde7da639206e",
+      "timestamp": "2026-11-15T08:36:12.751Z"
+    },
+    {
+      "path": "page-086000.geojson",
+      "startIndex": 86000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1140802,
+      "sha256": "c35f2f214b17f6796c8e284e8388e685f8f0eace2ed5628465d3a2913e065b5e",
+      "timestamp": "2026-11-15T08:36:13.720Z"
+    },
+    {
+      "path": "page-088000.geojson",
+      "startIndex": 88000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1128976,
+      "sha256": "4e3cf9e712071932d805c869cb0cdb758823e0330e9b4361e77cf728e5eaa2a8",
+      "timestamp": "2026-11-15T08:36:14.161Z"
+    },
+    {
+      "path": "page-090000.geojson",
+      "startIndex": 90000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1146216,
+      "sha256": "8192f3114437f0d9a6691027ac3361604e1343f21d9c9a490268ed7598a969b8",
+      "timestamp": "2026-11-15T08:36:15.645Z"
+    },
+    {
+      "path": "page-092000.geojson",
+      "startIndex": 92000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1200538,
+      "sha256": "a140bec94d3ebaf89102fe99e4b5b4443bd6664e01da33325f091699927535c4",
+      "timestamp": "2026-11-15T08:36:17.425Z"
+    },
+    {
+      "path": "page-094000.geojson",
+      "startIndex": 94000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1130564,
+      "sha256": "acc33d5b84efa828be014e369618ddeb6bf203d97d93693b1acee1a426fa65a2",
+      "timestamp": "2026-11-15T08:36:17.150Z"
+    },
+    {
+      "path": "page-096000.geojson",
+      "startIndex": 96000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1201767,
+      "sha256": "54ebd21eed66920b1f19731060f58d48dc0e101b68ee24e0141e831109a96fcc",
+      "timestamp": "2026-11-15T08:36:18.696Z"
+    },
+    {
+      "path": "page-098000.geojson",
+      "startIndex": 98000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1160292,
+      "sha256": "c21115c0e094c82ffe82243713ac659ad810b6a90e43a6b98508e40332086d05",
+      "timestamp": "2026-11-15T08:36:20.270Z"
+    },
+    {
+      "path": "page-100000.geojson",
+      "startIndex": 100000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1144542,
+      "sha256": "6a797306ff0fbeec8da2a152469682b550e4287e42e1bccf3b68266dc53052bc",
+      "timestamp": "2026-11-15T08:36:20.209Z"
+    },
+    {
+      "path": "page-102000.geojson",
+      "startIndex": 102000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1196613,
+      "sha256": "d8a2aa54a7ca1b135f28253057dc75267b48cb6180166f72637f9cb9f414335a",
+      "timestamp": "2026-11-15T08:36:21.891Z"
+    },
+    {
+      "path": "page-104000.geojson",
+      "startIndex": 104000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1179805,
+      "sha256": "83f82622efdd9f61ab4538f1c8c9f034c95065cfe74ce2322870e03b8ef0c8ab",
+      "timestamp": "2026-11-15T08:36:23.507Z"
+    },
+    {
+      "path": "page-106000.geojson",
+      "startIndex": 106000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1167029,
+      "sha256": "e37ceba887dcb104a261dca64431a0de413e12c309c5811fcaecaf9c30ae1224",
+      "timestamp": "2026-11-15T08:36:23.457Z"
+    },
+    {
+      "path": "page-108000.geojson",
+      "startIndex": 108000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1127277,
+      "sha256": "afc5f0a684ca078467c3dfc2fcc19bbc1cf2428c153c6c131565f8c3d773fcd1",
+      "timestamp": "2026-11-15T08:36:24.964Z"
+    },
+    {
+      "path": "page-110000.geojson",
+      "startIndex": 110000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1120316,
+      "sha256": "1093fb4cecba61dfb0e9b5630b0a34676a62fa0a5e9cbe4057e950c42cd61a75",
+      "timestamp": "2026-11-15T08:36:26.483Z"
+    },
+    {
+      "path": "page-112000.geojson",
+      "startIndex": 112000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1154649,
+      "sha256": "641e02bae10a542ab5f4048d3b1587a08d173e27d882dbd48860de87000bebde",
+      "timestamp": "2026-11-15T08:36:26.840Z"
+    },
+    {
+      "path": "page-114000.geojson",
+      "startIndex": 114000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1152126,
+      "sha256": "c0e427ba3be3c8d1cc731148897a81add883e6ae0143b3ff7b343c6109a9e545",
+      "timestamp": "2026-11-15T08:36:27.900Z"
+    },
+    {
+      "path": "page-116000.geojson",
+      "startIndex": 116000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1148865,
+      "sha256": "f31cdc4377b1d3d4f64c8378735ddd6b071eca84b713522a0bcf03427b7e0225",
+      "timestamp": "2026-11-15T08:36:29.505Z"
+    },
+    {
+      "path": "page-118000.geojson",
+      "startIndex": 118000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1157780,
+      "sha256": "b02d1e98e35a2163fbb5b4234fa67856f4eb1e18657b1948fe33a6a6df6b85e6",
+      "timestamp": "2026-11-15T08:36:29.877Z"
+    },
+    {
+      "path": "page-120000.geojson",
+      "startIndex": 120000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1156818,
+      "sha256": "8e6daeec1731fcb9459e0a722a31aa927a3f2c514abd30b64a8a1d5c13350656",
+      "timestamp": "2026-11-15T08:36:30.851Z"
+    },
+    {
+      "path": "page-122000.geojson",
+      "startIndex": 122000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1142579,
+      "sha256": "fdb31fd87ab24bc6d260e9a7ef1982308fab28953953a212fd5991bc4dcc36eb",
+      "timestamp": "2026-11-15T08:36:32.753Z"
+    },
+    {
+      "path": "page-124000.geojson",
+      "startIndex": 124000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1136568,
+      "sha256": "97a3b4026bb5fcc207ee134c2d64269fcf82408cf0f50ca12c85c7e262787672",
+      "timestamp": "2026-11-15T08:36:32.954Z"
+    },
+    {
+      "path": "page-126000.geojson",
+      "startIndex": 126000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1130049,
+      "sha256": "3bd644ea3451d3c1dafe7b1d469f310b27c8a44ee261dbe744674d0246599e03",
+      "timestamp": "2026-11-15T08:36:33.791Z"
+    },
+    {
+      "path": "page-128000.geojson",
+      "startIndex": 128000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1122394,
+      "sha256": "95a227a432d1d68886ce11dd9288beb32afe4647405cdd5bf81fa57f40eeaee8",
+      "timestamp": "2026-11-15T08:36:35.994Z"
+    },
+    {
+      "path": "page-130000.geojson",
+      "startIndex": 130000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1146433,
+      "sha256": "e4bc60f059ec210d4b6276f44810a4403be33b26a2cddf974c197f3bbc24a502",
+      "timestamp": "2026-11-15T08:36:36.594Z"
+    },
+    {
+      "path": "page-132000.geojson",
+      "startIndex": 132000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1156430,
+      "sha256": "8c39148b192f5fe744c36cda49ca44e2f1ef1c0b8b9b46e749ee3876b1af6142",
+      "timestamp": "2026-11-15T08:36:37.168Z"
+    },
+    {
+      "path": "page-134000.geojson",
+      "startIndex": 134000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1152298,
+      "sha256": "e6792e7d7ef2e7824e3c344d38c143406f1ae1b937b46349a36f720ffae0f6a5",
+      "timestamp": "2026-11-15T08:36:39.504Z"
+    },
+    {
+      "path": "page-136000.geojson",
+      "startIndex": 136000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1144079,
+      "sha256": "61290118893d5e7bf0b3fabede34e439915ff3285d875719435c02739bd04454",
+      "timestamp": "2026-11-15T08:36:39.750Z"
+    },
+    {
+      "path": "page-138000.geojson",
+      "startIndex": 138000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1143967,
+      "sha256": "7ff50d5e97df44b7f037699efc0b874ab6985703c2388e46c8f39d46a324f791",
+      "timestamp": "2026-11-15T08:36:40.437Z"
+    },
+    {
+      "path": "page-140000.geojson",
+      "startIndex": 140000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1141669,
+      "sha256": "e4203b797c4261408fd26b381421691f3b24f926049782885a3283c179b74afd",
+      "timestamp": "2026-11-15T08:36:43.092Z"
+    },
+    {
+      "path": "page-142000.geojson",
+      "startIndex": 142000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1119263,
+      "sha256": "6f2192914fa75868f2f8ce94f63b89f704c7fe95d1d3882ade546233c4bcfe42",
+      "timestamp": "2026-11-15T08:36:43.363Z"
+    },
+    {
+      "path": "page-144000.geojson",
+      "startIndex": 144000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1156167,
+      "sha256": "ee6e2b4bd949959e887c45124f3d7ac7d4773fb196de8cab7be96b1f347e8cde",
+      "timestamp": "2026-11-15T08:36:43.729Z"
+    },
+    {
+      "path": "page-146000.geojson",
+      "startIndex": 146000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1152529,
+      "sha256": "f6c6ffc59c52e2490d8e71921ed5e9c5804c097871f3c81d7981ad1238609db4",
+      "timestamp": "2026-11-15T08:36:47.175Z"
+    },
+    {
+      "path": "page-148000.geojson",
+      "startIndex": 148000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1152398,
+      "sha256": "a0d0251aeb50c531a5f5c59224f56cbe7ca2749b00e76f5fe4a1fd95620846da",
+      "timestamp": "2026-11-15T08:36:46.753Z"
+    },
+    {
+      "path": "page-150000.geojson",
+      "startIndex": 150000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1126331,
+      "sha256": "c9b86fa8e8113ae2bbd1a85e2557eef6b667f0e73ff6975b7b77ebea4bb7f4f4",
+      "timestamp": "2026-11-15T08:36:47.261Z"
+    },
+    {
+      "path": "page-152000.geojson",
+      "startIndex": 152000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1231669,
+      "sha256": "54737b3521c4d30de5ab620cf99b08195b7d7ce36bbaf35e701a7beac1dd6a29",
+      "timestamp": "2026-11-15T08:36:50.065Z"
+    },
+    {
+      "path": "page-154000.geojson",
+      "startIndex": 154000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1202883,
+      "sha256": "93daca1fb30e4c39be3656a86ed0ac9893bfe3d52d602215b4f059f6d2f00ad6",
+      "timestamp": "2026-11-15T08:36:50.581Z"
+    },
+    {
+      "path": "page-156000.geojson",
+      "startIndex": 156000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1121813,
+      "sha256": "6b332edfb9abf6635d1e591ec1d610e53b344f631526cb25f7ba6646c89c0ed8",
+      "timestamp": "2026-11-15T08:36:50.614Z"
+    },
+    {
+      "path": "page-158000.geojson",
+      "startIndex": 158000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1148376,
+      "sha256": "f6a06e6697796ae23787ba9ec5da818897223b1100c32999225fa04b0da9408b",
+      "timestamp": "2026-11-15T08:36:53.467Z"
+    },
+    {
+      "path": "page-160000.geojson",
+      "startIndex": 160000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1113348,
+      "sha256": "d27abc87ce4df80c958f610f74bb57e5b5e93613df26ffebc83ad694a63feb32",
+      "timestamp": "2026-11-15T08:36:54.294Z"
+    },
+    {
+      "path": "page-162000.geojson",
+      "startIndex": 162000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1143931,
+      "sha256": "9b696ddaf0e5bc6306c6b9170c1609106ea11511492dfeaa5ab4a2999883dd51",
+      "timestamp": "2026-11-15T08:36:54.191Z"
+    },
+    {
+      "path": "page-164000.geojson",
+      "startIndex": 164000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1125842,
+      "sha256": "28c85999dc969ec2ac5d4633521243c02d9270c954d8f1a361beba0a4ac8c463",
+      "timestamp": "2026-11-15T08:36:56.970Z"
+    },
+    {
+      "path": "page-166000.geojson",
+      "startIndex": 166000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1112607,
+      "sha256": "325d18629a12c46873dd741ab9172780246ac7d613fa212af83d4b8de516947b",
+      "timestamp": "2026-11-15T08:36:57.582Z"
+    },
+    {
+      "path": "page-168000.geojson",
+      "startIndex": 168000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1107057,
+      "sha256": "d1821b617600108b8ef9d68d144556a4fdb3a3666ee44b35a4b028facf6cf248",
+      "timestamp": "2026-11-15T08:36:57.548Z"
+    },
+    {
+      "path": "page-170000.geojson",
+      "startIndex": 170000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1151055,
+      "sha256": "6c09ac8ef5bc5e3a3ed56fce331d0978f308486dd5113bcbed4c2dc94773487d",
+      "timestamp": "2026-11-15T08:37:00.489Z"
+    },
+    {
+      "path": "page-172000.geojson",
+      "startIndex": 172000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1141481,
+      "sha256": "fe68155b8684781868cba08b937aabf66340201014bf3ae496685a39a13b0444",
+      "timestamp": "2026-11-15T08:37:00.886Z"
+    },
+    {
+      "path": "page-174000.geojson",
+      "startIndex": 174000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1136078,
+      "sha256": "bd6e883e7f9e22c3406e43f07076cf6e52d732c8ee600d79b663794a7ae02a60",
+      "timestamp": "2026-11-15T08:37:00.912Z"
+    },
+    {
+      "path": "page-176000.geojson",
+      "startIndex": 176000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1130271,
+      "sha256": "2598190e2adca6de17f288546c439bbb306e9ab9e22cc72106014f03e792d249",
+      "timestamp": "2026-11-15T08:37:03.960Z"
+    },
+    {
+      "path": "page-178000.geojson",
+      "startIndex": 178000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1090361,
+      "sha256": "dd79a5015e346da4e1d739c81a091be3dc33a16da8a50cf6f98948d4d7624e31",
+      "timestamp": "2026-11-15T08:37:04.477Z"
+    },
+    {
+      "path": "page-180000.geojson",
+      "startIndex": 180000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1118840,
+      "sha256": "b0e0c3f6fed6c979fb12421f22da85d72f46338832749e12e80d46e2dce52e56",
+      "timestamp": "2026-11-15T08:37:05.668Z"
+    },
+    {
+      "path": "page-182000.geojson",
+      "startIndex": 182000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1133787,
+      "sha256": "b3039c04a71935c33bb576ae028f35fdc0cf277a4d5d486242a988970b396696",
+      "timestamp": "2026-11-15T08:37:07.421Z"
+    },
+    {
+      "path": "page-184000.geojson",
+      "startIndex": 184000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1124154,
+      "sha256": "04286e1c2ee266daa059ae5f3033e35b6a083333f1d6540b12a520e151eee00c",
+      "timestamp": "2026-11-15T08:37:07.954Z"
+    },
+    {
+      "path": "page-186000.geojson",
+      "startIndex": 186000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1153300,
+      "sha256": "679791b1b1b520bd437b395ff97609e58a7f5daf0388ab1a5ea41c56be86f6f2",
+      "timestamp": "2026-11-15T08:37:09.061Z"
+    },
+    {
+      "path": "page-188000.geojson",
+      "startIndex": 188000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1160698,
+      "sha256": "bc9c227ed82ec5854268d691b5907ac7bc38cd4f810431b67fd32e3225668e5f",
+      "timestamp": "2026-11-15T08:37:10.923Z"
+    },
+    {
+      "path": "page-190000.geojson",
+      "startIndex": 190000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1137340,
+      "sha256": "4e39cd3280daf83bae909ba3cbf0768b7d9f21f08f30ac648a579827f25eccdf",
+      "timestamp": "2026-11-15T08:37:11.719Z"
+    },
+    {
+      "path": "page-192000.geojson",
+      "startIndex": 192000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1138906,
+      "sha256": "65fae5b3123ae9973c129caa735ee1771e7368f17e371ae21cc63bcece47b0cc",
+      "timestamp": "2026-11-15T08:37:12.662Z"
+    },
+    {
+      "path": "page-194000.geojson",
+      "startIndex": 194000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1140139,
+      "sha256": "46f79dbe564dabace79a0d6899329085dd91eb14805d3e274ee10fede176d4ed",
+      "timestamp": "2026-11-15T08:37:14.380Z"
+    },
+    {
+      "path": "page-196000.geojson",
+      "startIndex": 196000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1123146,
+      "sha256": "2402d0299319f9a367068f8b7231b0fb8dad0975f2c84796e6c558317cc2e64d",
+      "timestamp": "2026-11-15T08:37:15.146Z"
+    },
+    {
+      "path": "page-198000.geojson",
+      "startIndex": 198000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1134197,
+      "sha256": "7da452a0b230691d77677957494e054b1252118641717ba08bd3271971c4f1d0",
+      "timestamp": "2026-11-15T08:37:16.183Z"
+    },
+    {
+      "path": "page-200000.geojson",
+      "startIndex": 200000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1152110,
+      "sha256": "36865329ad35a65a33e3009eb47db227f209945a2f9f39a109c2f55a6440fc59",
+      "timestamp": "2026-11-15T08:37:18.141Z"
+    },
+    {
+      "path": "page-202000.geojson",
+      "startIndex": 202000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1169494,
+      "sha256": "f147039d9ee0860a6ea92a110cecce853a9a15f3a033a51f859f6fa990e8be0e",
+      "timestamp": "2026-11-15T08:37:18.763Z"
+    },
+    {
+      "path": "page-204000.geojson",
+      "startIndex": 204000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1142556,
+      "sha256": "c18d1474dea8113f0d0600dfc432273254a1d38d2e601f11fc96347d51ed7fcd",
+      "timestamp": "2026-11-15T08:37:19.796Z"
+    },
+    {
+      "path": "page-206000.geojson",
+      "startIndex": 206000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1154228,
+      "sha256": "f880d5a8466062cb451246d6fa758b1da6bfcbddc0358c828d6f7eb3ddce80f0",
+      "timestamp": "2026-11-15T08:37:21.577Z"
+    },
+    {
+      "path": "page-208000.geojson",
+      "startIndex": 208000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1214955,
+      "sha256": "26fcf6e0a57a46bd2324039f48b4b9c12a103c25c6f8537a035868159a3a2d16",
+      "timestamp": "2026-11-15T08:37:22.351Z"
+    },
+    {
+      "path": "page-210000.geojson",
+      "startIndex": 210000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1141899,
+      "sha256": "2ecf021d7330b3b69bf8878917fb2ae46d61d4271fd0b5dbda7b71e06fe771c6",
+      "timestamp": "2026-11-15T08:37:23.165Z"
+    },
+    {
+      "path": "page-212000.geojson",
+      "startIndex": 212000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1124691,
+      "sha256": "0f6fdda3eb64ae0409f391b99bfe38634ce3f89e4c55107a0e90b9368ed5c30a",
+      "timestamp": "2026-11-15T08:37:24.990Z"
+    },
+    {
+      "path": "page-214000.geojson",
+      "startIndex": 214000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1186221,
+      "sha256": "d23669d40795fbd43f4ae678de142e5703b8ed04b391a2d0df0ba2dee93162bc",
+      "timestamp": "2026-11-15T08:37:25.823Z"
+    },
+    {
+      "path": "page-216000.geojson",
+      "startIndex": 216000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1149144,
+      "sha256": "de73e8a27417a38328392214a1fd905182e7dd1cf78222f335ffe450301c18e6",
+      "timestamp": "2026-11-15T08:37:26.663Z"
+    },
+    {
+      "path": "page-218000.geojson",
+      "startIndex": 218000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1145366,
+      "sha256": "ded918afa35987dfcd5fe3022b41b1a7e4c8de2f68e10421e6fa3a078031d8fe",
+      "timestamp": "2026-11-15T08:37:28.481Z"
+    },
+    {
+      "path": "page-220000.geojson",
+      "startIndex": 220000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1126360,
+      "sha256": "9f8283eede9ffb9f72e2de619b18377c82f2e079e4cfd6b38951bdc0dd908bde",
+      "timestamp": "2026-11-15T08:37:29.388Z"
+    },
+    {
+      "path": "page-222000.geojson",
+      "startIndex": 222000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1134334,
+      "sha256": "d9731efbb21642b602a8123aff7344d1a5f6de6352cc67e11e417c8d4cf4bc02",
+      "timestamp": "2026-11-15T08:37:29.991Z"
+    },
+    {
+      "path": "page-224000.geojson",
+      "startIndex": 224000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1103879,
+      "sha256": "ae9fbeb76ad2fde4d339d0d446eb07acb8432dc659c0d0b9f8d3aaa4ca66bd36",
+      "timestamp": "2026-11-15T08:37:32.166Z"
+    },
+    {
+      "path": "page-226000.geojson",
+      "startIndex": 226000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1135806,
+      "sha256": "57bd1d95a636eba53a84579a447d639bc9bcca843dfa7d2a73540fdcc8f89d23",
+      "timestamp": "2026-11-15T08:37:32.971Z"
+    },
+    {
+      "path": "page-228000.geojson",
+      "startIndex": 228000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1127186,
+      "sha256": "32240c324e6c7a725485ef3e4332c402b4f184231e4dc9486284b14e9d57178d",
+      "timestamp": "2026-11-15T08:37:33.761Z"
+    },
+    {
+      "path": "page-230000.geojson",
+      "startIndex": 230000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1169237,
+      "sha256": "d41c533e16037f511437391f21d839585b4e5c2c69cc52642ea7e92bd3d7bbe9",
+      "timestamp": "2026-11-15T08:37:35.575Z"
+    },
+    {
+      "path": "page-232000.geojson",
+      "startIndex": 232000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1106657,
+      "sha256": "d7fa0c52af8ad367330040112c2f51077e67544b898b28625595223839d42996",
+      "timestamp": "2026-11-15T08:37:36.554Z"
+    },
+    {
+      "path": "page-234000.geojson",
+      "startIndex": 234000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1161919,
+      "sha256": "27ba41912f91d13aaf29baf3e29a0b67b1f7a1333a00e36e3df0af0535fa616b",
+      "timestamp": "2026-11-15T08:37:37.164Z"
+    },
+    {
+      "path": "page-236000.geojson",
+      "startIndex": 236000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1141636,
+      "sha256": "122c1d810a13fd7a6ac063a9504d7f493090c25d017db15e98d70ab51572cadd",
+      "timestamp": "2026-11-15T08:37:38.987Z"
+    },
+    {
+      "path": "page-238000.geojson",
+      "startIndex": 238000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1155965,
+      "sha256": "2107e751b1b3c74285f2eb18121444e32c6c8819d583c8de01d2cb80fd598729",
+      "timestamp": "2026-11-15T08:37:40.011Z"
+    },
+    {
+      "path": "page-240000.geojson",
+      "startIndex": 240000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1137804,
+      "sha256": "7d73d0676ce8c50012e2505750241247c7a2aa4558c322b650bacf7133951ebb",
+      "timestamp": "2026-11-15T08:37:40.599Z"
+    },
+    {
+      "path": "page-242000.geojson",
+      "startIndex": 242000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1156502,
+      "sha256": "4ea051b6d393189ae1bb78738201bba813518270b846135273c62bfc43e66ccb",
+      "timestamp": "2026-11-15T08:37:42.606Z"
+    },
+    {
+      "path": "page-244000.geojson",
+      "startIndex": 244000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1195499,
+      "sha256": "713474814731ce7f4ac48f6d24fc7c8100a64a587a6b4ca14f2934eaa822c288",
+      "timestamp": "2026-11-15T08:37:43.595Z"
+    },
+    {
+      "path": "page-246000.geojson",
+      "startIndex": 246000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1169181,
+      "sha256": "d964548f6765afa63f7be58723afcc5aa264cae31586b30268d58d3c5e9fc6d6",
+      "timestamp": "2026-11-15T08:37:44.033Z"
+    },
+    {
+      "path": "page-248000.geojson",
+      "startIndex": 248000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1181901,
+      "sha256": "c0e857c3429d2783a08ce05912d252f7b7ebaf2333d241da46d367ec73844114",
+      "timestamp": "2026-11-15T08:37:46.139Z"
+    },
+    {
+      "path": "page-250000.geojson",
+      "startIndex": 250000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1161878,
+      "sha256": "aaf925f3c01f3e9a0066ec2cd2c37e8666815ea6c1c82fdb22b017b4bd4d4748",
+      "timestamp": "2026-11-15T08:37:47.102Z"
+    },
+    {
+      "path": "page-252000.geojson",
+      "startIndex": 252000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1122120,
+      "sha256": "e8ef01db0f7f3caf90826f314aa045cf48f5850809de78331f048e991c2d908a",
+      "timestamp": "2026-11-15T08:37:47.655Z"
+    },
+    {
+      "path": "page-254000.geojson",
+      "startIndex": 254000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1125510,
+      "sha256": "43e48d04c8539ff92b955da35f0f7d30dcf5198382097b527169acc1671d13d3",
+      "timestamp": "2026-11-15T08:37:49.938Z"
+    },
+    {
+      "path": "page-256000.geojson",
+      "startIndex": 256000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1140234,
+      "sha256": "029408fd89db25551c9a0dfd6a4494ad11f34771814935988d9f31d5037b85a4",
+      "timestamp": "2026-11-15T08:37:50.533Z"
+    },
+    {
+      "path": "page-258000.geojson",
+      "startIndex": 258000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1202214,
+      "sha256": "1a904ed32b93d386cc2fd7e6430baded757c9895ace7a9219b1d920789dc3d3a",
+      "timestamp": "2026-11-15T08:37:51.380Z"
+    },
+    {
+      "path": "page-260000.geojson",
+      "startIndex": 260000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1168173,
+      "sha256": "b101e2a4ae5df6a52451200047e1152917491ac6fbe9a6643c7b1e5d91491ed1",
+      "timestamp": "2026-11-15T08:37:53.676Z"
+    },
+    {
+      "path": "page-262000.geojson",
+      "startIndex": 262000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1225197,
+      "sha256": "1d3819efa60f9ba582aead973555d64b0355acdfdfeb59c3b718aabc1f46c5b1",
+      "timestamp": "2026-11-15T08:37:54.073Z"
+    },
+    {
+      "path": "page-264000.geojson",
+      "startIndex": 264000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1279283,
+      "sha256": "62dff8a54f83776ff0506b9d678bb775e0abc5d5b0fa00a29699ff9a19aea913",
+      "timestamp": "2026-11-15T08:37:54.961Z"
+    },
+    {
+      "path": "page-266000.geojson",
+      "startIndex": 266000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1160286,
+      "sha256": "1bc3819442d4612b0a4cb9cccdf0c8ae0e05318e11cbfc95ec9e5e5355c74924",
+      "timestamp": "2026-11-15T08:37:57.183Z"
+    },
+    {
+      "path": "page-268000.geojson",
+      "startIndex": 268000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1141018,
+      "sha256": "410c32c61fca36ac5213927820eeae3e5cf0aa2a47bb0bd987f019bac8bc5308",
+      "timestamp": "2026-11-15T08:37:57.852Z"
+    },
+    {
+      "path": "page-270000.geojson",
+      "startIndex": 270000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1133473,
+      "sha256": "f5de1819664338fad260b3449fc3a4c8b7f62b896cca8ca0ec7639d613827f84",
+      "timestamp": "2026-11-15T08:37:58.427Z"
+    },
+    {
+      "path": "page-272000.geojson",
+      "startIndex": 272000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1134677,
+      "sha256": "4e602fa9fd8770ec3b80b1681b3a6748cf2fadbde929c210daceb43cdb27b1a9",
+      "timestamp": "2026-11-15T08:38:01.645Z"
+    },
+    {
+      "path": "page-274000.geojson",
+      "startIndex": 274000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1176054,
+      "sha256": "496f807d0960c3f562f66fe313fd65c01f3fc79850fe72bfbb83c3b36983d8dd",
+      "timestamp": "2026-11-15T08:38:01.529Z"
+    },
+    {
+      "path": "page-276000.geojson",
+      "startIndex": 276000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1137331,
+      "sha256": "248247eda1ddfe40f85ca4e9b122ff422553f322d264c9e6856642660d3089e9",
+      "timestamp": "2026-11-15T08:38:02.652Z"
+    },
+    {
+      "path": "page-278000.geojson",
+      "startIndex": 278000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1140087,
+      "sha256": "5e3daf42b170a16c5cbd844eca97f8188a0edb06c8bcc8d35d86b7c405f1161d",
+      "timestamp": "2026-11-15T08:38:05.573Z"
+    },
+    {
+      "path": "page-280000.geojson",
+      "startIndex": 280000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1147045,
+      "sha256": "e21cd073e6771198320011e38071a6afe623bd984ceeb70d4880c77af35e824d",
+      "timestamp": "2026-11-15T08:38:05.619Z"
+    },
+    {
+      "path": "page-282000.geojson",
+      "startIndex": 282000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1150510,
+      "sha256": "914e6943dd158168eff63120532c2ca70fe902177e08bafcd45368c7baec947b",
+      "timestamp": "2026-11-15T08:38:06.452Z"
+    },
+    {
+      "path": "page-284000.geojson",
+      "startIndex": 284000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1153003,
+      "sha256": "d6d85ab6ed75104b81bcbe34e7b22cd7c6b62ff5fc42db37de911aa098e9c6b5",
+      "timestamp": "2026-11-15T08:38:09.483Z"
+    },
+    {
+      "path": "page-286000.geojson",
+      "startIndex": 286000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1304340,
+      "sha256": "381349e7ffccecda6c248f6c0edefadf7ac3b5ac1b476649515c5563aff012d5",
+      "timestamp": "2026-11-15T08:38:09.580Z"
+    },
+    {
+      "path": "page-288000.geojson",
+      "startIndex": 288000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1277676,
+      "sha256": "10cfeb9371380bb87e9ad9f3ce981be07cb14f5f062f7d62a2f3504098be8bbd",
+      "timestamp": "2026-11-15T08:38:10.451Z"
+    },
+    {
+      "path": "page-290000.geojson",
+      "startIndex": 290000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1230305,
+      "sha256": "aace6237992e60b8ad044004eb969e818ae7211ceb12479ba047ebe45898fb63",
+      "timestamp": "2026-11-15T08:38:13.529Z"
+    },
+    {
+      "path": "page-292000.geojson",
+      "startIndex": 292000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1319273,
+      "sha256": "05f7ecc957480e403be733080efc475048ff4e90de7ef40585fffa3a4fbed042",
+      "timestamp": "2026-11-15T08:38:13.465Z"
+    },
+    {
+      "path": "page-294000.geojson",
+      "startIndex": 294000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1027439,
+      "sha256": "dbaee6e61e2ca8e6e9ee76c095c1a4045acf38475a0d49c2c7187bad697b33bf",
+      "timestamp": "2026-11-15T08:38:15.739Z"
+    },
+    {
+      "path": "page-296000.geojson",
+      "startIndex": 296000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1253606,
+      "sha256": "c0ad11753aa593bf3ccd18ad45a111692a4f78eac41850a9d63cc80308573bf9",
+      "timestamp": "2026-11-15T08:38:17.149Z"
+    },
+    {
+      "path": "page-298000.geojson",
+      "startIndex": 298000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1221917,
+      "sha256": "b65f1b63ea2f188d382ed938d217d0495c05e4987c06546d148442455eee1c36",
+      "timestamp": "2026-11-15T08:38:17.917Z"
+    },
+    {
+      "path": "page-300000.geojson",
+      "startIndex": 300000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1104265,
+      "sha256": "43837dcee4e6a930e7f47adde40fe9aa09356383be4d4d8b4bddd4dbfe5172ce",
+      "timestamp": "2026-11-15T08:38:19.488Z"
+    },
+    {
+      "path": "page-302000.geojson",
+      "startIndex": 302000,
+      "count": 2000,
+      "matched": 304149,
+      "bytes": 1159386,
+      "sha256": "317e0f084dab424b74f12d59b677b387fd4d1409131d681c37d5a932e5c791c7",
+      "timestamp": "2026-11-15T08:38:20.856Z"
+    },
+    {
+      "path": "page-304000.geojson",
+      "startIndex": 304000,
+      "count": 149,
+      "matched": 304149,
+      "bytes": 90832,
+      "sha256": "433249751453a3beccdcd925415c84758184ec12a01e8b9c0b7d2e14ecaf06ba",
+      "timestamp": "2026-11-15T08:38:21.571Z"
+    }
+  ]
+}

@@ -336,7 +336,7 @@
       for (const g of [m.sortie.gain, pneus.g1.gain, pneus.g2.gain, vib.g.gain, herbe.g.gain, ...voix.map(v => v.sortie.gain)]) vise(g, 0, t, 0.03);
     }
     function reprendre() { enPause = false; }
-    function stats() { return { actif: pret, voix: pret ? 1 + voix.filter(v => v.id >= 0).length : 0, musique: musiqueOn }; }
+    function stats() { return { actif: pret, voix: pret ? 1 + voix.filter(v => v.id >= 0).length : 0, musique: musiqueOn, gainMoteur: m?.sortie.gain.value||0, frequenceMoteur: m?.o1.frequency.value||0 }; }
 
     return { demarrer, regler, mettreAJour, evenement, musique, suspendre, reprendre, stats };
   }

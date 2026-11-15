@@ -1,0 +1,35 @@
+{
+  "checks": [
+    "Débris street à4000,-3000 : chute sur sol local3,5m, géométrie visible et collider conservés",
+    "Sauvegarde/reprise : une copie par corps, scene street conservée et moteur recalculé",
+    "Migration hors zone1024m avec reconstruction source : aucun corps perdu ni doublon",
+    "Morceaux proches de couture partagent le moteur ;24moteurs maximum et grilles1280m maximum",
+    "Dommages cityStream routés vers débris FERRO natifs ; fallback props normal si inchangé"
+  ],
+  "floor": 3.794724906648167,
+  "zones": [
+    {
+      "key": "street:0,0",
+      "scene": "street",
+      "bounds": {
+        "minX": -128,
+        "maxX": 1152,
+        "minZ": -128,
+        "maxZ": 1152
+      },
+      "bodies": 1
+    },
+    {
+      "key": "street:1,0",
+      "scene": "street",
+      "bounds": {
+        "minX": 896,
+        "maxX": 2176,
+        "minZ": -128,
+        "maxZ": 1152
+      },
+      "bodies": 1
+    }
+  ],
+  "cap": 24
+}

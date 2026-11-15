@@ -1,0 +1,15 @@
+# Hostilité, peur et conducteurs — 0.5.0
+
+Les passants ordinaires accumulent de la peur à proximité des tirs et explosions. Ils gardent brièvement la position du danger, s'en éloignent en évitant les obstacles, puis reprennent leur marche lorsque la peur décroît. Les blessures aux jambes imposent le déplacement au sol ; la mort arrête les actions.
+
+Un profil de comportement **provocateur** est distribué par une graine distincte. Il n'utilise ni peau, ni sexe, ni vêtements pour décider qui agresse. Ces PNJ ne prennent pas peur aux coups de feu ou explosions. Après une courte présence à moins de cinq mètres, ils peuvent engager une agression sans provocation, approcher et frapper le joueur. La portée, la visibilité et la cadence limitent les coups. Une blessure au bras réduit leur force ; une blessure aux jambes empêche la frappe debout. Deux agressions de ce type au plus sont engagées simultanément, avec délai avant une nouvelle rencontre. L'évitement du trafic reste actif même chez un personnage sans peur.
+
+Le propriétaire civil d'un véhicule volé garde une hostilité temporaire : il peut affronter le voleur à pied ou marcher vers une portière pour reprendre son véhicule. Il doit réellement atteindre une portière libre et rester près d'un véhicule presque arrêté ; il ne peut pas l'obtenir à distance. Un propriétaire ordinaire peut abandonner cette tentative face aux tirs, explosions ou blessures. Le profil provocateur conserve une peur nulle, mais ne peut pas remonter avec une blessure incapacitante aux jambes. Les policiers conservent leur logique d'interpellation distincte.
+
+Les conducteurs et pilotes présents dans leur véhicule peuvent être atteints. Les tirs testent les volumes anatomiques assis et les panneaux du modèle procédural. Les vitres ordinaires sont traversables ; une carrosserie opaque ou un bâtiment devant la cible bloque le tir. Un headshot tue, un bras ou une jambe inflige une blessure localisée. Le véhicule privé de contrôle freine jusqu'à s'arrêter ; un pilote de deux-roues tué tombe au sol. Les vitres de l'auto touchée sont retirées globalement dans cette version. Le corps mort dans l'habitacle n'a pas encore de pose affaissée dédiée.
+
+La passe GPU de foule vient de Point de rupture. Sa séparation hostilité/relations a servi de référence conceptuelle ; la peur et les réactions de propriétaires décrites ici sont du code EMPRISE, pas un transfert annoncé à tort d'un module de peur complet de Point de rupture. La conduite reprend la base physique de BITUME et les dégâts le combat de METAL.
+
+L'économie civile/crime/police d'[Altis Life](https://github.com/AsYetUntitled/Framework) reste une référence de conception. Cette version est un sandbox solo persistant ; elle ne reproduit pas encore la totalité des métiers, licences et systèmes multijoueurs du framework Arma 3.
+
+Validation : `drivers.mjs`, `crowd.mjs` et `drivers-browser.py`. Le navigateur reçoit un vrai clic pour le tir et une vraie touche E pour le vol dans des rencontres préparées. Les déplacements de récupération et l'agression sont réalisés par la simulation normale.

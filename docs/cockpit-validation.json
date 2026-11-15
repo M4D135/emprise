@@ -1,0 +1,28 @@
+{
+  "checks": [
+    "Keyboard E enters the actual parked vehicle",
+    "Cockpit FOV 60, procedural hands and sleeves",
+    "Keyboard W acceleration produces automatic BITUME gear change",
+    "Captured right-hand grip on moving shifter and return to wheel",
+    "No gear/speed/time mutation and no JS errors"
+  ],
+  "before": {
+    "x": 78.3,
+    "z": 130,
+    "v": 0,
+    "time": 0.5500000000000005
+  },
+  "shift": {
+    "gear": 2,
+    "speed": 13.906979624012806,
+    "time": 3.433333333333324,
+    "phase": 0.3205128205128194
+  },
+  "after": {
+    "gear": 1,
+    "time": 4.716666666666691,
+    "shifting": false
+  },
+  "buildSha256": "88c9a7c5647f91ab8827a6df8f64c31cecb9837eec1326108e1a615aad99d40d",
+  "errors": []
+}

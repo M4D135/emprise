@@ -1,0 +1,30 @@
+{
+  "results": [
+    {
+      "test": "replays.mjs",
+      "passed": true,
+      "seconds": 18.21
+    },
+    {
+      "test": "build.py",
+      "passed": true,
+      "seconds": 0.08
+    },
+    {
+      "test": "attract.py",
+      "passed": true,
+      "seconds": 87.83
+    },
+    {
+      "test": "demo-cycle.py",
+      "passed": true,
+      "seconds": 33.54
+    },
+    {
+      "test": "streaming.py",
+      "passed": true,
+      "seconds": 53.74
+    }
+  ],
+  "buildSha256": "ed3d4306684bfb084929a0e9361f537263382581a15fc44014cd539565c427d1"
+}

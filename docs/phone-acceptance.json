@@ -1,0 +1,21 @@
+{
+  "checks": [
+    "Premier SMS à15s, offre unique sans rafale, lecture/conversation, vues isolées, réponse unique",
+    "Livraison liée à achat réel12€, comptoirs distincts, provision débitée une fois, cargo sauvegardé, paiement150€ sans doublon après reprise",
+    "Essai mécanique : véhicule exact, faux saut refusé,350m mesurés, distance persistante, arrêt2s et260€ uniques",
+    "Protection raccordée au vrai business : protect, rival de fixture vaincu, retour/claim obligatoire,180€ puis revenus métier",
+    "Refus conservé, intervalle120s, SMS différés pendant poursuite et tirs récents",
+    "Mort échoue sans argent, sauvegardes invalides bornées, déduplication des IDs et ledger anti-doublepaiement"
+  ],
+  "contractTypes": [
+    "delivery",
+    "vehicle",
+    "protection"
+  ],
+  "rewardEuros": {
+    "delivery": 150,
+    "vehicle": 260,
+    "protection": 180
+  },
+  "fixture": "Comptoirs et état de déplacement préparés. Achats/protection/claim et revenus exécutés par les modules business/campaign réels ; distance/arrêt du contrat testés avec positions contrôlées. Aucun test UI/manette revendiqué."
+}

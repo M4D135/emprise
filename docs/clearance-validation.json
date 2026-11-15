@@ -1,0 +1,10 @@
+{
+  "checks": [
+    "Rotated slab: empty corners of enclosing AABB remain walkable; actual plate blocks",
+    "Player enclosed by falling body escapes gradually without crossing adjacent wall or reentering debris",
+    "Raised rubble does not collide with player below it",
+    "Real1600kg falling piece: normal session recovers and forward control moves player again"
+  ],
+  "maxRecoveryStep": 0.01666666666666801,
+  "scope": "Capsule/OBB contacts and player recovery; vehicle collisions keep their conservative broad volumes."
+}

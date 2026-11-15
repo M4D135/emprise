@@ -15,7 +15,7 @@
   ],
   "traffic": {
     "seconds": 120,
-    "movingMean": 10.808333333333334,
+    "movingMean": 11.216666666666667,
     "travel": [
       {
         "model": "tmax",
@@ -25,78 +25,78 @@
       {
         "model": "r5",
         "police": false,
-        "metres": 415
+        "metres": 372
       },
       {
         "model": "gti",
         "police": false,
-        "metres": 310
+        "metres": 328
       },
       {
         "model": "tmax",
         "police": false,
-        "metres": 453
+        "metres": 597
       },
       {
         "model": "gti",
         "police": false,
-        "metres": 415
+        "metres": 377
       },
       {
         "model": "r5",
         "police": false,
-        "metres": 463
+        "metres": 520
       },
       {
         "model": "tmax",
         "police": false,
-        "metres": 763
+        "metres": 761
       },
       {
         "model": "r5",
         "police": false,
-        "metres": 490
+        "metres": 502
       },
       {
         "model": "gti",
         "police": false,
-        "metres": 405
+        "metres": 570
       },
       {
         "model": "tmax",
         "police": false,
-        "metres": 713
+        "metres": 730
       },
       {
         "model": "gti",
         "police": false,
-        "metres": 405
+        "metres": 254
       },
       {
         "model": "r5",
         "police": false,
-        "metres": 523
+        "metres": 403
       },
       {
-        "model": "tmax",
+        "model": "policebike",
         "police": true,
         "metres": 45
       },
       {
         "model": "gti",
         "police": true,
-        "metres": 533
+        "metres": 597
       },
       {
         "model": "gti",
         "police": true,
-        "metres": 73
+        "metres": 305
       }
     ]
   },
   "police": {
-    "arrestTime": 11.666666666666645,
-    "minDistance": 4.771588491715865,
+    "arrestTime": 14.458333333333153,
+    "minDistance": 4.822883849185049,
     "cash": 120
   },
   "scenario": {

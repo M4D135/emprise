@@ -50,10 +50,21 @@ with tempfile.TemporaryDirectory(prefix='rade-chrome-') as profile, tempfile.Tem
         assert ev('localStorage.getItem("rade-solo-v2")===persistBefore');assert ev('RADE.game.audio.stats.voices')==0
         for event in ['keyDown','keyUp']:cmd('Input.dispatchKeyEvent',{'type':event,'code':'Space','key':' '})
         time.sleep(.15);assert ev('RADE.game.session===liveReference');assert not ev('RADE.game.session.car.exploded')
+        start=time.monotonic()
+        while not ev('RADE.game.demo'):
+            assert time.monotonic()-start<8;time.sleep(.05)
+        fourth=ev('document.getElementById("attract-label").textContent');assert 'Patrouille' in fourth
+        start=time.monotonic()
+        while not ev('!!RADE.game.session.campaign.law.lastArrest'):
+            assert time.monotonic()-start<30;assert ev('RADE.game.demo');time.sleep(.1)
+        assert ev('RADE.game.session.interiors.active?.place?.kind')=='police'
+        assert ev('localStorage.getItem("rade-solo-v2")===persistBefore');assert ev('RADE.game.audio.stats.voices')==0
+        for event in ['keyDown','keyUp']:cmd('Input.dispatchKeyEvent',{'type':event,'code':'Space','key':' '})
+        time.sleep(.15);assert ev('RADE.game.session===liveReference');assert not ev('RADE.game.session.campaign.law.lastArrest')
         # Real pointer event enters live play after returning from the demo.
         rect=ev('(()=>{const r=document.getElementById("start").getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2}})()')
         for event in ['mousePressed','mouseReleased']:cmd('Input.dispatchMouseEvent',{'type':event,**rect,'button':'left','clickCount':1})
         time.sleep(.3);assert ev('RADE.game.running');assert not ev('RADE.game.demo');assert not ev('RADE.game.errors')
-        report={'delaySeconds':delay,'recordings':[first,second,third],'keysAndMouseReturnToTitle':True,'liveSessionUnchanged':True,'saveUnchanged':True,'livePlayAfterDemo':True,'explosionReplayValidated':True,'errors':ev('RADE.game.errors'),'url':a.url or 'file://dist/index.html','buildSha256':hashlib.sha256((root/'dist/index.html').read_bytes()).hexdigest()}
+        report={'delaySeconds':delay,'recordings':[first,second,third,fourth],'keysAndMouseReturnToTitle':True,'liveSessionUnchanged':True,'saveUnchanged':True,'livePlayAfterDemo':True,'explosionReplayValidated':True,'policeReplayValidated':True,'errors':ev('RADE.game.errors'),'url':a.url or 'file://dist/index.html','buildSha256':hashlib.sha256((root/'dist/index.html').read_bytes()).hexdigest()}
         (root/'docs/attract-validation.json').write_text(json.dumps(report,indent=2)+'\n');print(json.dumps(report,indent=2),flush=True)
     finally:chrome.fermer()

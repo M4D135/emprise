@@ -1,0 +1,25 @@
+{
+  "checks": [
+    "Flat-road acceleration and reverse",
+    "Engine damage reduces acceleration",
+    "Street handbrake cannot trigger racing turbo",
+    "Wet braking distance exceeds dry",
+    "Steering filters and recenters",
+    "Distinct R5 turbo response",
+    "Motorcycle drives and turns with finite state",
+    "Distance-driven animation stops when blocked and preserves phase when sprinting"
+  ],
+  "metrics": {
+    "distanceAt6Seconds": {
+      "gti": 81.33455272098598,
+      "r5": 82.051619572193,
+      "damaged": 37.08222376334082
+    },
+    "stoppingDistanceFrom72kmh": {
+      "dry": 18.577619908418644,
+      "wet": 23.872389207943186
+    },
+    "maxAnimationPhaseStep": 0.3455749824553678
+  },
+  "scope": "Deterministic simulation fixtures, no homologated vehicle measurements"
+}

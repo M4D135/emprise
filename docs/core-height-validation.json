@@ -1,0 +1,16 @@
+{
+  "firstApply": {
+    "applied": 3042,
+    "known": 4122
+  },
+  "secondApply": {
+    "applied": 0,
+    "known": 4122
+  },
+  "incompatiblePlanRejected": true,
+  "footprintsHolesBasesUnchanged": true,
+  "existingKnownHeightsPreserved": true,
+  "originalGeometrySha256": "06457cd480ec2d48692519e3c3007eb6ec5a6cad462da526b5e783824c3cebd7",
+  "officialReferencesChecked": 3042,
+  "overriddenFootprintsChecked": 3042
+}

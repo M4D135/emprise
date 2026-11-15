@@ -1,0 +1,175 @@
+{
+  "buildSha256": "bb36c2509e1623c22d1755f6ae75af15cd4b8f19d9af99992beb1f8e695f0671",
+  "temporaryBuild": true,
+  "checks": [
+    "World near plane is bounded by actual wall clearance",
+    "Weapon retains overlayNear=.035 with free world near=.15",
+    "Real keyboard entry/exit into existing parked car and cockpit camera",
+    "Eight-centimetre camera-wall fixture keeps the wall before the near plane",
+    "Third-person camera retracts against real wall without showing the body",
+    "Bonne-Mère road/night-shell comparison after actual chunk loading"
+  ],
+  "free": {
+    "pos": [
+      74.5,
+      1.7000000000000002,
+      130
+    ],
+    "yaw": 1.5707963267948966,
+    "pitch": 0,
+    "roll": 0,
+    "fov": 74,
+    "thirdPerson": false,
+    "zoom": 0,
+    "clearance": 0,
+    "near": 0.15,
+    "overlayNear": 0.035,
+    "far": 26000,
+    "allStatic": true,
+    "chunked": true,
+    "sun": {
+      "center": [
+        99.5,
+        0.08,
+        130
+      ],
+      "extent": 110,
+      "depth": 150
+    },
+    "overlayModels": 60
+  },
+  "cockpit": {
+    "pos": [
+      78.02052972638276,
+      1.1800000000000002,
+      130.5175870614344
+    ],
+    "yaw": -0.12120367320510339,
+    "pitch": -0.13,
+    "roll": 0,
+    "fov": 60,
+    "near": 0.035,
+    "overlayNear": 0.035,
+    "far": 26000,
+    "allStatic": true,
+    "chunked": true,
+    "sun": {
+      "center": [
+        75.27732156420325,
+        0.08,
+        105.18340444231382
+      ],
+      "extent": 110,
+      "depth": 150
+    },
+    "overlayModels": 0
+  },
+  "wallFixture": {
+    "x": -236.6022040555368,
+    "z": -305.52454827753303,
+    "y": 0.08,
+    "nx": -0.04407516990632266,
+    "nz": -0.9990282175182685,
+    "yaw": 3.0975032009721093,
+    "ray": 0.41999999999998217
+  },
+  "wallFoot": {
+    "pos": [
+      -236.6022040555368,
+      1.7000000000000002,
+      -305.52454827753303
+    ],
+    "yaw": 3.0975032009721093,
+    "pitch": 0,
+    "roll": 0,
+    "fov": 74,
+    "thirdPerson": false,
+    "zoom": 0,
+    "clearance": 0,
+    "near": 0.15,
+    "overlayNear": 0.035,
+    "far": 26000,
+    "allStatic": true,
+    "chunked": true,
+    "sun": {
+      "center": [
+        -235.5003248078787,
+        0.08,
+        -280.5488428395763
+      ],
+      "extent": 110,
+      "depth": 150
+    },
+    "overlayModels": 60
+  },
+  "wallClose": {
+    "pos": [
+      -236.58721849776865,
+      1.7000000000000002,
+      -305.1848786835768
+    ],
+    "yaw": 3.0975032009721093,
+    "pitch": 0,
+    "fov": 74,
+    "far": 26000,
+    "allStatic": true,
+    "chunked": true,
+    "overlayNear": 0.035,
+    "near": 0.05499999999997695,
+    "overlayModels": 60
+  },
+  "retracted": {
+    "pos": [
+      -236.59162601475927,
+      1.7000000000000002,
+      -305.2847815053287
+    ],
+    "yaw": 6.239095854561903,
+    "pitch": 0,
+    "roll": 0,
+    "fov": 74,
+    "thirdPerson": false,
+    "zoom": 3.8,
+    "clearance": 0.23999999999998128,
+    "near": 0.15,
+    "overlayNear": 0.035,
+    "far": 26000,
+    "allStatic": true,
+    "chunked": true,
+    "sun": {
+      "center": [
+        -237.70408330319486,
+        0.08,
+        -330.50025371548975
+      ],
+      "extent": 110,
+      "depth": 150
+    },
+    "overlayModels": 60
+  },
+  "scenic": {
+    "pos": [
+      -45.4748537925,
+      203,
+      1251.4844574361
+    ],
+    "yaw": -2.2508943606282967,
+    "pitch": -0.11384545792741649,
+    "fov": 62,
+    "far": 26000,
+    "allStatic": true,
+    "chunked": true,
+    "overlayNear": 0.035,
+    "near": 0.15,
+    "overlayModels": 60
+  },
+  "nearPlaneCpu": {
+    "n": 145,
+    "p50Ms": 0,
+    "p95Ms": 0.10000002384185791,
+    "maxMs": 0.10000002384185791,
+    "meanMs": 0.021379312153520257
+  },
+  "errors": [],
+  "limits": "Initial positions and scenic cameras are prepared fixtures, disclosed here. Images require visual review. The adaptive-near benchmark covers actual game frames through free/cockpit/wall/retracted views; the final scenic camera is fixed."
+}

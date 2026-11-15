@@ -1,0 +1,121 @@
+{
+  "checks": [
+    "C sélectionne orientation ; A/D tournent réellement la manivelle et la voile",
+    "Y sélectionne déploiement ; RT/LT analogiques hissent et affalent",
+    "Voile pleine et portée : déplacement au vent, gouvernail effectif, moteur joueur silencieux",
+    "F démarre/arrête le petit moteur ; régime et gain WebAudio suivent son état",
+    "Canot et jet-ski : accélération clavier, déplacement mesuré et moteur audible via gain WebAudio"
+  ],
+  "measurements": {
+    "sail": {
+      "speed": 1.1021667834480149,
+      "catch": 0.9571401948774007,
+      "angle": 0.73,
+      "deployment": 1,
+      "audio": {
+        "actif": true,
+        "voix": 4,
+        "musique": false,
+        "gainMoteur": 0,
+        "frequenceMoteur": 0
+      },
+      "hud": "Voile 100 % · tribord 42°"
+    },
+    "auxiliary": {
+      "speed": 1.674546855632881,
+      "engineRpm": 750,
+      "audio": {
+        "actif": true,
+        "voix": 4,
+        "musique": false,
+        "gainMoteur": 0.23101076483726501,
+        "frequenceMoteur": 25.005451202392578
+      }
+    },
+    "motorboat": {
+      "speed": 5.805000000000006,
+      "audio": {
+        "actif": true,
+        "voix": 4,
+        "musique": false,
+        "gainMoteur": 0.23101076483726501,
+        "frequenceMoteur": 25.009737014770508
+      },
+      "x": -8000,
+      "z": 5005.780812499999
+    },
+    "jetski": {
+      "speed": 9.179999999999998,
+      "audio": {
+        "actif": true,
+        "voix": 4,
+        "musique": false,
+        "gainMoteur": 0.23101076483726501,
+        "frequenceMoteur": 25.015153884887695
+      },
+      "x": -8000,
+      "z": 5009.141750000001
+    }
+  },
+  "metrics": {
+    "frame": {
+      "n": 1675,
+      "p50": 16.69999999999709,
+      "p95": 17
+    },
+    "cpu": {
+      "n": 1675,
+      "p50": 1.300000011920929,
+      "p95": 6.299999952316284
+    },
+    "resolution": [
+      1440,
+      900
+    ],
+    "pedestrians": 480,
+    "traffic": 15,
+    "renderer": {
+      "drawCalls": 48,
+      "triangles": 32478,
+      "instances": 771,
+      "contextLost": false,
+      "webglVersion": 2,
+      "backend": "webgl2",
+      "bloom": true,
+      "shadows": true,
+      "pbrLayers": 2,
+      "staticTotal": 224441,
+      "biome": "ville",
+      "worldRevision": 0,
+      "chunks": 7906,
+      "chunkBuildBytes": 14364224,
+      "renderScale": 1,
+      "pixelRatio": 1,
+      "width": 1440,
+      "height": 900,
+      "msaa": 4,
+      "viewDistance": 64,
+      "staticVisible": 26,
+      "staticCulled": 224415,
+      "dynamicLights": 0,
+      "blackoutLights": 0,
+      "shadowMaps": 1,
+      "shadowMode": "sun-atlas",
+      "uploadBytes": 16960,
+      "fxInstances": 16,
+      "crowdInstances": 0,
+      "pdrLotInstances": 0,
+      "shadowChunks": 3,
+      "shadowStatic": 7,
+      "visibleChunks": 22,
+      "lotsVisibles": 0,
+      "reflections": true,
+      "reflectionSteps": 48
+    },
+    "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/157.0.0.0 Safari/537.36"
+  },
+  "errors": [],
+  "fixture": "Positions en pleine mer préparées ; météo standard du jeu (le hook météo du script ne remplaçait pas tick lors de cette exécution). Clavier réel, Gamepad API virtuelle (aucune manette physique). Gain audio mesuré, aucune écoute humaine revendiquée. Calme plat et polaires de voile couverts séparément par tests/sailing.mjs.",
+  "buildSha256": "6ace258819d07eed4f086670e4f67a008f7fdbc703dd6e4b651e6f24cd3097d5",
+  "weatherFixtureApplied": false
+}

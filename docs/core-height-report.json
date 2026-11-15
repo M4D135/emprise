@@ -1,0 +1,26 @@
+{
+  "originalCount": 5274,
+  "originalKnown": 1080,
+  "originalUnknown": 4194,
+  "matched": 3042,
+  "knownAfter": 4122,
+  "unknownAfter": 1152,
+  "knownAreaFractionBefore": 0.3589,
+  "knownAreaFractionAfter": 0.8813,
+  "methods": {
+    "Photogrammétrie": 5,
+    "Corrélation": 2406,
+    "BDTopo": 1,
+    "Interpolation bâti BDTopo": 630
+  },
+  "rejections": {
+    "noReliableMatch": 1152
+  },
+  "planFingerprint": 1651787597,
+  "source": "IGN BD TOPO WFS BDTOPO_V3:batiment",
+  "licence": "Licence Ouverte 2.0",
+  "coordinatesUnchanged": true,
+  "groundApplied": false,
+  "outputBytes": 211539,
+  "outputSha256": "588ba0145880db5d49b6da8953b7b0e4128025442edac074c6aadc93c29c265a"
+}

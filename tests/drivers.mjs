@@ -1,0 +1,23 @@
+import './load.mjs';import assert from 'node:assert/strict';import fs from 'node:fs';
+const checks=[];
+const s=RADE.session.create({pedestrians:0});s.world.fleet.forEach(c=>{c.x=400;c.z=-400;c.ai=false;});s.sim.state.enemies.forEach(e=>e.deployed=false);
+for(const model of ['gti','r5','policebike','tmax']){
+ const c=s.world.fleet.find(c=>c.model===model);Object.assign(c,{x:61.5,z:181,cap:0,y:.08,ai:true,condition:null,driver:{id:14000+c.id,inside:true,hp:100,civil:true,radeCivil:true}});
+ const head=RADE.vehicles.SPECS[model].two?RADE.vehicles.model(model).contacts().head:[-.34,1.10,-.34],at=head.map((n,k)=>n+[c.x,.08,c.z][k]),origin=[at[0],at[1],at[2]-5],hit=s.injuries.trace(origin,[0,0,1],10);assert.equal(hit.victim,c.driver);assert.equal(hit.zone,'head');
+ if(!RADE.vehicles.SPECS[model].two){const roof=s.injuries.trace([at[0],4,at[2]],[0,-1,0],6);assert.equal(roof.victim,null,'metal roof blocks a shot from above');}
+ s.sim.relocate(at[0],at[2]-5,Math.PI);s.player.pitch=Math.atan2(at[1]-(s.player.y+1.62),5);s.sim.state.inventory.ammo[0]=180;s.sim.fire();assert.equal(c.driver.hp,0,'real weapon shot kills seated driver');assert(!c.ai&&!c.moteur);if(RADE.vehicles.SPECS[model].two)assert(!c.driver.inside,'dead rider falls off');else assert(c.glassBroken);
+ c.x=400;c.z=-400;checks.push(model+': seated head reachable; real headshot; engine and AI stopped');
+}
+// An exposed motorcycle limb is wounded without killing; bodywork still protects covered volumes.
+const moto=s.world.fleet.find(c=>c.model==='policebike');Object.assign(moto,{x:61.5,z:181,cap:0,y:.08,ai:true,driver:{id:14000+moto.id,inside:true,hp:100,civil:true,radeCivil:true}});const meshes=[];RADE.vehicles.render(moto,meshes,{rider:true});
+const arm=meshes.filter(m=>m.actorZone==='arm').sort((a,b)=>b.p[1]-a.p[1])[0],origin=[arm.p[0],arm.p[1],arm.p[2]-5],hit=s.injuries.trace(origin,[0,0,1],6);assert.equal(hit.victim,moto.driver);assert.equal(hit.zone,'arm');s.injuries.hurtCivil(hit.victim,1,hit.zone);assert(moto.driver.hp>0&&moto.driver.hp<100&&moto.driver.injury.arm);checks.push('Exposed rider arm wounded without death');
+s.world.addMesh({shape:'box',p:[61.3,1.5,178],s:[4,3,.2],mat:3});assert.equal(s.injuries.trace([61.3,1.63,176],[0,0,1],10).victim,null);checks.push('Opaque building wall blocks driver shot');
+function setup(){const q=RADE.session.create({pedestrians:0});q.sim.state.enemies.forEach(e=>e.deployed=false);const c=q.traffic.cars.find(c=>!c.police&&c.model==='gti');q.world.fleet.forEach(v=>{v.x=450;v.z=-450;v.ai=false;});Object.assign(c,{x:61.5,z:181,cap:0,y:.08,ai:true,u:0,w:0,v:0});q.sim.relocate(61.5,179.55,0);assert(q.interact());assert.equal(q.car,c);return {q,c,e:c.driver};}
+let f=setup();for(let i=0;i<600&&f.q.mode==='car';i++)f.q.update(1/120,{});assert.equal(f.q.mode,'foot','owner removes stationary thief at physical door');assert(f.e.inside&&f.c.ai);checks.push('Owner walks to stopped vehicle and physically reclaims it');
+f=setup();assert(f.q.interact());for(let i=0;i<480;i++)f.q.update(1/120,{});assert(f.q.player.hp<100,'nearby angry owner actually strikes player');checks.push('Owner confronts and strikes thief on foot');
+f=setup();for(let i=0;i<240;i++)f.q.injuries.update(1/120,i%30===0?[{name:'shot',x:f.q.player.x,z:f.q.player.z}]:[]);assert(f.e.fear>.62&&f.e.reaction==='flee');assert(!f.e.inside);checks.push('Nearby repeated gunfire raises fear and interrupts reclamation');
+const saved=f.q.save(),again=RADE.session.create({pedestrians:0,saved,now:saved.savedAt}),restored=again.world.fleet.find(c=>c.id===f.c.id).driver;assert(restored.fear>.62&&!restored.inside);assert(restored.grievance>0);checks.push('Hostility/fear and displaced driver survive save and reload');
+fs.writeFileSync(new URL('../docs/drivers-validation.json',import.meta.url),JSON.stringify({checks,limits:'Seated ellipsoids and oriented procedural body panels; normal glass is penetrable, no full ballistics or ragdoll'},null,2)+'\n');console.log(checks);
+
+const street=RADE.session.create({pedestrians:1}),walker=street.crowd.people[0];Object.assign(walker,{cap:1.2,hostility:1,aggression:10});const streetSave=street.save(),resume=RADE.session.create({pedestrians:1,saved:streetSave,now:streetSave.savedAt}),walkAgain=resume.crowd.people[0];assert.equal(walkAgain.cap,1.2);assert.equal(walkAgain.yaw,undefined,'Restored pedestrians keep using their live navigation heading');
+const legacySession=RADE.session.create({pedestrians:1,expanded:false}),passer=legacySession.crowd.people[0];Object.assign(passer,{x:legacySession.player.x+1,z:legacySession.player.z,temperament:'provocateur',provocationCooldown:0});for(let i=0;i<180;i++)legacySession.update(1/120,{});assert.equal(passer.aggression,0);

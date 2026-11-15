@@ -1,0 +1,775 @@
+{
+  "checks": [
+    "SMS offered after natural 15-second game timer, known addresses, keyboard O, pointer accept, accepted contract, D-pad up and B through Gamepad API",
+    "Pause button at left, money/wanted at right, keyboard pause/resume",
+    "Native mouse wheel moves FPS/third person; actual wall retracts camera and hides close body without ray or collision substitution",
+    "Paused, disclosed 23h/17h/12h time fixtures show Bonne-Mère from harbour and close approach, actual hill ground height, then a surviving night streetlamp",
+    "Actual renderer light list contains core and streamed streetlamp at 23h and excludes it at 12h; paired facade/window screenshots require visual review"
+  ],
+  "hardware": "Virtual standard Gamepad API in Chrome; no physical gamepad claim",
+  "initialGameTime": 0.24166666666666664,
+  "offered": {
+    "id": "sms-1",
+    "threadId": "dispatch",
+    "from": "Le répartiteur",
+    "subject": "Livraison de provisions",
+    "text": "Une provision à retirer chez Vinoneo (6 Place daviel 13002 Marseille), puis à remettre au comptoir de Pharmacie Delestrade (4 Place daviel 13002 Marseille). Prévois l’achat sur place si ton sac est vide. Forfait : 150 €.",
+    "createdAt": 15.008333333333121,
+    "read": false,
+    "status": "offered",
+    "contract": {
+      "type": "delivery",
+      "stage": "pickup",
+      "sourceKey": "building-1361/node/3535421379",
+      "targetKey": "building-1360/node/3678924584",
+      "reward": 150,
+      "cargo": false,
+      "sourceName": "Vinoneo",
+      "targetName": "Pharmacie Delestrade",
+      "sourceAddress": "6 Place daviel 13002 Marseille",
+      "targetAddress": "4 Place daviel 13002 Marseille",
+      "readout": "Retirer une provision au comptoir",
+      "hint": "6 Place daviel 13002 Marseille · achetez une provision si nécessaire"
+    }
+  },
+  "accepted": {
+    "messageId": "sms-1",
+    "type": "delivery",
+    "stage": "pickup",
+    "sourceKey": "building-1361/node/3535421379",
+    "targetKey": "building-1360/node/3678924584",
+    "reward": 150,
+    "cargo": false,
+    "sourceName": "Vinoneo",
+    "targetName": "Pharmacie Delestrade",
+    "sourceAddress": "6 Place daviel 13002 Marseille",
+    "targetAddress": "4 Place daviel 13002 Marseille",
+    "readout": "Retirer une provision au comptoir",
+    "hint": "6 Place daviel 13002 Marseille · achetez une provision si nécessaire"
+  },
+  "layout": {
+    "pause": {
+      "x": 30,
+      "y": 82,
+      "width": 26.671875,
+      "height": 28
+    },
+    "cash": {
+      "x": 1354.9453125,
+      "y": 26,
+      "width": 55.0546875,
+      "height": 22
+    },
+    "wanted": {
+      "x": 1260,
+      "y": 55.5,
+      "width": 150,
+      "height": 0
+    },
+    "width": 1440
+  },
+  "cameraWall": {
+    "pos": [
+      -236.59162601475927,
+      1.7000000000000002,
+      -305.2847815053287
+    ],
+    "yaw": -0.04408945261768376,
+    "pitch": 0,
+    "roll": 0,
+    "fov": 74,
+    "thirdPerson": false,
+    "zoom": 4.162993441995345,
+    "clearance": 0.23999999999998128
+  },
+  "terrain": {
+    "actual": 154,
+    "expected": 154,
+    "meshes": 818,
+    "nightShells": 90
+  },
+  "streetLighting": {
+    "core": {
+      "night": {
+        "night": 1,
+        "lights": [
+          {
+            "p": [
+              87.536587089465,
+              0.7999999999999999,
+              132.07013775459734
+            ],
+            "power": 93,
+            "range": 32
+          },
+          {
+            "p": [
+              88.79402173506806,
+              0.7999999999999999,
+              140.62871918576298
+            ],
+            "power": 93,
+            "range": 32
+          },
+          {
+            "p": [
+              83.14232686356921,
+              5.72,
+              133.77092130719944
+            ],
+            "power": 72,
+            "range": 19
+          },
+          {
+            "p": [
+              83.02405086821493,
+              5.72,
+              137.95550493613192
+            ],
+            "power": 72,
+            "range": 19
+          },
+          {
+            "p": [
+              76.88430547443,
+              0.7999999999999999,
+              128.1217610507313
+            ],
+            "power": 93,
+            "range": 32
+          },
+          {
+            "p": [
+              90.30245962314726,
+              5.72,
+              104.3603364972162
+            ],
+            "power": 72,
+            "range": 19
+          },
+          {
+            "p": [
+              98.72082628138554,
+              5.72,
+              159.7239626682634
+            ],
+            "power": 72,
+            "range": 19
+          },
+          {
+            "p": [
+              93.59707400839739,
+              5.72,
+              100.59828699649802
+            ],
+            "power": 72,
+            "range": 19
+          },
+          {
+            "p": [
+              72.17904030482472,
+              5.72,
+              111.07361984821524
+            ],
+            "power": 72,
+            "range": 19
+          },
+          {
+            "p": [
+              78.2370671730383,
+              5.72,
+              157.3208785564726
+            ],
+            "power": 72,
+            "range": 19
+          },
+          {
+            "p": [
+              83.71081789517352,
+              0.7999999999999999,
+              160.921602964948
+            ],
+            "power": 93,
+            "range": 32
+          },
+          {
+            "p": [
+              132.27457011986732,
+              5.72,
+              111.55853464295545
+            ],
+            "power": 72,
+            "range": 19
+          },
+          {
+            "p": [
+              114.93870839234778,
+              5.72,
+              164.21908807448497
+            ],
+            "power": 72,
+            "range": 19
+          },
+          {
+            "p": [
+              137.94953645424047,
+              5.72,
+              146.67509218113125
+            ],
+            "power": 72,
+            "range": 19
+          },
+          {
+            "p": [
+              60,
+              2.5,
+              107.4
+            ],
+            "power": 18,
+            "range": 13
+          },
+          {
+            "p": [
+              117.64177261636632,
+              5.72,
+              85.82999431074937
+            ],
+            "power": 72,
+            "range": 19
+          }
+        ]
+      },
+      "day": {
+        "night": 0,
+        "lights": [
+          {
+            "p": [
+              87.536587089465,
+              0.7999999999999999,
+              132.07013775459734
+            ],
+            "power": 53.445,
+            "range": 32
+          },
+          {
+            "p": [
+              88.79402173506806,
+              0.7999999999999999,
+              140.62871918576298
+            ],
+            "power": 53.445,
+            "range": 32
+          },
+          {
+            "p": [
+              76.88430547443,
+              0.7999999999999999,
+              128.1217610507313
+            ],
+            "power": 53.445,
+            "range": 32
+          },
+          {
+            "p": [
+              83.71081789517352,
+              0.7999999999999999,
+              160.921602964948
+            ],
+            "power": 53.445,
+            "range": 32
+          },
+          {
+            "p": [
+              150.29429944875426,
+              0.7999999999999999,
+              151.21746814801028
+            ],
+            "power": 53.445,
+            "range": 32
+          },
+          {
+            "p": [
+              151.04829032975914,
+              0.7999999999999999,
+              157.50657399632254
+            ],
+            "power": 53.445,
+            "range": 32
+          }
+        ]
+      },
+      "closeWindowFixture": {
+        "eye": [
+          121.11723238957974,
+          5,
+          140.50755615400462
+        ],
+        "target": [
+          110.07713236633994,
+          7,
+          144.2275953307957
+        ],
+        "profile": "plaster-shutters"
+      }
+    },
+    "streamed": {
+      "fixture": {
+        "lamp": {
+          "id": "city-lamp:r312495:-12594:13109",
+          "x": -1258.8395380755437,
+          "y": 5.655,
+          "z": 1311.754231666948,
+          "power": 72
+        },
+        "eye": [
+          -1266.6177126685957,
+          1.78,
+          1319.53240626
+        ]
+      },
+      "facadeShaderWalls": 54440,
+      "night": {
+        "night": 1,
+        "lights": [
+          {
+            "p": [
+              -1258.8395380755437,
+              5.505,
+              1311.754231666948
+            ],
+            "power": 72,
+            "range": 19
+          },
+          {
+            "p": [
+              -1265.1469961937657,
+              5.505,
+              1343.3183557113223
+            ],
+            "power": 72,
+            "range": 19
+          },
+          {
+            "p": [
+              -1239.2823736888172,
+              5.505,
+              1320.135791084506
+            ],
+            "power": 72,
+            "range": 19
+          },
+          {
+            "p": [
+              -1251.4388059642154,
+              5.505,
+              1355.5532983450678
+            ],
+            "power": 72,
+            "range": 19
+          },
+          {
+            "p": [
+              -1222.2323684669268,
+              5.505,
+              1310.7008038229612
+            ],
+            "power": 72,
+            "range": 19
+          },
+          {
+            "p": [
+              -1298.127666278623,
+              5.505,
+              1354.2126386502673
+            ],
+            "power": 72,
+            "range": 19
+          },
+          {
+            "p": [
+              -1207.8587597802439,
+              5.505,
+              1340.535804107723
+            ],
+            "power": 72,
+            "range": 19
+          },
+          {
+            "p": [
+              -1316.0888840769996,
+              5.505,
+              1362.6622330514247
+            ],
+            "power": 72,
+            "range": 19
+          },
+          {
+            "p": [
+              -200.28646706453316,
+              178,
+              1338.9418697186156
+            ],
+            "power": 440,
+            "range": 32
+          },
+          {
+            "p": [
+              -199.44694404461845,
+              183,
+              1353.059064946388
+            ],
+            "power": 440,
+            "range": 32
+          },
+          {
+            "p": [
+              -193.14391714865562,
+              213,
+              1339.9338277314355
+            ],
+            "power": 180,
+            "range": 19
+          },
+          {
+            "p": [
+              -192.47229873272383,
+              213,
+              1351.2275839136532
+            ],
+            "power": 180,
+            "range": 19
+          },
+          {
+            "p": [
+              -186.169271836761,
+              183,
+              1338.102346698701
+            ],
+            "power": 440,
+            "range": 32
+          },
+          {
+            "p": [
+              -185.32974881684626,
+              185,
+              1352.219541926473
+            ],
+            "power": 440,
+            "range": 32
+          },
+          {
+            "p": [
+              -177.29086521415678,
+              172,
+              1378.5929963134095
+            ],
+            "power": 380,
+            "range": 30
+          },
+          {
+            "p": [
+              -164.6848114222311,
+              172,
+              1352.342521883505
+            ],
+            "power": 380,
+            "range": 30
+          }
+        ]
+      },
+      "day": {
+        "night": 0,
+        "lights": []
+      }
+    }
+  },
+  "fixtures": [
+    {
+      "position": [
+        50,
+        85
+      ]
+    },
+    {
+      "wallPlayer": {
+        "x": -236.6022040555368,
+        "z": -305.52454827753303,
+        "yaw": -0.04408945261768376,
+        "ray": 0.41999999999998217
+      }
+    },
+    {
+      "clockHour": 23,
+      "weather": "soleil"
+    },
+    {
+      "position": [
+        100,
+        130
+      ]
+    },
+    {
+      "camera": {
+        "pos": [
+          -300,
+          8,
+          0
+        ],
+        "yaw": 3.0613201273662782,
+        "pitch": 0.13102787981544725,
+        "roll": 0,
+        "fov": 60,
+        "near": 0.035,
+        "far": 26000,
+        "allStatic": true,
+        "chunked": true
+      }
+    },
+    {
+      "position": [
+        -45.4748537925,
+        1251.4844574361
+      ]
+    },
+    {
+      "camera": {
+        "pos": [
+          -45.4748537925,
+          203,
+          1251.4844574361
+        ],
+        "yaw": -2.2508943606282967,
+        "pitch": -0.11384545792741649,
+        "roll": 0,
+        "fov": 62,
+        "near": 0.035,
+        "far": 26000,
+        "allStatic": true,
+        "chunked": true
+      }
+    },
+    {
+      "clockHour": 17,
+      "weather": "soleil"
+    },
+    {
+      "position": [
+        100,
+        130
+      ]
+    },
+    {
+      "camera": {
+        "pos": [
+          -300,
+          8,
+          0
+        ],
+        "yaw": 3.0613201273662782,
+        "pitch": 0.13102787981544725,
+        "roll": 0,
+        "fov": 60,
+        "near": 0.035,
+        "far": 26000,
+        "allStatic": true,
+        "chunked": true
+      }
+    },
+    {
+      "position": [
+        -45.4748537925,
+        1251.4844574361
+      ]
+    },
+    {
+      "camera": {
+        "pos": [
+          -45.4748537925,
+          203,
+          1251.4844574361
+        ],
+        "yaw": -2.2508943606282967,
+        "pitch": -0.11384545792741649,
+        "roll": 0,
+        "fov": 62,
+        "near": 0.035,
+        "far": 26000,
+        "allStatic": true,
+        "chunked": true
+      }
+    },
+    {
+      "clockHour": 12,
+      "weather": "soleil"
+    },
+    {
+      "position": [
+        100,
+        130
+      ]
+    },
+    {
+      "camera": {
+        "pos": [
+          -300,
+          8,
+          0
+        ],
+        "yaw": 3.0613201273662782,
+        "pitch": 0.13102787981544725,
+        "roll": 0,
+        "fov": 60,
+        "near": 0.035,
+        "far": 26000,
+        "allStatic": true,
+        "chunked": true
+      }
+    },
+    {
+      "position": [
+        -45.4748537925,
+        1251.4844574361
+      ]
+    },
+    {
+      "camera": {
+        "pos": [
+          -45.4748537925,
+          203,
+          1251.4844574361
+        ],
+        "yaw": -2.2508943606282967,
+        "pitch": -0.11384545792741649,
+        "roll": 0,
+        "fov": 62,
+        "near": 0.035,
+        "far": 26000,
+        "allStatic": true,
+        "chunked": true
+      }
+    },
+    {
+      "clockHour": 23,
+      "weather": "soleil"
+    },
+    {
+      "position": [
+        100,
+        130
+      ]
+    },
+    {
+      "camera": {
+        "pos": [
+          91.14232686356921,
+          2.5,
+          142.77092130719944
+        ],
+        "yaw": -0.7266423406817256,
+        "pitch": 0.12392983453166306,
+        "roll": 0,
+        "fov": 65,
+        "near": 0.035,
+        "far": 26000,
+        "allStatic": true,
+        "chunked": true
+      }
+    },
+    {
+      "clockHour": 12,
+      "weather": "soleil"
+    },
+    {
+      "position": [
+        121.11723238957974,
+        140.50755615400462
+      ]
+    },
+    {
+      "camera": {
+        "pos": [
+          121.11723238957974,
+          5,
+          140.50755615400462
+        ],
+        "yaw": -1.8958046438779097,
+        "pitch": 0.17001651100969187,
+        "roll": 0,
+        "fov": 66,
+        "near": 0.035,
+        "far": 26000,
+        "allStatic": true,
+        "chunked": true
+      }
+    },
+    {
+      "clockHour": 23,
+      "weather": "soleil"
+    },
+    {
+      "clockHour": 12,
+      "weather": "soleil"
+    },
+    {
+      "position": [
+        -1280,
+        1280
+      ]
+    },
+    {
+      "position": [
+        -1266.6177126685957,
+        1319.53240626
+      ]
+    },
+    {
+      "camera": {
+        "pos": [
+          -1266.6177126685957,
+          1.78,
+          1319.53240626
+        ],
+        "yaw": 0.7853981633974483,
+        "pitch": 0.25564492527793714,
+        "roll": 0,
+        "fov": 70,
+        "near": 0.035,
+        "far": 26000,
+        "allStatic": true,
+        "chunked": true
+      }
+    },
+    {
+      "clockHour": 23,
+      "weather": "soleil"
+    },
+    {
+      "clockHour": 12,
+      "weather": "soleil"
+    }
+  ],
+  "captures": [
+    "experience-phone-list.png",
+    "experience-phone-contract.png",
+    "experience-phone-accepted.png",
+    "experience-pause-layout.png",
+    "experience-third-person.png",
+    "experience-first-person.png",
+    "experience-camera-wall.png",
+    "experience-bonne-mere-port-23.png",
+    "experience-bonne-mere-near-23.png",
+    "experience-bonne-mere-port-17.png",
+    "experience-bonne-mere-near-17.png",
+    "experience-bonne-mere-port-12.png",
+    "experience-bonne-mere-near-12.png",
+    "experience-night-streetlamp.png",
+    "experience-day-streetlamp.png",
+    "experience-close-windows-night.png",
+    "experience-close-windows-day.png",
+    "experience-streamed-street-night.png",
+    "experience-streamed-street-day.png"
+  ],
+  "errors": [],
+  "buildSha256": "616770fbad1de53c0f9eea178c603cf4fc683ac908e0fa597956f58858f570aa",
+  "limits": "Scenic position/time/camera fixtures do not prove natural travel. Images require visual review; no automatic claim of architectural or terrain survey fidelity."
+}

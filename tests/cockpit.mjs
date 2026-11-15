@@ -1,0 +1,23 @@
+import './load.mjs';
+import assert from 'node:assert/strict';
+const V=RADE.vehicles,dist=(a,b)=>Math.hypot(...a.map((v,i)=>v-b[i])),near=(a,b,e=1e-7)=>assert(Math.abs(a-b)<e,`${a} != ${b}`),car=()=>Object.assign(BITUME.conduite.creer(0,0,0),{model:'gti',color:'#bb2729',y:.08,moteur:true});
+const c=car();
+for(const steer of [-1,-.75,-.5,0,.5,.75,1]){
+ c.volant=steer;const pose=V.cockpitPose(c,0);near(pose.turn,steer*1.7);assert(!pose.shifting);
+ for(const arm of pose.arms){near(dist(arm.shoulder,arm.elbow),V.COCKPIT.upperArm);near(dist(arm.elbow,arm.wrist),V.COCKPIT.forearm);assert(arm.reach<V.COCKPIT.upperArm+V.COCKPIT.forearm);near(dist(arm.hand.contact,V.COCKPIT.wheel),V.COCKPIT.rim);assert(arm.elbow[1]>.40&&arm.elbow[1]<1.05);assert(Math.abs(arm.elbow[2])<.72,'elbow stays inside cabin');}
+}
+c.volant=.6;const initial=V.cockpitPose(c,1),physicsBefore=JSON.stringify(c);V.cockpitPose(c,1.01);assert.equal(JSON.stringify(c),physicsBefore,'render pose must not change the vehicle simulation');c.rapport=2;const start=V.cockpitPose(c,1.02);assert(start.shifting);assert(dist(start.right.wrist,initial.right.wrist)<1e-7,'gesture starts continuously');
+let previous=start;for(let n=1;n<=96;n++){const pose=V.cockpitPose(c,1.02+n/120);assert(dist(pose.right.wrist,previous.right.wrist)<.065,'no arm teleport between fixed steps');for(const arm of pose.arms){near(dist(arm.shoulder,arm.elbow),V.COCKPIT.upperArm);near(dist(arm.elbow,arm.wrist),V.COCKPIT.forearm);assert(arm.reach<.66);}if(n>=28&&n<=55)near(dist(pose.right.contact,pose.knob),0);previous=pose;}
+assert(!previous.shifting);near(dist(previous.right.contact,V.COCKPIT.wheel),V.COCKPIT.rim);assert(previous.knob[0]<initial.knob[0],'second gear lever is behind first gear in H gate');near(previous.knob[2],initial.knob[2]);
+// Interrupted changes continue from the current hand position, not from a fresh grip.
+c.rapport=3;const third=V.cockpitPose(c,1.84),moving=V.cockpitPose(c,1.96);c.rapport=4;const fourth=V.cockpitPose(c,1.96);near(dist(moving.right.wrist,fourth.right.wrist),0);near(dist(moving.knob,fourth.knob),0);const settled=V.cockpitPose(c,2.8);assert(!settled.shifting);assert(settled.knob[2]>initial.knob[2]);
+c.arriere=true;const reverse=V.cockpitPose(c,2.81);assert(reverse.shifting);assert.equal(reverse.gear,-1);const r=V.cockpitPose(c,3.61);assert(!r.shifting);assert(r.knob[0]<-.05&&r.knob[2]>.06);c.arriere=false;c.rapport=5;assert(!V.cockpitPose(c,10).shifting,'offscreen time gaps reset cosmetic animation');assert(!V.cockpitPose(c,0).shifting,'replay time rewind resets cosmetic animation');
+for(const model of ['gti','r5']){
+ const vehicle=car();vehicle.model=model;vehicle.cap=.72;vehicle.tangage=.08;vehicle.roulis=-.05;const out=[];V.render(vehicle,out,{cockpit:true,time:0});const driver=out.filter(m=>m.cockpitDriver);assert(driver.length>40&&driver.length<90,'bounded close driver geometry');for(const m of out)assert(m.p.every(Number.isFinite)&&m.s.every(n=>Number.isFinite(n)&&n>0)&&(!m.r||m.r.every(Number.isFinite)));assert.equal(out.filter(m=>m.cockpitPart==='gear-knob').length,1,'single moving knob');assert(!out.some(m=>m.window));
+ const pose=V.cockpitPose(vehicle,0),matrix=BITUME.voiture.attitude(vehicle.cap,vehicle.tangage,vehicle.roulis),knob=out.find(m=>m.cockpitPart==='gear-knob'),expected=BITUME.voiture.mul(matrix,pose.knob).map((v,i)=>v+[vehicle.x,vehicle.y,vehicle.z][i]);near(dist(knob.p,expected),0);
+ const outside=[];V.render(vehicle,outside,{cockpit:false,time:0});assert(!outside.some(m=>m.cockpitDriver),'no duplicate drivers in chase/traffic view');assert(outside.some(m=>m.window));
+}
+for(const model of ['bike','scooter','tmax','policebike']){const vehicle=car();vehicle.model=model;const out=[];V.render(vehicle,out,{cockpit:true,rider:true,time:0});assert(!out.some(m=>m.cockpitDriver),'car arms must not enter two-wheeler branches');}
+// A real drivetrain gear transition, not a synthetic animation timer, starts the pose.
+const actual=car(),world={ground:()=>.08,surface:()=>({mu:1.15,type:'piste'}),moveVehicle(c,dx,dz,cap){c.x+=dx;c.z+=dz;c.cap=cap;return null;}};let time=0,seen=false;V.cockpitPose(actual,0);for(let n=0;n<6000&&!seen;n++){const old=actual.rapport;V.step(actual,{gaz:1,volant:0,frein:0},world,1/120);time+=1/120;const pose=V.cockpitPose(actual,time);if(actual.rapport!==old){assert(pose.shifting);assert.equal(pose.gear,actual.rapport);seen=true;}}assert(seen,'actual acceleration produces a gear change');
+console.log('PASS cockpit: fixed articulated arm lengths, real steering/gear/reverse, hand/knob contact, continuous interrupt/return, time reset, world transform, bounded geometry, preserved two-wheelers');

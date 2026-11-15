@@ -13,7 +13,7 @@ with Browser() as b:
  tap('KeyJ');assert ev('RADE.game.panel')=='notebook';assert ev('document.getElementById("cityplan").hidden');assert 'adresses sous contrôle' in ev('document.getElementById("notebook-summary").textContent');b.capture('notebook-network.png');tap('KeyJ');assert ev('RADE.game.panel') is None
  ev('s.business.inventory.bandage=1;s.player.hp=50;true');tap('KeyJ');click('#notebook-inventory button');assert ev('s.business.inventory.bandage')==0;assert ev('s.player.hp')==85;assert ev('RADE.game.panel') is None;checks.append('Carnet par J, lecture sans carte, soin consommé depuis le carnet')
  # A reserve enemy and a clear shooting lane are prepared; damage comes from a real mouse click.
- ev('''globalThis.target=s.sim.state.enemies[s.business.slots[0]];const xy=s.world.freeNear(74,134,.6);Object.assign(target,{x:xy[0],z:xy[1],baseY:.08,y:1.43,hp:1,deployed:true,combatEnabled:false,injury:null,alert:0});
+ ev('''s.sim.state.inventory.ammo[0]=100;globalThis.target=s.sim.state.enemies[s.business.slots[0]];const xy=s.world.freeNear(74,134,.6);Object.assign(target,{x:xy[0],z:xy[1],baseY:.08,y:1.43,hp:1,deployed:true,combatEnabled:false,injury:null,alert:0});
  let spot;for(let i=0;i<24&&!spot;i++){const a=i*Math.PI/12,q=s.world.freeNear(target.x+Math.cos(a)*3,target.z+Math.sin(a)*3,.35),dx=target.x-q[0],dz=target.z-q[1],d=Math.hypot(dx,dz);if(d>2&&d<5&&s.world.ray([q[0],1.43,q[1]],[dx/d,0,dz/d],d)>=d-.1)spot=q;}
  if(!spot)throw Error('No combat test lane');s.sim.relocate(spot[0],spot[1]);const dx=target.x-s.player.x,dz=target.z-s.player.z;s.player.yaw=Math.atan2(dx,-dz);s.player.pitch=Math.atan2(target.y-(s.player.y+1.62),Math.hypot(dx,dz));s.loot.update();true''');time.sleep(.2)
  shots=ev('s.sim.state.shots')

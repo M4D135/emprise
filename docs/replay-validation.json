@@ -2,19 +2,19 @@
   {
     "label": "Tir et conduite · clavier / souris réels",
     "source": "tests/inputs.py / événements Chromium clavier et souris",
-    "ticks": 1471,
-    "duration": 12.258333333333333,
-    "recordingSha256": "d74defc8f5f0ce1862d12ecc6b9110dec40c2653e77d6df4fd5c457a4aade1ea",
+    "ticks": 1659,
+    "duration": 13.825,
+    "recordingSha256": "a709c347f387aae0038781a2356ce62fe33bd2ba11fd91f0b01453459de28251",
     "expected": {
-      "shots": 11,
+      "shots": 10,
       "mode": "foot",
       "player": [
-        76.32274657833733,
-        125.79637769933515
+        75.88746539026201,
+        122.22266073678742
       ],
       "car": [
-        77.76657610788351,
-        125.6205182679405
+        77.33129491980819,
+        122.04680130539276
       ],
       "cash": 200
     },
@@ -23,9 +23,9 @@
   {
     "label": "Commerce contesté · session de test validée",
     "source": "tests/sandbox-browser.py / tests/sandbox-scenario.js",
-    "ticks": 1959,
-    "duration": 16.325,
-    "recordingSha256": "c4d0b30669bf4ea1c5c60449393f58de2db61dfbf21ee749dcdd7bdb3919b33e",
+    "ticks": 1961,
+    "duration": 16.341666666666665,
+    "recordingSha256": "921c75f6858450a11dd4e501719968d3e2f18af20236576ec316c0cb27a50f62",
     "expected": {
       "shots": 8,
       "mode": "foot",
@@ -46,9 +46,9 @@
   {
     "label": "Véhicule sous le feu · test de destruction",
     "source": "tests/explosion-browser.py (fixture préparée, puis tirs simulés réels)",
-    "ticks": 4121,
-    "duration": 34.34166666666667,
-    "recordingSha256": "a055a84d577b74c3c5df45a69bdc26d61fb63b802ee5a779ed1fb27228ee7076",
+    "ticks": 4120,
+    "duration": 34.333333333333336,
+    "recordingSha256": "e0348ce6b2c59328777babea9299ee8fb4d106b8e4fb5417c05abaa1dce3f6e9",
     "expected": {
       "shots": 73,
       "mode": "foot",
@@ -63,6 +63,34 @@
       "cash": 200,
       "exploded": true,
       "explosions": 1
+    },
+    "validated": true
+  },
+  {
+    "label": "Patrouille à pied · interpellation de nuit",
+    "source": "tests/police-demo.py / heure23h préparée, clic réel depuis le départ normal, poursuite et arrestation par la simulation",
+    "ticks": 1889,
+    "duration": 15.741666666666667,
+    "recordingSha256": "ca4cadb9601162d274c3ab112a0c111c42d5d25768b7cee202c331e03c0a2362",
+    "expected": {
+      "shots": 1,
+      "mode": "foot",
+      "player": [
+        1000,
+        1008
+      ],
+      "car": [
+        78.3,
+        130
+      ],
+      "cash": 120,
+      "arrested": true,
+      "policeStation": true,
+      "ammo": [
+        179,
+        36,
+        12
+      ]
     },
     "validated": true
   }

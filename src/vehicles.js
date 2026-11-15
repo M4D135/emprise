@@ -123,7 +123,7 @@ function model(type='gti',color='#bb2729'){
  box([.31,.63,.075],[.15,.28,.24],dash,7,[0,0,.13]);box([.205,.58,.075],[.015,.09,.19],BLACK,7);
  for(let j=0;j<3;j++)part('cylinder',[.21,.72,-.015+j*.075],[.044,.019,.044],BLACK,7,[0,0,PI/2]);
  box([.193,.591,.07],[.006,.022,.10],[.06,.3,.26],4);box([.19,.562,.073],[.005,.01,.13],SILVER,0);
- box([-.05,.35,.06],[.62,.20,.23],dash,7);bar([-.08,.43,.06],[-.05,.64,.06],.022,BLACK,7);part('sphere',[-.05,.66,.06],[.065,.065,.065],DARK,7);
+ box([-.05,.35,.06],[.62,.20,.23],dash,7);part('bevel',[-.08,.45,.06],[.13,.08,.12],BLACK,7);for(let j=0;j<3;j++)part('bevel',[-.08,.458+j*.018,.06],[.12-j*.02,.014,.11-j*.018],DARK,7);
  bar([-.37,.42,.07],[-.2,.47,.07],.032,BLACK,7);
  const gauges=r5?[[-.52,.049,'fuel'],[-.41,.073,'rpm'],[-.24,.073,'speed'],[-.10,.047,'temp'],[-.35,.033,'boost']]:[[-.45,.075,'rpm'],[-.25,.075,'speed'],[-.57,.032,'fuel'],[-.12,.032,'temp']];
  for(const [z,rad,kind]of gauges){const gy=kind==='boost'?.803:.851;part('cylinder',[.229,gy,z],[rad*2,.008,rad*2],r5?[.17,.17,.14]:BLACK,7,[0,0,PI/2]);for(let j=0;j<11;j++){const a=-2.3+j*.46;box([.222,gy+Math.cos(a)*rad*.82,z+Math.sin(a)*rad*.82],[.006,.005,.005],[.86,.84,.71],0);} }
@@ -136,6 +136,34 @@ function model(type='gti',color='#bb2729'){
  const result={type,color,spec,pieces,interior,gauges,wr,wb,eye:[-.48,1.10,-.34]};models.set(key,result);return result;
 }
 function GLOBAL_RENDER(){return typeof FRender!=='undefined';}
+// Cosmetic driver pose follows simulation controls; no render-time changes to
+// gearbox, steering, physics, saves or civilian drivers. One WeakMap per car.
+const cockpitStates=new WeakMap(),clamp=(v,a=0,b=1)=>Math.max(a,Math.min(b,v)),smooth=v=>{v=clamp(v);return v*v*(3-2*v);},mix=(a,b,t)=>a.map((v,k)=>v+(b[k]-v)*t),add=(a,b)=>a.map((v,k)=>v+b[k]),norm=v=>{const n=Math.hypot(...v)||1;return v.map(x=>x/n);},dot=(a,b)=>a.reduce((n,v,i)=>n+v*b[i],0);
+const COCKPIT={wheel:[.10,.79,-.34],rim:.185*.87,upperArm:.34,forearm:.32,duration:.78,leverBase:[-.08,.43,.06]};
+function gearPosition(gear){if(gear===0)return [-.05,.66,.06];const reverse=gear<0,g=reverse?6:Math.max(1,Math.min(5,gear)),lane=Math.floor((g-1)/2)-1;return [-.05+(g%2?.027:-.027),.66,.06+lane*.034];}
+function wheelHand(side,turn){const a=side*PI/2+turn,radial=[0,Math.cos(a),Math.sin(a)],tangent=[0,-Math.sin(a),Math.cos(a)],contact=COCKPIT.wheel.map((v,k)=>v+radial[k]*COCKPIT.rim),at=(normal,rad,tan)=>contact.map((v,k)=>v+(k===0?-normal:0)+radial[k]*rad+tangent[k]*tan),fingers=[];
+ for(let j=0;j<4;j++){const t=(j-1.5)*.018,len=1-Math.abs(j-1.4)*.07;fingers.push([at(.023,.030,t),at(-.002,.035*len,t),at(-.025,.014,t),at(-.024,-.012*len,t)]);}
+ return {contact,wrist:at(.105,.032,0),palm:at(.044,.026,0),size:[.075,.083,.050],r:[a+PI/2,0,0],fingers,thumb:[at(.070,.015,-side*.035),at(.041,-.014,-side*.038),at(.020,-.020,-side*.021)]};
+}
+function leverHand(knob){const at=(x,y,z)=>add(knob,[x,y,z]),fingers=[];for(let j=0;j<4;j++){const z=(j-1.5)*.017;fingers.push([at(-.020,.051,z),at(.008,.044,z),at(.031,.013,z),at(.019,-.014,z)]);}return {contact:knob.slice(),wrist:at(-.110,.025,-.005),palm:at(-.039,.033,0),size:[.072,.037,.082],r:[0,0,-.2],fingers,thumb:[at(-.046,.022,-.037),at(-.025,-.003,-.037),at(.003,-.008,-.028)]};}
+function blendHand(a,b,t,lift=0){const liftPoint=p=>[p[0],p[1]+lift,p[2]],points=(a,b)=>a.map((p,i)=>liftPoint(mix(p,b[i],t)));return {contact:liftPoint(mix(a.contact,b.contact,t)),wrist:liftPoint(mix(a.wrist,b.wrist,t)),palm:liftPoint(mix(a.palm,b.palm,t)),size:mix(a.size,b.size,t),r:mix(a.r,b.r,t),fingers:a.fingers.map((f,i)=>points(f,b.fingers[i])),thumb:points(a.thumb,b.thumb)};}
+function leverTravel(a,b,t){const first=[-.05,.66,a[2]],last=[-.05,.66,b[2]];return t<1/3?mix(a,first,smooth(t*3)):t<2/3?mix(first,last,smooth((t-1/3)*3)):mix(last,b,smooth((t-2/3)*3));}
+function poseAt(car,time,state){const turn=clamp(Number(car.volant)||0,-1,1)*1.7,elapsed=time-state.start,phase=clamp(elapsed/COCKPIT.duration),shifting=elapsed>=0&&phase<1,knob=shifting?leverTravel(state.fromKnob,gearPosition(state.gear),smooth((elapsed-.22)/.25)):gearPosition(state.gear),left=wheelHand(-1,turn),wheelRight=wheelHand(1,turn);let right=wheelRight;
+ if(shifting){const grip=leverHand(knob);if(elapsed<.22){const t=smooth(elapsed/.22);right=blendHand(state.fromHand||wheelRight,grip,t,.095*4*t*(1-t));}else if(elapsed<.48)right=grip;else{const t=smooth((elapsed-.48)/.30);right=blendHand(grip,wheelRight,t,.085*4*t*(1-t));}}
+ const arms=[left,right].map((hand,i)=>{const side=i?1:-1,shoulder=[-.40,.94,-.34+side*.18],target=hand.wrist,delta=target.map((v,k)=>v-shoulder[k]),d=Math.hypot(...delta),axis=norm(delta),hint=[-.10,-.32,side*.12],bend=norm(hint.map((v,k)=>v-axis[k]*dot(hint,axis))),safe=clamp(d,.03,COCKPIT.upperArm+COCKPIT.forearm-.0001),along=(COCKPIT.upperArm**2-COCKPIT.forearm**2+safe**2)/(2*safe),height=Math.sqrt(Math.max(0,COCKPIT.upperArm**2-along**2)),elbow=shoulder.map((v,k)=>v+axis[k]*along+bend[k]*height);return {side,shoulder,elbow,wrist:target,hand,reach:d};});
+ return {gear:state.gear,turn,phase,shifting,knob,leverBase:COCKPIT.leverBase.slice(),left,right,arms};
+}
+function cockpitPose(car,time=0){time=Number.isFinite(time)?time:0;const gear=car.arriere?-1:Math.max(0,Math.min(5,Number.isFinite(car.rapport)?Math.round(car.rapport):1));let state=cockpitStates.get(car);
+ if(!state||time<state.time||time-state.time>2){state={gear,start:-Infinity,time,fromKnob:gearPosition(gear),fromHand:null};cockpitStates.set(car,state);}
+ if(gear!==state.gear){const previous=poseAt(car,time,state);state={gear,start:time,time,fromKnob:previous.knob.slice(),fromHand:previous.right};cockpitStates.set(car,state);}state.time=time;return poseAt(car,time,state);
+}
+function cockpitGeometry(pose,put){const cloth=[.065,.10,.14],cuff=[.045,.065,.085],skin=[.55,.36,.25];
+ const segment=(a,b,thickness,color,tag,shape='cylinder')=>{const d=b.map((v,i)=>v-a[i]),length=Math.hypot(...d);if(length<.00001)return;put({shape,p:a.map((v,i)=>(v+b[i])/2),s:[thickness,length+(shape==='sphere'?thickness*.55:0),thickness*.90],r:[Math.acos(clamp(d[1]/length,-1,1)),Math.atan2(d[0],d[2]),0],mat:18,color,surface:'object',cockpitDriver:true,cockpitPart:tag});};
+ for(const arm of pose.arms){const suffix=arm.side<0?'left':'right',hand=arm.hand;segment(arm.shoulder,arm.elbow,.12,cloth,'upper-arm-'+suffix,'sphere');segment(arm.elbow,arm.wrist,.088,cloth,'forearm-'+suffix,'sphere');put({shape:'sphere',p:arm.elbow,s:[.104,.102,.103],color:cloth,mat:18,cockpitDriver:true,cockpitPart:'elbow-'+suffix,surface:'object'});const direction=norm(arm.wrist.map((v,i)=>v-arm.elbow[i])),back=arm.wrist.map((v,i)=>v-direction[i]*.026);segment(back,arm.wrist,.072,cuff,'cuff-'+suffix);segment(arm.wrist,hand.palm,.045,skin,'wrist-'+suffix,'sphere');put({shape:'sphere',p:hand.palm,s:hand.size,r:hand.r,color:skin,mat:18,surface:'object',cockpitDriver:true,cockpitPart:'palm-'+suffix});
+  for(const [finger,chain]of [...hand.fingers,hand.thumb].entries())for(let j=1;j<chain.length;j++){segment(chain[j-1],chain[j],finger===4?.015:.0135,skin,'finger-'+suffix+'-'+finger+'-'+j);put({shape:'sphere',p:chain[j],s:[.014,.014,.014],color:skin,mat:18,surface:'object',cockpitDriver:true,cockpitPart:'joint-'+suffix});}
+ }
+}
+
 function render(car,out,options={}){
  const mod=model(car.model||'gti',car.color||'#bb2729'),M=BITUME.voiture.attitude(car.cap,car.tangage||0,car.roulis||0),rot=BITUME.voiture.angles(M),pos=[car.x,car.y||.16,car.z];
  function put(m){if(options.cockpit&&m.window)return;const p=BITUME.voiture.mul(M,m.p),r=BITUME.voiture.angles(BITUME.voiture.mulM(M,BITUME.voiture.euler(...(m.r||[0,0,0]))));out.push({...m,p:p.map((v,i)=>v+pos[i]),r});}
@@ -155,15 +183,22 @@ function render(car,out,options={}){
   put({...base,p:[x,y,z+side*.12],s:[mod.type==='gti'?.074:.13,.015,mod.type==='gti'?.074:.13],mat:0,color:SILVER});
  }
  // Steering wheel: three spokes in its true cabin position, driven by BITUME's filtered steering.
- const turn=(car.volant||0)*1.7,cx=.10,cy=.79,cz=-.34,rad=.185;
- put({shape:'ring',p:[cx,cy,cz],s:[rad*2,.027,rad*2],r:[0,0,PI/2],mat:7,color:BLACK,surface:'object'});
+ const pose=options.cockpit?cockpitPose(car,options.time):null,turn=clamp(Number(car.volant)||0,-1,1)*1.7,cx=.10,cy=.79,cz=-.34,rad=.185;
+ put({shape:'ring',p:[cx,cy,cz],s:[rad*2,.22,rad*2],r:[0,0,PI/2],mat:7,color:BLACK,surface:'object'});
  for(const a0 of [PI/2,-PI/2,PI]){const a=a0+turn;put({shape:'box',p:[cx,cy+Math.cos(a)*rad*.46,cz+Math.sin(a)*rad*.46],s:[.024,rad,.035],r:[a,0,0],mat:7,color:DARK,surface:'object'});}
  put({shape:'bevel',p:[cx-.018,cy,cz],s:[.05,.08,.105],r:[turn,0,0],mat:7,color:DARK,surface:'object'});
+ const knob=pose?.knob||gearPosition(car.arriere?-1:car.rapport||0),lever=knob.map((v,i)=>v-COCKPIT.leverBase[i]),leverLength=Math.hypot(...lever);
+ put({shape:'cylinder',p:knob.map((v,i)=>(v+COCKPIT.leverBase[i])/2),s:[.022,leverLength,.022],r:[Math.acos(lever[1]/leverLength),Math.atan2(lever[0],lever[2]),0],mat:7,color:BLACK,surface:'object',cockpitPart:'gear-lever'});
+ put({shape:'sphere',p:knob,s:[.065,.065,.065],mat:7,color:DARK,surface:'object',cockpitPart:'gear-knob'});
+ // Engraved H pattern stays on the knob; it is geometry, not a texture.
+ for(const z of [-.015,0,.015])put({shape:'box',p:[knob[0],knob[1]+.032,knob[2]+z],s:[.023,.0015,.002],mat:0,color:SILVER,surface:'object'});
+ put({shape:'box',p:[knob[0],knob[1]+.032,knob[2]],s:[.002,.0015,.032],mat:0,color:SILVER,surface:'object'});
+ if(pose)cockpitGeometry(pose,put);
  const rpm=car.moteur?(car.regime||900):0;
  for(const [z,r,kind]of mod.gauges){const v=kind==='speed'?Math.min(1,(car.v||0)*3.6/220):kind==='rpm'?rpm/8000:kind==='boost'?(car.gaz||0)*.9:.48,a=-2.3+v*4.6,y=kind==='boost'?.803:.851;put({shape:'box',p:[.214,y+Math.cos(a)*r*.36,z+Math.sin(a)*r*.36],s:[.006,r*.75,.004],r:[a,0,0],mat:5,color:[1,.32,.12],emissive:.25,surface:'object'});}
  return mod;
 }
 // Pre-register both geometries before the single WebGL renderer is created.
 model('gti');model('r5');
-R.vehicles={model,render,SPECS,PALETTE,rgb};
+R.vehicles={model,render,SPECS,PALETTE,rgb,cockpitPose,COCKPIT};
 })(globalThis.RADE=globalThis.RADE||{});

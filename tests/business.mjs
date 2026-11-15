@@ -26,6 +26,7 @@ function fixture(saved=null){
  return s;
 }
 let s=fixture();s.enter(s.shop);s.counter();
+assert(!s.business.act('resupply'),'unprotected merchant cannot supply the network');
 assert.equal(s.business.registry.size,2);assert.equal(s.business.slots.length,8);
 const startCash=s.campaign.state.cash;s.p.hp=60;
 assert(s.business.act('buy'));assert.equal(s.campaign.state.cash,startCash-25);assert.equal(s.business.inventory.bandage,1);
@@ -63,6 +64,9 @@ while(target.hp>0&&elapsed<12&&!s.sim.state.dead){
 }
 assert(target.hp<=0,'boss defeated with normal aim/fire');assert(s.sim.state.shots>shotsBefore);assert.equal(s.business.mission.stage,'return');assert.equal(s.business.income,0);
 s.enter(s.shop);s.counter();assert(s.business.act('claim'));assert(!s.business.act('claim'));s.business.update(0);
+assert(s.business.context().actions.some(a=>a.id==='resupply'),'protected real contract exposes fictional network supply');
+for(const [weapon,pack] of [[0,24],[1,6],[2,2]]){s.sim.state.weapon=weapon;s.sim.state.inventory.ammo[weapon]=0;const balance=s.campaign.state.cash;assert(s.business.act('resupply'));assert.equal(s.sim.state.inventory.ammo[weapon],pack);assert.equal(s.campaign.state.cash,balance-35);s.sim.state.inventory.ammo[weapon]=s.sim.ammoCaps[weapon];const fullCash=s.campaign.state.cash;assert(!s.business.act('resupply'));assert.equal(s.campaign.state.cash,fullCash);}
+checks.push('Réseau protégé : packs24/6/2 au comptoir après vrai contrat, débit35€, refus stock plein sans débit');
 const rate=s.business.income;assert(rate>0);const cash=s.campaign.state.cash;s.interiors.leave();s.business.update(60);assert(Math.abs(s.campaign.state.cash-cash-rate)<1e-6);
 report.combat={seconds:elapsed,shots:s.sim.state.shots-shotsBefore,rate};
 checks.push('Mission jouée avec tirs normaux : chef éliminé, retour au commerçant obligatoire puis revenus hors du bâtiment');

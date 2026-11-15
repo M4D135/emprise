@@ -1,16 +1,18 @@
 {
-  "delaySeconds": 5.12474400002975,
+  "delaySeconds": 5.250205207965337,
   "recordings": [
     "Tir et conduite \u00b7 clavier / souris r\u00e9els",
     "Commerce contest\u00e9 \u00b7 session de test valid\u00e9e",
-    "V\u00e9hicule sous le feu \u00b7 test de destruction"
+    "V\u00e9hicule sous le feu \u00b7 test de destruction",
+    "Patrouille \u00e0 pied \u00b7 interpellation de nuit"
   ],
   "keysAndMouseReturnToTitle": true,
   "liveSessionUnchanged": true,
   "saveUnchanged": true,
   "livePlayAfterDemo": true,
   "explosionReplayValidated": true,
+  "policeReplayValidated": true,
   "errors": [],
   "url": "file://dist/index.html",
-  "buildSha256": "c9dc3b4cdcc037c2327170257cbc6a8c713097c243e20cfead1e391eb69e27d6"
+  "buildSha256": "ed3d4306684bfb084929a0e9361f537263382581a15fc44014cd539565c427d1"
 }

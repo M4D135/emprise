@@ -1,0 +1,10 @@
+{
+  "checks": [
+    "TMAX/vélo/trottinette: front, rear, three-quarter with rider",
+    "Three close-up parked model fixtures",
+    "WebGL2 shape compilation and no JavaScript errors"
+  ],
+  "fixture": "Vehicles deliberately placed for visual review; dynamics tested separately",
+  "buildSha256": "4e241e658a62dbeacdc9904de1acad7d42b99bd4cbcbdcc4af6370a8ec20b5d3",
+  "errors": []
+}

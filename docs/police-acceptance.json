@@ -27,8 +27,8 @@
     {
       "test": "12 civils + 3 policiers, graphe et tirages initiaux identiques",
       "cars": 15,
-      "nodes": 3011,
-      "edges": 2973
+      "nodes": 4031,
+      "edges": 3985
     },
     {
       "test": "Ligne de vue réelle, point figé puis recherche locale",
@@ -72,7 +72,7 @@
       ],
       "metrics": {
         "pathRequests": 3,
-        "pathExpansions": 45,
+        "pathExpansions": 51,
         "maxPathExpansions": 34,
         "recoveries": 0
       }
@@ -94,8 +94,8 @@
       "recoveries": 1,
       "maxReverse": 1,
       "cop": [
-        -2.6694236020682927,
-        0.082015589472609
+        -2.8354185299386696,
+        0.12435165200533393
       ]
     },
     {
@@ -120,10 +120,10 @@
     },
     {
       "test": "Session réelle : tir, poursuite, interpellation",
-      "arrestTime": 11.666666666666645,
-      "minDistance": 4.771588491715865,
-      "maxJump": 0.2289871837701712,
-      "eligibleFrames": 480
+      "arrestTime": 14.458333333333153,
+      "minDistance": 4.822883849185049,
+      "maxJump": 0.20388028830110538,
+      "eligibleFrames": 56
     },
     {
       "test": "Budget saturé sur grand composant connecté",

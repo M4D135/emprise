@@ -1,0 +1,11 @@
+{
+  "checks": [
+    "Actual shots consume exactly one round",
+    "Empty weapon blocks shooting without hidden melee; dry sound rate limited",
+    "Weapon swap uses independent stocks",
+    "Checkpoint continuation and invalid data atomic refusal",
+    "Solo reserve and selected weapon persist",
+    "Older saves migrate to starter reserves",
+    "Infinite-ammo base simulations unchanged"
+  ]
+}

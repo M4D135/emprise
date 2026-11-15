@@ -1,0 +1,10 @@
+{
+  "checks": [
+    "Prepared RT police motorcycle: front, rear and three-quarter with actual officer seated",
+    "Driver outside while AI flag remains true: empty seat",
+    "WebGL2 rendering without JavaScript errors"
+  ],
+  "fixture": "Static visual placements; police pursuit and arrests tested separately",
+  "buildSha256": "4e241e658a62dbeacdc9904de1acad7d42b99bd4cbcbdcc4af6370a8ec20b5d3",
+  "errors": []
+}

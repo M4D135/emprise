@@ -91,6 +91,7 @@
   function create(world,options={}) {
     const floors=world.walkable||[],advanced=!!world.combat||world.generation>=5,horror=!!world.horrorSites?.length||world.director?.enabled===true;
     const progression=world.progression?.version===1,economyEnabled=progression&&!!G.FEconomy,nominalCombat=clamp(world.progression?.maxActive||[8,10,12][world.stage||0],2,16);
+    const finiteAmmo=progression||options.finiteAmmo===true;
     let maxCombat=nominalCombat;
     const campaign=world.campaign===true,bossProgression=campaign&&world.campaignVersion===2,arsenal=progression&&(world.progression.weaponSlots===4||campaign&&world.progression.weaponSlots===5),weaponSlots=arsenal?(campaign&&world.progression.weaponSlots===5?5:4):3,weaponIds=Array.from({length:weaponSlots},(_,i)=>i),pistol=campaign&&weaponSlots===5,armorEnabled=campaign||options.armorSystem===true||options.armor!==undefined;
     const brain=advanced&&options.brain&&typeof options.brain.evaluate==='function'?options.brain:null;
@@ -284,6 +285,7 @@
       let y=ground(x,z);
       for(const l of s.lifts)if(onLift(l,x,z)&&Math.abs(l.y-previous)<=.43)y=Math.max(y,l.y);
       if(Math.abs(y-previous)>.43)for(const list of [localSolids(x,z),doorBoxes,trapBoxes])for(const q of list)if(Math.abs(q.maxY-previous)<=.43&&discBox(x,z,r,q))y=Math.max(y,q.maxY);
+      if(world.spatial?.support)y=world.spatial.support(x,z,previous,r,y,.42);
       return y;
     }
     // Static broad phase: all gameplay bodies fit within this expansion, including
@@ -374,7 +376,7 @@
     }
     function move(e,dx,dz,r=.28){
       if(e!==p&&e.injury?.leg){dx*=.13;dz*=.13;}
-      if(e.airborne||!present(e))return;if(giant(e))r=radius(e);const height=bodyHeight(e),free=(x,z,y)=>!blocked(x,z,r,y,doorBoxes,solids,trapBoxes,height)&&!actorBlocked(e,x,z,r,y);
+      if(e.airborne||!present(e))return;if(giant(e))r=radius(e);const height=bodyHeight(e),free=(x,z,y)=>!(world.spatial?.moveBlocked?world.spatial.moveBlocked(e.x,e.z,x,z,r,y,height):blocked(x,z,r,y,doorBoxes,solids,trapBoxes,height))&&!actorBlocked(e,x,z,r,y);
       const count=Math.max(1,Math.ceil(Math.max(Math.abs(dx),Math.abs(dz))/.12));
       dx/=count;dz/=count;
       for(let j=0;j<count;j++){
@@ -435,6 +437,7 @@
       let y=ground(x,z);if(y>ceiling+.08)y=-Infinity;
       for(const l of s.lifts)if(onLift(l,x,z)&&l.y<=ceiling+.08)y=Math.max(y,l.y);
       for(const list of [localSolids(x,z),doorBoxes,trapBoxes])for(const q of list)if(q.maxY<=ceiling+.08&&discBox(x,z,r,q))y=Math.max(y,q.maxY);
+      if(world.spatial?.support)y=world.spatial.support(x,z,ceiling,r,y,.08);
       return y;
     }
     function land(e,y,impact){
@@ -1284,10 +1287,10 @@
     function fire(assist=false,hand='right'){
       if(arsenal)return fireArsenal(assist,hand==='left'?'left':'right');
       if(s.dead||s.won||fireWait>0)return false;
-      if(progression){if(!s.inventory.weapons[s.weapon])return false;if(s.inventory.ammo[s.weapon]<=0){if(emptyWait<=0){emit('empty',{weapon:s.weapon});emptyWait=1;}return melee();}}
+      if(finiteAmmo){if(!s.inventory.weapons[s.weapon])return false;if(s.inventory.ammo[s.weapon]<=0){if(emptyWait<=0){emit('empty',{weapon:s.weapon});emptyWait=1;}return progression?melee():false;}}
       if(p.overheated)return false;
       const shotgun=s.weapon===1,rocket=s.weapon===2;
-      if(progression)s.inventory.ammo[s.weapon]--;
+      if(finiteAmmo)s.inventory.ammo[s.weapon]--;
       fireWait=rocket?1.25:shotgun?.78:.165;p.heat=Math.min(1,p.heat+(rocket?.65:shotgun?.37:.12));
       if(p.heat>=.99){p.overheated=true;emit('overheat');}
       const cy=Math.cos(p.yaw),sy=Math.sin(p.yaw),cp=Math.cos(p.pitch),sp=Math.sin(p.pitch);
@@ -2183,6 +2186,7 @@
       invalidateBrain();
       return {version:1,aiVersion:4,systemsVersion:1,physicsVersion:1,directorVersion:1,bossVersion:1,destructionVersion:1,rubbleVersion:1,...(bossProgression?{reinforcementVersion:1}:{}),...(progression?{progressionVersion:1}:{}),...(economyEnabled?{economyVersion:bossProgression?2:1}:{}),...(arsenal?{arsenalVersion:pistol?2:1}:{}),...(campaign?{campaignVersion:bossProgression?2:1}:{}),...(armorEnabled?{armorVersion:1}:{}),destruction:destruction?.snapshot()||null,format:'FERRO',seed:world.seed,stage:world.stage||0,fingerprint,
         state:{...pick(s,NUMBERS),difficulty:s.difficulty,director:pick(s.director,DIRECTOR),won:s.won,dead:s.dead,bossAlive:s.bossAlive,player:pick(p,PLAYER),
+          ...(finiteAmmo&&!progression?{ammunition:{version:1,inventory:exportInventory(),emptyWait}}:{}),
           ...(economyEnabled?{economy:G.FEconomy.copy(s.economy)}:{}),
           ...(campaign?{campaign:{...exportCampaign(),trophies:s.campaign.trophies.map(t=>({...t}))}}:{}),
           ...(campaign?{adaptation:{...s.adaptation}}:{}),
@@ -2219,6 +2223,10 @@
         const economy=economyEnabled?G.FEconomy.copy(a.economy):null;if(economyEnabled)require(economy);else require(a.economy===undefined);
         const savedCaps=economyEnabled?G.FEconomy.ammoCaps(economy,{campaign:pistol}).slice(0,weaponSlots):ammoCaps,savedStats=economyEnabled?G.FEconomy.stats(economy):{...baseStats};
         let inventory=exportInventory(),encounters=null,pickupRemaining=null,loot=[],campaignState=null,adaptation=null,savedCombat=nominalCombat,savedBossFactor=1,armor=null,armorRemaining=null;
+        if(finiteAmmo&&!progression&&a.ammunition!==undefined){
+          require(a.ammunition?.version===1&&number(a.ammunition.emptyWait,0,1));
+          inventory=inventoryValue(a.ammunition.inventory,savedCaps);require(inventory&&inventory.weapons[a.weapon]);
+        }else require(a.ammunition===undefined);
         if(progression){
           inventory=inventoryValue(a.inventory,savedCaps);require(inventory&&inventory.weapons[a.weapon]);
           if(arsenal)require(a.inventory.weapons.length===weaponSlots&&a.inventory.ammo.length===weaponSlots);
@@ -2320,7 +2328,7 @@
             return {...rubbleCopy(q),structural:true,life:1e7};
           });
         }else require(a.rubble===undefined&&t.rubbleSerial===undefined);
-        const supported=(x,z,y,r=.28)=>number(y,-1000,1000)&&(Math.abs(y-ground(x,z))<.061||lifts.some(l=>onLift(l,x,z)&&Math.abs(y-l.y)<.061)||savedSolids.some(q=>Math.abs(q.maxY-y)<.061&&discBox(x,z,r,q))||savedDoors.some(q=>Math.abs(q.maxY-y)<.061&&discBox(x,z,r,q)));
+        const supported=(x,z,y,r=.28)=>number(y,-1000,1000)&&(Math.abs(y-ground(x,z))<.061||(world.spatial?.support&&Math.abs(y-world.spatial.support(x,z,y,r,ground(x,z),.06))<.061)||lifts.some(l=>onLift(l,x,z)&&Math.abs(y-l.y)<.061)||savedSolids.some(q=>Math.abs(q.maxY-y)<.061&&discBox(x,z,r,q))||savedDoors.some(q=>Math.abs(q.maxY-y)<.061&&discBox(x,z,r,q)));
         const top=Math.max(0,...floors.map(f=>(f.y||0)+Math.abs((f.slopeX||0)*f.w/2)+Math.abs((f.slopeZ||0)*f.d/2)))+24;
         function validAir(e,x,z,y){
           if(data.physicsVersion===undefined){require(AIR.every(key=>e[key]===undefined));Object.assign(e,freshAir());}
@@ -2449,7 +2457,7 @@
         giants=s.enemies.filter(giant);destruction=candidate;solids=savedSolids;seenDestructionRevision=destruction?.revision||0;s.destructionRevision++;trapStates=s.traps;trapBoxes.length=0;trapBoxes.push(...savedTrapBoxes);rebuildCollision();
         bossAttackSerial=t.bossAttackSerial||0;explosionSerial=t.explosionSerial||0;projectileSerial=t.projectileSerial||0;rubbleSerial=t.rubbleSerial||0;s.explosions=[];s.debris=rubble;debrisSleep=new WeakMap();
         s.events=[];s.particles=[];for(const j of s.jumpPads)j.flash=0;s.pulseVisual=0;s.flash=0;s.damage=0;s.hitMarker=0;s.moving=0;s.threat=0;
-        fireWait=t.fireWait;navWait=t.navWait;hazardWait=t.hazardWait;encounterWait=t.encounterWait||0;emptyWait=t.emptyWait||0;recovery=0;interactHeld=false;stopMotion(true);
+        fireWait=t.fireWait;navWait=t.navWait;hazardWait=t.hazardWait;encounterWait=t.encounterWait||0;emptyWait=t.emptyWait??a.ammunition?.emptyWait??0;recovery=0;interactHeld=false;stopMotion(true);
         Object.assign(s.aiStats,{awake:enemies.filter(e=>alive(e)&&!e.sleeping).length,dormant:enemies.filter(e=>alive(e)&&e.sleeping).length,alive:enemies.filter(e=>e.hp>0).length,pathSearches:0,pathDeferred:0});if(progression)encounterCounts();
         if(options?.recover===true&&!s.dead&&!s.won){recovery=1.4;s.bullets=s.bullets.filter(q=>Math.hypot(q.x-p.x,q.z-p.z)>=2.4);}
         updateDoorBoxes();refreshNav(false);rebuildNeighbors();updateHazards(false);return true;

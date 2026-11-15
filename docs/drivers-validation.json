@@ -1,0 +1,15 @@
+{
+  "checks": [
+    "gti: seated head reachable; real headshot; engine and AI stopped",
+    "r5: seated head reachable; real headshot; engine and AI stopped",
+    "policebike: seated head reachable; real headshot; engine and AI stopped",
+    "tmax: seated head reachable; real headshot; engine and AI stopped",
+    "Exposed rider arm wounded without death",
+    "Opaque building wall blocks driver shot",
+    "Owner walks to stopped vehicle and physically reclaims it",
+    "Owner confronts and strikes thief on foot",
+    "Nearby repeated gunfire raises fear and interrupts reclamation",
+    "Hostility/fear and displaced driver survive save and reload"
+  ],
+  "limits": "Seated ellipsoids and oriented procedural body panels; normal glass is penetrable, no full ballistics or ragdoll"
+}

@@ -1,0 +1,27 @@
+#!/usr/bin/env python3
+"""Real world/overlay near planes, cockpit and close-wall clipping fixtures."""
+from browser_support import Browser,ROOT
+import time,json,hashlib,sys
+with Browser() as b:
+ if '--temporary' in sys.argv:
+  path=ROOT.parent.parent/'work/near-validation.html';b.cmd('Page.navigate',{'url':path.as_uri()+'?test=1'});b.cmd('Page.bringToFront');b.wait('globalThis.RADE?.game?.drawCount>2');b.ev('RADE.game.testing=true;true')
+ else:path=ROOT/'dist/index.html';b.load()
+ ev=b.ev;ev('RADE.game.start();globalThis.s=RADE.game.session;globalThis.w=s.world;s.sim.state.enemies.forEach(e=>e.deployed=false);s.campaign.law.wanted=0;globalThis.actualCamera=null;globalThis.nearCosts=[];const nearPlane=RADE.camera.nearPlane;RADE.camera.nearPlane=function(...args){const start=performance.now(),result=nearPlane(...args);nearCosts.push(performance.now()-start);return result;};const draw=RADE.game.renderer.draw;RADE.game.renderer.draw=function(camera,models,fx){actualCamera={...camera,overlayModels:models.filter(m=>m.overlay).length};return draw.call(this,camera,models,fx);};true')
+ def tap(code):
+  b.cmd('Input.dispatchKeyEvent',{'type':'keyDown','code':code,'key':code[3:].lower()});time.sleep(.08);b.cmd('Input.dispatchKeyEvent',{'type':'keyUp','code':code,'key':code[3:].lower()});time.sleep(.18)
+ b.wait('actualCamera!==null');free=ev('actualCamera');assert free['near']<=.15 and free['overlayNear']==.035;assert free['overlayModels']>0;b.capture('near-free-weapon.png')
+ ev('s.sim.relocate(s.car.x-2.6,s.car.z,s.car.cap+Math.PI/2);true');tap('KeyE');b.wait('s.mode==="car"',6)
+ if ev('RADE.game.view')!='cockpit':tap('KeyC')
+ b.wait('RADE.game.view==="cockpit"',3);time.sleep(.2);cockpit=ev('actualCamera');assert .035<=cockpit['near']<=.15;b.capture('near-cockpit.png')
+ tap('KeyE');b.wait('s.mode==="foot"',4)
+ wall=ev('''(()=>{for(const q of w.boxes){if(q.kind!=='urban'||q.a<3||q.b<3||q.minY>.1||q.maxY<3||Math.hypot(q.x,q.z)>400)continue;for(const sign of [-1,1]){const nx=sign*q.c,nz=sign*q.s,x=q.x+nx*(q.a+.42),z=q.z+nz*(q.a+.42),y=w.ground(x,z);if(w.blocked(x,z,.30,y,1.8))continue;const ray=w.ray([x,y+1.62,z],[-nx,0,-nz],8);if(ray>.30&&ray<.60)return {x,z,y,nx,nz,yaw:Math.atan2(-nx,nz),ray};}}return null;})()''');assert wall
+ ev('globalThis.fixtureWall='+json.dumps(wall)+';s.sim.relocate(fixtureWall.x,fixtureWall.z,fixtureWall.yaw);s.player.pitch=0;true');time.sleep(.3);wallFoot=ev('actualCamera');assert wallFoot['near']<=wall['ray']-.02;b.capture('near-fps-wall.png')
+ # The scenic camera alone approaches an actual wall to 8cm; no world ray or
+ # collision proxy is replaced. This stresses the frustum rather than teleporting a player into collision.
+ ev('globalThis.wallCam={pos:[fixtureWall.x-fixtureWall.nx*.34,fixtureWall.y+1.62,fixtureWall.z-fixtureWall.nz*.34],yaw:fixtureWall.yaw,pitch:0,fov:74,far:26000,allStatic:true,chunked:true,overlayNear:.035};wallCam.near=RADE.camera.nearPlane(wallCam,w,innerWidth/innerHeight);RADE.game.camera=wallCam;true');time.sleep(.3);wallClose=ev('actualCamera');assert .035<=wallClose['near']<.075,wallClose;b.capture('near-eight-cm-wall.png')
+ ev('RADE.game.camera=null;s.player.yaw=fixtureWall.yaw+Math.PI;RADE.game.followCamera.reset(3.8);true');time.sleep(.7);retracted=ev('actualCamera');assert retracted.get('clearance',9)<.5 and not retracted['thirdPerson'];b.capture('near-retracted-camera.png')
+ ev('RADE.game.followCamera.reset();globalThis.lm=w.landmarks;const p=w.freeNear(lm.center.x+130,lm.center.z-110,.34);s.sim.relocate(p[0],p[1],0);s.weather.setHour(23);s.weather.force("soleil");globalThis.camPos=[lm.center.x+130,lm.groundLevel+49,lm.center.z-110];const target=[lm.center.x-6,lm.groundLevel+29,lm.center.z],d=target.map((v,i)=>v-camPos[i]);globalThis.scenic={pos:camPos,yaw:Math.atan2(d[0],-d[2]),pitch:Math.atan2(d[1],Math.hypot(d[0],d[2])),fov:62,far:26000,allStatic:true,chunked:true,overlayNear:.035};scenic.near=RADE.camera.nearPlane(scenic,w,innerWidth/innerHeight);RADE.game.camera=scenic;true');time.sleep(.25);b.wait('!w.cityStream.pending',90);time.sleep(.5);b.capture('near-bonne-mere-final.png');scenic=ev('actualCamera');assert scenic['near']==.15
+ costs=ev('(()=>{const a=nearCosts.slice().sort((a,b)=>a-b);return {n:a.length,p50Ms:a[Math.floor(a.length*.5)],p95Ms:a[Math.floor(a.length*.95)],maxMs:a.at(-1),meanMs:a.reduce((n,x)=>n+x,0)/a.length};})()')
+ errors=ev('RADE.game.errors');assert not errors
+ report={'buildSha256':hashlib.sha256(path.read_bytes()).hexdigest(),'temporaryBuild':'--temporary' in sys.argv,'checks':['World near plane is bounded by actual wall clearance','Weapon retains overlayNear=.035 with free world near=.15','Real keyboard entry/exit into existing parked car and cockpit camera','Eight-centimetre camera-wall fixture keeps the wall before the near plane','Third-person camera retracts against real wall without showing the body','Bonne-Mère road/night-shell comparison after actual chunk loading'],'free':free,'cockpit':cockpit,'wallFixture':wall,'wallFoot':wallFoot,'wallClose':wallClose,'retracted':retracted,'scenic':scenic,'nearPlaneCpu':costs,'errors':errors,'limits':'Initial positions and scenic cameras are prepared fixtures, disclosed here. Images require visual review. The adaptive-near benchmark covers actual game frames through free/cockpit/wall/retracted views; the final scenic camera is fixed.'}
+ (ROOT/'docs/near-plane-browser.json').write_text(json.dumps(report,ensure_ascii=False,indent=2)+'\n');print(json.dumps(report,ensure_ascii=False,indent=2),flush=True)

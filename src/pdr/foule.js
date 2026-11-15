@@ -373,6 +373,8 @@
   const COMMUN = `
   uniform highp sampler2D uCour;
   uniform highp sampler2D uPrec;
+  uniform highp sampler2D uLocomotion;
+  uniform float uDistanceGait;
   uniform highp usampler2D uMarques;
   uniform sampler2D uVoileF;
   uniform sampler2D uSol;
@@ -381,13 +383,14 @@
   uniform vec4 uReglages;
   uniform ivec4 uCamps;
   uniform vec3 uFactions[3];
-  struct Unite { vec2 xz; float cap; uint faction; uint type; uint etat; uint niveau; uint drapeaux; uint marques; float vitesse; bool cachee; uint h; };
+  struct Unite { vec2 xz; float cap; uint faction; uint type; uint etat; uint niveau; uint drapeaux; uint marques; float vitesse; vec2 gait; bool cachee; uint h; };
   uint hache(uint x){x^=x>>16;x*=0x7feb352du;x^=x>>15;x*=0x846ca68bu;x^=x>>16;return x;}
   Unite lireUnite(int id){
     Unite u;ivec2 t=ivec2(id&1023,id>>10);
     vec4 c=texelFetch(uCour,t,0);
     uint code=uint(c.w+.5);
     u.faction=code&3u;u.type=(code>>2)&15u;u.etat=(code>>6)&15u;u.niveau=(code>>10)&63u;u.drapeaux=(code>>16)&255u;
+    u.gait=vec2(-1.,0.);if(uDistanceGait>.5){vec4 g=texelFetch(uLocomotion,t,0);u.gait=vec2(mix(g.x,g.y,uReglages.x),mix(g.z,g.w,uReglages.x));}
     u.marques=texelFetch(uMarques,t,0).r;u.xz=c.xy;u.cap=c.z;u.vitesse=0.;u.cachee=u.faction==3u;u.h=hache(uint(id));
     if(id<uCamps.z){
       vec4 p=texelFetch(uPrec,t,0);
@@ -434,10 +437,10 @@
   Pose poser(Unite u,bool cuivre){
     Pose q=Pose(0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.);
     float t=uReglages.y,ph=float(u.h&1023u)*.0061419;
-    uint e=u.etat;bool court=e==8u;bool marche=u.vitesse>.25||e==1u||court;
+    uint e=u.etat;bool court=e==8u;bool marche=u.gait.x>=0.?u.gait.y>.001:u.vitesse>.25||e==1u||court;
     float amp=court?.65:.32*clamp(max(u.vitesse,e==1u?1.1:0.)/1.4,0.,1.);
     float w=t*(court?1.55:.85)*6.2831853+ph,s=sin(w);
-    if(marche&&(e<2u||e==8u)){float cadence=court?2.2:1.1,amount=clamp(u.vitesse/(1.153846*cadence),0.,1.2),phase=t*cadence*6.28318530718+ph;vec4 left=humanGait(phase,amount),right=humanGait(phase+3.14159265359,amount);q.jg=left.x;q.jd=right.x;q.kg=left.y;q.kd=right.y;q.fg=left.z;q.fd=right.z;q.haut=left.w;q.bg=-sin(phase)*.23*amount;q.bd=-q.bg;q.torse=court?.12:.012*sin(phase);}
+    if(marche&&(e<2u||e==8u)){float cadence=court?2.2:1.1,amount=clamp(u.vitesse/(1.153846*cadence),0.,1.2),phase=t*cadence*6.28318530718+ph;if(u.gait.x>=0.){phase=u.gait.x;amount=u.gait.y;}vec4 left=humanGait(phase,amount),right=humanGait(phase+3.14159265359,amount);q.jg=left.x;q.jd=right.x;q.kg=left.y;q.kd=right.y;q.fg=left.z;q.fd=right.z;q.haut=left.w;q.bg=-sin(phase)*.23*amount;q.bd=-q.bg;q.torse=court?.12:.012*sin(phase);}
     else if(marche){q.jg=amp*s;q.jd=-amp*s;q.bg=-amp*.8*s;q.bd=amp*.8*s;}
     else{q.torse=.025*sin(t*1.3+ph);q.bg=.05*sin(t*1.1+ph);q.bd=-q.bg;q.tete=.06*sin(t*.7+ph*1.7);}
     if(e==2u){float k=.5+.5*sin(t*7.5+ph);q.bd=1.25+.45*k;q.bg=1.05+.4*(1.-k);q.torse=.1+.18*k;if(!marche){q.jg=.3;q.jd=-.22;}}
@@ -635,7 +638,7 @@
     const listeur = creerListeur(plafond);
     // Copies CPU des deux derniers états (pour un contexte restauré, et pour le jeu : sélection, minicarte).
     let cour = new Float32Array(CAPACITE * 4), prec = new Float32Array(CAPACITE * 4), nCour = 0, nPrec = 0;
-    const marques = new Uint8Array(CAPACITE);
+    const marques = new Uint8Array(CAPACITE), locomotion = new Float32Array(CAPACITE*4);let distanceGait=false;
     const selection = new Int32Array(CAPACITE);
     let nSelection = 0, marquesSales = true, lignesMarques = 0;
     let voileCpu = null, voileGeo = null, voileTaille = 0;
@@ -675,7 +678,7 @@
       return t;
     }
     function uniformes(p, noms) { const u = {}; for (const n of noms) u[n] = gl.getUniformLocation(p, n); return u; }
-    const COMMUNS = ['uCour', 'uPrec', 'uMarques', 'uVoileF', 'uSol', 'uVoileZoneF', 'uSolZone', 'uReglages', 'uCamps', 'uFactions', 'uVP'];
+    const COMMUNS = ['uLocomotion','uDistanceGait','uCour', 'uPrec', 'uMarques', 'uVoileF', 'uSol', 'uVoileZoneF', 'uSolZone', 'uReglages', 'uCamps', 'uFactions', 'uVP'];
 
     function creerRessources() {
       const vs = FIGURINE_VS.replace('/*COMMUN*/', COMMUN), ps = POINT_VS.replace('/*COMMUN*/', COMMUN);
@@ -701,6 +704,7 @@
       r.vaoPoints = gl.createVertexArray();
       // Textures : deux états, marques, voile, sol.
       r.etats = [0, 1].map(() => textureVide(gl.RGBA, gl.RGBA32F, gl.FLOAT, LARGEUR, LIGNES, gl.NEAREST));
+      r.locomotion = textureVide(gl.RGBA, gl.RGBA32F, gl.FLOAT, LARGEUR, LIGNES, gl.NEAREST);
       r.marques = textureVide(gl.RED_INTEGER, gl.R8UI, gl.UNSIGNED_BYTE, LARGEUR, LIGNES, gl.NEAREST);
       r.voile = textureVide(gl.RED, gl.R8, gl.UNSIGNED_BYTE, 1, 1, gl.LINEAR);
       gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
@@ -712,6 +716,7 @@
       res = r; generation = pdr.generation; voileTaille = 0;
       // Après une perte de contexte : tout ce que le CPU garde repart.
       envoyerEtat(prec, nPrec, 1 - gpuCour); envoyerEtat(cour, nCour, gpuCour);
+      if(distanceGait)envoyerLocomotion();
       if (voileCpu) envoyerVoile();
       marquesSales = true; lignesMarques = LIGNES;
     }
@@ -727,6 +732,13 @@
       const lignes = n >>> 10, reste = n & 1023;
       if (lignes) gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, LARGEUR, lignes, gl.RGBA, gl.FLOAT, f32, 0);
       if (reste) gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, lignes, reste, 1, gl.RGBA, gl.FLOAT, f32, lignes * LARGEUR * 4);
+      finEnvoi();
+    }
+    function envoyerLocomotion(){
+      if(!res||!nCour||!distanceGait)return;lierEnvoi(res.locomotion);
+      const rows=nCour>>>10,rest=nCour&1023;
+      if(rows)gl.texSubImage2D(gl.TEXTURE_2D,0,0,0,LARGEUR,rows,gl.RGBA,gl.FLOAT,locomotion,0);
+      if(rest)gl.texSubImage2D(gl.TEXTURE_2D,0,0,rows,rest,1,gl.RGBA,gl.FLOAT,locomotion,rows*LARGEUR*4);
       finEnvoi();
     }
     function envoyerVoile() {
@@ -757,14 +769,15 @@
       mesure.proches = r.total; mesure.candidats = r.candidats; mesure.seuil = r.seuil; mesure.listeMs = performance.now() - t0;
     }
 
-    function recevoir(f32, n) {
+    function recevoir(f32, n, gait) {
       n = Math.max(0, Math.min(CAPACITE, n | 0, (f32.length / 4) | 0));
       const t0 = performance.now();
       const tmp = prec; prec = cour; cour = tmp; nPrec = nCour; nCour = n;
       cour.set(n === f32.length / 4 ? f32 : f32.subarray(0, n * 4));
+      distanceGait=!!(gait&&gait.length>=n*4);if(distanceGait)locomotion.set(gait.subarray(0,n*4));
       if (tRecu >= 0) intervalle += (Math.max(8, Math.min(250, t0 - tRecu)) - intervalle) * .25;
       tRecu = t0;
-      if (pret()) { gpuCour = 1 - gpuCour; envoyerEtat(cour, nCour, gpuCour); }
+      if (pret()) { gpuCour = 1 - gpuCour; envoyerEtat(cour, nCour, gpuCour);envoyerLocomotion(); }
       mesure.n = n; mesure.envoiMs = performance.now() - t0;
       refaireListe(t0);
     }
@@ -827,6 +840,7 @@
 
     // Textures sur les unités 5 à 9 : le moteur garde l'atlas d'ombre sur la 2 et le voile du monde sur la 4.
     function lierCommun(u, vp) {
+      gl.activeTexture(gl.TEXTURE10);gl.bindTexture(gl.TEXTURE_2D,res.locomotion);gl.uniform1i(u.uLocomotion,10);gl.uniform1f(u.uDistanceGait,distanceGait?1:0);
       gl.activeTexture(gl.TEXTURE5); gl.bindTexture(gl.TEXTURE_2D, res.etats[gpuCour]);
       gl.activeTexture(gl.TEXTURE6); gl.bindTexture(gl.TEXTURE_2D, res.etats[1 - gpuCour]);
       gl.activeTexture(gl.TEXTURE7); gl.bindTexture(gl.TEXTURE_2D, res.marques);
@@ -895,7 +909,7 @@
       if (!res) return;
       for (const p of [res.figurine, res.ombre, res.points]) gl.deleteProgram(p);
       for (const b of [res.vbo, res.ibo, res.instances]) gl.deleteBuffer(b);
-      for (const t of [res.etats[0], res.etats[1], res.marques, res.voile, res.sol]) gl.deleteTexture(t);
+      for (const t of [res.etats[0], res.etats[1], res.marques, res.voile, res.sol, res.locomotion]) gl.deleteTexture(t);
       gl.deleteVertexArray(res.vao); gl.deleteVertexArray(res.vaoPoints);
       res = null;
     }

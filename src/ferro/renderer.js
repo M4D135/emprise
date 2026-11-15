@@ -24,6 +24,7 @@
   out vec3 vLocal;
   out vec3 vFaceNormal;flat out vec3 vDimensions;
   out vec3 vSurfaceNormal;
+  flat out vec3 vAnchor;
   flat out float vMaterial;
   flat out float vEmission;
   flat out float vOverlay;
@@ -43,7 +44,7 @@
       vWorld.x+=sin(phase)*bend;vWorld.z+=cos(phase*.73)*bend*.6;
     }
     vNormal=normalize(rotation*(aNormal/max(abs(iScale.xyz),vec3(.0001))));
-    vMaterial=iPosition.w;
+    vAnchor=iPosition.xyz;vMaterial=iPosition.w;
     vEmission=iScale.w;
     vOverlay=mod(iRotation.w,2.);
     vOutdoor=mod(floor(iRotation.w*.5),2.);
@@ -63,6 +64,7 @@
   in vec3 vLocal;
   in vec3 vFaceNormal;flat in vec3 vDimensions;
   in vec3 vSurfaceNormal;
+  flat in vec3 vAnchor;
   flat in float vMaterial;
   flat in float vEmission;
   flat in float vOverlay;
@@ -93,7 +95,7 @@
   uniform vec3 uFogColor;
   uniform vec3 uSkyTop;
   uniform vec3 uSkyBottom;
-  uniform vec2 uEnvironment;
+  uniform vec2 uEnvironment;uniform vec2 uNightHour;
   // PDR (voile) : voile du brouillard de guerre (fx.voile) : visibilité R8, zone (x0, z0, 1/largeur, 1/profondeur) en mètres, force 0..1.
   uniform sampler2D uVoile;
   uniform vec4 uVoileZone;
@@ -143,7 +145,7 @@
     // The nearest depth texel represents a different point on a sloping surface.
     // Compare against that point on the receiver plane, not the centre depth.
     vec2 centre=(floor(tap/texel)+.5)*texel;
-    return step(depth+dot(slope,(centre-uv)*2.),texture(uShadowMap,tap).r);
+    return step(depth+dot(slope,centre-uv),texture(uShadowMap,tap).r);
   }
   float shadow(vec3 n,vec3 l,int slot) {
     if(vOverlay>.5||(slot==0&&uShadowSettings.x<.5)||(slot==1&&uShadowSettings.x<1.5&&uShadowSettings.w<.5)||(slot==2&&uShadowSettings.z<.5))return 1.;
@@ -152,6 +154,9 @@
     vec3 dx=dFdx(p),dy=dFdy(p);
     float determinant=dx.x*dy.y-dx.y*dy.x;
     vec2 slope=abs(determinant)>.00000000001?vec2(dx.z*dy.y-dy.z*dx.y,dy.z*dx.x-dx.z*dy.x)/determinant:vec2(0.);
+    // Derivatives above use projection UVs; PCF offsets use atlas UVs. A half-size
+    // tile needs twice the slope, while the full-atlas sun must keep it unchanged.
+    slope*=slot==1&&uShadowSettings.w>1.5?1.:2.;
     if(projected.w<=0.||p.z<=0.||p.z>=1.||min(p.x,p.y)<=.001||max(p.x,p.y)>=.999)return 1.;
     float bias=slot==1&&uShadowSettings.w>.5?.00014+.00024*(1.-max(dot(n,l),0.)):.00005+.00014*(1.-max(dot(n,l),0.));
     vec2 tile=slot==1?vec2(.5,0.):slot==2?vec2(0.,.5):vec2(0.);
@@ -179,7 +184,8 @@
     vec3 geometricNormal=normalize(vNormal), n=geometricNormal, an=abs(normalize(vSurfaceNormal));
     vec2 uv=an.y>.65?vSurface.xz:(an.x>an.z?vSurface.zy:vSurface.xy);
     float m=vMaterial, emission=vEmission;
-    vec3 base=vec3(.105,.135,.15);
+    vec3 base=vec3(.105,.135,.15),windowGlow=vec3(0.);
+    float night=clamp(uNightHour.x,0.,1.)*vOutdoor;float lateHour=uNightHour.y<12.?uNightHour.y+24.:uNightHour.y;float evening=1.-smoothstep(23.,26.,lateHour);
     float roughness=.47,metalness=.65,organicHeight=0.,urbanHeight=0.,pbrWeight=0.,pbrLayer=1.;
     float pixelSpan=max(fwidth(uv).x,fwidth(uv).y);
     float fineDetail=1.-smoothstep(.015,.10,pixelSpan);
@@ -322,6 +328,20 @@
         verre*=edge;base=mix(mur,vitre,verre);
         roughness=mix(.86,.12,verre);metalness=mix(0.,.45,verre);
         urbanHeight=-verre*.035;pbrWeight=1.-verre;
+        // Fixed dwelling occupancy, smoothly fading at dusk and after midnight.
+        // Runs in the existing facade pass: no new triangles or per-window lights.
+        float home=hash(cellule+floor(vAnchor.xz*.31)+style*31.);
+        float occupied=smoothstep(home-.025,home+.025,mix(.16,.49,evening));
+        float shop=step(.18,hash(vec2(floor(bayX),floor(vAnchor.x+vAnchor.z))))*mix(.18,.84,evening);
+        float curtain=.78+.22*smoothstep(.12,.22,abs(f.x-.5));
+        vec3 lamp=mix(vec3(1.,.58,.25),vec3(.92,.87,.66),step(.78,home));
+        float frame=(1.-smoothstep(.010,.025+aa.x,abs(f.x-.5)))*fenetre;
+        frame=max(frame,(1.-smoothstep(.008,.021+aa.y,abs(f.y-.53)))*fenetre);
+        frame*=1.-lointain;
+        base=mix(base,enduit*.45,frame*.82);
+        float blinds=mix(1.,.58+.42*smoothstep(.10,.28,abs(f.x-.5)),step(.64,home));
+        windowGlow=lamp*night*edge*mix(fenetre*occupied*curtain*blinds*(.80+.65*home),vitrine*shop*1.10,rez)*(1.-lointain*.65)*(1.-frame*.92);
+
       }
     } else if(m<14.5) {
       // PDR : asphalte, granulat fin, reprises et fissures.
@@ -348,6 +368,13 @@
       // PDR : tissu et peau des figurines.
       base=(vColor.w>.5?vColor.rgb:vec3(.5))*(.9+grain*.14);
       roughness=.92;metalness=0.;
+    }
+    if(m>19.05&&m<19.15){
+      // Individually modeled glass on the nearby Marseille facades.
+      float home=hash(floor(vAnchor.xz*7.)+floor(vAnchor.y*3.));
+      float occupied=smoothstep(home-.025,home+.025,mix(.16,.49,evening));
+      roughness=.13;metalness=.35;
+      windowGlow=mix(vec3(1.,.58,.25),vec3(.92,.87,.66),step(.78,home))*night*occupied*1.7;
     }
     if(vColor.w>.5&&m<12.5){
       vec3 tint=vColor.rgb*(.88+grain*.2)*(1.-panel*.12)*(m<3.5?.65:1.);
@@ -447,7 +474,8 @@
       float field=noise(cloudUV)*.8+.2;
       float cloud=smoothstep(.49-roughness*.08,.73+roughness*.08,field)*smoothstep(-.01,.24,reflected.y);
       float sun=max(0.,dot(reflected,uSunDirection));
-      vec3 cloudColor=mix(uSkyBottom,vec3(1.12,1.10,1.01),.62)+uSunColor*pow(sun,6.)*.12;
+      float skyLight=clamp(max(max(uSkyBottom.r,uSkyBottom.g),uSkyBottom.b)*1.5,.025,1.);
+      vec3 cloudColor=mix(uSkyBottom,vec3(1.12,1.10,1.01)*skyLight,.62)+uSunColor*pow(sun,6.)*.12;
       sky=mix(sky,cloudColor,cloud*.66);
       sky+=uSunColor*pow(sun,mix(48.,10.,roughness))*.16;
     }
@@ -459,7 +487,7 @@
     vec3 environmentFresnel=f0+(max(vec3(1.-roughness),f0)-f0)*grazing;
     color+=environmentReflection*environmentFresnel*(.18+1.3*(1.-roughness)*(1.-roughness))*(.5+metalness*2.5);
     float pulse=.94+.06*sin(uEffects.x*2.2+vWorld.y*3.);
-    color+=base*emission*pulse*1.55;
+    color+=base*emission*pulse*1.55+windowGlow;
     vec3 fogColor=mix(vec3(.009,.018,.024),uFogColor,outdoors);
     float fog=1.-exp(-distanceToEye*mix(.014+.008*exp(-max(vWorld.y,0.)*.7),uEnvironment.y,outdoors));
     if(vOverlay>.5) fog=0.;
@@ -590,14 +618,14 @@
     color+=uSunColor*(pow(sun,48.)*.20+pow(sun,650.)*.65+smoothstep(.99925,.99965,sun)*2.8);
     vec2 cloudUV=ray.xz/max(.13,ray.y+.18)*1.8+uCloudOffset;
     float clouds=smoothstep(.68-uWeather.y*.49,.88-uWeather.y*.41,cloud(cloudUV))*smoothstep(-.03,.16,ray.y);
-    vec3 cloudColor=mix(uSkyBottom,vec3(1.12,1.10,1.01),.62)+uSunColor*pow(sun,6.)*.12;
-    cloudColor=mix(cloudColor,vec3(.075,.09,.12),uWeather.z*.84);color=mix(color,cloudColor,clouds*.92);color+=vec3(.65,.72,.90)*uWeather.w;
-    // Two distant ridgelines close the horizon without a flat, fog-coloured void.
-    float angle=atan(ray.z,ray.x);
-    float ridge=.018+noise(vec2(angle*5.,1.7))*.075+noise(vec2(angle*13.,4.))*.025;
-    color=mix(color,mix(uSkyFog,uSkyBottom,.43),1.-smoothstep(ridge-.003,ridge+.003,ray.y));
-    float nearRidge=-.025+noise(vec2(angle*7.+25.,2.8))*.065;
-    color=mix(color,uSkyFog*.80,1.-smoothstep(nearRidge-.002,nearRidge+.002,ray.y));
+    float skyLight=clamp(max(max(uSkyBottom.r,uSkyBottom.g),uSkyBottom.b)*1.5,.025,1.);
+      vec3 cloudColor=mix(uSkyBottom,vec3(1.12,1.10,1.01)*skyLight,.62)+uSunColor*pow(sun,6.)*.12;
+    cloudColor=mix(cloudColor,vec3(.075,.09,.12)*skyLight,uWeather.z*.84);color=mix(color,cloudColor,clouds*.92);color+=vec3(.65,.72,.90)*uWeather.w;
+    // The geographic coastline supplies real silhouettes; keep the open sea horizon clear.
+    float night=1.-smoothstep(.025,.16,max(max(uSkyBottom.r,uSkyBottom.g),uSkyBottom.b));
+    vec2 stars=ray.xz/max(.08,ray.y)*310.;vec2 starCell=floor(stars);float starSeed=hash(starCell);
+    float sparkle=step(.997,starSeed)*exp(-dot(fract(stars)-.5,fract(stars)-.5)*90.);
+    color+=vec3(.35,.42,.55)*sparkle*night*(1.-clouds)*smoothstep(.08,.3,ray.y);
     color=color/(color+vec3(.76));color=pow(max(color,vec3(0.)),vec3(.4545));
     float vignette=pow(max(0.,16.*vUV.x*vUV.y*(1.-vUV.x)*(1.-vUV.y)),.13);
     fragColor=vec4(color*mix(.76,1.,vignette),0.);
@@ -951,7 +979,7 @@
       if(list.length) groups.push({name:names[i],offset:offset*4,count:list.length});
       for(const mesh of list) {
         const p=mesh.p||[0,0,0],s=mesh.s||[1,1,1],r=mesh.r||[0,0,0],c=mesh.color||[0,0,0];
-        values.set([p[0],p[1],p[2],mesh.mat||0,s[0],s[1],s[2],mesh.emissive||0,r[0],r[1],r[2],surfaceFlags(mesh,environment,objects),c[0],c[1],c[2],mesh.color?1:0],offset);
+        values[offset]=p[0];values[offset+1]=p[1];values[offset+2]=p[2];values[offset+3]=mesh.mat||0;values[offset+4]=s[0];values[offset+5]=s[1];values[offset+6]=s[2];values[offset+7]=mesh.emissive||0;values[offset+8]=r[0];values[offset+9]=r[1];values[offset+10]=r[2];values[offset+11]=surfaceFlags(mesh,environment,objects);values[offset+12]=c[0];values[offset+13]=c[1];values[offset+14]=c[2];values[offset+15]=mesh.color?1:0;
         offset+=16;
       }
     }
@@ -966,7 +994,7 @@
       if(last&&last.name===name)last.count++;else groups.push({name,offset:offset*4,count:1});
       const p=mesh.p,s=mesh.s||[1,1,1],r=mesh.r||[0,0,0],c=mesh.color||[.5,.5,.5];
       const material=mesh.window?18:mesh.shape==='ring'&&Number.isFinite(mesh.innerRatio)?20+Math.min(.999,Math.max(0,mesh.innerRatio)):mesh.fxPriority==='hazard'?16:mesh.fxFire?14:mesh.fxSmoke?15:mesh.fxSpark?17:7;
-      values.set([p[0],p[1],p[2],material,s[0],s[1],s[2],mesh.emissive||0,r[0],r[1],r[2],surfaceFlags(mesh,environment,true),c[0],c[1],c[2],Math.min(1,Math.max(0,mesh.alpha))],offset);offset+=16;
+      values[offset]=p[0];values[offset+1]=p[1];values[offset+2]=p[2];values[offset+3]=material;values[offset+4]=s[0];values[offset+5]=s[1];values[offset+6]=s[2];values[offset+7]=mesh.emissive||0;values[offset+8]=r[0];values[offset+9]=r[1];values[offset+10]=r[2];values[offset+11]=surfaceFlags(mesh,environment,true);values[offset+12]=c[0];values[offset+13]=c[1];values[offset+14]=c[2];values[offset+15]=Math.min(1,Math.max(0,mesh.alpha));offset+=16;
     }
     return {values,groups};
   }
@@ -1559,13 +1587,13 @@
     const gl=canvas.getContext('webgl2',{alpha:false,antialias:false,depth:true,powerPreference:'high-performance'});
     if(!gl) return createSoftware(canvas);
     const config=settings(options),worldFrag=worldFragment(config),postFrag=postFragment(config);
-    const source=geometry(),view=new Float32Array(16),projection=new Float32Array(16),vp=new Float32Array(16);
+    const source=geometry(),view=new Float32Array(16),projection=new Float32Array(16),vp=new Float32Array(16),overlayProjection=new Float32Array(16),overlayVP=new Float32Array(16);
     const shadowView=new Float32Array(16),shadowProjection=new Float32Array(16),shadowMatrix=new Float32Array(16),shadowMatrices=new Float32Array(48);
     const lightPositions=new Float32Array(36),lightColors=new Float32Array(36),lightRanges=new Float32Array(12),lightDirections=new Float32Array(36),lightCones=new Float32Array(24);
     const stats={drawCalls:0,triangles:0,instances:0,contextLost:false,webglVersion:2,backend:'webgl2',bloom:false,shadows:false};
     let program,depthProgram,postProgram,skyProgram,fxProgram,vao,postVao,vbo,ibo,worldBuffer,dynamicBuffer,overlayBuffer,fxBuffer,crowdBuffer,uniforms,postUniforms,skyUniforms,fxUniforms,depthMatrix,depthWind,ssrProgram,ssrUniforms;
     let post=null,shadowTarget=null,whiteTexture=null,pbrTextures=[],targetKey='',shadowKey='',shadowLight=null;
-    let world=[],worldIndex=spatialIndex([]),lights=[],environment=null,worldBatch=pack([]),quality='auto',disposed=false,worldRevision=0;
+    let world=[],worldIndex=spatialIndex([]),backgroundIndex=spatialIndex([]),lights=[],environment=null,worldBatch=pack([]),quality='auto',disposed=false,worldRevision=0;
     let staticCaches=[],lampCasters=[],actorLightPlan=null;
     // BITUME : nappes (chaussée, accotements, terrain : triangles continus, matière et couleur par sommet) et lots
     // de décor (instances statiques groupées par portion de circuit, chacune avec sa version lointaine allégée).
@@ -1659,7 +1687,7 @@
     function initialize() {
       ssrProgram=link(POST_VERT,SSR_FRAG);ssrUniforms={};for(const name of ['uColor','uDepth','uProjection','uPixel'])ssrUniforms[name]=gl.getUniformLocation(ssrProgram,name);
       program=link(VERT,worldFrag);depthProgram=link(VERT,DEPTH_FRAG);postProgram=link(POST_VERT,postFrag);skyProgram=link(POST_VERT,SKY_FRAG);fxProgram=link(FX_VERT,FX_FRAG);
-      uniforms={};for(const name of ['uViewProjection','uWindTime','uEye','uForward','uLightPosition','uLightColor','uLightRange','uLightDirection','uLightCone','uWeather','uCloudOffset','uPbrAlbedo','uPbrNormal','uPbrRough','uPbrReady','uLightCount','uResolution','uEffects','uShadowMap','uShadowMatrix','uShadowSettings','uTorchPosition','uSunDirection','uSunColor','uAmbient','uFogColor','uSkyTop','uSkyBottom','uEnvironment']) uniforms[name]=gl.getUniformLocation(program,name);
+      uniforms={};for(const name of ['uViewProjection','uWindTime','uEye','uForward','uLightPosition','uLightColor','uLightRange','uLightDirection','uLightCone','uWeather','uCloudOffset','uPbrAlbedo','uPbrNormal','uPbrRough','uPbrReady','uLightCount','uResolution','uEffects','uShadowMap','uShadowMatrix','uShadowSettings','uTorchPosition','uSunDirection','uSunColor','uAmbient','uFogColor','uSkyTop','uSkyBottom','uEnvironment','uNightHour']) uniforms[name]=gl.getUniformLocation(program,name);
       postUniforms={};for(const name of ['uScene','uBloom','uReflection','uReflections','uTexel','uPass'])postUniforms[name]=gl.getUniformLocation(postProgram,name);
       skyUniforms={};for(const name of ['uSkyRight','uSkyUp','uSkyForward','uSkyTop','uSkyBottom','uSkyFog','uSunDirection','uSunColor','uSkyFov','uSkyMotion','uWeather','uCloudOffset'])skyUniforms[name]=gl.getUniformLocation(skyProgram,name);
       fxUniforms={};for(const name of ['uViewProjection','uWindTime','uEye','uAmbient','uSkyTop','uSkyBottom','uFogColor','uEnvironment','uTime'])fxUniforms[name]=gl.getUniformLocation(fxProgram,name);
@@ -1674,8 +1702,8 @@
       // PDR : foule déjà empaquetée par le jeu (fx.instances), partagée par l'ombre du soleil et la passe couleur.
       // Son tampon naît au premier usage : un jeu sans foule ne crée rien de plus.
       crowdBuffer=null;
-      // Main colour and the three shadow views must keep independent instance buffers.
-      staticCaches=[worldBuffer,gl.createBuffer(),gl.createBuffer(),gl.createBuffer()].map(buffer=>({buffer,entries:[],batch:pack([])}));
+      // Main colour, three shadow views and distant water keep independent instance buffers.
+      staticCaches=[worldBuffer,gl.createBuffer(),gl.createBuffer(),gl.createBuffer(),gl.createBuffer()].map(buffer=>({buffer,entries:[],batch:pack([])}));
       lampCasters=[];
       gl.bindBuffer(gl.ARRAY_BUFFER,worldBuffer);gl.bufferData(gl.ARRAY_BUFFER,worldBatch.values,gl.STATIC_DRAW);
       postVao=gl.createVertexArray();
@@ -1761,19 +1789,34 @@
     }
 
     function updateShape(name,vertices){const range=source.ranges[name];if(!range||vertices.length!==range.count*6)throw new Error('Shape vertex count changed: '+name);const start=source.indices[range.offset/INDEX_OCTETS]*6;source.vertices.set(vertices,start);if(!stats.contextLost){gl.bindBuffer(gl.ARRAY_BUFFER,vbo);gl.bufferSubData(gl.ARRAY_BUFFER,start*4,vertices);}}
-    let chunks=new Map();
+    let chunks=new Map();const chunkCategories=new WeakMap();
     function rebuildChunks(){
       const next=new Map();
-      for(const e of worldIndex.entries){const size=Math.max(...e.mesh.s),ground=e.mesh.ground===true||(e.mesh.s[1]<.15&&e.p[1]+e.mesh.s[1]/2<.24),range=e.mesh.detail===2?65:e.mesh.detail===1?130:ground||size>4?6000:size<.65?75:180,cell=range<6000?32:128,key=Math.floor(e.p[0]/cell)+','+Math.floor(e.p[2]/cell)+','+range+','+(e.radius>40?'large':'small');if(!next.has(key))next.set(key,{range,entries:[],min:[Infinity,Infinity,Infinity],max:[-Infinity,-Infinity,-Infinity]});const c=next.get(key);c.entries.push(e);for(let k=0;k<3;k++){c.min[k]=Math.min(c.min[k],e.p[k]-e.radius);c.max[k]=Math.max(c.max[k],e.p[k]+e.radius);}}
+      for(const e of worldIndex.entries){
+        const m=e.mesh,p=e.p,s=m.s,groundFlag=m.ground===true;let category=chunkCategories.get(e);
+        // Scalar copies avoid aliasing mutable p/s arrays. Retained immutable
+        // entries skip the repeated grid arithmetic and string allocation.
+        if(!category||s.length!==3||category.x!==p[0]||category.y!==p[1]||category.z!==p[2]||category.sx!==s[0]||category.sy!==s[1]||category.sz!==s[2]||category.detail!==m.detail||category.ground!==groundFlag||category.radius!==e.radius){
+          const size=Math.max(...s),ground=groundFlag||(s[1]<.15&&p[1]+s[1]/2<.24),range=m.detail===2?65:m.detail===1?130:ground||size>4?6000:size<.65?75:180,cell=range<6000?32:128;
+          category={key:Math.floor(p[0]/cell)+','+Math.floor(p[2]/cell)+','+range+','+(e.radius>40?'large':'small'),range,x:p[0],y:p[1],z:p[2],sx:s[0],sy:s[1],sz:s[2],detail:m.detail,ground:groundFlag,radius:e.radius};chunkCategories.set(e,category);
+        }
+        let c=next.get(category.key);
+        if(!c){const previous=chunks.get(category.key);c={range:category.range,entries:[],previous,same:!!previous};next.set(category.key,c);}
+        if(c.same&&c.previous.entries[c.entries.length]!==e)c.same=false;c.entries.push(e);
+      }
       let uploads=0;
-      for(const [key,c] of next){const old=chunks.get(key);if(old&&old.entries.length===c.entries.length&&c.entries.every((e,i)=>e===old.entries[i])){next.set(key,old);continue;}
-        c.p=c.min.map((v,k)=>(v+c.max[k])/2);c.radius=Math.hypot(...c.max.map((v,k)=>(v-c.min[k])/2));c.batch=packIndexed(c.entries);c.buffer=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,c.buffer);gl.bufferData(gl.ARRAY_BUFFER,c.batch.values,gl.STATIC_DRAW);uploads+=c.batch.values.byteLength;
+      for(const [key,group] of next){if(group.same&&group.previous.entries.length===group.entries.length){next.set(key,group.previous);continue;}
+        // Only changed chunks need fresh bounds and GPU data. The final object
+        // has no link to the previous chunk, so replaced generations can die.
+        const c={range:group.range,entries:group.entries,min:[Infinity,Infinity,Infinity],max:[-Infinity,-Infinity,-Infinity]};
+        for(const e of c.entries)for(let k=0;k<3;k++){c.min[k]=Math.min(c.min[k],e.p[k]-e.radius);c.max[k]=Math.max(c.max[k],e.p[k]+e.radius);}
+        c.p=c.min.map((v,k)=>(v+c.max[k])/2);c.radius=Math.hypot(...c.max.map((v,k)=>(v-c.min[k])/2));c.batch=packIndexed(c.entries);c.buffer=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,c.buffer);gl.bufferData(gl.ARRAY_BUFFER,c.batch.values,gl.STATIC_DRAW);uploads+=c.batch.values.byteLength;next.set(key,c);
       }
       for(const [key,c] of chunks)if(next.get(key)!==c)gl.deleteBuffer(c.buffer);chunks=next;stats.chunks=chunks.size;stats.chunkBuildBytes=uploads;
     }
     function drawChunks(accept,shadow=false){let objects=0,count=0;for(const c of chunks.values())if(accept(c)){renderBatch(c.batch,c.buffer,false,shadow);objects+=c.entries.length;count++;}if(shadow){stats.shadowChunks=count;stats.shadowStatic=objects;}else{stats.visibleChunks=count;stats.staticVisible=objects;stats.staticCulled=world.length-objects;}return count;}
     function setWorld(meshes,points,atmosphere) {
-      environment=environmentInfo(atmosphere);world=meshes||[];worldIndex=spatialIndex(world,environment);lights=points||[];worldBatch=pack([]);shadowLight=null;actorLightPlan=null;stats.staticTotal=world.length;stats.biome=environment?environment.biome:null;
+      environment=environmentInfo(atmosphere);world=(meshes||[]).filter(m=>!m.backgroundWater);worldIndex=spatialIndex(world,environment);backgroundIndex=spatialIndex((meshes||[]).filter(m=>m.backgroundWater),environment);lights=points||[];worldBatch=pack([]);shadowLight=null;actorLightPlan=null;stats.staticTotal=world.length+backgroundIndex.entries.length;stats.biome=environment?environment.biome:null;
       worldRevision=0;stats.worldRevision=0;rebuildChunks();
       lampCasters=[];for(const cache of staticCaches){cache.entries=[];cache.batch=pack([]);}
       governor.reset();autoScale=1;
@@ -1783,11 +1826,11 @@
     function updateWorld(meshes,revision,points){
       if(disposed||revision===worldRevision)return false;
       if(Array.isArray(points)&&(points.length!==lights.length||points.some((light,i)=>light!==lights[i]))){lights=points;if(!lights.includes(shadowLight))shadowLight=null;}
-      world=meshes||[];worldIndex=spatialIndex(world,environment,worldIndex);worldBatch=pack([]);rebuildChunks();
+      world=(meshes||[]).filter(m=>!m.backgroundWater);worldIndex=spatialIndex(world,environment,worldIndex);backgroundIndex=spatialIndex((meshes||[]).filter(m=>m.backgroundWater),environment,backgroundIndex);worldBatch=pack([]);rebuildChunks();
       // Every depth view must stop referencing removed walls immediately. GPU
       // storage is reused; only the affected instance lists upload next draw.
-      lampCasters=[];actorLightPlan=null;for(const cache of staticCaches){cache.entries=[];cache.batch=pack([]);}
-      worldRevision=revision===undefined?worldRevision+1:revision;stats.worldRevision=worldRevision;stats.staticTotal=world.length;
+      lampCasters=[];actorLightPlan=null;for(const cache of staticCaches.slice(0,4)){cache.entries=[];cache.batch=pack([]);}
+      worldRevision=revision===undefined?worldRevision+1:revision;stats.worldRevision=worldRevision;stats.staticTotal=world.length+backgroundIndex.entries.length;
       return true;
     }
     function resize(next) {
@@ -1821,9 +1864,9 @@
       if(!same){cache.entries=entries;cache.batch=packIndexed(entries);}
       renderBatch(cache.batch,cache.buffer,!same,shadow);
     }
-    function renderEffects(meshes,eye,time){
+    function renderEffects(meshes,eye,time,clip=vp){
       const batch=packEffects(meshes,environment,eye);stats.fxInstances+=batch.values.length/16;if(!batch.groups.length)return;
-      gl.useProgram(fxProgram);gl.uniformMatrix4fv(fxUniforms.uViewProjection,false,vp);gl.uniform2f(fxUniforms.uWindTime,0,time);
+      gl.useProgram(fxProgram);gl.uniformMatrix4fv(fxUniforms.uViewProjection,false,clip);gl.uniform2f(fxUniforms.uWindTime,0,time);
       gl.uniform3fv(fxUniforms.uSkyTop,environment?.skyTop||[.2,.3,.4]);gl.uniform3fv(fxUniforms.uSkyBottom,environment?.skyBottom||[.5,.6,.6]);gl.uniform3fv(fxUniforms.uEye,eye);gl.uniform3fv(fxUniforms.uAmbient,environment?environment.ambient:[.12,.15,.16]);
       gl.uniform3fv(fxUniforms.uFogColor,environment?environment.fog:[.009,.018,.024]);gl.uniform2f(fxUniforms.uEnvironment,environment?1:0,environment?environment.fogDensity:.018);gl.uniform1f(fxUniforms.uTime,time);
       gl.enable(gl.BLEND);gl.blendFunc(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA);gl.depthMask(false);
@@ -2035,6 +2078,7 @@
       gl.uniformMatrix4fv(uniforms.uViewProjection,false,vp);gl.uniform3fv(uniforms.uEye,eye);gl.uniform3fv(uniforms.uForward,forward);
       gl.uniform2fv(uniforms.uCloudOffset,fx.cloudOffset||[t*.0018,0]);gl.uniform2f(uniforms.uWindTime,environment?environment.wind:0,t);gl.uniform3fv(uniforms.uSunDirection,environment?environment.sunDirection:[.4,.8,.3]);gl.uniform3fv(uniforms.uSunColor,environment?environment.sunColor:[0,0,0]);
       gl.uniform3fv(uniforms.uAmbient,environment?environment.ambient:[.075,.10,.12]);gl.uniform3fv(uniforms.uFogColor,environment?environment.fog:[.009,.018,.024]);gl.uniform2f(uniforms.uEnvironment,environment?1:0,environment?environment.fogDensity:.014);
+      gl.uniform2f(uniforms.uNightHour,environment?.night||0,environment?.hour??14);
       gl.uniform3fv(uniforms.uSkyTop,environment?environment.skyTop:[.05,.08,.10]);gl.uniform3fv(uniforms.uSkyBottom,environment?environment.skyBottom:[.16,.20,.22]);
       for(let k=0;k<pbrTextures.length;k++){gl.activeTexture(gl.TEXTURE5+k);gl.bindTexture(gl.TEXTURE_2D_ARRAY,pbrTextures[k]);}
       gl.uniform4fv(uniforms.uWeather,fx.weather||[0,.4,0,0]);gl.uniform3fv(uniforms.uLightDirection,lightDirections);gl.uniform2fv(uniforms.uLightCone,lightCones);gl.uniform3fv(uniforms.uLightPosition,lightPositions);gl.uniform3fv(uniforms.uLightColor,lightColors);gl.uniform1fv(uniforms.uLightRange,lightRanges);gl.uniform1i(uniforms.uLightCount,selected.length);
@@ -2051,6 +2095,10 @@
         if(voile)gl.uniform4f(uniforms.uVoileZone,voile.origine[0],voile.origine[1],1/Math.max(.001,voile.taille[0]),1/Math.max(.001,voile.taille[1]));
         gl.uniform1f(uniforms.uVoileForce,voile?Math.min(1,voile.force):0);gl.activeTexture(gl.TEXTURE2);pdrVoilePose=!!voile;
       }
+      // The distant sea is a sky-like backdrop: it must not compete with land
+      // only centimetres above it at kilometre distances. Local water retains depth/SSR.
+      stats.backgroundWater=backgroundIndex.entries.length;stats.backgroundDrawCalls=0;
+      if(backgroundIndex.entries.length){const before=stats.drawCalls;gl.depthMask(false);renderStatic(backgroundIndex.entries,4);gl.depthMask(true);stats.backgroundDrawCalls=stats.drawCalls-before;}
       renderStatic(shown,0);if(camera.chunked)drawChunks(c=>visible(c,eye,axes,canvas.width/canvas.height/f,1/f,Math.min(far,c.range)));
       // BITUME : chaussée et terrain, puis décor par lots, découpés au champ et à la portée de chaque lot.
       dessinerNappes(eye,axes,canvas.width/canvas.height/f,1/f,far);
@@ -2078,9 +2126,16 @@
       stats.reflections=!!(stats.bloom&&post.reflectSource&&post.reflection&&fx.reflections!==false);stats.reflectionSteps=stats.reflections?48:0;
       if(stats.reflections){const target=msaa?msaa.framebuffer:post.scene.framebuffer;gl.bindFramebuffer(gl.READ_FRAMEBUFFER,target);gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER,post.reflectSource.framebuffer);gl.blitFramebuffer(0,0,canvas.width,canvas.height,0,0,canvas.width,canvas.height,gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT,gl.NEAREST);gl.bindFramebuffer(gl.FRAMEBUFFER,target);}
       if(overlay.length||overlayParticles.length) {
+        // EMPRISE: weapon/muzzle meshes already render after a depth clear.
+        // Keep their close clipping plane independent from world depth precision.
+        // World projection and its depth texture stay unchanged for SSR and crowds.
+        const overlayNear=Math.min(near,Math.max(.005,Number(camera.overlayNear)||near));
+        let overlayClip=vp;
+        if(overlayNear!==near){overlayProjection.set(projection);overlayProjection[10]=(far+overlayNear)/(overlayNear-far);overlayProjection[14]=2*far*overlayNear/(overlayNear-far);multiply(overlayProjection,view,overlayVP);overlayClip=overlayVP;gl.uniformMatrix4fv(uniforms.uViewProjection,false,overlayClip);}
         if(blackout){selected.forEach(({light},i)=>{const c=light.color||[1,1,1],power=light.power===undefined?1:light.power;lightColors.set([c[0]*power,c[1]*power,c[2]*power],i*3);});gl.uniform3fv(uniforms.uLightColor,lightColors);}
         gl.clear(gl.DEPTH_BUFFER_BIT);if(overlay.length)renderBatch(pack(overlay,environment,true),overlayBuffer,true);
-        if(overlayParticles.length)renderEffects(overlayParticles,eye,t);
+        if(overlayParticles.length)renderEffects(overlayParticles,eye,t,overlayClip);
+        if(overlayClip!==vp)gl.uniformMatrix4fv(uniforms.uViewProjection,false,vp);
       }
       if(msaa){
         gl.bindFramebuffer(gl.READ_FRAMEBUFFER,msaa.framebuffer);gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER,post.scene.framebuffer);

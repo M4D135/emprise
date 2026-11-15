@@ -23,3 +23,8 @@ const state=s.loot.save();const copy=fixture(state);assert.equal(copy.loot.bags.
 const bad=fixture({...state,bags:[...state.bags,{...state.bags[0]},{...state.bags[1],x:NaN},{...state.bags[2],cash:Infinity},{...state.bags[3],item:'free-cash'}]});assert(bad.loot.bags.length<=64);assert(bad.loot.bags.every(q=>Number.isFinite(q.x)&&Number.isInteger(q.cash)));assert.equal(new Set(bad.loot.bags.map(q=>q.id)).size,bad.loot.bags.length);
 s=fixture();s.e.civil=true;s.e.hp=0;s.loot.update();assert.equal(s.loot.bags.length,0,'No civilian rewards');
 console.log('Loot: death/respawn, one-time claim, range/LOS, seat/interior/dead gates, capacity, persistence, invalid saves, no civilian rewards — passed');
+
+// Partial ammunition pickup stays in the bag and survives a reload without duplication.
+s=fixture();s.sim.state.inventory={ammo:[178,36,12]};s.sim.ammoCaps=[180,36,12];s.e.hp=0;s.loot.update();assert.equal(s.loot.bags[0].ammo.amount,12);assert(s.loot.take());assert.equal(s.sim.state.inventory.ammo[0],180);assert.equal(s.loot.bags[0].ammo.amount,10);assert(!s.loot.take());
+const ammoSave=s.loot.save();const loaded=fixture(ammoSave);loaded.sim.state.inventory={ammo:[160,36,12]};loaded.sim.ammoCaps=[180,36,12];assert(loaded.loot.take());assert.equal(loaded.sim.state.inventory.ammo[0],170);assert.equal(loaded.loot.bags.length,0);assert(!loaded.loot.take());
+console.log('Ammunition: capacity, partial pickup, persistence, no duplicate — passed');

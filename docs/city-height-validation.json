@@ -1,0 +1,15 @@
+{
+  "counts": {
+    "unchangedKnown": 8545,
+    "newIGN": 154612,
+    "unknown": 118402,
+    "interpolated": 58625
+  },
+  "all154612ReferencesCheckedAgainstOfficialSource": true,
+  "allCoordinatesHolesBasesRoadsWaterGroundUnchanged": true,
+  "knownAreaFractionBefore": 0.1041,
+  "knownAreaFractionAfter": 0.7776,
+  "knownAreaM2": 20250953,
+  "footprintAreaM2": 26042462,
+  "groundAltitudeApplied": false
+}

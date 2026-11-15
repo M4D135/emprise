@@ -1,0 +1,15 @@
+{
+  "checks": [
+    "Patrol equipment inside two-wheeler envelope",
+    "Three mounted lights alternate and switch off",
+    "Police rider only when officer remains seated",
+    "No uniform inherited by player after theft",
+    "No intact police kit on wreck",
+    "Kit and rider follow steering body lean"
+  ],
+  "instances": {
+    "near": 135,
+    "far": 79
+  },
+  "importedAssets": 0
+}
