@@ -11,9 +11,12 @@ def build(output):
         target.write_bytes(data);manifest['files'].append({**module,'packagePath':relative,'bytes':len(data),'sha256':hashlib.sha256(data).hexdigest()})
     core=spec['modules']+[{'id':'host','path':spec['hostAPI']}]
     # The optional music library is separate: a racing game need not carry a score it never uses.
-    for name,selection in [('ferro-runtime.js',core),('ferro-music.js',spec['optionalModules'])]:
+    for name,selection in [('ferro-runtime.js',core),('ferro-music.js',[m for m in spec['optionalModules'] if m['id'] in ['music','imuse']]),('ferro-simulation.js',[m for m in spec['optionalModules'] if m['id'] in ['passages','brain','loop','schedule','jobs','demo']]),('ferro-render-extras.js',[m for m in spec['optionalModules'] if m['id'] in ['surface','gpu-profile','skies','reflections']])]:
         data=('/* FERRO '+spec['version']+' — procedural engine. */\n'+'\n'.join((ROOT/m['path']).read_text() for m in selection)).encode();(output/name).write_bytes(data)
         manifest['files'].append({'id':name,'packagePath':name,'bytes':len(data),'sha256':hashlib.sha256(data).hexdigest()})
+    for name in ['check-ferro-lock.py','install-ferro.py']:
+        relative='tools/'+name;data=(ROOT/relative).read_bytes();(output/'tools').mkdir(exist_ok=True);(output/relative).write_bytes(data)
+        manifest['files'].append({'id':name,'path':relative,'packagePath':relative,'bytes':len(data),'sha256':hashlib.sha256(data).hexdigest()})
     (output/'manifest.json').write_text(json.dumps(manifest,indent=2,ensure_ascii=False)+'\n')
     shutil.copy2(ROOT/'docs/FERRO-UNIFIED.md',output/'README.md')
     archive=output.parent/('FERRO-'+spec['version']+'.zip')

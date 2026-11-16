@@ -3,6 +3,8 @@
 from pathlib import Path
 import hashlib,json
 root=Path(__file__).resolve().parent
+import subprocess,sys
+subprocess.run([sys.executable,str(root/'tools/check-ferro-lock.py'),str(root)],check=True)
 engine_spec=json.loads((root/'FERRO.json').read_text())
 engine_modules=[entry['path'][4:-3] for entry in engine_spec['modules']]+['ferro/engine']
 game_modules=['metal/simulation', 'metal/actors', 'metal/audio-recipes', 'metal/weapon', 'bitume/main', 'bitume/voiture', 'bitume/conduite', 'bitume/son', 'pdr/villes/marseille', 'pdr/ville-reelle', 'pdr/sim/regles', 'human-data', 'body-data', 'human', 'materials', 'pdr/foule', 'pdr/foule-webgpu', 'vehicles', 'mobility', 'marine', 'marine-water', 'details', 'architecture', 'people', 'boundaries', 'clearance', 'coast-data', 'coast', 'city-data', 'city-stream', 'core-heights', 'landmarks', 'camera', 'world', 'crowd', 'traffic', 'campaign', 'replay', 'replays', 'weather', 'places-data', 'places', 'interiors', 'breach', 'urban', 'injuries', 'police', 'business', 'loot', 'phone', 'session', 'gamepad', 'mobile', 'game']

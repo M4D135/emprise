@@ -1,0 +1,41 @@
+{
+  "provenance": "original-procedural-runtime",
+  "trees": 628,
+  "removedTrees": 157,
+  "canopyVerticesChecked": 813888,
+  "roadwayIntersections": 0,
+  "staticMeshes": 116562,
+  "previousStaticMeshes": 173118,
+  "architectureMeshes": 56814,
+  "previousArchitectureMeshes": 98471,
+  "windows": 4716,
+  "closedShutters": 1795,
+  "angledShutters": 7527,
+  "curtains": 840,
+  "streetDressing": {
+    "meshes": 8780,
+    "groups": 80,
+    "groundDetails": 81,
+    "storefronts": 260
+  },
+  "headlessMatchesGraphical": true,
+  "treeShapeTriangles": [
+    {
+      "shape": "emprise-tree-crown-0",
+      "triangles": 432
+    },
+    {
+      "shape": "emprise-tree-branches",
+      "triangles": 504
+    }
+  ],
+  "checks": [
+    "Entire source trees replaced before collisions",
+    "Trunks and canopy geometry off roadway",
+    "Only tree trunks collide",
+    "Outward procedural triangle winding",
+    "Frames and shutters clear facade corners",
+    "Near detail and static instance budgets",
+    "Renderer-independent physical preparation"
+  ]
+}

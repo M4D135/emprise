@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-for(const file of ['ferro/renderer','ferro/geometry','bitume/main','bitume/voiture','human-data','body-data','human','pdr/sim/regles','pdr/foule','ferro/webgpu-shaders','pdr/foule-webgpu'])await import('../src/'+file+'.js');
+for(const file of ['ferro/renderer','ferro/geometry','bitume/main','bitume/voiture','human-data','body-data','human','pdr/sim/regles','ferro/crowd','pdr/foule','ferro/webgpu-shaders','ferro/crowd-webgpu','pdr/foule-webgpu'])await import('../src/'+file+'.js');
 globalThis.GPUBufferUsage={COPY_DST:8,VERTEX:32,INDEX:16,UNIFORM:64};globalThis.GPUTextureUsage={COPY_DST:2,TEXTURE_BINDING:4};globalThis.GPUShaderStage={VERTEX:1,FRAGMENT:2};
 const buffers=[],textures=[],pipelines=[],writes=[],groups=[];
 const device={

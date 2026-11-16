@@ -1,0 +1,141 @@
+{
+  "status": "PASS",
+  "checks": "Exact triangle bytes/order, source snapshots, animated exclusions, restoration/aliases, six-word equality and shader builtins",
+  "reports": [
+    {
+      "detail": "full",
+      "primitiveCounts": {
+        "box": [
+          36,
+          24
+        ],
+        "sphere": [
+          864,
+          173
+        ],
+        "foliage": [
+          216,
+          38
+        ],
+        "cylinder": [
+          192,
+          70
+        ],
+        "octa": [
+          24,
+          24
+        ],
+        "ring": [
+          864,
+          175
+        ],
+        "bevel": [
+          132,
+          96
+        ],
+        "wedge": [
+          24,
+          18
+        ],
+        "test.index.mutable": [
+          6,
+          6
+        ]
+      },
+      "shapes": 7,
+      "references": 2352,
+      "vertices": 618,
+      "restored": 1
+    },
+    {
+      "detail": true,
+      "primitiveCounts": {
+        "box": [
+          36,
+          24
+        ],
+        "sphere": [
+          240,
+          57
+        ],
+        "foliage": [
+          216,
+          38
+        ],
+        "cylinder": [
+          96,
+          38
+        ],
+        "octa": [
+          24,
+          24
+        ],
+        "ring": [
+          288,
+          65
+        ],
+        "bevel": [
+          132,
+          96
+        ],
+        "wedge": [
+          24,
+          18
+        ],
+        "test.index.mutable": [
+          6,
+          6
+        ]
+      },
+      "shapes": 7,
+      "references": 1056,
+      "vertices": 360,
+      "restored": 1
+    },
+    {
+      "detail": 2,
+      "primitiveCounts": {
+        "box": [
+          36,
+          24
+        ],
+        "sphere": [
+          108,
+          31
+        ],
+        "foliage": [
+          216,
+          38
+        ],
+        "cylinder": [
+          72,
+          30
+        ],
+        "octa": [
+          24,
+          24
+        ],
+        "ring": [
+          192,
+          45
+        ],
+        "bevel": [
+          36,
+          24
+        ],
+        "wedge": [
+          24,
+          18
+        ],
+        "test.index.mutable": [
+          6,
+          6
+        ]
+      },
+      "shapes": 6,
+      "references": 672,
+      "vertices": 210,
+      "restored": 1
+    }
+  ]
+}

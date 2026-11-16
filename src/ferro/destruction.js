@@ -124,9 +124,10 @@
     }
     return parts.filter((_,i)=>keep.has(i));
   }
-  function create(world){
+  function create(world,rules={}){
     const originalMeshes=world.meshes||[],originalColliders=world.colliders||[],groups=new Map(),meshOwner=new Map(),states=new Map(),leaked=new Set();
     let meshes=originalMeshes.slice(),colliders=null,unclaimedBoxes=[],lights=(world.lights||[]).slice(),revision=0,meshGeneration=0,meshDelta=null;
+    let token=Object.freeze({}),previousToken=null,previousSnapshot=null,lastDelta=null,emptyDelta=null,deltaEnabled=false;const stableUnclaimed=new Map();
     const definitions=world.destructibles||originalMeshes.map((m,i)=>m.ground||m.terrain?null:{id:'mesh-'+i,kind:'prop',strength:5,meshes:[i],colliders:originalColliders.flatMap((c,j)=>c.mesh===i?[j]:[])}).filter(Boolean);
     const foliage=originalMeshes.some(m=>m.shape==='foliage')?sharedFoliage():null;
     const entries=originalMeshes.map((mesh,source)=>({mesh,source,bounds:bounds(mesh),rotation:rotation(mesh.r),triangles:mesh.shape==='foliage'?foliage:null}));
@@ -194,6 +195,7 @@
         else if(!cuts.some(c=>overlaps(e.bounds,c)))active.push(e);
       }
       const attached=record?.cuts.length&&g.colliders.length&&g.kind!=='roof'?active.filter(e=>e.solid||solids.some(q=>Math.hypot(Math.max(q.bounds.minX-e.bounds.maxX,0,e.bounds.minX-q.bounds.maxX),Math.max(q.bounds.minY-e.bounds.maxY,0,e.bounds.minY-q.bounds.maxY),Math.max(q.bounds.minZ-e.bounds.maxZ,0,e.bounds.minZ-q.bounds.maxZ))<.4)):active;
+      if(deltaEnabled){const used=new Set();for(let i=0;i<attached.length;i++){const fresh=attached[i],old=g.active.find(e=>!used.has(e)&&e.source===fresh.source&&!!e.solid===!!fresh.solid&&(e.mesh===fresh.mesh||e.mesh.fragment&&fresh.mesh.fragment&&KEYS.every(k=>e.bounds[k]===fresh.bounds[k])));if(old){attached[i]=old;used.add(old);}}}
       return {active:attached,solids};
     }
     // Only touched groups need recompilation; their original order remains
@@ -216,6 +218,7 @@
     // The records themselves remain live and are copied at each publication.
     let unclaimedIndices=[],unclaimedSourceLength=-1;
     function rebuild(next=states,full=false){
+      previousToken=full?null:token;token=Object.freeze({});previousSnapshot=deltaEnabled?{meshes,colliders:collisionGeometry()}:null;lastDelta=emptyDelta=null;
       let output;const before=meshGeneration?meshes:null,changedSlots=new Map();full=full||!meshGeneration;
       for(const g of [...geometryDirty].sort((a,b)=>a.rebuildOrder-b.rebuildOrder)){
         const record=next.get(g.id),count=record?.cuts.length||0,removed=!!record?.removed;
@@ -267,9 +270,24 @@
       // other games still receive the exact ordered, revision-local snapshot.
       if(colliders)return colliders;
       const boxes=[];
-      let index=0;for(let i=0;i<originalMeshes.length;i++){const id=ownerIds[i];if(!id){index++;continue;}for(const e of renderSlots[i]||[]){if(e.solid)boxes.push({...e.solid.bounds,mesh:index,destructibleId:id});index++;}}
-      for(const box of unclaimedBoxes)boxes.push(box);
+      let index=0;for(let i=0;i<originalMeshes.length;i++){const id=ownerIds[i];if(!id){index++;continue;}for(const e of renderSlots[i]||[]){if(e.solid){const box=deltaEnabled?(e.collider||(e.collider={...e.solid.bounds,mesh:index,destructibleId:id})):{...e.solid.bounds,mesh:index,destructibleId:id};box.mesh=index;boxes.push(box);}index++;}}
+      for(let i=0;i<unclaimedBoxes.length;i++){const box=unclaimedBoxes[i];if(!deltaEnabled){boxes.push(box);continue;}const old=stableUnclaimed.get(i);if(old&&KEYS.every(k=>old[k]===box[k])){old.mesh=box.mesh;boxes.push(old);}else{stableUnclaimed.set(i,box);boxes.push(box);}}
       return colliders=boxes;
+    }
+    function dirtyOf(removed,added,getBounds){
+      if(!removed.length&&!added.length)return null;const out={minX:Infinity,maxX:-Infinity,minY:Infinity,maxY:-Infinity,minZ:Infinity,maxZ:-Infinity};
+      for(const item of [...removed,...added]){const q=getBounds(item);if(!q||!KEYS.every(k=>finite(q[k])))return null;for(const k of KEYS)out[k]=k.startsWith('min')?Math.min(out[k],q[k]):Math.max(out[k],q[k]);}return Object.freeze(out);
+    }
+    // Lazy multi-reader publication. EMPRISE's ordered splice API remains unchanged.
+    function delta(since){
+      if(!deltaEnabled){deltaEnabled=true;colliders=null;}
+      const frozen=Object.freeze,empty=()=>frozen({added:frozen([]),removed:frozen([]),dirtyAABB:null});
+      if(since===token)return emptyDelta||(emptyDelta=frozen({token,revision,full:false,...empty(),colliders:empty()}));
+      const full=since!==previousToken||!previousSnapshot;
+      if(!full&&lastDelta)return lastDelta;
+      const changes=(old,fresh,getBounds)=>{const before=new Set(old),after=new Set(fresh),added=fresh.filter(x=>!before.has(x)),removed=old.filter(x=>!after.has(x));return frozen({added:frozen(added),removed:frozen(removed),dirtyAABB:dirtyOf(removed,added,getBounds)});};
+      const result=frozen({token,revision,full,...(full?{added:frozen(meshes.slice()),removed:frozen([]),dirtyAABB:null}:changes(previousSnapshot.meshes,meshes,bounds)),colliders:full?frozen({added:frozen(collisionGeometry().slice()),removed:frozen([]),dirtyAABB:null}):changes(previousSnapshot.colliders,collisionGeometry(),q=>q)});
+      if(!full)lastDelta=result;return result;
     }
     rebuild();seedSupports();
     function raycast(origin,direction,maxDistance=100){
@@ -302,7 +320,26 @@
         }else if(!keep.length)out.push({mesh:m,source:e.source,sourceId:g.id,kind:g.kind,point,power,direction});
       }
     }
+    function sourceDebris(raw){
+      const worth=q=>Math.pow(q.mesh.s.reduce((v,n)=>v*n,1),.35)*Math.max(...q.mesh.s),ordered=raw.sort((a,b)=>worth(b)-worth(a)),selected=[],seen=new Set();
+      // Give each collapsed body a representative piece before spending the
+      // remaining finite budget on detail. Small chips have a separate allowance.
+      for(const q of ordered)if(!seen.has(q.sourceId)&&selected.length<MAX_DEBRIS-8){seen.add(q.sourceId);selected.push(q);}
+      for(const q of ordered)if(selected.length<MAX_DEBRIS-8&&!selected.includes(q))selected.push(q);
+      const splitAxis=q=>{if(!['box','bevel','cylinder'].includes(q.mesh.shape||'box'))return -1;const s=q.mesh.s;let axis=-1,ratio=1;for(let k=0;k<3;k++){if(q.mesh.shape==='cylinder'&&k!==1)continue;const target=q.kind==='roof'&&k===1&&s[1]<1.2?.35:2.4,r=s[k]/target;if(r>ratio){ratio=r;axis=k;}}return axis;};
+      while(selected.length<MAX_DEBRIS-8){
+        let at=-1,axis=-1,best=0;for(let i=0;i<selected.length;i++){const k=splitAxis(selected[i]);if(k>=0&&worth(selected[i])>best){at=i;axis=k;best=worth(selected[i]);}}
+        if(at<0)break;const q=selected[at],m=q.mesh,s=m.s.slice(),a=rotation(m.r);s[axis]/=2;
+        const pieces=[-1,1].map(sign=>({...q,mesh:{...m,s:s.slice(),p:m.p.map((v,k)=>v+sign*a[k*3+axis]*s[axis]/2)}}));selected.splice(at,1,...pieces);
+      }
+      return selected.map((q,i)=>{
+        const m=q.mesh,seed=(q.source*977+(revision+1)*911+i*131)>>>0,random=randomFor(seed),material=materialOf(m),volume=m.s.reduce((v,n)=>v*n,1)*({sphere:Math.PI/6,cylinder:Math.PI/4,octa:1/6,ring:2*Math.PI*Math.PI*.435*.065*.065,foliage:.55}[m.shape]||1),mass=clamp(volume*({metal:65,stone:28,wood:8,glass:25,dirt:12}[material]),.035,160);
+        const angle=random()*Math.PI*2,dx=m.p[0]-q.point[0],dz=m.p[2]-q.point[2],length=Math.hypot(dx,dz),speed=clamp(Math.sqrt(q.power)*.30/Math.pow(Math.max(1,mass),.22),.35,3.2),dir=q.direction||[length>.03?dx/length:Math.cos(angle),0,length>.03?dz/length:Math.sin(angle)],spin=Math.max(...m.s)>Math.min(...m.s)*8?.55:1.4;
+        return {structural:true,sourceId:q.sourceId,shape:m.shape||'box',x:m.p[0],y:m.p[1],z:m.p[2],size:m.s.slice(),rotation:(m.r||[0,0,0]).slice(),angularVelocity:[(random()-.5)*spin,(random()-.5)*spin,(random()-.5)*spin],velocity:[dir[0]*speed,q.kind==='roof'?-.25:.35+random()*.9+dir[1]*speed,dir[2]*speed],resting:false,mat:m.mat||0,color:m.color?.slice(),material,mass,life:1e7,seed};
+      });
+    }
     function fallingDebris(raw){
+      if(rules.fragmentation==='source')return sourceDebris(raw);
       const worth=q=>Math.pow(q.mesh.s.reduce((v,n)=>v*n,1),.35)*Math.max(...q.mesh.s),ordered=raw.slice().sort((a,b)=>worth(b)-worth(a)),selected=[],alloc=new Map(),seen=new Set(),capacity=MAX_DEBRIS-8;
       for(const q of ordered)if(!seen.has(q.sourceId)&&alloc.size<capacity){seen.add(q.sourceId);alloc.set(q,1);}
       for(const q of ordered)if(alloc.size<capacity&&!alloc.has(q))alloc.set(q,1);
@@ -319,7 +356,7 @@
       if(crumbleVolume>EPS)debris.push({dust:true,structural:false,x:center[0],y:center[1],z:center[2],size:[clamp(radius*2,1,18),clamp(radius,1,7),clamp(radius*2,1,18)],volume:crumbleVolume,life:3.5,seed:revision+1});
       return debris;
     }
-    function damage(point,radius,power,bullet,ignoreId,direction){
+    function damage(point,radius,power,bullet,ignoreId,direction,source){
       const result={changed:false,revision,debris:[],events:[],pipeLeaks:[],collapsed:[]},fallen=[];
       if(!validPoint(point)||!finite(radius)||!finite(power)||radius<=0||power<=0)return result;
       radius=clamp(radius,.05,12);power=clamp(power,0,1000);
@@ -327,6 +364,7 @@
       let targets=query(reach).filter(g=>g.id!==String(ignoreId)&&isAlive(g.id)&&g.active.some(e=>distance(point,e.bounds)<=radius));
       if(bullet)targets=targets.sort((a,b)=>Math.min(...a.active.map(e=>distance(point,e.bounds)))-Math.min(...b.active.map(e=>distance(point,e.bounds)))).slice(0,1);
       const touched=[];
+      if(rules.canDamage)targets=targets.filter(g=>{if(rules.canDamage(g,bullet,source))return true;if(bullet){const near=g.active.reduce((a,c)=>distance(point,c.bounds)<distance(point,a.bounds)?c:a),box=near.bounds,normal=[0,0,0];let axis=0,side=1,best=Infinity;for(let k=0;k<3;k++)for(const sign of [-1,1]){const face=box[(sign<0?'min':'max')+'XYZ'[k]],gap=Math.abs(point[k]-face);if(gap<best){best=gap;axis=k;side=sign;}}normal[axis]=side;result.deflected=true;result.events.push({name:'materialImpact',deflected:true,sourceId:g.id,x:point[0],y:point[1],z:point[2],normal,material:materialOf(near.mesh),power:Math.min(2,power),seed:(world.seed+Math.imul(Math.round(point[0]*97)+Math.round(point[1]*193)+Math.round(point[2]*389),2654435761))>>>0});}return false;});
       for(const g of targets){
         const nearest=g.active.reduce((best,e)=>!best||distance(point,e.bounds)<distance(point,best.bounds)?e:best,null),d=distance(point,nearest.bounds),impact=[Math.max(nearest.bounds.minX,Math.min(point[0],nearest.bounds.maxX)),Math.max(nearest.bounds.minY,Math.min(point[1],nearest.bounds.maxY)),Math.max(nearest.bounds.minZ,Math.min(point[2],nearest.bounds.maxZ))],amount=power*(bullet?1:Math.pow(Math.max(0,1-d/radius),.45));if(amount<=.02)continue;
         const old=states.get(g.id)||{damage:0,cuts:[],removed:false},record={...old,cuts:old.cuts.slice(),damage:old.damage+amount},event={x:impact[0],y:impact[1],z:impact[2],sourceId:g.id,material:materialOf(nearest.mesh),power:amount,seed:nearest.source*977+(revision+1)*911};
@@ -350,11 +388,11 @@
       }
       if(result.changed){
         supportQueue=[...supportPending].sort((a,b)=>a-b);supportPending.clear();supportCursor=-1;for(const i of supportQueue)supportQueued[i]=1;
-        while(supportQueue.length){const roof=nextSupported();if(isAlive(roof.id)){
+        while(supportQueue.length){const roof=nextSupported();if(isAlive(roof.id)&&(!rules.canDamage||rules.canDamage(roof,false,source))){
           if(supportFails(roof)){
             const point=[(roof.bounds.minX+roof.bounds.maxX)/2,roof.bounds.minY,(roof.bounds.minZ+roof.bounds.maxZ)/2];removedGeometry(roof,roof.active,[],point,45,undefined,fallen);
             states.set(roof.id,{damage:0,cuts:[],removed:true});geometryFor(roof,{active:[],solids:[]});result.collapsed.push(roof.id);
-            for(const id of roof.dependents||[]){const g=groups.get(id);if(g&&isAlive(id)){removedGeometry(g,g.active,[],point,45,undefined,fallen);states.set(id,{damage:0,cuts:[],removed:true});geometryFor(g,{active:[],solids:[]});result.collapsed.push(id);}}
+            for(const id of roof.dependents||[]){const g=groups.get(id);if(g&&isAlive(id)&&(!rules.canDamage||rules.canDamage(g,false,source))){removedGeometry(g,g.active,[],point,45,undefined,fallen);states.set(id,{damage:0,cuts:[],removed:true});geometryFor(g,{active:[],solids:[]});result.collapsed.push(id);}}
             result.events.push({name:'materialBreak',x:point[0],y:point[1],z:point[2],sourceId:roof.id,material:materialOf(entries[roof.meshes[0]].mesh),power:45,seed:roof.meshes[0]*977+(revision+1)*911});
           }
         }}supportQueue=null;supportCursor=-1;
@@ -367,6 +405,7 @@
       }
       return result;
     }
+    function digestInto(mix){mix(signature);mix(revision);for(const [id,q] of states){mix(id);mix(q);}for(const id of leaked)mix(id);}
     function snapshot(){return {version:1,signature,revision,states:Array.from(states,([id,s])=>({id,damage:s.damage,removed:!!s.removed,cuts:s.cuts.map(copyBox)})),leaks:Array.from(leaked)};}
     function restore(value,options={}){
       if(!value||value.version!==1||value.signature!==signature||!Number.isInteger(value.revision)||value.revision<0||value.revision>1e9||!Array.isArray(value.states)||value.states.length>groups.size||!Array.isArray(value.leaks))return false;
@@ -385,8 +424,8 @@
       for(const g of groups.values())geometryDirty.add(g);
       rebuild(states,true);seedSupports();revision=options.exactRevision?value.revision:Math.max(revision+1,value.revision);return true;
     }
-    return {detach(id){const g=groups.get(id);if(!g||!isAlive(id))return [];const out=g.active.map(e=>e.mesh);states.set(id,{damage:0,cuts:[],removed:true});geometryDirty.add(g);rebuild();revision++;return out;},describe(id){const g=groups.get(id);return g?{id:g.id,meshes:g.active.map(e=>e.mesh),strength:g.strength,bounds:g.bounds}:null;},sourceSpan(index){return Number.isInteger(index)&&index>=0&&index<originalMeshes.length?{start:sourceStart(index),length:ownerIds[index]?(renderSlots[index]?.length||0):1}:null;},get meshes(){return meshes;},get meshDelta(){return meshDelta;},get colliders(){return collisionGeometry();},get lights(){return lights;},get revision(){return revision;},isAlive,raycast,
-      hit:(point,power,direction)=>damage(point,.22,power,true,undefined,validPoint(direction)?direction:undefined),blast:(point,radius,power,ignoreId)=>damage(point,radius,power,false,ignoreId),snapshot,restore};
+    return {delta,digestInto,detach(id){const g=groups.get(id);if(!g||!isAlive(id))return [];const out=g.active.map(e=>e.mesh);states.set(id,{damage:0,cuts:[],removed:true});geometryDirty.add(g);rebuild();revision++;return out;},describe(id){const g=groups.get(id);return g?{id:g.id,meshes:g.active.map(e=>e.mesh),strength:g.strength,bounds:g.bounds}:null;},sourceSpan(index){return Number.isInteger(index)&&index>=0&&index<originalMeshes.length?{start:sourceStart(index),length:ownerIds[index]?(renderSlots[index]?.length||0):1}:null;},get meshes(){return meshes;},get meshDelta(){return meshDelta;},get colliders(){return collisionGeometry();},get lights(){return lights;},get revision(){return revision;},isAlive,raycast,
+      hit:(point,power,direction,source)=>damage(point,.22,power,true,undefined,validPoint(direction)?direction:undefined,source),blast:(point,radius,power,ignoreId,source)=>damage(point,radius,power,false,ignoreId,undefined,source),snapshot,restore};
   }
   G.FDestruction={create,fragment};
 })(typeof window!=='undefined'?window:globalThis);

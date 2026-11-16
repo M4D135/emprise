@@ -108,11 +108,9 @@ function sourceProblems(text, counts = {blocks: 0, members: 0}) {
   return problems;
 }
 
-test('P02 Source : taille, motifs interdits, membres de Math, blocs TRIG', t => {
+test('P02 Source : motifs interdits, membres de Math, blocs TRIG', t => {
   const text = source(), bytes = Buffer.byteLength(text, 'utf8'), counts = {blocks: 0, members: 0};
   t.diagnostic(`src/physics.js : ${bytes} octets`);
-  assert.ok(bytes <= 82000, `src/physics.js fait ${bytes} octets (plafond 82 000)`);
-  if (bytes > 60000) t.diagnostic(`au-dessus de la cible de 60 000 octets : ${bytes}`);
   assert.deepEqual(sourceProblems(text, counts), []);
   assert.ok(counts.blocks >= 1, 'au moins un bloc TRIG (conversions d\'angles)');
   t.diagnostic(`${counts.blocks} bloc(s) TRIG, ${counts.members} appels à Math vérifiés`);

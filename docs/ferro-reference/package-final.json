@@ -1,0 +1,10 @@
+{
+  "version": "0.3.0",
+  "moduleCount": 32,
+  "manifestFilesVerified": 38,
+  "archiveSha256": "3cb0aa994532b646f74661fc2555e5ed8e0319bca4cd14508203a3d018609f08",
+  "standaloneInstall": true,
+  "modifiedModuleRejected": true,
+  "install": "bitume: 0.3.0 installed, 32 identical modules",
+  "check": "FERRO 0.3.0: 32 reference modules verified"
+}

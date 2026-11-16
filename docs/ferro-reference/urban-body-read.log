@@ -1,0 +1,18 @@
+{
+  "test": "PASS urban body reads vs 22a330f",
+  "facade": "piece-11559",
+  "simulationTicks": 900,
+  "bodies": 240,
+  "solverHistory": "0ba1b069c2656d7c73119ed8bada3a9ee5cbb215235dd42446adcd07ffe9e67a",
+  "renderHistory": "d1a01a99722f68798fc8f7fa2dfbe6afc507f6a3f2e630c2d1f9cf7e1ea405ca",
+  "finalStateHashes": {
+    "destruction": "ac86830ba5f11aa347f1531e52bc6e72e0549a96c6114ec55da63a672be4adf5",
+    "worldMeshes": "dc35d25eb26e9976dd649d06d3444ca3b723be7dd7107675ecc7c94536735fbc",
+    "worldColliders": "7c5e210d8dd3f618196a2748db60edd3f611a11103cff5bbc51e67f19d5ae7be",
+    "urbanReport": "f93764e2561ff3bef43ea7730ed4ef99daf1267abb98a53506509078f04ffb14",
+    "bodies": "4dceaa05218dfa1e271bc9d05692db725302b1adf72d2b9e82b29594379f8397",
+    "projections": "d36f35c1aff742eb3a17f03fafc9a191e2f4bbf05b4666b3f06037532a4ed984",
+    "save": "f5df38b78310c23a887ccf718cf18796b008ce5c3ad94951b679cc292540f12f",
+    "revision": "4fc82b26aecb47d2868c4efbe3581732a3e7cbcc6c2efb32062c08170a05eeb8"
+  }
+}

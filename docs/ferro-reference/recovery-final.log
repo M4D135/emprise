@@ -1,0 +1,5 @@
+START recovery device-lost
+PASS recovery device-lost
+START recovery adapter-rejected
+PASS recovery adapter-rejected
+PASS /Users/david/Documents/Codex/2026-11-15/no/work/ferro-editor-emprise/docs/ferro-reference-recovery.json

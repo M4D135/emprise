@@ -1,4 +1,4 @@
-await import('./load.mjs');for(const f of ['human-data','body-data','human','pdr/foule'])await import('../src/'+f+'.js');import assert from 'node:assert/strict';import fs from 'node:fs';
+await import('./load.mjs');for(const f of ['human-data','body-data','human','ferro/crowd','pdr/foule'])await import('../src/'+f+'.js');import assert from 'node:assert/strict';import fs from 'node:fs';
 for(const mesh of [RADE.human.head,RADE.human.body,RADE.human.scarf,RADE.human.scarfDrape,...RADE.human.heads.map(v=>v.head)]){assert(mesh.indices.every(i=>Number.isInteger(i)&&i>=0&&i<mesh.positions.length));assert(mesh.positions.flat().every(Number.isFinite));assert(mesh.normals.flat().every(Number.isFinite));for(const n of mesh.normals)assert(Math.hypot(...n)>.8&&Math.hypot(...n)<1.2);}
 for(const b of RADE.human.body.bones)assert(b.every(Number.isFinite)&&b[2]>=0&&b[2]<=1);
 const crowd=PDR.foule.construireMaillages();assert(crowd.indices instanceof Uint32Array);assert(crowd.indices.every(i=>i<crowd.nombre));assert(new Float32Array(crowd.sommets).every(Number.isFinite));

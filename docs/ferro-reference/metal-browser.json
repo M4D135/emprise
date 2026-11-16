@@ -1,0 +1,105 @@
+{
+  "errors": [],
+  "frames": 98,
+  "stats": {
+    "drawCalls": 67,
+    "triangles": 256176,
+    "instances": 5644,
+    "contextLost": false,
+    "webglVersion": 2,
+    "backend": "webgl2",
+    "engine": "ferro-reference",
+    "bloom": true,
+    "shadows": true,
+    "primitiveIndex": {
+      "shapes": 7,
+      "references": 2352,
+      "vertices": 618,
+      "restored": 0
+    },
+    "native": {
+      "device": [
+        2880,
+        1800
+      ],
+      "buffer": [
+        2880,
+        1800
+      ],
+      "scale": 1,
+      "capped": null,
+      "changes": 0
+    },
+    "budget": {
+      "target": 30,
+      "p50": 0,
+      "p95": 0,
+      "over": 0,
+      "sustained": false
+    },
+    "budgetLog": [],
+    "sceneReflections": {
+      "mode": "probe",
+      "ready": true,
+      "faces": 1,
+      "cycles": 17,
+      "screenPasses": 0,
+      "history": 0,
+      "revision": 0
+    },
+    "pbrLayers": 0,
+    "staticTotal": 14063,
+    "biome": "woodland",
+    "worldRevision": 0,
+    "actorsCulled": 0,
+    "actorsConsidered": 0,
+    "actorFilterMode": "reflection",
+    "renderScale": 1,
+    "pixelRatio": 1,
+    "width": 2880,
+    "height": 1800,
+    "msaa": 0,
+    "composition": true,
+    "viewDistance": 64,
+    "cache": {
+      "viewFrames": 133,
+      "viewRebuilds": 2,
+      "torchRebuilds": 0,
+      "sunRebuilds": 0,
+      "marginDistance": 1,
+      "marginAngle": 4
+    },
+    "staticSuperset": 1538,
+    "staticVisible": 1307,
+    "staticCulled": 12756,
+    "dynamicLights": 0,
+    "blackoutLights": 0,
+    "shadowMaps": 3,
+    "shadowMode": "sun-atlas",
+    "uploadBytes": 28288,
+    "fxInstances": 0,
+    "crowdInstances": 0,
+    "pdrLotInstances": 0,
+    "sky": "lisiere-aube",
+    "backgroundWater": 0,
+    "backgroundDrawCalls": 0,
+    "lotsVisibles": 0,
+    "reflections": false,
+    "reflectionSteps": 0,
+    "calibration": {
+      "p50": 11.300000011920929,
+      "p95": 13.600000023841858,
+      "refreshMs": 16.700000000000045,
+      "frames": 30,
+      "buffer": [
+        2880,
+        1800
+      ]
+    }
+  },
+  "version": "0.3.0",
+  "body": "M/\nMONDE 01 / 18\nÉquipement 1 / 6 · La lisière rouillée\nLÉGER\n100 % VOL\nPasser au lourd\nT\n30 FPS\nSIGNAL STABLE\n00000\nACTIVER LES COMMANDES\n0 / 3\nCOMMANDES\n0 / 4\nMACHINES\n0 / 66\nDeux profils · T : changer. Léger : maintenir le saut pour voler. Lourd : récupérer le lance-grenades près du départ.\n▣\nCOMMANDE\n2 m\n↑\nF\nRéseau de la lisière\nLisière des pins\nALT. 0,0 m\n+\nINTÉGRITÉ\n100\n/ 100\nARMURE\n0\n/ 100\nARSENAL 1 / 5 · NV 1 · 0 XP\n0\nCR\n0\nNOYAUX\n5\nD\nPISTOLET\n∞\nX MAIN GAUCHE\nLibre\nMitraillette\nDouble pompe\nLance-roquettes\nLance-grenades\nPistolet\nLIBRE\nX · CHANGER\nMAIN DROITE\nPISTOLET\n∞\nILLIMITÉES\nBALLES\nCHALEUR\nR · ESQUIVE PRÊTE\nE · ONDE PRÊTE\nV · CROSSE",
+  "sha256": "2a7196698bf68f5ab3c0fbfced6556961129b6ad002210e291ef22c9305f87fe",
+  "glWarnings": [],
+  "browserErrors": []
+}

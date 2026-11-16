@@ -1,0 +1,18 @@
+{
+  "pass": true,
+  "unitScenarios": 15,
+  "productionTrafficTicks": 180,
+  "productionSessionTicks": 240,
+  "vehicles": 15,
+  "intermediatePoses": 2693,
+  "physicsAndAi": "exact every tick",
+  "attachments": [
+    "body",
+    "wheels",
+    "rider",
+    "seated driver",
+    "headlights",
+    "police beacons"
+  ],
+  "scope": "Render-only interpolation, no browser or FPS claim"
+}

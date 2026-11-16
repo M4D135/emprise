@@ -1,0 +1,1031 @@
+ok  carène fermée : chaque arête partagée par deux triangles, volume positif
+ok  carène : nombre de triangles attendu (20 côtés, 2 intervalles de 4 pas, deux bouts)
+ok  normales unitaires, tournées vers dehors, cohérentes avec les faces
+ok  boîte englobante égale aux cotes des sections
+ok  symétrie gauche-droite : chaque sommet a son reflet
+ok  peau lisse : entre deux sections, aucune arête de plus de 50° (normales moyennées)
+ok  ouverture : le haut reste ouvert entre ses abscisses, le bord est net
+ok  tube : fermé, rayon tenu, bouts en demi-sphère
+ok  normaliser : cube unité, centre et taille, normales ramenées par l’inverse transposée
+ok  miroir : orientation gardée, volume identique
+ok  tube à six côtés : génératrices lisses, le vif suit le nombre de côtés (carene-3)
+ok  miroir : les normales suivent la permutation des sommets (garde carene-5)
+ok  arêtes vives gardées : un dièdre de 90° ne se lisse pas (garde carene-5)
+ok  tube hors plan : chaque sommet à r ± 1 % de l'axe lissé (garde carene-5)
+carène : 14 vérifications passées
+✔ verifications/carene.test.mjs (53.182208ms)
+ok  Création circuit 11 (foret)
+ok  Validation circuit 11
+ok  Longueur circuit 11
+ok  Déterminisme circuit 11
+ok  Fermeture circuit 11
+ok  Echantillonnage circuit 11
+ok  Point circuit 11
+ok  Repère orthonormé circuit 11
+ok  Ligne droite départ circuit 11
+ok  Vitesse circuit 11
+ok  Ligne idéale circuit 11
+ok  Ecart circuit 11
+ok  Création circuit 29 (cote)
+ok  Validation circuit 29
+ok  Longueur circuit 29
+ok  Déterminisme circuit 29
+ok  Fermeture circuit 29
+ok  Echantillonnage circuit 29
+ok  Point circuit 29
+ok  Repère orthonormé circuit 29
+ok  Ligne droite départ circuit 29
+ok  Vitesse circuit 29
+ok  Ligne idéale circuit 29
+ok  Ecart circuit 29
+ok  Création circuit 47 (montagne)
+ok  Validation circuit 47
+ok  Longueur circuit 47
+ok  Déterminisme circuit 47
+ok  Fermeture circuit 47
+ok  Echantillonnage circuit 47
+ok  Point circuit 47
+ok  Repère orthonormé circuit 47
+ok  Ligne droite départ circuit 47
+ok  Vitesse circuit 47
+ok  Ligne idéale circuit 47
+ok  Ecart circuit 47
+✔ verifications/circuit.test.mjs (399.892875ms)
+{
+  "root": "/Users/david/Documents/Codex/2026-11-15/no/work/ferro-reference-bitume",
+  "passed": 17,
+  "total": 17,
+  "results": [
+    {
+      "name": "T-bone réellement chevauché mais dd>largeur : collision et casse, aucun saut",
+      "ok": true
+    },
+    {
+      "name": "voitures transversales séparées : pas de contact fantôme des rectangles Frenet",
+      "ok": true
+    },
+    {
+      "name": "épave en attente de reprise : reste solide, voiture incidente détruite, pas de nouveaux débris épave",
+      "ok": true
+    },
+    {
+      "name": "balayage : traversée complète en un pas détectée au premier contact",
+      "ok": true
+    },
+    {
+      "name": "pénétration persistante : séparée même pendant réarmement, pas de dégâts répétés",
+      "ok": true
+    },
+    {
+      "name": "contact déjà en séparation : aucune casse malgré grande vitesse totale",
+      "ok": true
+    },
+    {
+      "name": "hauteur différente : pas de contact au même point plan",
+      "ok": true
+    },
+    {
+      "name": "virage réel : normale et force indépendantes de la rotation du repère monde",
+      "ok": true
+    },
+    {
+      "name": "balayage rotation seule : chevauchement intermédiaire résolu sans faux dégâts",
+      "ok": true
+    },
+    {
+      "name": "balayage : distance, hauteur et beta reviennent au contact avec s,d",
+      "ok": true
+    },
+    {
+      "name": "balayage en hauteur : obstacle survolé pendant tout le trajet ignoré",
+      "ok": true
+    },
+    {
+      "name": "hauteur finale différente : contact plus tôt au sol reste détecté",
+      "ok": true
+    },
+    {
+      "name": "petit bond àhauteur de caisse : épave reste solide, grand saut reste libre",
+      "ok": true
+    },
+    {
+      "name": "balayage vertical entre rivaux : collision géométrique entre endpoints libres",
+      "ok": true
+    },
+    {
+      "name": "impulsion nonfatale : direction de vitesse change, cap carrosserie conservé",
+      "ok": true
+    },
+    {
+      "name": "casse : cap épave conservé au reset beta et aux pas suivants",
+      "ok": true
+    },
+    {
+      "name": "immunité : voiture solide pour le rival, sans nouveaux dégâts",
+      "ok": true
+    }
+  ]
+}
+✔ verifications/collisions-orientees.test.mjs (37.563666ms)
+ok S10 charge avant à −3 g depuis 86 m/s : 0.616 (cible ≥ 0,60)
+ok S10 charge avant à −3 g depuis 92 m/s : 0.604 (cible ≥ 0,60)
+ok S10 charge vers l’arrière en accélération 2e : 0.344 (cible < répartition)
+ok S10 transfert latéral : adhérence totale : 0.976 (cible 0,90 à 0,995)
+ok S3 lever de pied R120 : lacet après/avant : 1.128 (cible ≥ 1,05)
+ok S11 frein 0,3 entrée R120 : courbure après/avant : 1.520 (cible ≥ 1,05)
+ok S3 plein gaz 2e/3e : dérive arrière maximale : 7.884 (cible ≥ 6° pour un cas) — 2e/R63 7.9° · 3e/R98 4.5° · 3e/R120 4.2°
+ok S4 coup de glisse : témoin tête-à-queue : oui (cible oui)
+ok S4 contre-braquage après 0,3 s : rattrapée (cible rattrapée)
+ok S4 forte glisse sans aide : tête-à-queue : oui (cible oui)
+ok S4 forte glisse avec aide 0.35 : 3.103 (cible < 5° et sans tête-à-queue)
+ok S4 forte glisse avec aide 0.7 : 3.102 (cible < 5° et sans tête-à-queue)
+ok S9 clavier 0→90 % à 0 km/h : 75.000 (cible ≤ 120 ms)
+ok S9 clavier relâché à 0 km/h : 66.667 (cible ≤ 80 ms)
+ok S9 clavier contre à 0 km/h : 25.000 (cible ≤ 30 ms)
+ok S9 clavier 0→90 % à 310 km/h : 117 (cible ≤ 120 ms)
+ok S9 clavier relâché à 310 km/h : 66.667 (cible ≤ 80 ms)
+ok S9 clavier contre à 310 km/h : 25.000 (cible ≤ 30 ms)
+ok S9 clavier 0→90 % à 331 km/h : 117 (cible ≤ 120 ms)
+ok S9 clavier relâché à 331 km/h : 66.667 (cible ≤ 80 ms)
+ok S9 clavier contre à 331 km/h : 25.000 (cible ≤ 30 ms)
+ok S9 plein braquage : lacet / limite : 1.163 (cible ≤ 1,2) — droit/120:1.099 · droit/200:1.159 · droit/300:1.155 · 150/120:1.099 · 150/200:1.163 · 150/300:1.158 · 300/120:1.099 · 300/200:1.161 · 300/300:1.157
+ok S9 braquageMax exporté et borné : 0.120 (cible > 0, monotone)
+ok S3 départ : régime dans les 0,5 s : 10309 (cible ≥ 9 000 tr/min)
+ok S3 départ : 0–100 km/h : 2.533 (cible 2,2 à 3,4 s)
+ok S3 pente 6 % : pointe / plat : 0.945 (cible ≤ 0,98)
+ok S3 pente 6 % : écart g·sin(pente) : 0.588 (cible 0.588 ± 5 %)
+ok S3 aspiration à 10 m : gain en 4 s : 4.061 (cible ≥ 3 m)
+ok S3 aspiration hors couloir : 0.000 (cible nul)
+ok S5 clavier impulsions 0.2s à 30 Hz : 2.000 (cible 162 dont au moins 1) — meilleur palier 3.27 s, |d| 1.30 m
+ok S5 clavier impulsions 0.2s à 60 Hz : 2.000 (cible 162 dont au moins 1) — meilleur palier 3.38 s, |d| 1.29 m
+ok S5 clavier impulsions 0.2s à 120 Hz : 1.000 (cible 162 dont au moins 1) — meilleur palier 3.78 s, |d| 4.65 m
+ok S5 clavier impulsions 0.1s à 30 Hz : 6.000 (cible 162 dont au moins 1) — meilleur palier 2.99 s, |d| 0.33 m
+ok S5 clavier impulsions 0.1s à 60 Hz : 6.000 (cible 162 dont au moins 1) — meilleur palier 2.97 s, |d| 0.33 m
+ok S5 clavier impulsions 0.1s à 120 Hz : 6.000 (cible 162 dont au moins 1) — meilleur palier 2.93 s, |d| 0.34 m
+ok S5 30 appuis martelés : un seul départ : 1.000 (cible exactement 1)
+ok S6 paliers au mieux sur piste réelle : 0.008 (cible ≤ 0,05 s) — niveaux 0.70 / 1.31 / 2.11 s, |d| 2.86 m
+ok S6 tenue manette R40 : 2.417 (cible < 5,5 m pendant 3 s)
+ok S6 tenue manette R120 : 1.124 (cible < 5,5 m pendant 3 s)
+ok S6 tenue manette R250 : 0.327 (cible < 5,5 m pendant 3 s)
+ok S6 tenue manette R400 : 1.083 (cible < 5,5 m pendant 3 s)
+mesure S8 lissage β à 60 et 120 Hz, pire scénario : 997 (cible ≤ 300°/s²) — paliers 269.1 · clavier 501.3 / 905.7 / 821.0 / 997.4
+ok S7 R80 : dérive puis turbo III et gain : 0.292 (cible 0,1 à 0,3 s) — adhérence 14.41 s, dérive 14.12 s, turbo III true
+ok S7 turbo coupé par frein / herbe / vrai choc de glissière : oui / oui / oui (cible oui / oui / oui)
+ok S7 contact réel entre voitures coupe le turbo du joueur : 1.000 (cible 1) — contact=true
+ok S7 IA : même loi, état fini après 60 s : 1.000 (cible 1)
+ok S7 turbo III : poussée positive : 5.584 (cible > 0 m/s)
+---
+46/46 critères obligatoires tenus; 1 mesure(s) ouverte(s)
+✔ verifications/conduite-criteres.test.mjs (844.340042ms)
+ok  départ arrêté
+ok  freinage
+ok  cercle sans braquer
+ok  cercle avec volant
+ok  retenue
+ok  dérive niveaux
+ok  dérive annulée fond
+ok  dérive annulée frein
+ok  dérive ligne droite
+ok  herbe
+ok  glissière
+ok  100000 pas aléatoires
+ok  glissière propre à chaque côté
+ok  glissière : la caisse collée au rail se dégage et repart
+ok  boîte manuelle et rupteur
+ok  turbo
+ok  grille : rupteur
+ok  déterminisme
+18 vérifications réussies
+✔ verifications/conduite.test.mjs (182.260959ms)
+ok petit bond : rapprochement de roues supérieur à2,5m/s : true (cible oui)
+ok petit bond : hauteur 0,10 à 0,35 m : 0.220 (cible 0,10–0,35 m)
+ok petit bond : durée 0,25 à 0,45 s : 0.340 (cible 0,25–0,45 s)
+ok petit bond : arc réellement parcouru (hauteur rendue) : 0.220 (cible > 0,08 m)
+ok petit bond : jamais de gain de vitesse : -0.731 (cible ≤ 0)
+ok petit bond : réception signalée : true (cible oui)
+ok réception bonne correction ≈ 100 % : 1.000 (cible 0,99–1,00)
+ok réception neutre ≈ 97 % : 0.970 (cible 0,96–0,98)
+ok réception mauvaise ≈ 94 % : 0.940 (cible 0,93–0,95)
+ok réception : jamais de gain (corr ≤ 1) : 1.000 (cible ≤ 1)
+ok réception : bon > neutre > mauvais : 1.000 (cible croissant décroissant)
+ok grand saut : arc de 1 à 3 m : 1.800 (cible 1–3 m)
+ok grand saut : durée 0,7 à 1,3 s : 1.008 (cible 0,7–1,3 s)
+ok grand saut : tangage et roulis en l’air : 1.000 (cible présents)
+ok grand saut : on dirige moins en l’air : 0.000 (cible < 0,4 du sol) — air=0.000 sol=0.001
+ok grand saut : attitude hors limite → accident : true (cible oui)
+ok paire : une seule réponse tant qu’elles se touchent : 0.000 (cible 0)
+ok paire : réarmement après séparation + 0,35 s : 1.000 (cible ≥ 1)
+ok paire : au moins 1,25 s entre deux bonds : 1.000 (cible second bloqué)
+ok roue décalée : le cap tourne d’au moins 2° : 3.950 (cible ≥ 2°)
+ok roue décalée : la vitesse baisse : -0.288 (cible < 0)
+ok dégâts : adhérence −8 % au plus : 0.925 (cible ≥ 0,92)
+ok dégâts : traînée +8 % au plus : 1.060 (cible ≤ 1,08)
+ok dégâts : teinte uEffects.z alimentée : 0.937 (cible 0–1)
+ok dégâts : une roue part sur un choc violent : 1.000 (cible oui)
+ok dégâts : casse franche au-delà du seuil : 1.000 (cible oui)
+ok dégâts : un frôlement ne casse rien : 1.000 (cible rien)
+ok accident : retour sur le revêtement en moins de1s : 0.650 (cible 0,6–1s)
+ok accident : revenu sur la piste (|d| petit) : 0.000 (cible < 0,5 m)
+ok accident : vitesse continue (pas d’à-coup) : 0.000 (cible < 1 m/s par pas)
+ok accident : cap réaligné au retour sans gain longitudinal : 0.000 (cible 0 et s100)
+ok accident : 1s d’immunité après le retour : 1.000 (cible ≈ 1s)
+ok cadence : réception stable à 30/60/120 Hz : 0.020 (cible < 0,5 m/s)
+ok cadence : 60 s de contacts en moins de 1,5 s : 0.020 (cible < 1,5 s)
+ok glissière : frôlement < 8° garde ≥ 90 % après 0,5 s : 1.000 (cible ≥ 0,90)
+ok glissière : vitesse normale≥21m/s → arrêt et reprise : 1.000 (cible oui)
+ok glissière : jamais renvoyée au-delà de l’axe : 1.000 (cible oui)
+ok emprise de la caisse : aucun coin au-delà du rail, quel que soit le cap : 1.000 (cible oui)
+ok roue perdue : plus de motricité, la caisse s’immobilise : 0.000 (cible ≈ 0)
+ok roue perdue : plus de direction (plein gauche = plein droit) : 0.000 (cible < 0,1 m)
+ok roue perdue : remise en piste signalée : 1.000 (cible oui)
+ok roue perdue : roue remise et caisse réparée : 1.000 (cible oui)
+ok roue perdue : repositionnée sur la trajectoire (d ≈ 0) : 0.000 (cible ≈ 0)
+ok roue perdue : état fini, course non déclarée terminée : 1.000 (cible oui)
+---
+44/44 critères du Chantier 3 tenus
+✔ verifications/contacts.test.mjs (78.56225ms)
+ok  feux
+ok  course 2 tours
+ok  depassements
+ok  contacts
+ok  chrono fantome
+ok  determinisme
+ok  performance
+ok  aspiration
+---
+8 tests passes
+✔ verifications/course.test.mjs (1743.281834ms)
+{
+  "root": "/Users/david/Documents/Codex/2026-11-15/no/work/ferro-reference-bitume",
+  "normalImpactMps": 35.34517439934782,
+  "passed": 22,
+  "total": 22,
+  "results": [
+    {
+      "name": "mur 180 km/h à45° : dégâts normaux et casse",
+      "ok": true
+    },
+    {
+      "name": "casse : quatre roues et événement unique",
+      "ok": true
+    },
+    {
+      "name": "casse visible puis retour en moins1s et accélération possible",
+      "ok": true
+    },
+    {
+      "name": "replacement manuel répare immédiatement sans gain longitudinal",
+      "ok": true
+    },
+    {
+      "name": "rasant 198 km/h à5° reste roulant",
+      "ok": true
+    },
+    {
+      "name": "faible vitesse normale : coup léger à45° reste récupérable",
+      "ok": true
+    },
+    {
+      "name": "impact 180 km/h à20° : normale17m/s, aucune roue perdue",
+      "ok": true
+    },
+    {
+      "name": "frottement devenu violent : auRail ne masque pas une casse",
+      "ok": true
+    },
+    {
+      "name": "caisse qui s’éloigne du rail ne subit pas un nouveau choc",
+      "ok": true
+    },
+    {
+      "name": "seuil20/30 : roue perdue distincte de grosse casse",
+      "ok": true
+    },
+    {
+      "name": "casse prioritaire sur vol/accident/stand, sans nouveau détachement",
+      "ok": true
+    },
+    {
+      "name": "rival : choc longitudinal violent détruit les deux caisses",
+      "ok": true
+    },
+    {
+      "name": "rival : vitesse commune élevée, faible rapprochement conservé",
+      "ok": true
+    },
+    {
+      "name": "rival face àface : vitesse relative projetée, pas différence des normes",
+      "ok": true
+    },
+    {
+      "name": "réparation directe remet toutes les roues et capacités",
+      "ok": true
+    },
+    {
+      "name": "nouvelle séance : voiture neuve et accélération possible",
+      "ok": true
+    },
+    {
+      "name": "chrono : casse puis reprise sans DNF ni tour/fantôme",
+      "ok": true
+    },
+    {
+      "name": "course : récupération garde le pilote en lice, sans progression gratuite",
+      "ok": true
+    },
+    {
+      "name": "casse près de ligne : replacement sans tour ; franchissement réel invalidé course/chrono",
+      "ok": true
+    },
+    {
+      "name": "débris :4roues+8panneaux, fumée/étincelles et objets réutilisés",
+      "ok": true
+    },
+    {
+      "name": "débris : pool borné, déterministe, disparaît après12s",
+      "ok": true
+    },
+    {
+      "name": "épave dépouillée et roues cachées aussi au loin",
+      "ok": true
+    }
+  ]
+}
+✔ verifications/crash.test.mjs (207.945833ms)
+décor : 9 géométries de référence inchangées
+✔ verifications/decor-identite.test.mjs (1565.017792ms)
+{
+  "passed": 3,
+  "total": 3,
+  "reports": [
+    {
+      "graine": 11,
+      "theme": "foret",
+      "solides": 3241,
+      "kinds": {
+        "pilier": 43,
+        "poutre": 2,
+        "gradin": 45,
+        "toit": 20,
+        "batiment": 6,
+        "muret": 12,
+        "tronc": 2600,
+        "cabane": 9,
+        "pneus": 504
+      },
+      "impact": {
+        "t": 1.2666666666666646,
+        "s": 2250.4661450491603,
+        "d": -17.44582948116818,
+        "force": 52.00756353694371,
+        "obstacle": "pneus"
+      },
+      "repriseRapide": true
+    },
+    {
+      "graine": 29,
+      "theme": "cote",
+      "solides": 3166,
+      "kinds": {
+        "pilier": 42,
+        "poutre": 2,
+        "gradin": 45,
+        "toit": 19,
+        "batiment": 6,
+        "muret": 12,
+        "tronc": 2600,
+        "cabane": 8,
+        "pneus": 432
+      },
+      "impact": {
+        "t": 1.3416666666666643,
+        "s": 1829.860754495764,
+        "d": 17.509184349115515,
+        "force": 38.14670374215149,
+        "obstacle": "glissiere"
+      },
+      "repriseRapide": true
+    },
+    {
+      "graine": 47,
+      "theme": "montagne",
+      "solides": 2979,
+      "kinds": {
+        "pilier": 51,
+        "poutre": 2,
+        "gradin": 54,
+        "toit": 24,
+        "batiment": 7,
+        "muret": 14,
+        "tronc": 2600,
+        "cabane": 11,
+        "pneus": 216
+      },
+      "impact": {
+        "t": 1.1583333333333317,
+        "s": 1599.8332047256608,
+        "d": 16.267934117512365,
+        "force": 51.719495580907505,
+        "obstacle": "pneus"
+      },
+      "repriseRapide": true
+    }
+  ]
+}
+✔ verifications/decor-obstacles.test.mjs (371.703666ms)
+forêt : 18 vérifications passées
+✔ verifications/decor.test.mjs (303.205834ms)
+formes libres : 30919 triangles émis dans l'ordre du registre
+✔ verifications/formes-libres.test.mjs (182.985667ms)
+{
+  "passed": 8,
+  "total": 8,
+  "results": [
+    {
+      "name": "petit bond contre rail -1 : casse unique, quatre roues, puis reprise rapide",
+      "ok": true
+    },
+    {
+      "name": "roue perdue près du rail -1 : arrêt puis reprise sans traversée",
+      "ok": true
+    },
+    {
+      "name": "survol haut -1 : pas de mur invisible au-dessus de la glissière",
+      "ok": true
+    },
+    {
+      "name": "frôlement rapide en bond -1 : vitesse normale faible, pas de casse",
+      "ok": true
+    },
+    {
+      "name": "petit bond contre rail 1 : casse unique, quatre roues, puis reprise rapide",
+      "ok": true
+    },
+    {
+      "name": "roue perdue près du rail 1 : arrêt puis reprise sans traversée",
+      "ok": true
+    },
+    {
+      "name": "survol haut 1 : pas de mur invisible au-dessus de la glissière",
+      "ok": true
+    },
+    {
+      "name": "frôlement rapide en bond 1 : vitesse normale faible, pas de casse",
+      "ok": true
+    }
+  ]
+}
+✔ verifications/glissiere-etats.test.mjs (65.676541ms)
+{
+  "root": "/Users/david/Documents/Codex/2026-11-15/no/work/ferro-reference-bitume/",
+  "hashes": {
+    "conduite.js": "c82cb64483822151b7d7a8ee3256adca4c4e859ad5f50372bdd4e16a415479d3",
+    "jeu.js": "d57f763cbe48be1f9bba54503ee8eff88f85a34422406a86a44dc0bf2d8b11e3",
+    "degats.js": "5e2fd02929a112c67f9a63203a247139008840fc52842dba5dcddeca4b8d4bba"
+  },
+  "cases": [
+    {
+      "side": -1,
+      "first": {
+        "time": 0.39166666666666666,
+        "psi": 0.01546557932205094,
+        "beta": -0.31546557932205094,
+        "speed": 51.64091349889848,
+        "d": -6.303697634496323,
+        "force": 15.97249613387086
+      },
+      "events": 1,
+      "rebound_toward_track": true,
+      "after1s": {
+        "speed": 45.57767413958175,
+        "d": -6.490975587710276,
+        "psi": -0.006322193034327767,
+        "clearance": 0.0028273801927680697
+      }
+    },
+    {
+      "side": 1,
+      "first": {
+        "time": 0.39166666666666666,
+        "psi": -0.01546557932205094,
+        "beta": 0.31546557932205094,
+        "speed": 51.64091349889848,
+        "d": 6.303697634496323,
+        "force": 15.97249613387086
+      },
+      "events": 1,
+      "rebound_toward_track": true,
+      "after1s": {
+        "speed": 45.57767413958175,
+        "d": 6.490975587710276,
+        "psi": 0.006322193034327767,
+        "clearance": 0.0028273801927680697
+      }
+    }
+  ],
+  "nonBreakingImpact": {
+    "force": 8,
+    "broken": false,
+    "missingWheel": false,
+    "persistentTint": 0.25000000000000033
+  }
+}
+✔ verifications/glissiere-rebond.test.mjs (48.815042ms)
+{
+  "passed": 4,
+  "total": 4,
+  "results": [
+    {
+      "d": 0,
+      "heading": 1.5707963267948966,
+      "contact": false,
+      "passed": true,
+      "v": 55.56744673168023,
+      "s": 1008.0060281934707,
+      "lat": -2.6516203703970773,
+      "safe": true
+    },
+    {
+      "d": 2,
+      "heading": 1.5707963267948966,
+      "contact": false,
+      "passed": true,
+      "v": 55.56744673168023,
+      "s": 1008.0060281934707,
+      "lat": -2.6516203703970773,
+      "safe": true
+    },
+    {
+      "d": -2,
+      "heading": 1.5707963267948966,
+      "contact": false,
+      "passed": true,
+      "v": 55.18232242972704,
+      "s": 1008.4577513782751,
+      "lat": 2.6484499856989716,
+      "safe": true
+    },
+    {
+      "d": 0,
+      "heading": 0.7853981633974483,
+      "contact": false,
+      "passed": true,
+      "v": 55.56744673168023,
+      "s": 1008.0060281934707,
+      "lat": -2.6516203703970773,
+      "safe": true
+    }
+  ]
+}
+✔ verifications/ia-epaves.test.mjs (56.497459ms)
+{
+  "passed": 10,
+  "total": 10,
+  "results": [
+    {
+      "name": "IA retournée, gaz et15s bloquée : retour progressif seulement après délai",
+      "ok": true
+    },
+    {
+      "name": "mouvement et grille réinitialisent la durée de blocage",
+      "ok": true
+    },
+    {
+      "name": "attente volontaire sans vitesse visée : aucun replacement",
+      "ok": true
+    },
+    {
+      "name": "casse exclut la récupération IA",
+      "ok": true
+    },
+    {
+      "name": "roue exclut la récupération IA",
+      "ok": true
+    },
+    {
+      "name": "reparation exclut la récupération IA",
+      "ok": true
+    },
+    {
+      "name": "vol exclut la récupération IA",
+      "ok": true
+    },
+    {
+      "name": "immunite exclut la récupération IA",
+      "ok": true
+    },
+    {
+      "name": "cas réel gaz.48 et vitesse arrière quasi nulle : récupération après15s",
+      "ok": true
+    },
+    {
+      "name": "direction quasi nulle oscillante :15s continues comptées, reset au mouvement",
+      "ok": true
+    }
+  ]
+}
+✔ verifications/ia-reprise.test.mjs (68.422208ms)
+ok IA : un rival à 80 m/s évite une voiture arrêtée (pas de contact) : 1.000 (cible pas de contact)
+ok IA : soit il la dépasse à côté, soit il s’arrête avant : 1.000 (cible évité) — passée=true vFin=54.0
+ok IA : il freine en approchant : 1.000 (cible oui)
+ok IA : évite aussi à 40 m/s : 1.000 (cible pas de contact)
+ok IA : évite aussi à 65 m/s : 1.000 (cible pas de contact)
+---
+5/5 critères IA tenus
+✔ verifications/ia.test.mjs (60.592375ms)
+ok  cinq pièces non vides, normales unitaires du côté de leur face
+ok  taille réelle : 8 à 13 cm le long de la jante, 12 à 24 cm des doigts au bout de la manchette
+ok  aucune pièce ne traverse la jante de plus de 2 mm
+ok  aucune pièce dans la branche de 3 h
+ok  quatre doigts serrés, enroulés autour du tube par la planche, chaque point au contact (jeu de 1 mm au plus)
+ok  pouce couché sur la face de la jante tournée vers le pilote, devant la branche, qui remonte la jante
+ok  dos de la main tourné vers le dehors, poignet du côté du pilote, dans l’axe de la main
+main : 7 vérifications passées
+✔ verifications/main.test.mjs (67.549084ms)
+ok déconnexion neutralise pédales, volant et dérive
+ok clavier et tactile restent utilisables sans manette
+ok trous, manette déconnectée et indice sélectionné
+ok première manette connectée prioritaire et changement d’indice sans pause fantôme
+ok bouton tenu à reconnexion : aucune pause fantôme, nouvel appui unique
+ok autre contrôleur au même indice initialise ses boutons
+ok oracle : relâcher une dérive chargée déclenche réellement turboIII
+ok perte de manette annule sa dérive sans turbo fantôme
+ok dérive clavier maintenue : Space
+ok dérive clavier maintenue : ShiftLeft
+ok dérive clavier maintenue : ShiftRight
+ok dérive tactile maintenue
+ok perte en pause annule seulement la dérive issue du pad
+ok rejouer : ancien pad ne peut annuler la dérive de la nouvelle séance
+ok charge non commandée par le pad et turbo déjà lancé préservés
+ok API getGamepads refusée neutralise les commandes sans interrompre la boucle
+ok API refusée annule la dérive chargée sans turbo fantôme
+17/17 contrôles manette tenus
+✔ verifications/manette.test.mjs (40.221666ms)
+météo : 98 contrôles horloge, pause, projection, profondeur, paramètres et cadence tenus
+✔ verifications/meteo.test.mjs (69.865084ms)
+moteur EMPRISE : triangles exacts aux 3 LOD, formes libres, restauration, météo et SSR optionnel [{"detail":"fin","shapes":7,"references":2352,"vertices":618,"restored":7},{"detail":true,"shapes":7,"references":1056,"vertices":360,"restored":7},{"detail":2,"shapes":6,"references":672,"vertices":210,"restored":6}]
+moteur EMPRISE : updateShape WebGL2, indices et sommets restaurés après perte du contexte
+✔ verifications/moteur-emprise.test.mjs (52.623833ms)
+{
+  "passed": 24,
+  "total": 24,
+  "results": [
+    {
+      "name": "index vide/invalide : inoffensif et borné",
+      "ok": true
+    },
+    {
+      "name": "cercle : vraie distance au coin, pas grosse sphère ni axe centre faux",
+      "ok": true
+    },
+    {
+      "name": "cercle contenu : profondeur correcte et normale de sortie",
+      "ok": true
+    },
+    {
+      "name": "rectangle contenu : translation minimum entière et test pur",
+      "ok": true
+    },
+    {
+      "name": "CCD translatoire : mur fin traversé complètement, dernier point valide et distance rewound",
+      "ok": true
+    },
+    {
+      "name": "contact léger : rebond normal0.05, jamais de gain",
+      "ok": true
+    },
+    {
+      "name": "rasant rapide : seule vitesse normale facturée",
+      "ok": true
+    },
+    {
+      "name": "pénétration immobile corrigée sans dégâts ni accélération",
+      "ok": true
+    },
+    {
+      "name": "contact en séparation : correction géométrique sans fausse facture",
+      "ok": true
+    },
+    {
+      "name": "frottement continu : une facture, choc devenu violent autorisé",
+      "ok": true
+    },
+    {
+      "name": "mémoire contact nettoyée après éloignement, nouveau choc possible",
+      "ok": true
+    },
+    {
+      "name": "CCD rotation seule : pilier traversé entre deux orientations libres",
+      "ok": true
+    },
+    {
+      "name": "hauteur : pile de pneus survolée sans choc",
+      "ok": true
+    },
+    {
+      "name": "hauteur sur le trajet : contact au sol avant hauteur finale élevée",
+      "ok": true
+    },
+    {
+      "name": "normale monde inclut cap du circuit, même force après rotation globale",
+      "ok": true
+    },
+    {
+      "name": "dérive chargée : collision annule sans turbo fantôme",
+      "ok": true
+    },
+    {
+      "name": "déplacement exceptionnel refusé sans dégâts ni boucle gigantesque",
+      "ok": true
+    },
+    {
+      "name": "épave en attente de reprise immuable",
+      "ok": true
+    },
+    {
+      "name": "course sans liste : aucun état auxiliaire ni mutation",
+      "ok": true
+    },
+    {
+      "name": "balayage vertical pur : obstacles traversés entre deux hauteurs libres",
+      "ok": true
+    },
+    {
+      "name": "balayage courbe : solide hors AABB des extrémités trouvé dans index",
+      "ok": true
+    },
+    {
+      "name": "rewind ne restitue pas la vitesse perdue au frein/contre un rival",
+      "ok": true
+    },
+    {
+      "name": "dérive réarmée pendant contact : annulée même si facture non réarmée",
+      "ok": true
+    },
+    {
+      "name": "impulsion contre mur : cap caisse conservé malgré déviation de vitesse",
+      "ok": true
+    }
+  ]
+}
+✔ verifications/obstacles.test.mjs (40.654125ms)
+ok  la course va au bout et le film a des plans
+ok  avant le vert : toute la grille vue d’hélicoptère depuis la dernière ligne, puis la tête au bord de la piste
+ok  jamais deux fois la même caméra de suite, et les quatre servent
+ok  un plan de course dure de 2 à 10 s, sauf coupe forcée
+ok  voiture filmée : en course, jamais arrêtée pour une caméra embarquée ou de poursuite
+ok  au drapeau : on arrive avec la tête, de près ; puis le vainqueur au bord de la piste et vu d’en haut
+ok  même course et même graine : mêmes plans ; autre graine : autre film
+7 vérifications réussies
+✔ verifications/realisateur.test.mjs (1574.6265ms)
+ok  conduite : une limite gauche nulle reste une limite
+ok  conduite : perte de dérive et seuil de turbo sont distincts
+ok  conduite : une nouvelle dérive repart sans fondu résiduel
+ok  conduite : pente et dévers invalides ne contaminent pas la voiture
+ok  traces : la graine zéro est distincte de la graine un
+ok  traces : une force de contact négative garde une gerbe minimale
+---
+6/6 tests passes
+✔ verifications/relectures-phase2.test.mjs (147.496583ms)
+{
+  "passed": 21,
+  "total": 21,
+  "results": [
+    {
+      "name": "frottement<2m/s sans usure ;9m/s sans roue, adhérence>97%",
+      "ok": true
+    },
+    {
+      "name": "seuils20/30 : une roue puis grosse casse visuelle",
+      "ok": true
+    },
+    {
+      "name": "retour rapide casse : aucune abscisse gagnée, voiture neuve et immunité1s",
+      "ok": true
+    },
+    {
+      "name": "retour rapide roue : aucune abscisse gagnée, voiture neuve et immunité1s",
+      "ok": true
+    },
+    {
+      "name": "retour rapide tonneau : aucune abscisse gagnée, voiture neuve et immunité1s",
+      "ok": true
+    },
+    {
+      "name": "replacement manuel immédiat conserve s/distance et répare toute casse",
+      "ok": true
+    },
+    {
+      "name": "immunité dégâts mais mur toujours solide",
+      "ok": true
+    },
+    {
+      "name": "frein IA ou retenue de grille ne peut jamais engager le recul",
+      "ok": true
+    },
+    {
+      "name": "frein volontaire attend0,3s à l’arrêt",
+      "ok": true
+    },
+    {
+      "name": "recul plafonné12km/h, progression signée, cap caisse stable",
+      "ok": true
+    },
+    {
+      "name": "pas de bascule en recul avant arrêt puis délai",
+      "ok": true
+    },
+    {
+      "name": "gaz freine le recul avant de repartir",
+      "ok": true
+    },
+    {
+      "name": "direction en recul : deux côtés symétriques, lacet inversé",
+      "ok": true
+    },
+    {
+      "name": "recul contre rail : normale signée, pas de tunnel ni énergie créée",
+      "ok": true
+    },
+    {
+      "name": "recul CCD contre muret fin : arrêt avant traversée, orientation préservée",
+      "ok": true
+    },
+    {
+      "name": "recul contre rival : contact normal signé sans énergie ajoutée",
+      "ok": true
+    },
+    {
+      "name": "replacement latéral>25m n’est pas balayé par CCD ni annulé comme téléportation",
+      "ok": true
+    },
+    {
+      "name": "course : gros choc ne marque plus DNF et reprise<1s",
+      "ok": true
+    },
+    {
+      "name": "chrono : retour manuel invalide le tour, pas de meilleur/ghost ; tour suivant valide",
+      "ok": true
+    },
+    {
+      "name": "recul sur ligne puis réavance : aucun tour artificiel",
+      "ok": true
+    },
+    {
+      "name": "recul sur pente : sol, dévers, vibreur et herbe actualisés",
+      "ok": true
+    }
+  ]
+}
+✔ verifications/reprise-recul.test.mjs (44.109ms)
+ok  module charge sans AudioContext
+ok  creer sans demarrer : methodes sans effet
+ok  frequenceAllumage(12000) = 800
+ok  coupure bornee [600,6500]
+ok  gainDistance(0)=1 et decroissant
+ok  doppler(0)=1 et >1 pour rapprochement
+ok  panoramique(pi/2)=1 et borne
+ok  graphe complet avec un faux contexte audio
+ok  signaux de course sans musique : une seule hauteur au plus par signal
+ok  thème du titre : huit mesures de mélodie en la mineur sur huit accords
+ok  thème du titre : rien avant le premier geste, boucle entière, arrêt net, pas de rafale
+11 vérifications réussies
+✔ verifications/son.test.mjs (39.463541ms)
+ok  plafonds : 512 bandes, 48 fumées, 48 étincelles, sans jamais grandir
+ok  traces effacées en 24 s, fumée et étincelles éteintes avant
+ok  pâleur : une trace pâlit avec l'âge et ne se dessine plus après 24 s
+ok  cadence : une mise à jour tous les 4 pas de 1/120 s (30 Hz)
+ok  bandes sous les roues arrière, prolongées en ligne droite
+ok  pas de bande à travers un replacement
+ok  voitures loin de celle que l'on regarde : rien
+    0.023 ms par image, 585 objets dessinés
+ok  coût : au plus 0,3 ms par image à 60 Hz, tout plein
+ok  déterminisme : même graine, mêmes effets
+    475 bandes au plus, 145 objets dessinés à la fin
+ok  vraie course de 60 s : traces des voitures proches, rien ne casse
+ok  replacement : les traces coupent immédiatement, sans effacer les effets existants
+---
+11 tests passes
+✔ verifications/traces.test.mjs (613.524209ms)
+{
+  "passed": 18,
+  "total": 18,
+  "results": [
+    {
+      "name": "index : prisme16 accepté, dimensions/rotations invalides rejetées",
+      "ok": true
+    },
+    {
+      "name": "32 sommets et bornes exacts, Rz·Ry·Rx ; géométrie source inchangée",
+      "ok": true
+    },
+    {
+      "name": "inclinaison axe0 sens-1 : tranche réelle, vide près de la base",
+      "ok": true
+    },
+    {
+      "name": "inclinaison axe0 sens1 : tranche réelle, vide près de la base",
+      "ok": true
+    },
+    {
+      "name": "inclinaison axe2 sens-1 : tranche réelle, vide près de la base",
+      "ok": true
+    },
+    {
+      "name": "inclinaison axe2 sens1 : tranche réelle, vide près de la base",
+      "ok": true
+    },
+    {
+      "name": "caps et facettes : au-dessus/dessous libres, facette polygonale sans cercle gonflé",
+      "ok": true
+    },
+    {
+      "name": "caps inclinés : hauteur AABB seule ne crée pas de faux solide",
+      "ok": true
+    },
+    {
+      "name": "containment : profondeur horizontale entière, sortie finie et test pur",
+      "ok": true
+    },
+    {
+      "name": "CCD : arbre fin traversé entre deux poses libres, casse/quatre roues/arrêt",
+      "ok": true
+    },
+    {
+      "name": "CCD vertical : caps traversés entre hauteurs libres",
+      "ok": true
+    },
+    {
+      "name": "passage haut et sous les racines : pas de mur invisible",
+      "ok": true
+    },
+    {
+      "name": "impact léger : énergie et cap caisse préservés, aucune casse",
+      "ok": true
+    },
+    {
+      "name": "frôlement tangent : passage libre sans collision élargie",
+      "ok": true
+    },
+    {
+      "name": "chevauchement immobile : correction sans dégâts ni vitesse",
+      "ok": true
+    },
+    {
+      "name": "décor réel foret : tous troncs, aucun feuillage, grand saut200km/h destructif puis reprise",
+      "ok": true
+    },
+    {
+      "name": "décor réel cote : tous troncs, aucun feuillage, grand saut200km/h destructif puis reprise",
+      "ok": true
+    },
+    {
+      "name": "décor réel montagne : tous troncs, aucun feuillage, grand saut200km/h destructif puis reprise",
+      "ok": true
+    }
+  ]
+}
+✔ verifications/troncs.test.mjs (367.703333ms)
+ok  cotes de la 312 T5 : longueur 4,53 m, largeur 2,12 m, hauteur 1,02 m
+ok  empattement 2,70 m, voies 1,70 et 1,615 m, roues posées au sol
+ok  pièces et version lointaine bien formées
+ok  roues : rotation propre = distance / rayon à 1 % près
+ok  braquage d’Ackermann : roue intérieure plus braquée, centre commun
+ok  cockpit : centre du volant entre 14 et 18° sous l’axe de visée
+ok  cockpit : haut de la jante, prises des mains, planche, pneus avant et rétroviseurs dans le cadre en 16:9
+ok  cockpit : rotation du volant de 95° au plus
+ok  cockpit : coque creuse, aucune pièce de carrosserie entre l’œil et le volant
+ok  cockpit : pilote, arrière, capot et glaces de la vue extérieure absents, roues avant présentes
+ok  numéro en géométrie sur le nez et les pontons ; repères des pneus à basse vitesse, bande floue au-delà
+ok  repère de pneu : il tourne autour de l’axe de la roue, à mi-flanc
+ok  cockpit en carènes : habitacle sans boîte, jante d’un seul tube, pneus à épaules rondes
+ok  cockpit : rien que des nombres finis, volant à fond et pendant un changement de rapport
+ok  changement de rapport : la main droite va au pommeau, puis revient sur la jante
+ok  mains : aucun sommet des gants dans les branches de 3 h et 9 h, volant droit ou tourné
+ok  mains dans le cadre, manches hors du cadre dès le poignet (16:9, volant droit)
+ok  lampe de régime : allumée au-dessus de 12 000 tr/min, sauf au dernier rapport
+ok  rétroviseurs : une voiture derrière à gauche se voit dans la glace de gauche, à sa place
+ok  silhouette : le flanc est fermé derrière la roue avant (voi-1)
+ok  formes libres : chaque triangle est orienté vers l'extérieur en vraie grandeur (garde rendu-1)
+ok  numéros : encre lisible sur les douze livrées de course (voi-2)
+ok  numéro de flanc : calé entre la bande basse et le filet (voi-3)
+ok  jonc de l'ouverture : suit le bord, ne bombe pas hors de l'ouverture (voi-4)
+ok  suspension avant : les attaches intérieures touchent la peau de la quille (voi-7)
+ok  rétroviseurs : le proche s'enfonce plus que le lointain, reflet contenu dans la glace (cockpit-1/5)
+ok  témoin rouge : s'allume au ralenti comme au surrégime (cockpit-8)
+ok  goutte : par l'ouverture, on ne voit pas l'envers de la peau au-delà des bords (carene-2)
+ok  pouce du gant : aucune face enfouie dans son propre volume (carene-4)
+ok  habitacle vu du haut : par l'ouverture on voit la cuve sombre, pas le dessus rouge des pontons (voi-5)
+ok  bande des pontons : une peau décalée de 4 mm, pas un caisson à flancs droits (voi-6)
+ok  paume au pommeau : paume vers le bas quel que soit le braquage (cockpit-4)
+ok  trajet au pommeau : les doigts ne traversent ni la jante ni la branche de 3 h (cockpit-3)
+33 vérifications réussies
+✔ verifications/voiture.test.mjs (1556.962833ms)
+ℹ tests 29
+ℹ suites 0
+ℹ pass 29
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 10893.022375

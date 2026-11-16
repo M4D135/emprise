@@ -1,9 +1,9 @@
 {
   "format": "ferro-engine",
-  "version": "0.2.0-preview.1",
+  "version": "0.3.0",
   "apiVersion": 1,
   "pilot": "emprise",
-  "status": "pilot-validation",
+  "status": "reference",
   "contentPolicy": "Procedural geometry, generated surfaces and synthesized sound. No imported visual or audio assets.",
   "modules": [
     {
@@ -33,6 +33,10 @@
     {
       "id": "materials",
       "path": "src/ferro/materials.js"
+    },
+    {
+      "id": "vehicle-dynamics",
+      "path": "src/ferro/vehicle-dynamics.js"
     },
     {
       "id": "physics-geometry",
@@ -69,6 +73,14 @@
     {
       "id": "recipes",
       "path": "src/ferro/recipes.js"
+    },
+    {
+      "id": "crowd",
+      "path": "src/ferro/crowd.js"
+    },
+    {
+      "id": "crowd-webgpu",
+      "path": "src/ferro/crowd-webgpu.js"
     }
   ],
   "optionalModules": [
@@ -79,6 +91,46 @@
     {
       "id": "music",
       "path": "src/ferro/music.js"
+    },
+    {
+      "id": "surface",
+      "path": "src/ferro/surface.js"
+    },
+    {
+      "id": "gpu-profile",
+      "path": "src/ferro/gpu-profile.js"
+    },
+    {
+      "id": "skies",
+      "path": "src/ferro/skies.js"
+    },
+    {
+      "id": "reflections",
+      "path": "src/ferro/reflections.js"
+    },
+    {
+      "id": "passages",
+      "path": "src/ferro/passages.js"
+    },
+    {
+      "id": "brain",
+      "path": "src/ferro/brain.js"
+    },
+    {
+      "id": "loop",
+      "path": "src/ferro/loop.js"
+    },
+    {
+      "id": "schedule",
+      "path": "src/ferro/schedule.js"
+    },
+    {
+      "id": "jobs",
+      "path": "src/ferro/jobs.js"
+    },
+    {
+      "id": "demo",
+      "path": "src/ferro/demo.js"
     }
   ],
   "hostAPI": "src/ferro/engine.js",
@@ -88,17 +140,31 @@
     "bitume",
     "point-de-rupture"
   ],
-  "validatedHost": "emprise",
   "migrationStatus": {
-    "emprise": "isolated pilot",
-    "metal": "not propagated",
-    "bitume": "not propagated",
-    "point-de-rupture": "not propagated"
+    "emprise": "qualified reference modules",
+    "metal": "qualified reference modules",
+    "bitume": "qualified reference modules",
+    "point-de-rupture": "qualified reference modules"
   },
   "origins": {
     "emprise": "672bb463466584f997ea572e40d48b149009bffe",
     "metal": "474aa08bd4bf717947fa794bd50fe0484b97eab0",
     "bitume": "365b3e2d43c9d4fd84a81c7d7974b62c2a906129",
     "point-de-rupture": "5ba44c9d2f9c667eac687b9d0fa2f170606ce2f8"
-  }
+  },
+  "reference": {
+    "source": "EMPRISE/src/ferro",
+    "distribution": "versioned modules with SHA256 lock",
+    "policy": "game rules and procedural styles are injected; engine sources must not diverge"
+  },
+  "sizePolicy": {
+    "limitBytes": null,
+    "decision": "David, 2026-11-16: no size ceiling; fully procedural content"
+  },
+  "validatedHosts": [
+    "emprise",
+    "metal",
+    "bitume",
+    "point-de-rupture"
+  ]
 }

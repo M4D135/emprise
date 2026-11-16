@@ -1,0 +1,14 @@
+{
+  "pass": true,
+  "oracle": "d22a5eb",
+  "scenes": 181,
+  "queries": {
+    "before": 35455,
+    "after": 4306,
+    "denseBefore": 24399,
+    "denseAfter": 6
+  },
+  "productionTrafficTicks": 450,
+  "vehicles": 15,
+  "scope": "Exact winners, strict ties, visibility, nonfinite inputs, remaining query order and full AI/physics trajectory; no timing claim."
+}

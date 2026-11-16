@@ -1,0 +1,2037 @@
+✔ game actor bounds enclose every detailed pose, flying supports and telegraphs (79.207458ms)
+✔ GPU rejection cannot enter any actual camera, lamp, torch or sun clip volume (956.255084ms)
+✔ GPU camera-edge sweeps preserve actors during turns, zoom and vertical travel (114.100292ms)
+✔ software filtering preserves the exact draw command sequence and shadow ranking (418.114875ms)
+✔ sparse software scenes preserve potential casters and reset after world changes (6.7795ms)
+✔ un ramassage derrière la caméra nest pas modélisé et le rayon de garde couvre les plus grands (15.993291ms)
+✔ le moteur n expose plus de constructeur de maillage sur objet fourni (0.355167ms)
+✔ FActors.build ne recycle aucun maillage ni aucune position d un appel a l autre (2.135875ms)
+✔ FActors.build ne retient rien du tableau passe par l appelant (0.34875ms)
+✔ four families have bounded tiers, polished close geometry and object materials (11.965083ms)
+✔ close metal construction follows articulated shells and vanishes outside the GPU detail tier (14.499125ms)
+✔ model generation is pure, deterministic and keeps its heading under all joint rotations (15.694292ms)
+✔ optics and long weapon barrels face the actual simulated yaw (1.539125ms)
+✔ every model translates exactly with a 3.2m/6.4m terrace, including articulated attachments (2.826917ms)
+✔ guns elevate toward a player on a nearby upper terrace without detaching the hands (0.932959ms)
+✔ walking plants support feet and keeps both bone segments joined at the real pivots (20.169125ms)
+✔ the mobile tripod cycles one support at a time while its other feet stay planted (2.455459ms)
+✔ hands connect to the rifle, aim changes its elevation and stun/rush remain distinct poses (1.027417ms)
+✔ rotors, mechanical recoil and silhouettes remain visible at their intended scale (1.342625ms)
+✔ airborne bipeds and tripods retract supports instead of running in mid-air (0.408292ms)
+✔ muzzle bores touch actual solid sleeves instead of floating in front of thin rings (0.312833ms)
+✔ zero-health actors produce no geometry and close helmet centres match hit-volume contract (0.203917ms)
+✔ Rocket and grenade specialists keep aligned muzzles and fit the conservative actor sphere (10.354ms)
+✔ colossi keep the targetable heart registered through scale, heading, gait and exposure (26.477042ms)
+✔ each giant has a distinct silhouette and size-aware detail across the arena (2.003875ms)
+✔ close piston jackets remain collinear with the working struts across gait, aim, stun and airborne poses (9.179334ms)
+✔ Armor is automatic in campaign, opt-in in classic, and absent from unchanged legacy data (482.132583ms)
+✔ Armor keeps a flat hundred-point ceiling and switching hands never refills it (94.203208ms)
+✔ Real bullets consume one third of residual damage after passive armor (284.646ms)
+✔ Invulnerability never spends armor and a fatal fall bypasses armor (368.698417ms)
+✔ Physical armor pickups retain overflow, fractional remainder and exact checkpoint state (281.325791ms)
+✔ Armor collection obeys wall and floor occlusion, and inactive legacy modes ignore new item kinds (202.726541ms)
+✔ Purchases, upgrades and health pickups do not refill armor (109.721791ms)
+✔ Entry loadouts and mid-level checkpoints preserve fractional armor without granting refills (712.338208ms)
+✔ Real enemy kills drop deterministic armor on the floor; partial loot is persistent and collected only once (266.247875ms)
+✔ Old classic checkpoints restore at zero armor and never retroactively reward already dead enemies (461.254833ms)
+✔ Armor pickup overflow also survives old non-progression API snapshots without introducing inventory fields (449.227667ms)
+✔ A giant boss drops fifty armor in its physical salvage without granting an immediate refill (383.84875ms)
+✔ attract starts once at five seconds and exits synchronously for every gesture (2.24875ms)
+✔ modifiers leave the demo running; browser shortcuts leave without swallowing (0.26375ms)
+✔ hidden tabs, reduced motion and disabled menus never start; gamepad exits on its press edge (0.228958ms)
+✔ an asynchronous start cannot revive a demo cancelled during preparation (0.156042ms)
+✔ runner disposes each scene, limits stalls and stops after repeated exceptions (0.43325ms)
+✔ original PCM has bounded peaks, quiet tails and distinct material and weapon signatures (374.50525ms)
+✔ METAL weapon recipes are seeded, denser reports under their own caps and pass every waveform rule on both variants (FEEL-06) (239.821791ms)
+✔ a recipe table replaces only its own buffers, falls back on bad output, and no table keeps the v0.2 bank bit for bit (MIX-01) (1698.055042ms)
+✔ the 240 ms METAL SMG overlaps two voices at 8 shots/s and leaves the 32/40/48 ceilings and stealing rules unchanged (MIX-06) (505.542083ms)
+✔ a hit confirms with the METAL 2.8 and 4.1 kHz tick at level .30, one source, rising a semitone per consecutive hit (FEEL-07) (465.290541ms)
+✔ a kill confirms with the METAL 90 to 50 Hz thunk and a 3.2 kHz tick at level .45 in one source (FEEL-07) (479.293708ms)
+✔ METAL confirmation recipes obey every waveform rule on both variants and stay out of the effect bank (FEEL-07) (54.037792ms)
+✔ without the METAL extras, hit and kill keep the v0.2 cues and the bank stays the 64-buffer v0.2 bank (FEEL-07 default) (824.147209ms)
+✔ empty rooms have no tonal bed, exterior wind has gaps, and every environmental layer silences on pause (290.277375ms)
+✔ nearby machinery and steam are spatial, occluded, source-dependent and controlled by ambience (291.090334ms)
+✔ steady ambience is automated once per change and every wind cut can be undone at the same instant (LOOP-14) (320.105958ms)
+✔ material collisions use their real material, energy and occlusion without allocating combat buffers (279.433916ms)
+✔ effect preparation yields in bounded batches and disposal cancels its pending work (10.371083ms)
+✔ effect preparation slices on a time budget instead of an effect count and rebuilds the same bank bit for bit (LOAD-13) (780.339917ms)
+✔ every effect renders the same bytes whatever the build order and the prepared bank is exactly those renders (MIX-09) (829.814334ms)
+✔ pre-start settings reach the tracker and independent buses through one lazily created context (408.82875ms)
+✔ distant salvos reserve player voices and never starve the independent tracker (386.698625ms)
+✔ global mute, music mute, pause and sector changes retain independent transport semantics (380.508458ms)
+✔ audio interruption, panner fallback, disposal and unavailable audio remain safe (444.233041ms)
+✔ final output guard preserves ordinary samples and bounds any finite overload before the destination (12.319ms)
+✔ explosion/boss storms stay bounded and continuous steam follows actual play state with one source (423.187958ms)
+✔ horror pressure reuses ambience and the MOD mix while spatial cues remain bounded and pause-safe (352.019875ms)
+✔ actual game menus, pause, focus loss, volume controls and MOD export drive the real transport (709.822667ms)
+✔ actual sector completion silences the old score and starts each next sector at its encoded tempo (638.112958ms)
+✔ important effects duck only the music bus and preserve explicit silent sliders (420.265875ms)
+✔ two-second menu audition owns one bounded timer, uses the real mix and returns to silence (380.8235ms)
+✔ audition cancellation, in-flight resume, mute and zero volumes cannot leak sound or timers (372.715167ms)
+✔ new arsenal cues are distinct, bounded and survive distant salvo saturation (291.479333ms)
+✔ device unlock is cheap and loading prepares future instrument buffers without changing play state (432.51825ms)
+✔ title preparation opens no device, then plays music alone without building the world effects bank (407.004541ms)
+✔ a title audition returns to the title and releases every transient when cancelled or finished (363.763834ms)
+✔ mouse, touch and keyboard gestures unlock the title once without advancing the world (878.793042ms)
+✔ title mute and zero sliders are respected, while hidden tabs and blur never resume combat (908.29075ms)
+✔ shared title preparation cannot restart music after launch, mute, hiding or focus loss (1511.485875ms)
+✔ a blocked audio resume remains retryable by a new user gesture (282.085416ms)
+✔ a world prepared while hidden or unfocused waits for explicit resume before combat (1248.252125ms)
+✔ explosions have bounded crack/body/debris tails, scale with power and preserve the player reserve (925.760333ms)
+✔ simultaneous hands keep independent firing transients, stereo placement and cooldowns (300.757834ms)
+✔ campaign pistol has its own short synthesized report and preserves independent hand timing and silent states (357.574167ms)
+✔ melee, mechanism, ammunition and grenade cues stay short, deduplicated and silent outside play (341.490583ms)
+✔ a grenade launch and a real melee hit keep the player reservation during an explosion storm (406.055667ms)
+✔ trophy discovery has one bounded metal sting, survives a busy mix and stays silent when paused or muted (315.551791ms)
+✔ actual menu audition survives live volume sliders and stops on explicit mute or navigation (730.847625ms)
+✔ no shield cue survives in the audio API, the ducking table or the local source tracker (363.495917ms)
+✔ the game creates FAudio with the METAL recipe table and its own audition plays the 0.24 s SMG report (851.357541ms)
+✔ a game recipe renders bit for bit the same PCM whether the engine cuts it into blocks or not (1095.448958ms)
+✔ the preparation scheduler never runs past its 8 ms slice on the clock it reads (610.443208ms)
+✔ the prepared bank equals the direct synthesis for every name, recipe-backed names included (911.699167ms)
+✔ FEEL-07 fige les quatre réglages décidés : compresseur maître, maintien du duck, voix ennemie, envoi écho (945.365458ms)
+✔ un contexte hors ligne injecte tient pour disponible, nest jamais ouvert, relance ni ferme, et api.graph() rend les six noeuds (MIX-11) (818.615916ms)
+✔ FAudio.makeupDb rend le rattrapage automatique du compresseur aux quatre couples mesurés, et chain level:"fixe" le compense après le compresseur (MIX-02) (50.299ms)
+✔ le duck de la musique est proportionnel au volume des effets et reste identique bit à bit à effets = 1 (MIX-V2) (377.225375ms)
+✔ duck.classes remplace profondeur et tenue cue par cue, et sans l'option le duck est exactement celui d'aujourd'hui (MIX-V1) (1296.966041ms)
+✔ le préréglage Doom de METAL passe par chain et weaponGain : limiteur −9/6/8 sans compensation, rapports du joueur ×1,41, ennemis inchangés (MIX-04) (1018.415917ms)
+✔ une boucle d ambiance au repos est debranchee de son filtre, sans etre arrete, et se rebranche (MIX-07) (326.672917ms)
+✔ l annonce du boss abat la musique a 0,38 quel que soit son niveau : fixed ignore cueLevel (MIX-05) (510.421666ms)
+✔ au repos le contexte se suspend apres 1,5 s, et se reveille a la demande, par start() comme par testMix (MIX-V4) (401.99375ms)
+✔ un évènement de jeu prend la musique du secteur, la garde, et la lui rend (463.459292ms)
+✔ laccueil et la pause gardent la main sur la musique adaptative (498.885208ms)
+✔ sans audio ni FImuse, la demande de musique reste sans danger (382.315417ms)
+✔ la simulation amène la meute, le colosse et lacier tenu (1402.839916ms)
+✔ prepared PCM is uploaded once and a failed provider completes the remaining bank locally (837.489334ms)
+✔ disposing while a prepared PCM packet is in flight prevents its upload (17.832917ms)
+✔ Boss warning families have distinct timed spectral signatures and retain audible gain in the arena (1315.643292ms)
+✔ Phase-two waves are separated by 1.95 seconds and all recovery windows last three seconds (412.140083ms)
+✔ A sweep targets a stationary player and jumping or dashing can avoid its ground front (315.641875ms)
+✔ Barrage rockets fly before the tell ends, land at its deadline and leave no long false danger zone (122.033709ms)
+✔ Awakened bosses keep attacking arena corners, avoid three identical families and serialize their tactical memory (1799.66925ms)
+✔ Boss death emits all twelve timed explosions and weak point hits have a distinct event (102.610916ms)
+✔ A close shotgun pushes an enemy along collision-safe movement and pain cancels a charged shot (254.070083ms)
+✔ v2 starts a free left hand, migrates legacy carry and preserves distinct historical checkpoints (1361.564792ms)
+✔ all eighteen bosses grant physical once-only upgrades and finish the exact arsenal calendar by boss six (10950.874791ms)
+✔ partially collected boss loot saves remaining ammo without replaying upgrades or permitting revisit farming (2580.762417ms)
+✔ the exit requires collecting the physical boss reward, while spare ammo can stay behind (575.529542ms)
+✔ weapon calibration changes actual hit damage, projectile payload and heat independently by weapon (2083.972667ms)
+✔ calibrated live ordnance restores and its actual explosion damages exposed cores using the saved payload (3399.0795ms)
+✔ v2 combat rises across all worlds without scaling down boss HP or shortening core openings (441.800583ms)
+✔ The original CPU network has finite bounded scores and meaningful approach, flank, retreat and hold decisions (9.690125ms)
+✔ WebNN builds once, uses the current accelerated/low-power API, and matches the independent CPU path (6.357541ms)
+✔ Unavailable, rejected and unverified accelerators fall back honestly to the same CPU scores (10.555667ms)
+✔ Mode switches dispose device resources and a failed or lost context returns to functional CPU decisions (3.936709ms)
+✔ Inference has one in-flight dispatch, a deadline, numeric rejection and no unbounded hardware queue (123.641209ms)
+✔ A context created after cancellation is destroyed and cannot revive a CPU-selected backend (1.825958ms)
+✔ Real CPU neural scores alter an observed enemy flank through normal navigation and preserve wall collision (368.840041ms)
+✔ Only observed information enters the policy; hidden player coordinates and undeployed reserves never enter a batch (645.70125ms)
+✔ Late inference is rejected after elapsed observation time, destruction, mode change or snapshot/restore (1142.868917ms)
+✔ Current asynchronous scores affect real tactics and disposal prevents an old sector from receiving future work (223.486125ms)
+✔ Boss policy uses the same neural scores to choose a different telegraphed attack inside its scripted family (439.026583ms)
+✔ Scheduling stays at four bounded batches per second and never waits for hardware during a simulation step (229.730084ms)
+{
+  "status": "PASS",
+  "html_bytes": 1467516,
+  "external_assets": 0,
+  "sha256": "2a7196698bf68f5ab3c0fbfced6556961129b6ad002210e291ef22c9305f87fe"
+}
+✔ checks/build.test.mjs (56.329208ms)
+✔ A 17.7 ms simulation step still stops sprint and dash at a thin wall (59.248666ms)
+✔ Campaign identity distinguishes repeated decor indices and refuses a foreign-world checkpoint atomically (113.353916ms)
+✔ Campaign opt-in preserves the exact historical fingerprint and never silently imports a legacy checkpoint (81.077542ms)
+✔ Five-slot campaign starts with a pistol, keeps both hands distinct and carries a finite loadout between worlds (118.181333ms)
+✔ Pistol shots are precise, slower than the SMG and unlimited without serialising Infinity or inventing ammunition (129.505208ms)
+✔ Campaign workshops extend capacity safely and cannot sell first discoveries or ammunition for locked weapons (37.62225ms)
+✔ Campaign caches and enemy loot never give locked or pistol ammunition, and saved loot validates against the saved arsenal (85.019084ms)
+✔ A pistol remains usable in the right hand while the left hand fires its own weapon (76.105875ms)
+✔ First campaign equipment pickups require the exact calendar world and its unique trophy identity (452.493ms)
+✔ A trophy grants one discovery, local grace and a real hidden-entry trial that resumes without replaying the sting (144.22625ms)
+✔ Trophy discovery profiles cross worlds, reject inconsistent histories and preserve the old economy profile shape (151.163333ms)
+✔ Corrupted trophy history, grace and premature trial saves fail atomically while falls still bypass trophy immunity (54.688042ms)
+✔ Campaign pressure uses both owned quantity and quality, ignores weapon swaps, and multiplies the selected difficulty (155.131875ms)
+✔ A missed arsenal reduces boss HP once at entry; later discovery and save recovery never heal or rescale that boss (428.04275ms)
+✔ Both boss reinforcement phases respect a pistol-only combat cap and restore during the real boss encounter (543.856667ms)
+✔ A wave larger than the actual arsenal cap deploys partially, saves, then admits another real guard after a kill (128.5765ms)
+✔ Explosive infantry waits for real heavy-weapon ownership while keeping its generated identity (477.506583ms)
+✔ legacy seed 1, sector 0: exact pre-campaign world fingerprint (372.771625ms)
+✔ legacy seed 1, sector 1: exact pre-campaign world fingerprint (364.231708ms)
+✔ legacy seed 1, sector 2: exact pre-campaign world fingerprint (441.880333ms)
+✔ legacy seed 96, sector 0: exact pre-campaign world fingerprint (396.575583ms)
+✔ legacy seed 96, sector 1: exact pre-campaign world fingerprint (391.189958ms)
+✔ legacy seed 96, sector 2: exact pre-campaign world fingerprint (533.73075ms)
+✔ campaign mode is strictly opt-in and keeps historical clamping otherwise (3743.365292ms)
+✔ the first three campaign worlds preserve historical geometry outside campaign supplies and loadout (2209.33675ms)
+✔ campaign world 01: deterministic and physically reachable on three seeds (2972.049625ms)
+✔ campaign world 02: deterministic and physically reachable on three seeds (2841.282625ms)
+✔ campaign world 03: deterministic and physically reachable on three seeds (3961.177541ms)
+✔ campaign world 04: deterministic and physically reachable on three seeds (2978.688584ms)
+✔ campaign world 05: deterministic and physically reachable on three seeds (3267.994959ms)
+✔ campaign world 06: deterministic and physically reachable on three seeds (4232.280583ms)
+✔ campaign world 07: deterministic and physically reachable on three seeds (3087.825667ms)
+✔ campaign world 08: deterministic and physically reachable on three seeds (3127.657958ms)
+✔ campaign world 09: deterministic and physically reachable on three seeds (4400.510834ms)
+✔ campaign world 10: deterministic and physically reachable on three seeds (3119.322791ms)
+✔ campaign world 11: deterministic and physically reachable on three seeds (3570.1145ms)
+✔ campaign world 12: deterministic and physically reachable on three seeds (4157.908084ms)
+✔ campaign world 13: deterministic and physically reachable on three seeds (2662.117625ms)
+✔ campaign world 14: deterministic and physically reachable on three seeds (2949.4485ms)
+✔ campaign world 15: deterministic and physically reachable on three seeds (3686.422916ms)
+✔ campaign world 16: deterministic and physically reachable on three seeds (2728.680459ms)
+✔ campaign world 17: deterministic and physically reachable on three seeds (2717.573583ms)
+✔ campaign world 18: deterministic and physically reachable on three seeds (4136.980333ms)
+✔ all eighteen layouts and independent art passes retain their own campaign variation (0.20325ms)
+ℹ {"campaignWorlds":54,"seeds":[1,96,2026],"reachedTargets":9465,"accessibleCells":{"min":29093,"max":34341},"legacyFingerprints":6}
+✔ boss campaign world 01: open routes and natural reserve entries on three seeds (3720.951625ms)
+✔ boss campaign world 02: open routes and natural reserve entries on three seeds (3434.881459ms)
+✔ boss campaign world 03: open routes and natural reserve entries on three seeds (4700.064125ms)
+✔ boss campaign world 04: open routes and natural reserve entries on three seeds (3193.6085ms)
+✔ boss campaign world 05: open routes and natural reserve entries on three seeds (2744.16975ms)
+✔ boss campaign world 06: open routes and natural reserve entries on three seeds (4171.154208ms)
+✔ boss campaign world 07: open routes and natural reserve entries on three seeds (3086.365791ms)
+✔ boss campaign world 08: open routes and natural reserve entries on three seeds (2707.543667ms)
+✔ boss campaign world 09: open routes and natural reserve entries on three seeds (4080.567208ms)
+✔ boss campaign world 10: open routes and natural reserve entries on three seeds (2450.5605ms)
+✔ boss campaign world 11: open routes and natural reserve entries on three seeds (2167.946125ms)
+✔ boss campaign world 12: open routes and natural reserve entries on three seeds (3410.27675ms)
+✔ boss campaign world 13: open routes and natural reserve entries on three seeds (2429.221833ms)
+✔ boss campaign world 14: open routes and natural reserve entries on three seeds (2301.215042ms)
+✔ boss campaign world 15: open routes and natural reserve entries on three seeds (3285.610208ms)
+✔ boss campaign world 16: open routes and natural reserve entries on three seeds (2154.226042ms)
+✔ boss campaign world 17: open routes and natural reserve entries on three seeds (1991.286625ms)
+✔ boss campaign world 18: open routes and natural reserve entries on three seeds (2880.837542ms)
+✔ boss campaign route coverage (0.112416ms)
+ℹ {"worlds":54,"seeds":[1,96,2026],"reachableTargets":13788,"firstBossHp":600,"lastBossHp":12000}
+✔ the lot moved the machines, not the plan: plan fingerprint measured against the lot base 1814b81 (5.003583ms)
+✔ V2 shell starts a free left hand, shows physical boss rewards and resumes claimed upgrades exactly once (136.06725ms)
+✔ V1 continuation keeps its route, and a new expedition always selects V2 despite a cached legacy world (163.392125ms)
+✔ Victory fanfare begins after the result screen has stopped active gameplay voices (62.912458ms)
+✔ The campaign shell advances through eighteen worlds, saves index and finishes only after world eighteen (507.677125ms)
+✔ A campaign checkpoint resumes its exact world while historical saves retain the three-sector mode (367.167292ms)
+✔ Campaign save envelopes reject mismatched biome indices and out-of-range worlds cleanly (323.151666ms)
+✔ The campaign pistol HUD, keyboard, wheel, touch button and left hand use the real five-slot arsenal (273.336958ms)
+✔ Five-slot loadouts preserve exact ownership and finite pistol state across Continue and a new browser shell (493.724583ms)
+✔ Campaign ammunition stays absent from the scene and pickup hint until its actual weapon is discovered (244.960083ms)
+✔ A real trophy discovery announces once, checkpoints grace, restores quietly and releases its physical trial (384.96225ms)
+✔ Four real weapon pickups feed the HUD and both mouse buttons fire independently while held together (70.161541ms)
+✔ Mouse and touch left inputs fire the paired weapon and R always dashes (140.957333ms)
+✔ Both hands and fourth-calibre ammunition survive sector Continue and entry restart (95.941833ms)
+✔ Malformed entry equipment cannot prevent resuming an otherwise valid four-weapon checkpoint (415.7715ms)
+✔ Physical armor pickups update the HUD, retain excess and keep one flat hundred-point capacity (137.29525ms)
+✔ The browser shell carries fractional armor through Continue, resume and entry restart without refilling (182.239709ms)
+✔ The AI menu persists the real CPU/WebNN preference, reports actual fallback and shares one brain across simulations (67.577958ms)
+✔ The real arsenal HUD locks missing guns, equips found weapons across substeps and reports spent ammunition (101.235125ms)
+✔ Physical shop UI pauses combat, purchases atomically, saves upgrades and resumes without free refill (161.737334ms)
+✔ Completing a sector transfers exact ammunition, ownership, credits and upgrades through the browser Continue action (134.473792ms)
+✔ Reserved enemies remain absent from character geometry and animation until physically deployed (94.758792ms)
+✔ Continue restores a current-generation checkpoint at its relay (47.191334ms)
+✔ A real fall below a terrace opens the death screen and Continue restores the safe checkpoint (39.140209ms)
+✔ Collecting a relay in flight cannot overwrite a safe checkpoint with a fatal fall (31.454667ms)
+✔ Continue migrates generation 4 to the same sector without losing prior-sector totals (82.180417ms)
+✔ Continue migrates generation 3 to the same sector without losing prior-sector totals (84.840875ms)
+✔ Continue migrates generation legacy to the same sector without losing prior-sector totals (56.770667ms)
+✔ An invalid snapshot restarts its sector and preserves the first migration backup (49.985125ms)
+✔ LOAD-01: an unrecoverable classic point restarts with its exact entry equipment (204.615333ms)
+✔ LOAD-01: an unrecoverable campaign point restarts with its exact entry equipment (241.456917ms)
+✔ LOAD-01: an unrecoverable campaign-v2 point restarts with its exact entry equipment (202.021542ms)
+✔ LOAD-01: an unrecoverable legacy point restarts with its exact entry equipment (190.574125ms)
+✔ LOAD-01: a rubble-only bad-size refusal preserves progression and destruction through a copied legacy checkpoint (133.615209ms)
+✔ LOAD-01: a rubble-only missing-version refusal preserves progression and destruction through a copied legacy checkpoint (133.488875ms)
+✔ LOAD-01: a failed fallback launch never replaces the active rejected checkpoint (202.013417ms)
+✔ LOAD-01: a failed refused-slot write cannot erase the old active point on a later checkpoint (213.654291ms)
+✔ LOAD-01: generated l:0 rubble restores exactly after three real rocket breaches (1114.290416ms)
+✔ LOAD-01: generated c:9 rubble restores exactly after three real rocket breaches (1047.227833ms)
+✔ F activates a mechanism once through a multi-substep frame and writes its checkpoint (80.297208ms)
+✔ The contextual button operates a real lift, carries the camera, and saves the arrival (186.419584ms)
+✔ Options rebind the actual interaction key, persist it, and never start the expedition (60.004125ms)
+✔ Image and mix controls reach the renderer/audio and do not advance a paused simulation (37.444791ms)
+✔ Rupture input launches a physical projectile and sends a traversable breach to the renderer (122.678375ms)
+✔ restoring intact geometry after a breach refreshes rendering even when controller revisions are reused (70.675625ms)
+✔ difficulty settings affect the real simulation, persist, and preserve health and campaign state (60.166625ms)
+✔ audit: an older four-slot entry cannot block a healthy five-slot campaign checkpoint (349.941875ms)
+✔ audit: a campaign entry cannot block a healthy classic checkpoint or replace its resources (172.790375ms)
+✔ audit: a classic three-slot entry migrates without gifts and remains the exact restart loadout (196.268709ms)
+✔ audit: checkpoint inventory slots inconsistent with its campaign envelope are refused without touching storage (194.83675ms)
+✔ audit: weapon hints follow campaign and classic mode, custom fifth binding and the real first trophy schedule (250.734875ms)
+✔ LOAD-03: a checkpoint snapshot stays in its frame while JSON and storage wait for one idle write (36.289542ms)
+✔ LOAD-03: two checkpoints taken in one frame share a single idle write of the latest point (43.978584ms)
+✔ LOAD-03: pagehide writes a pending checkpoint synchronously and only once (34.263792ms)
+✔ LOAD-03: visibilitychange writes a pending checkpoint synchronously and only once (35.426875ms)
+✔ LOAD-03: finishing the expedition cancels a pending checkpoint write (68.741083ms)
+✔ LOAD-03: the deferred write preserves the refused slot immediately before replacing the active point (168.7725ms)
+✔ LOAD-03: a failed deferred write keeps the session point and reports that it is not stored (75.175375ms)
+✔ LOAD-03: no checkpoint snapshot is taken in flight, not even when the page hides (77.015333ms)
+✔ LOAD-03: without requestIdleCallback the write leaves the frame through a zero-delay timer (55.8685ms)
+✔ LOAD-03: Continue writes a pending point before it reads or replaces the save slots (87.759959ms)
+✔ LOAD-03: a deferred point keeps the state of its snapshot frame while traps move on (71.808792ms)
+✔ pre-massive browser Continue, save and Continue again: classic-0 (3287.791625ms)
+✔ pre-massive browser Continue, save and Continue again: classic-2 (3483.07925ms)
+✔ pre-massive browser Continue, save and Continue again: campaign1-0 (3494.137834ms)
+✔ pre-massive browser Continue, save and Continue again: campaign1-9 (3380.234709ms)
+✔ pre-massive browser Continue, save and Continue again: campaign1-17 (3867.589625ms)
+✔ pre-massive browser Continue, save and Continue again: campaign2-0 (3423.042083ms)
+✔ pre-massive browser Continue, save and Continue again: campaign2-9 (3425.657375ms)
+✔ pre-massive browser Continue, save and Continue again: campaign2-17 (4209.315208ms)
+✔ pre-massive browser Continue, save and Continue again: classic-rubble (3760.890541ms)
+✔ pre-massive browser Continue, save and Continue again: campaign2-rubble (3636.692375ms)
+✔ Fixed browser loop preserves simulation state across 60, 75, 120 and 144 Hz (348.423625ms)
+✔ A zero-step browser frame shows mouse aim and retains action edges until consumed once (38.497833ms)
+✔ Browser catch-up is bounded and pausing discards elapsed menu time (33.102709ms)
+✔ navigation maintenance defers the checkpoint until ready (36.695041ms)
+✔ navigation maintenance defers the checkpoint until deadline (37.712167ms)
+✔ navigation maintenance defers the checkpoint until pagehide (32.244917ms)
+✔ all eighteen new class worlds use the measured HP table and chapter guard mix without changing old expeditions (20719.874292ms)
+✔ phase crates supply the two most depleted owned weapons physically and restore atomically (1168.944417ms)
+✔ chapter modifiers, phase-two signatures and their saved attacks stay valid (5121.276042ms)
+✔ MASTER tuning, first connected pad, full analog magnitude and bounded curves (3.72775ms)
+✔ Analog trigger hysteresis and press fronts do not repeat while held (1.169458ms)
+✔ Pause clear suppresses every held button until release, including fire and jump (0.74925ms)
+✔ Pad bindings normalize idempotently and reject conflicts without stealing controls (1.327833ms)
+✔ Old Space dodge migrates to jump without stealing a custom R binding (0.738542ms)
+✔ Merged host and pad preserve strongest move, add look, and retain every held action (0.604833ms)
+✔ Menu focus excludes disabled, hidden ancestors and zero rectangles; range sends input (0.684ms)
+✔ Pad menu directions repeat after delay but A/B are edges only (1.989833ms)
+✔ Rumble requires a gesture, merges pending effects, limits calls, and clears on pause (1.9435ms)
+✔ Legacy pulse actuator, refusal and unplug are harmless; zero intensity survives reload (4.929708ms)
+✔ foreign and numeric cursors cannot silently match this instance (2.286208ms)
+✔ two readers share a non-consuming delta; decorative removal preserves solid identity and adjusts mesh index (1.074459ms)
+✔ equal and backward exactRevision restore invalidate prior cursor; current cursor remains empty (0.498292ms)
+✔ invalid restore preserves snapshot, arrays, object identities and cursor (0.667334ms)
+✔ skipped change returns conservative full and latest cursor still yields empty (0.549375ms)
+✔ sub-threshold damage does not manufacture revision or change token (0.125584ms)
+✔ explosion opens a body-height local breach with real surviving jambs and no floating cladding (3.809834ms)
+✔ ordinary fire accumulates structural damage and each persistent cut remains local (1.135042ms)
+✔ removed supports detach upper pieces and collapse their roof with attached fixtures (0.650083ms)
+✔ raycast follows visible cylinders, spheres, octahedra and hollow torus instead of filled AABBs (0.449375ms)
+✔ foliage shots follow every shared triangle after rotation and non-uniform scaling (15.086833ms)
+✔ a foliage hit removes its attached tree and cannot leave a ghost trunk after restore or reindex (1.35075ms)
+✔ pressure leaks happen once and survive an exact-revision snapshot round trip (1.576208ms)
+✔ invalid restoration is atomic and cannot inject IDs, fragments or non-finite coordinates (0.871541ms)
+✔ repeated local demolition stays bounded and only removes physical volume (3.45775ms)
+✔ generated scenery, trees and buildings are attached to persistent destructible groups (1942.61075ms)
+✔ a working pressure burst spares only its own source while external fire still ruptures it (0.699291ms)
+✔ a long decorative fence fractures only the struck rail and keeps its unrelated posts and rail (0.465875ms)
+✔ whole detached primitives keep their source shape, tint, orientation and geometric volume (0.416042ms)
+✔ severing a decorative upright drops its unsupported upper part without removing the other post (0.170291ms)
+✔ thin wall cladding retains its intact sides and local cut budgets cannot erase untouched decorative segments (4.254584ms)
+✔ boss campaign profiles extend finite ranks without changing historical profile shape or armor bounds (6.717208ms)
+✔ eighteen deterministic boss awards retain weapon-specific growth and personal upgrades into the final chapter (1.72875ms)
+✔ profiles are strict, independent and copyable without shared upgrades (0.394458ms)
+✔ every rank gives bounded explicit stats and integer ammunition capacities (0.202334ms)
+✔ the thirteen catalog offers describe all four firearms and no shield without mutable prices (0.213625ms)
+✔ repairs charge proportional positive prices, cap health and never revive a defeated player (0.749042ms)
+✔ ammunition buys actual quantities at every capacity rank without overfilling (6.108333ms)
+✔ emergency weapon purchase has a one-time bounded starter pack and no repeat reward (0.805583ms)
+✔ the shield cannot be bought, quoted or carried, in classic and campaign states (0.3635ms)
+✔ legacy three-slot fixtures keep their exact inventory size without granting the new arsenal (0.566625ms)
+✔ upgrades spend scarce cores on ranks two and three without repairing or refilling (0.619625ms)
+✔ insufficient credits or cores are atomic failures and stale quote objects cannot authorize purchases (0.75225ms)
+✔ malformed state, sparse arrays and out-of-cap inventory are rejected before any debit (0.970791ms)
+✔ long mixed purchase sequences conserve currencies and cannot create free supplies (26.6475ms)
+✔ effects are deterministic read-only views of authoritative ages and disappear when expired (3.923875ms)
+✔ rocket tips, fins and tumbling grenades fit entirely inside their real swept collision sphere (20.816708ms)
+✔ presses, blades and spikes occupy exactly the current physical box without invented motion (8.821ms)
+✔ steam starts at the exposed nozzle and remains within the actual directed hot volume (0.482125ms)
+✔ detonations separate a fast expanding pressure front, hot fire, ballistic embers and lingering cold smoke (3.874541ms)
+✔ blast lighting is anchored to live sources, fades independently of smoke and retains a fixed light budget (0.787791ms)
+✔ spark trails end at the ballistic tip while cold smoke and hot sparks keep distinct material tags (0.726042ms)
+✔ settled wide roof slabs keep their bottom on the floor throughout their fade (0.281458ms)
+✔ structural debris keeps its full source geometry, material and authoritative pose after cosmetic lifetimes (1.842916ms)
+✔ settled structural slabs and fallen rails stay on their supplied floor without flattening or shrinking (1.896833ms)
+✔ structural draw budgets retain nearby source groups, visible poses and hazards amid chips and old wreckage (8.079959ms)
+✔ expired and invalid debris do not spend draw slots and long structural extents remain visible (0.334958ms)
+✔ boss circles, exact annuli and swept capsules remain visible at large arena edges and at the feet (0.157584ms)
+✔ cosmetic storm budgets keep hazards/projectile bodies and do not mutate or simulate debris (5.175709ms)
+✔ trophy lighting follows persisted discoveries and grace, retains its ground anchor and yields to combat lights (0.214583ms)
+✔ Barrage and slam countdowns shrink to the true impact while their tall columns have different shapes (0.117625ms)
+✔ A1 module exposé, forme 3.1, chargeable en domaine principal (3.636041ms)
+✔ A2 motifs interdits et taille (0.310083ms)
+✔ B1 rng : valeurs de référence, graine et état (0.822875ms)
+✔ B2 rng.pick : pondération, un tirage par appel (28.422166ms)
+✔ B3 rng.int et rng.range (4.525875ms)
+✔ B4 hasher : identique à tools/proof/digest.mjs, valeurs de référence (4.984416ms)
+✔ B5 seedFor : valeurs de référence (1.736583ms)
+✔ B6 smootherstep et wrapAngle (1.77775ms)
+✔ B7 lookAt : convention METAL (0.360458ms)
+✔ B8 hasher et rng : aucune allocation après la création (3.4) (238.833084ms)
+✔ C1 schéma refusé : FDEMO_ARG, pour la cause visée (3.563625ms)
+✔ C2 schéma METAL : 8 octets, copie normalisée relisible ; 10 bits → 9 octets (0.75825ms)
+✔ C3 i8, scale 127 : exhaustif, arrondi, bornes, non finis, −0 (1.824459ms)
+✔ C4 i16, scale 8192 : exhaustif de −32767 à 32767, bornes ±4 rad (131.749959ms)
+✔ C5 u8 et u16 : entiers gardés, le reste absent (2.159041ms)
+✔ C6 bits : 256 et 1 024 combinaisons, bit 0 au poids faible, vérité (2.173458ms)
+✔ C7 idempotence : 10 000 entrées tirées, valeurs hors bornes comprises (279.624958ms)
+✔ C8 encodage à un offset : exactement size octets écrits, jamais hors de la vue (0.387833ms)
+✔ C9 encode et decode : aucune allocation (3.5) (1869.082ms)
+✔ D1 rec.step : un seul objet relu, égal au décodage stocké, entrée intacte (0.611333ms)
+✔ D2 aller-retour : deux scènes jouets de 500 et 300 pas, commandes et empreintes (25.141875ms)
+✔ D3 déterminisme : mêmes appels, mêmes octets (121.452208ms)
+✔ D4 en-tête refusé : signature, format, expect (3.039333ms)
+✔ D5 octets incohérents : FDEMO_FORMAT, jamais de lecture hors des octets (181.583416ms)
+✔ D6 mauvais moment et arguments : FDEMO_STATE, FDEMO_ARG (1.278875ms)
+✔ D7 dt en ticks de 1/48 000 s : u16 en tête, rec.dt et play.dt identiques (1.909583ms)
+✔ D8 checksumDue : n = 0 puis tous les checksumEvery pas (0.4185ms)
+✔ D9 maxBytes 65 536 : saturation, scène tronquée, pas stockés relus (888.557667ms)
+✔ D10 taille : 3 600 pas METAL et 7 empreintes font 28 856 octets de corps (4.21125ms)
+✔ D11 maxBytes au plus juste : commandes en octets UTF-8 exacts, crochets et virgules compris (0.365875ms)
+✔ D12 lecteur : vues, ArrayBuffer, autre domaine, rien de copié ; zéro scène (5.008625ms)
+✔ D13 copies JSON immédiates : info, données des commandes, simVersion, meta (0.234208ms)
+✔ D14 rec.step et play.next : aucune allocation par pas (3.7, 3.8) (2842.089792ms)
+✔ D15 verify : première divergence gardée (22.778583ms)
+✔ E1 rejeu identique : 6 000 pas jouets, 101 empreintes, même état final (186.614917ms)
+✔ E2 désynchronisation : x + 1e−9 après le pas d’indice 1234, vue au pas 1260 (171.407458ms)
+✔ E3 commande sans h.command : FDEMO_COMMAND, poignée disposée (24.686667ms)
+✔ E4 advance(97) répété : même résultat, mêmes appels et même état que run() (157.185667ms)
+✔ E5 trois scènes de graines différentes : open avec le bon info et le bon k, trois dispose (23.948333ms)
+✔ E6 expect refusé : FDEMO_MISMATCH avant tout appel à open (68.549042ms)
+✔ E7 entrées brutes : l’empreinte finale diffère, la simulation doit recevoir l’entrée relue (113.677209ms)
+✔ E8 ordre exact des appels ; un seul objet d’entrée ; dt relus ; checksum() seulement si une empreinte est attendue (3.240542ms)
+✔ E9 exceptions du jeu : poignée disposée une fois, même exception relancée, rejeu terminé (31.274167ms)
+✔ E10 arguments, advance(0), enregistrement sans scène, scène vide (17.98225ms)
+✔ E11 boucle du rejeu : aucune allocation par pas (2.2) (1117.727167ms)
+✔ F1 même graine, mêmes contextes : même journal et mêmes poses sur 10 min ; graine 2 : autre journal (851.3575ms)
+✔ F2 durées : hold dans [min, max] ; plan fini par « time » au bout de flight + hold, à dt près (854.367459ms)
+✔ F3 jamais deux fois le même plan de suite ; au moins 3 plans différents en 5 min (1586.480084ms)
+✔ F4 cible exigée : jamais « colosse » sans point boss ; cible perdue → « lost » à l’update suivante (305.460875ms)
+✔ F5 vol amorti de A vers B, d = 50 m : flight 2,2 s, aucun saut, arrivée exacte ; coupes (27.899041ms)
+✔ F6 pose non finie : jamais en sortie ; autre plan dans la même update, raison « pose » (210.6825ms)
+✔ F7 cibles évitées : poids × 0,3 près des dernières cibles (23 % de répétitions), 50 % sans pénalité (89.617375ms)
+✔ F8 cut() : coupe « external » à l’update suivante, sans vol ; reset(s) : journal d’un réalisateur neuf (1532.280333ms)
+✔ F9 mêmes objets : frame, frame.pose et frame.pose.pos d’une update à l’autre (5.486208ms)
+✔ F10 options et catalogue refusés à la création : FDEMO_ARG ; fly et avoid complétés champ par champ (26.675583ms)
+✔ F11 modèle de référence : mêmes plans, cibles, raisons, durées, vols et poses, au bit près (356.656083ms)
+✔ F12 director.update : rien d’alloué par image (2.2) (814.195083ms)
+✔ F13 dt, contexte, valid, cutIf, ordre des fins, poids des points, préremplissage, tableau du jeu, lacet par le plus court (12.832333ms)
+✔ E01 — Chargement : API statique complète, seul FInput s’ajoute au global (4.5205ms)
+✔ E02 — Source propre : ni hasard, ni horloge, ni réseau, aucun nom propre au jeu, 18 000 octets au plus (0.822ms)
+✔ E03 — Config invalide : create lève « FInput : … » (2.598917ms)
+✔ E03b — Toutes les règles de la déclaration, sans toucher à la config (4.236667ms)
+✔ E04 — Défauts METAL : Espace saute, R esquive, V frappe, aucun code en double (1.718333ms)
+✔ E04b — normalize à l’étape 2 : table des touches gardée entière ou par défaut, réglages bornés (4.384833ms)
+✔ E05 — AZERTY et QWERTY : chaque touche seule, puis frame et step (2.546ms)
+✔ E06 — Parité avec game.js (annexe B) : 600 images, graine 7, égalité au bit près (24.537708ms)
+✔ E07 — Appui court (LOOP-06) : R appuyée et relâchée avant frame (2.223541ms)
+✔ E08 — Répétition : la touche ajoutée par repeat est tenue, sans front ni impulsion (1.377209ms)
+✔ E09 — Action tenue avec verrou : Entrée appuyée et relâchée dans l’image (LOOP-06) (1.228209ms)
+✔ E10 — Deux pas dans une image : impulsion et regard au premier pas seulement (1.051542ms)
+✔ E11 — Image sans pas : le regard attend dans pendingLook (STAB-06) (1.110833ms)
+✔ E12 — clear() : touches relâchées, verrous effacés, regard en attente à 0 (1.434458ms)
+✔ E13 — Pas de -0 : aucune sortie numérique ne vaut -0 (sorties de E06 ; E50 à l’étape 7) (25.544833ms)
+✔ E14 — Sources virtuelles : boutons de souris et boutons tactiles (1.463958ms)
+✔ E14b — frame() et step() : objets neufs, ordre fixe des clés, fronts dans l’ordre d’arrivée, dt borné (2.17775ms)
+✔ E14c — Appareil actif sans manette : clavier, souris, tactile, filtre de 800 ms (2.909292ms)
+✔ E14d — configure et settings : réglages appliqués, touches tenues recomptées sans front (2.844833ms)
+✔ E15 — Conflit clavier : la touche d’une autre action est refusée, réglages intacts (2.671459ms)
+✔ E16 — Affectation clavier : la liste de l’action vaut [code], toutes les autres sont inchangées (1.853791ms)
+✔ E17 — Touches réservées : Échap, Méta, Ctrl, Alt et F5 sont refusées (1.6015ms)
+✔ E18 — Manette : conflit, boutons réservés ou inconnus, unbind puis assign (5.089667ms)
+✔ E18b — assign et unbind : ordre des contrôles, appareil et action inconnus, déclaration validée (2.333542ms)
+✔ E19 — normalize stable : idempotent, stable après un aller-retour JSON, défauts pour une table invalide (3.908583ms)
+✔ E20 — Bornes de tune : nombres finis bornés, booléens gardés, le reste aux défauts (15.473584ms)
+✔ E21 — Action manquante : codes par défaut libres, sinon premier repli libre (clavier), sinon [] (2.125625ms)
+✔ E21b — Mêmes réponses que FOptions sur les profils de checks/options.test.mjs (5.286875ms)
+✔ E22 — Migration v1 → v2 : Espace saute, R esquive ; migrate seulement pour un format plus ancien (6.933625ms)
+✔ E23 — Capture clavier : le prochain appui va à frame().captured, jamais au jeu (1.8385ms)
+✔ E24 — radial : zone morte radiale avec remise à l’échelle (0.402417ms)
+✔ E25 — Déplacement à la manette : zone morte .15, course au bout du stick (n ≥ .92) (1.345792ms)
+✔ E26 — Lacet (FEEL-10) : 5,40, 76,34, 156,65 et 300 °/s à 20, 50, 70 et 100 % (2.576375ms)
+✔ E27 — Tangage : +190 °/s × dt vers le haut, opposé avec padInvertY (1.965667ms)
+✔ E28 — Demi-tour : 58 images de 1/120 s (0,483 s) et 29 de 1/60 s ; 600 ms sans surcroît (20.747791ms)
+✔ E29 — Ralentissement sur cible : lookScale .55, sur la visée à la manette seulement (2.936458ms)
+✔ E30 — Gâchettes : hystérésis .30 / .18, fronts aux images 2 et 6 (1.308541ms)
+✔ E31 — Valeur analogique : RT .5 → 0,473684 ; .04 → 0 ; 1 → 1 ; sa touche → 1 (0.574875ms)
+✔ E32 — Fusion : déplacement le plus fort, visée sommée avec la souris, plusieurs manettes (0.869334ms)
+✔ E33 — Branchement à chaud : connected et disconnected une seule fois, null et mapping non standard acceptés (1.202666ms)
+✔ E33b — navigator.getGamepads est appelé comme une méthode (sinon « Illegal invocation » dans Chrome) (2.135334ms)
+✔ E34 — Front de bouton : A tenu 10 images → un seul saut (1.05025ms)
+✔ E34b — configure à la manette : la table pad des réglages, un bouton tenu qui change d’action la tient sans front (1.08ms)
+✔ E35 — Appareil actif : bouton ou axe au-delà de .3 → manette ; clavier, tactile, souris (0.795833ms)
+✔ E36 — Capture manette et clear() : ni front ni impulsion pour l’appui capturé ; l’image après clear() sans front (1.0545ms)
+✔ E37 — Échange des sticks : le stick gauche tourne la vue, le droit déplace (2.913208ms)
+✔ E38 — keyName : mêmes noms que FOptions.keyName (1.208208ms)
+✔ E39 — Libellés appris : la touche vue par keyDown (AZERTY), la table de setLayout, sinon keyName ; les chiffres gardent leur nom (1.26975ms)
+✔ E39b — Libellés : un caractère visible, codes Key… seulement, appris avant la table, invite clavier jointe par « / » ou « — » (5.80025ms)
+✔ E40 — Glyphes : Xbox, PlayStation, générique ; invites tactile et souris, action non affectée, action inconnue (0.691ms)
+✔ E40b — glyph et dernière manette active : tables complètes, nom ou style inconnus, index le plus bas, remise à null au débranchement (1.353875ms)
+✔ E41 — guessDevice : règle de BITUME (TACT-08), matchMedia appelé comme une méthode, toute erreur → keyboard (0.649334ms)
+✔ E42 — Vibrations : appel exact, limiteur de 40 ms, intensité .5, sans actionneur, exception, aucun rejet non traité (7.009291ms)
+✔ E42b — rumble : bornes, manette visée, limiteur mis à jour au seul succès, rien avant frame() (1.730333ms)
+✔ FInput.clear arrête les vibrations lancées, même après déconnexion, sans reset répété (0.66825ms)
+✔ FInput.clear utilise un effet nul quand reset est absent (0.56875ms)
+✔ FInput.clear annule chaque actionneur utilisé et tolère refus asynchrones ou exceptions (1.265291ms)
+✔ Every first-person part stays in front of the near plane and each hand keeps its own side of the sight (250.175917ms)
+✔ Both hands stay clear of the crosshair on every phone and desktop frame (94.199375ms)
+✔ Equipping or changing the left-hand weapon never moves the right-hand gun or its muzzle assembly (112.873458ms)
+✔ T-F01 exports et forme (0.696166ms)
+✔ T-F02 validation (0.435583ms)
+✔ T-F03 état initial (0.345458ms)
+✔ T-F04 première image (0.080667ms)
+✔ T-F05 60 Hz exact : un pas par image, verrouillage à l image 9 (2.88075ms)
+✔ T-F06 horodatages 60 Hz grossiers (21.391834ms)
+✔ T-F07 59,94 Hz : une seule image à 2 pas, dilatation voulue (69.83425ms)
+✔ T-F08 écrans rapides, 10 minutes (1050.010291ms)
+✔ T-F09 30 Hz (40.35175ms)
+✔ T-F10 50 Hz (52.994041ms)
+✔ T-F11 gigue de ±2 ms à 60 Hz (74.181917ms)
+✔ T-F12 conservation sur les 21 motifs (4960.916709ms)
+✔ T-F13 écart borné (2823.517958ms)
+✔ T-F14 images longues (62.422083ms)
+✔ T-F15 arrêt anticipé (0.283ms)
+✔ T-F16 mode plan (15.672833ms)
+✔ T-F17 exception dans le rappel (0.131334ms)
+✔ T-F18 observe (0.211541ms)
+✔ T-F19 reset (0.209458ms)
+✔ T-F20 resetPeriod (0.190208ms)
+✔ T-F21 horodatages invalides (0.082917ms)
+✔ T-F22 changement d écran (207.894916ms)
+✔ T-F23 hz:120 sur un écran à 60 Hz (0.515042ms)
+✔ T-F24 déterminisme et source (43.010167ms)
+✔ T-F25 régularité (1049.147583ms)
+✔ T-F26 aim : mêmes opérations que le pas de simulation (5.689292ms)
+✔ T-F27 track : interpolation, chemin court, seuil de 2 m, taille (38.735542ms)
+✔ T-F28 table de référence (2473.476125ms)
+✔ FMath exposes exactly sin, cos, atan, atan2, hypot, hypot2 and hypot3, frozen, and nothing else (2.315792ms)
+✔ the hypot table covers every path, and its pairs show that order and arity matter (1.135292ms)
+✔ hypot, hypot2 and hypot3 match the V8 table bit for bit (9.348042ms)
+✔ on this V8, the table is Math.hypot, and FMath agrees with it on 120 000 seeded inputs (51.902791ms)
+✔ hypot converts its arguments once, in order, and keeps Math.hypot special values (0.752291ms)
+✔ the vector table covers every path with enough cases (0.959459ms)
+✔ sin and cos match the no-FMA C witness bit for bit (5.85625ms)
+✔ atan and atan2 match the no-FMA C witness bit for bit (4.130875ms)
+✔ __ieee754_rem_pio2 and __kernel_rem_pio2 match the C witness (n, y0, y1) (5.008084ms)
+✔ results do not depend on call order or on the previous call (6.49425ms)
+✔ results do not depend on the byte order of the host (simulated big-endian words) (7.529417ms)
+✔ special values follow IEEE-754 and ECMAScript (0.258625ms)
+✔ fdlibm constants match their hexadecimal words (0.305083ms)
+✔ reduction tables and pi-derived constants are the digits of pi (1.870958ms)
+✔ world.js takes sin, cos, atan, atan2 and hypot from FMath only and refuses to load without it (273.052708ms)
+✔ exact unions remove tile seams, preserve steps, holes and material boundaries (3.558583ms)
+✔ a fast capsule stops at a 12 cm wall without time sampling (1.639042ms)
+✔ capsule uses rounded corners and rotated body surfaces (1.067833ms)
+✔ sphere and arbitrarily oriented capsule distance, stationary overlap and invalid input (0.859417ms)
+✔ character slides, steps up a crate and does not climb a tall wall or cross a ceiling (1.112833ms)
+✔ dynamic support velocity, restore and changed geometry remain consistent (3.553417ms)
+✔ sliding across 24 tiles matches the single slab exactly at three speeds (15.560875ms)
+✔ partial coplanar seams are masked while exposed edges stay solid after removal (3.613792ms)
+✔ awake governor sleeps supported slow islands, never objects falling through the air (13.618958ms)
+✔ a grazing, slow contact does not wake a sleeping neighbour (0.826333ms)
+✔ a character may leave a pre-existing overlap but cannot move farther into it (0.336833ms)
+✔ local seam updates match a fresh reconstruction after reorder, insertion and removal (14.72125ms)
+✔ two metre cable keeps length through thirty seconds and resumes exactly (72.512375ms)
+✔ six ball links remain finite and connected at mass ratio ten (348.676875ms)
+✔ hinge rotates around its axis within limits while weld holds orientation (4.641833ms)
+✔ break impulse drops a suspended load and invalid joint restore is atomic (7.881458ms)
+✔ body rays test oriented boxes, sphere and capsule rather than their enclosing box (3.296042ms)
+✔ removal invalidates old handles, contact cache and query results across restore (12.97625ms)
+✔ collision events are bounded, finite and report an energetic impact only once per body pair (4.243333ms)
+✔ a local static change wakes the affected stack without waking a remote prop (3.10125ms)
+✔ P01 Chargement : un seul global FPhysics, matières gelées, chargement vm (9.025042ms)
+✔ P02 Source : motifs interdits, membres de Math, blocs TRIG (26.970875ms)
+ℹ src/physics.js : 81287 octets
+ℹ 1 bloc(s) TRIG, 124 appels à Math vérifiés
+✔ P03 Angles : quaternions unitaires, matrice du jeu, aller-retour, blocage de cardan (2.907375ms)
+ℹ 1 000 triplets : |q| - 1 ≤ 3.33e-16, matrice ≤ 8.88e-16, aller-retour ≤ 4.22e-15
+ℹ blocage de cardan ry = 1.5708 : matrice 1.66e-16, aller-retour 1.49e-8
+ℹ blocage de cardan ry = -1.5708 : matrice 1.66e-16, aller-retour 1.11e-16
+✔ P04 Création : validation, réglages par défaut, empreinte (14.73575ms)
+ℹ 58 jeux d'options invalides refusés par TypeError
+ℹ empreinte par défaut sur B64 : 04031f9d ; 49 réglages, chacun change l'empreinte
+✔ P05 Chute libre exacte (4.806667ms)
+ℹ après 120 sous-pas : y = 3.950000000000008, vy = -11.999999999999973 (attendu 3,95 et -12, Euler semi-implicite)
+✔ P06 Repos (6.113333ms)
+ℹ au bout de 2 s : y = 0.394672 (enfoncement 5.33 mm), endormie au sous-pas 63
+✔ P07 Rebond (3.739708ms)
+ℹ après le premier choc, le centre remonte à 0.2982, soit 0.0982 m au-dessus de 0,2 ; endormie au sous-pas 167 (1.39 s)
+▶ P08 Pentes
+  ✔ (a) slopeX 0,5 (1.246292ms)
+  ✔ (b) slopeX 1 (2.18775ms)
+  ✔ (c) slopeZ 0,5 (1.178375ms)
+  ✔ (d) endormie après 3 s, axe Y sur la normale (0.143167ms)
+  ⚠ (d) déplacement depuis le premier contact < 0,1 m (0.418666ms) # le cube glisse après son basculement (solveur du prototype, voir le diagnostic)
+✔ P08 Pentes (12.019834ms)
+ℹ (a) slopeX 0,5 : déplacement 0.0082 m (dx -0.0032, dz 0.0002) après 3 s ; endormie
+ℹ (b) slopeX 1 : déplacement 1.6213 m (dx -1.1427, dz 0.0001) après 1 s ; éveillée
+ℹ (c) slopeZ 0,5 : déplacement 0.0081 m (dx 0.0000, dz -0.0031) après 3 s ; endormie
+ℹ (d) premier contact au sous-pas 34 ; après 3 s : endormie, axe Y à 9.91e-4 de la normale ; depuis le premier contact, l'arête du premier contact a bougé de 1.3885 m et le centre de 1.5585 m (le seul basculement sur la face déplace le centre de 0,195 m)
+✔ P09 Sphère qui roule (4.024458ms)
+ℹ à 1 s : vx = 1.2272, ωz = -4.1273, |vx + 0,3 ωz| / |vx| = 8.98e-3 ; centre ≥ 0.29466 ; endormie à 7.38 s après 3.730 m
+✔ P10 Capsules (3.707042ms)
+ℹ (a) au sol : y = 0.14460 après 3 s, |axe·Y| = 2.85e-7, endormie
+ℹ (b) sur la boîte : y = 0.64460 après 3 s, |axe·Y| = 2.32e-7, endormie
+ℹ (c) croisées : la haute se pose à y = 0.43856 (attendu ≈ 0,439), la basse à 0.14422 ; toutes deux dorment au sous-pas 100
+ℹ (d) sphère sur la caisse : centre final (0.1000, 1.0391, -0.0000), jamais sous 1.03909
+✔ P11 Pile de 10 (stack10) (65.9435ms)
+ℹ NOSLEEP : dérive 30.69 mm à 1 s, 16.83 mm à 5 s, 23.39 mm à 10 s (seuil 30 mm ; prototype sur dalle 30,7 / 16,8 / 23,4)
+ℹ tassement du sommet à 10 s : 86.06 mm (attendu ≈ 85 mm)
+ℹ plus bas sommet : -9.24 mm de 1 s à 10 s (sous-pas 1113) ; -23.56 mm sur tout l'essai (sous-pas 21, chute initiale)
+ℹ réglages par défaut : toute la pile dort au sous-pas 123 (1.025 s)
+✔ P12 Pyramide de 55 (pyramid55) (254.787166ms)
+ℹ NOSLEEP : dérive 9.63 mm à 1 s, 16.39 mm à 5 s, 19.39 mm à 10 s (seuil 20 mm ; prototype sur dalle 9,6 / 16,4 / 19,4)
+ℹ plus bas sommet : -11.73 mm de 1 s à 10 s (sous-pas 195) ; -13.71 mm sur tout l'essai (sous-pas 16, chute initiale)
+ℹ réglages par défaut : tout dort au sous-pas 87 (0.725 s)
+✔ P19 Traversées (boîtes) : 800 tirs contre un mur de 12 cm à 120 Hz (281.595333ms)
+ℹ 14 m/s : 0/200 traversées ; centre le plus avancé à x = 4.9205 (face du mur à 5)
+ℹ 24 m/s : 0/200 traversées ; centre le plus avancé à x = 4.8785 (face du mur à 5)
+ℹ 30 m/s : 0/200 traversées ; centre le plus avancé à x = 4.9098 (face du mur à 5)
+ℹ 40 m/s : 0/200 traversées ; centre le plus avancé à x = 4.8276 (face du mur à 5)
+✔ P19 Traversées (sphère) : 1 000 tirs à 24 m/s contre le mur de 12 cm (207.95725ms)
+ℹ 0/1000 traversées ; centre le plus avancé pendant les tirs : x = 4.8350 (rayon 0,17 : contact à 4,83)
+✔ P32 Ascenseur (15.510209ms)
+ℹ après la mise en place : boîte à 0.59477 (endormie) ; en haut : ascenseur à 1.1, boîte à 1.59466 ; écart boîte - ascenseur pendant la montée : 0.4868 à 0.4947
+ℹ sans nouvelle cible : ascenseur à 1.1, boîte endormie 0.67 s plus tard, à y = 1.59477
+✔ P33 Couches (11.486708ms)
+ℹ X à y = 0.39467, Y à y = 0.39477 : Y a traversé X (groupe 2 contre masque 1 : la règle exige les deux sens)
+✔ P41 Même processus : chaque chaîne calculée deux fois est identique (1370.589375ms)
+ℹ stack10 à 600 sous-pas : 5af686dc/283b179e
+ℹ pyramid55 à 600 sous-pas : f1a824a1/6a47467f
+ℹ rubble300 à 300 sous-pas : e9d0d0c3/3975d516
+ℹ blast200 à 300 sous-pas : 01b0c057/70fd66db
+✔ P45 Aller-retour JSON (1279.933166ms)
+ℹ stack10 à 100 sous-pas (10 éveillés) : b219608d, puis 283b179e des deux côtés 300 sous-pas plus tard ; instantané de 7022 caractères, cache de 40 entrées
+ℹ pyramid55 à 1200 sous-pas (0 éveillés) : 6a47467f, puis 6a47467f des deux côtés 300 sous-pas plus tard ; instantané de 44043 caractères, cache de 492 entrées
+ℹ rubble300 à 240 sous-pas (298 éveillés) : 91d8970c, puis 9704212d des deux côtés 300 sous-pas plus tard ; instantané de 233899 caractères, cache de 1548 entrées
+ℹ blast200 à 300 sous-pas (199 éveillés) : bf7010a0, puis c24f1549 des deux côtés 300 sous-pas plus tard ; instantané de 120227 caractères, cache de 525 entrées
+ℹ formes rondes à 40 sous-pas : 4091f823 des deux côtés 300 sous-pas plus tard ; cache de 3 entrées
+ℹ ascenseur entre setKinematic et step : 98917686 des deux côtés 300 sous-pas plus tard
+✔ P46 snapshot ne modifie rien (138.220042ms)
+ℹ stack10 : 283b179e après 300 sous-pas, avec ou sans instantanés ; chaîne b4d9490c/283b179e
+ℹ pyramid55 : 6a47467f après 300 sous-pas, avec ou sans instantanés ; chaîne 0d00077d/6a47467f
+✔ Étape 2a — corps : description, poignées, body() (2.23975ms)
+✔ Étape 2a — attente, création endormie, réveil différé (11.791875ms)
+ℹ le dormeur est réveillé au sous-pas 30 par la caisse qui tombe ; réveils : 1
+✔ Étape 2a — setStatics : boîtes, dalle, empreinte, réveil (7.368ms)
+ℹ caisse posée sur la boîte statique : y = 1.39466 ; sans le bit 1 du masque : y = -22.78
+✔ Étape 2a — pas de temps : erreurs, accumulateur, découpage (72.819583ms)
+ℹ step(0.2) : 8 sous-pas, 16 sous-pas jetés
+ℹ stack10, 300 sous-pas par 1/60, 1/120 et 1/30 : 283b179e, 283b179e, 283b179e
+✔ Étape 2a — restore refusé sans rien changer, zéros négatifs (25.445834ms)
+ℹ 13 instantanés corrompus refusés, hachage inchangé (b219608d)
+✔ Étape 2a — pose, matrix, chronométrage (35.430083ms)
+ℹ phaseMs avec une horloge factice : 15, 15, 15, 30
+ℹ stack10 à 60 sous-pas : 40 points, 10 paires, 10 tests, 10 éveillés
+✔ Étape 2b — impulse et setVelocity : un seul corps réveillé, vitesse gardée en attente, bornes (2.830459ms)
+ℹ impulsion (0, 6, 0) au coin de la barre : dv = 0, 0.5, 0 ; dw = -2.4000, 0.0000, 2.4000
+✔ Étape 2b — blast de base, sans occultation : portée, direction, plafond, réveil (3.869333ms)
+ℹ corps 0 : point le plus proche à 0.6000 m, |dv| = 14.0000 m/s
+ℹ corps 1 : point le plus proche à 2.6000 m, |dv| = 9.4444 m/s
+ℹ corps 3 : point le plus proche à 2.4807 m, |dv| = 9.7758 m/s
+✔ Étape 2b — scènes rubble300 et blast200 : construction, chute, souffle (821.110125ms)
+ℹ rubble300 : tout dort à la fin du sous-pas 587 (4.89 s ; prototype 11,93 s) ; pic de 300 éveillés ; centre le plus bas 0.0395 ; 0 pièce(s) hors de la cour ; plus bas sommet au repos -12.77 mm
+ℹ blast200 : 29 barils, 171 cubes
+ℹ souffle : 198 corps poussés, 2 hors de portée ; tout dort 4.38 s après ; plus bas sommet -48.67 mm pendant les 15 s (P29, étape 7 : ≥ -15 mm)
+✔ Étape 2b — découpage du temps sur rubble300 (P44, première partie) (1023.473334ms)
+ℹ rubble300, 300 sous-pas par 1/60, 1/120 et 1/30 : 3975d516, 3975d516, 3975d516
+✔ Étape 3 — formes et corps cinématiques : description, tailles, masses, body() (1.545958ms)
+ℹ sphère metal r 0,2 : 2.1782 kg ; capsule wood r 0,1 h 0,6 : 0.1340 kg ; capsule fine : taille 0.04, 0.52, 0.04
+✔ Étape 3 — sols plats et en pente : surfaces, matières, refus (11.921583ms)
+ℹ caisse sur le sol plat : y = 0.89466 ; cube sur la rampe : déplacement 0.00549 m en 3 s
+✔ Étape 3 — setKinematic : cible exacte, attente, bornes, arrêt, ni décor ni autre cinématique (11.034958ms)
+ℹ plateau : la caisse a suivi de 0.5583 m (plateau 0,6 m) ; palette : caisse poussée à x = 1.3948
+✔ Étape 3 — amortissement de roulement : sphère au contact seulement (1.769542ms)
+ℹ spin vertical après 0,5 s : sphère au sol 1.799821 (attendu 1.799821), sphère en l'air 4.852264, cube en l'air 4.852264 (attendu 4.852264)
+✔ Étape 3 — blast sur une sphère et une capsule (1.306417ms)
+ℹ sphère : dv = 1.4775, 0.2586, 0.0000 ; capsule : dv = -4.8692, 1.1361, 0.0000 ; centre dans la sphère : dv = -3.8461, 13.4613, 0.0000
+✔ Étape 3 — formes rondes entre elles : sphères empilées, capsules parallèles (4.494084ms)
+ℹ sphère sur sphère : basse à 0.29451, haute à 0.78901
+ℹ capsule courte sur la longue (longue créée en premier) : y = 0.43866, |axe·Y| = 1.12e-4
+ℹ capsule courte sur la longue (courte créée en premier) : y = 0.43867, |axe·Y| = 6.37e-5
+✔ Étape 3 — restore : formes rondes et corps cinématiques, refus sans rien changer (1.608333ms)
+ℹ 15 instantanés corrompus refusés, hachage inchangé (26fcb4e4) ; restauration valide : 9112cd86 des deux côtés 120 sous-pas plus tard
+✔ S01 ordre (1.016417ms)
+✔ S02 budget (0.660459ms)
+✔ S03 tâche longue seule (0.115667ms)
+✔ S04 vieillissement (1.207834ms)
+✔ S05 rappel (0.260667ms)
+✔ S06 remplacement (0.186833ms)
+✔ S07 cancel (0.111417ms)
+✔ S08 flush, file image (0.15225ms)
+✔ S09 budget nul (0.173208ms)
+✔ S10 échéance (0.232333ms)
+✔ S11 découpage déterministe (0.591458ms)
+✔ S12 priorités sim (0.133666ms)
+✔ S13 tâche sans travail (0.108125ms)
+✔ S14 déterminisme de la file sim (1.054709ms)
+✔ S15 retours invalides (0.486208ms)
+✔ S16 exception (0.211208ms)
+✔ S17 budget (0.115ms)
+✔ S18 flush sim et garde (139.233375ms)
+✔ S19 ajout pendant pump (0.197208ms)
+✔ S20 sans horloge et validation (0.345541ms)
+✔ S21 coût lissé et vieillissement des sautées (0.090333ms)
+✔ S22 source (0.183ms)
+✔ T1 chargement (1.252875ms)
+✔ T2 hygiène du source (0.285375ms)
+✔ T3 GLSL statique (0.602792ms)
+✔ T4 conventions (0.194041ms)
+✔ T5 normalize (3.2105ms)
+✔ T6 validate refuse (40.510875ms)
+✔ T7 resolve (63.656958ms)
+✔ T8 source principale (18.532ms)
+✔ T9 lumière clé (68.057791ms)
+✔ T10 brouillard cohérent (22.190292ms)
+✔ T11 encode (0.407708ms)
+✔ T12 signature et distinction (16.716625ms)
+ℹ écart maximal 0 ; distances minimales 90 (lisiere-aube / carriere-aube-poussiere) et 78 (lisiere-aube / carriere-aube-poussiere)
+✔ T13 intentions (16.12075ms)
+✔ T14 frameUniforms (0.246916ms)
+✔ T15 bind avec un faux gl (1.37575ms)
+✔ T16 graine (39.19575ms)
+✔ T17 temps (souple) (13.301917ms)
+✔ query results stay asynchronous for at least two frames (0.919167ms)
+✔ disjoint timing is discarded, never reported as a measurement (0.202ms)
+✔ unavailable GPU timers keep CPU timing and bounded memory (1.060708ms)
+✔ omitted passes issue no query and context disposal deletes every pending query (0.373375ms)
+✔ a stalled driver cannot accumulate unbounded queries (0.802583ms)
+✔ the director is a deterministic function of requests and bar calls (1.531834ms)
+✔ the brick uses no clock, no randomness, no timer and no host content (0.104042ms)
+✔ vertical layers follow the intensity and only move on a bar boundary (0.151042ms)
+✔ a requested cue finishes its segment, plays the written join, then enters the target (0.372084ms)
+✔ an urgent request still finishes the bar in progress, never cuts it (0.084875ms)
+✔ a multi-bar join keeps its written length and is not cut short (0.091792ms)
+✔ the same event never restarts the music from bar zero (0.118ms)
+✔ a request already queued is not queued twice and a newer request still wins (0.078959ms)
+✔ a request made during a join is honoured at the end of that join (0.103125ms)
+✔ without a written join the change still waits for the segment end (0.113459ms)
+✔ segments walk the declared order and loop without a gap (0.073292ms)
+✔ intensity is quantized so a noisy signal cannot flap a layer every frame (0.084125ms)
+✔ descriptors are validated before anything can run (0.268166ms)
+✔ an unknown cue is refused and counted, and reset puts the transport back (0.097208ms)
+✔ stats expose the transport for the frame-budget bench (0.064ms)
+✔ empty cue descriptors fail explicitly before starting the transport (0.046167ms)
+✔ the director owns segment bars, layer arrays and transition descriptors after create (0.118583ms)
+✔ segment and transition bar counts are finite positive integers (0.358417ms)
+✔ Gamepad reaches real simulation, jump/profile fronts are single-use across substeps (80.035459ms)
+✔ Gamepad pause/resume never replays a held trigger; disconnect pauses and stops vibration (60.284167ms)
+✔ A remapped pad button fires in game and does not require pointer lock (46.239375ms)
+✔ A brief mouse press between frames fires exactly once at 20, 30, 60 and 144 Hz (264.025333ms)
+✔ A brief key press between frames fires exactly once at 20, 30, 60 and 144 Hz (274.150417ms)
+✔ A brief touch press between frames fires exactly once at 20, 30, 60 and 144 Hz (261.702917ms)
+✔ A latched press is sent only to the first substep; holding still drives subsequent substeps (66.308042ms)
+✔ A brief press just before the pistol becomes ready survives the cooldown and is consumed by its shot (53.112166ms)
+✔ An expired press and key repeat cannot schedule a delayed shot; the buffer duration is configurable (237.107292ms)
+✔ A right-hand shot cannot consume a buffered left-hand shot (85.704625ms)
+✔ Keyboard rebinding and simultaneous touch taps preserve independent hand intentions (79.992792ms)
+✔ Switching away and back cancels an earlier intention instead of firing the new equipment (61.00475ms)
+✔ Pause, focus loss, hidden tab and context loss clear unconsumed input (280.446292ms)
+✔ A mouse press without pointer lock is not a fire intention (58.540292ms)
+✔ Pointer cancellation clears pending fire while normal touch release preserves a tap (206.527917ms)
+✔ The left-hand trigger stays a held action and is never latched as a firearm (129.968792ms)
+✔ Thirty small wheel events cross the threshold only once and respect the 150 ms cooldown (55.722042ms)
+✔ Wheel direction changes reset partial travel, line/page modes normalize and pause clears accumulation (53.068958ms)
+✔ Pointer capture is requested in the canvas gesture and its matching mouse press never fires (58.588666ms)
+✔ Raw mouse input is the default; the saved system-acceleration preference and reset control change the request (125.032375ms)
+✔ Unsupported raw input retries exactly once without options for synchronous and promise APIs (116.196458ms)
+✔ A failed lock keeps drag-look usable without mouse firing and leaves touch gestures unchanged (191.971917ms)
+✔ Late lock failure or success after pause cannot recapture the pointer in a menu (132.983417ms)
+✔ Legacy pointer-lock error events give a usable fallback and cancelling capture cannot block the next click (64.658917ms)
+✔ Pointer cancellation invalidates a pending raw-input retry (61.073ms)
+✔ Late pointer-lock success after pointer cancellation is released for promise and void APIs (141.278166ms)
+✔ A normal mouse release keeps an asynchronous pointer-lock request valid (129.690708ms)
+✔ The paused image options refresh the displayed cadence after target and display changes (64.256625ms)
+✔ stream preserves object key order and bounds large array messages (10.147209ms)
+✔ worker protocol assembles streamed values and transfers PCM buffers (0.653125ms)
+✔ a startup failure or invalid partial stream retries the same job locally (0.508875ms)
+✔ watchdog suspends while hidden and recovers a stuck worker once visible (0.198291ms)
+✔ disposal rejects in-flight work, ignores stale messages, and rejects later calls (0.330916ms)
+✔ no worker, constrained mobile and explicit main mode retain working handlers (0.304917ms)
+✔ worker server returns errors and answers pings without executing an unknown job (0.239666ms)
+✔ legacy movement and jump-pad path ignore the new jump action over 3,600 steps (1370.996208ms)
+✔ modern ramp, stop and reversal meet the movement targets at 20/60/120 Hz (733.015084ms)
+✔ free jump has 0.961 m apex, 620 ms flight and retains 7.6 m/s horizontal momentum (250.213375ms)
+✔ grounded jump buffering creates a save opportunity and keeps its remaining-step momentum (2223.117917ms)
+✔ coyote time is 100 ms and restoring a checkpoint clears pending jump input (647.167333ms)
+✔ modern fatal falls use launch height, with authored terraces and old impact rules intact (1132.254167ms)
+✔ standing outdoor boundaries block jumping at any height, and demolition opens the actual breach (267.256791ms)
+✔ old checkpoints on the boundary crest can escape, and only the player is clipped (974.360458ms)
+✔ steps up to 0.42 m are walkable but higher ledges and overhead obstacles block the player (769.811834ms)
+✔ extended SMG aim assistance belongs to touch, while pad retains the smaller cone (752.664042ms)
+✔ a dash leaving a ledge keeps its instantaneous speed and remaining invulnerability (330.674167ms)
+✔ a six-second sequence of buffered jumps travels the same distance at 20/60/120 Hz (803.101791ms)
+✔ every archived pre-lot checkpoint really carried the shield before the removal (3.612708ms)
+✔ a pre-lot checkpoint whose world generation changed is refused cleanly and never mutates the live simulation (476.875833ms)
+✔ the same pre-lot loadout still equips a fresh sector, with a free left hand and a clamped reserve (540.711417ms)
+✔ a pre-lot shaped payload on an unchanged world restores and simply has no shield any more (328.775167ms)
+✔ tout import relatif d un banc tools/proof pointe sur un fichier committé (4.218042ms)
+✔ tout chemin de banc ou de doc cité par une preuve du lot 05 existe (3.342625ms)
+✔ tout banc qui écrit un fichier importe bien writeFileSync (2.081625ms)
+✔ une preuve qui publie un chiffre d alloc-image.mjs donne médiane et intervalle (2.296584ms)
+✔ les bancs de coût à deux racines mesurent en lockstep et publient un contrôle (0.236667ms)
+✔ le contrôle sommeEtapes du profil « au-delà » rend compte du total (0.192334ms)
+✔ toutes les pistes écartées de l« au-delà » sont chiffrées (0.17925ms)
+✔ les deux bancs exigés par les preuves T3 et T9 sont bien dans le dépôt (0.09825ms)
+✔ le constructeur renvoie toujours les mêmes clés, dans le même ordre (1.561583ms)
+✔ les valeurs par défaut se lisent exactement comme un champ absent (0.123459ms)
+✔ aucun producteur n'ajoute de clé au littéral canonique (1051.517666ms)
+✔ physical props react to impacts and are covered by sight and standing support (181.912708ms)
+✔ rejected physical data does not change the live simulation or rigid bodies (50.326667ms)
+✔ all generated props avoid required markers in the eighteen class worlds (25170.796792ms)
+✔ a checkpoint preserves locomotion while pushing and stays exact for 300 further steps (550.933583ms)
+✔ physical explosion starts a delayed barrel chain and keeps a valid save (132.009583ms)
+✔ moving rubble damages and stuns an enemy, but a slow object cannot hurt it (11.573458ms)
+✔ profile teleport does not sweep the player proxy through intervening props (29.488ms)
+✔ physical grenade rebounds from a thin wall and rolls without the three bounce cutoff (8.878333ms)
+✔ final checkpoint v2 reads the intermediate physical v1 without changing the future (269.50125ms)
+✔ a dynamic save row cannot alias the player proxy and rejection remains atomic (30.424625ms)
+✔ worker-baked navigation keeps the exact initial state and 900 physical steps (61220.865208ms)
+✔ published rigid checkpoints retain their geometry and exact future when resumed (25.284792ms)
+✔ mount et place restent bit à bit identiques sur 10 000 poses à graine fixe (115.96325ms)
+✔ la mémo par repère ne change pas le résultat quand rx varie (12.800834ms)
+✔ un repère fabriqué à la main sans champs de mémo fonctionne (0.20375ms)
+✔ place invalide sa mémo lorsque les axes du repère changent, même à rx constant (0.185917ms)
+✔ place accepte un repère gelé et conserve le signe des zéros du calcul de référence (0.695916ms)
+✔ Presentation damping and recoil have the same result at 20, 60 and 120 FPS (3.574916ms)
+✔ Walking animation settles after actual movement stops, even with a retained stride phase (0.971292ms)
+✔ Reduced motion fixes camera height, horizon and field of view immediately (0.313209ms)
+✔ Recoil moves the weapon, stays bounded and returns to rest without moving the aim (0.862666ms)
+✔ Run and dash field-of-view transitions are progressive and bounded (1.91325ms)
+✔ Weapon mount follows the rolled camera and preserves local assembly distances (0.403333ms)
+✔ Arbitrary yaw/pitch/roll mounts remain orthonormal, including the Euler singularity (0.269334ms)
+✔ Rocket recoil and nearby blast settle, with all camera shake disabled by reduced motion (1.904917ms)
+✔ campaign pistol recoil is gentler than the rifle, cadence independent and never moves the camera aim (5.682125ms)
+✔ Configured weapon recoil reaches its pitch and returns below ten percent on schedule (32.440167ms)
+✔ Configured recoil is cadence independent, reduced to thirty percent and resettable (0.834458ms)
+✔ Recoil tuning is copied and the rifle alternates its roll without changing default behavior (0.448542ms)
+✔ Optional ground steps smooth a forty centimetre rise without affecting simulation or default hosts (2.4565ms)
+✔ Landing dips are bounded and reduced motion attenuates the impulse without changing the trajectory (3.076042ms)
+✔ une secteur calme ne demande aucune pièce (4.739083ms)
+✔ le combat est demandé dès que lalerte monte, sans attendre (1.159792ms)
+✔ lalerte qui oscille autour du seuil ne fait pas claquer la musique (6.179166ms)
+✔ le colosse et la victoire sont urgents et ne respectent pas le temps de séjour (0.441ms)
+✔ un changement trop rapide est refusé puis accepté, sans horloge interne (2.76675ms)
+✔ la mort rend le thème du secteur et la reprise du secteur repart à zéro (0.355333ms)
+✔ la pression du directeur déclenche le combat même sans ennemi visible (0.29175ms)
+✔ la même suite détats donne exactement les mêmes demandes (2.522833ms)
+✔ aucune horloge, aucun aléa, aucun audio dans le chef dorchestre (0.712083ms)
+✔ prepared scores adopt all PCM and seeded orders without synthesizing in the receiving realm (1734.936708ms)
+✔ worker preparation is deduplicated and rejection falls back to a complete local score (213.124666ms)
+✔ three deterministic, complete ProTracker MODs contain original PCM and evolving scores (156.655375ms)
+✔ playback reads the exported note periods and the exact signed eight-bit sample data (1.804084ms)
+✔ tracker advances at encoded tempo through multiple patterns and keeps a bounded voice budget (8.442542ms)
+✔ pause cancels already scheduled notes, resumes on a bar, and does not touch shared context or SFX (0.760334ms)
+✔ late frames resynchronize without an unbounded catch-up burst (0.658208ms)
+✔ volume, threat, stage changes and unavailable audio respect lifecycle ownership (0.865458ms)
+✔ public track metadata matches the playable MOD, without loading audio or exposing mutable settings (0.871959ms)
+✔ arrangements contain genuine stop/drop sections and substantial rhythm guitar sustain (9.443917ms)
+✔ warmup yields between instruments, shares pending work and opens no audio device (77.377333ms)
+✔ preparing future AudioBuffers never switches the score and avoids first-use buffer work in combat (2.88125ms)
+✔ melodic harmony uses thirds belonging to its dark mode, not arbitrary parallel intervals (0.300875ms)
+✔ the original title thrash starts immediately, evolves for a full loop and leaves the three world scores unchanged (99.466334ms)
+✔ title preparation and playback reuse a separate bank, loop and switch cleanly back to every world (11.157833ms)
+✔ title warmup is shared, yields its instrument work and needs no audio device (100.850916ms)
+✔ sixty seconds of music fade every note cut before its natural end to silence (no click) (3.597791ms)
+✔ une graine allonge la boucle au-dela de 240 s sans repeter une fenetre de 4 positions, et le module sans graine reste octet pour octet l arrangement ecrit (MIX-10, MIX-V3) (54.678166ms)
+✔ eight adaptive cues join the three worlds and the welcome theme without touching them (1016.517292ms)
+✔ adaptive scores write real played parts on all five tracks (7.226917ms)
+✔ announcement percussion and cue guitars are fresh bipolar waves without a dc offset (114.2085ms)
+✔ vertical layers enter and leave on the bar as intensity moves (plain director) (105.91025ms)
+✔ vertical layers enter and leave on the bar as intensity moves (adaptive director) (9.098459ms)
+✔ an event never interrupts the running bar and never restarts the same cue (plain director) (51.487083ms)
+✔ an event never interrupts the running bar and never restarts the same cue (adaptive director) (45.645458ms)
+✔ warming a cue yields between synthesis phases and opens no audio device (111.916166ms)
+✔ the adaptive director stays optional: music.js alone still walks the worlds (13.577583ms)
+✔ seeded arrangements remain complete under the adaptive transport and have accurate durations (21.312333ms)
+✔ natural v2 reserve sites provide real cover in early, middle and final worlds without camera-dependent visible spawning (5887.871792ms)
+✔ real natural reserves in world 0 deploy and approach instead of silently turning back after five seconds (1012.898167ms)
+✔ real natural reserves in world 7 deploy and approach instead of silently turning back after five seconds (1142.226917ms)
+✔ real natural reserves in world 17 deploy and approach instead of silently turning back after five seconds (1778.4095ms)
+✔ an ongoing natural approach survives checkpoint restore and malformed entry grace is rejected atomically (2528.455959ms)
+✔ local openings and closures retain the exact partition within the repair budget (29.632667ms)
+✔ changes during repair cannot expose obsolete components (16.025917ms)
+✔ disconnected goals fail before budget consumption, while deferral preserves the current route (5.688459ms)
+✔ press and blade footprints are independent of pose and removed after destruction (11.0195ms)
+✔ legacy: every baked edge matches the static body sweep and restores synchronously (374.394292ms)
+✔ elevated: every baked edge matches the static body sweep and restores synchronously (318.459916ms)
+✔ campaign: every baked edge matches the static body sweep and restores synchronously (321.755167ms)
+✔ profiles: every baked edge matches the static body sweep and restores synchronously (291.788542ms)
+✔ timely CPU and asynchronous advice commit at the same simulation deadline (51.770917ms)
+✔ attack commitments stay bounded by difficulty without stopping lateral movement (37.754667ms)
+✔ checkpoint boundaries retain deterministic tactics, caches and CPU advice (759.346417ms)
+✔ flanks stay on usable floor and a guard on the outer fringe can return (3.34675ms)
+✔ System mouse acceleration is opt-in and only accepts stored booleans (1.265167ms)
+✔ Older preferences migrate while new controls have safe bounded values (0.287292ms)
+✔ Rebinding changes the real input map, preserves other actions and survives JSON storage (0.627667ms)
+✔ Conflicts and reserved keys never silently disable another action (0.743667ms)
+✔ Adding melee preserves an existing custom V binding and finds a free default key (0.857625ms)
+✔ campaign pistol selection migrates without stealing a customized Digit5 binding (0.567125ms)
+✔ The frame gate keeps a regular whole-vsync cadence and exposes the actual rate (32.315ms)
+✔ Unlimited and near-native rates never discard a valid callback after calibration (3.82425ms)
+✔ The frame gate recalibrates on display changes, long suspension and clock restart (0.341583ms)
+✔ Changing the target is immediate and malformed timestamps cannot poison the gate (0.54275ms)
+✔ Exact half-integer ratios choose their measured divisor on the first calibration and never oscillate (23.168667ms)
+✔ Small timestamp jitter around a divider boundary cannot restart the display phase (48.374792ms)
+✔ Divider hysteresis yields to a changed display, target or suspended clock (1.484125ms)
+✔ native scale and stable automatic cadence have bounded independent preferences (0.441916ms)
+✔ la grille couvre les bornes et ne laisse passer que le sol (2.496833ms)
+✔ un bloc qui ne couvre pas la hauteur du corps ne barre rien (1.455583ms)
+✔ un bloc trop étroit laisse passer, un bloc qui joint les murs barre le passage (0.627209ms)
+✔ la grille rendue après un test est identique à l’origine (1.115375ms)
+✔ une marche trop haute sépare deux zones (0.511583ms)
+✔ nearestFree rattrape une source posée dans un mur (0.36975ms)
+✔ FPassages distingue un lien obligatoire d un lien de contournement (0.190291ms)
+✔ la tournée gloutonne rend les liens réellement empruntés (0.438667ms)
+✔ deux appels sur les mêmes entrées rendent exactement le même résultat (0.444334ms)
+✔ boss strafing steers around a physical barricade while retaining aim (71.076542ms)
+✔ a visible boss does not disable escape from an immobilised position (55.566083ms)
+✔ the pilot writes inputs only and makes deterministic bounded search decisions (486.253ms)
+✔ scene equipment is legal class progression and normal simulation saves contain no demonstration flag (13872.664709ms)
+✔ census instrumente les six mondes classiques avec FPassages chargé (1217.872042ms)
+✔ worldFactory conserve le FMath injecté et produit le même monde campagne V2 (333.663875ms)
+✔ worldFactory reste compatible avec une racine historique sans passages.js (1.839292ms)
+✔ pre-massive classic-0: exact old world and entire checkpoint round-trip (537.501667ms)
+✔ pre-massive classic-0: current worlds stay current and reject a different identity (212.3425ms)
+✔ pre-massive classic-0: malformed old points remain rejected without mutation (216.392ms)
+✔ pre-massive classic-2: exact old world and entire checkpoint round-trip (408.249916ms)
+✔ pre-massive classic-2: current worlds stay current and reject a different identity (158.008709ms)
+✔ pre-massive classic-2: malformed old points remain rejected without mutation (183.867875ms)
+✔ pre-massive campaign1-0: exact old world and entire checkpoint round-trip (352.884208ms)
+✔ pre-massive campaign1-0: current worlds stay current and reject a different identity (155.723916ms)
+✔ pre-massive campaign1-0: malformed old points remain rejected without mutation (110.935167ms)
+✔ pre-massive campaign1-9: exact old world and entire checkpoint round-trip (328.345ms)
+✔ pre-massive campaign1-9: current worlds stay current and reject a different identity (138.791417ms)
+✔ pre-massive campaign1-9: malformed old points remain rejected without mutation (129.128917ms)
+✔ pre-massive campaign1-17: exact old world and entire checkpoint round-trip (353.14175ms)
+✔ pre-massive campaign1-17: current worlds stay current and reject a different identity (316.202209ms)
+✔ pre-massive campaign1-17: malformed old points remain rejected without mutation (169.985125ms)
+✔ pre-massive campaign2-0: exact old world and entire checkpoint round-trip (360.215458ms)
+✔ pre-massive campaign2-0: current worlds stay current and reject a different identity (270.275958ms)
+✔ pre-massive campaign2-0: malformed old points remain rejected without mutation (161.919416ms)
+✔ pre-massive campaign2-9: exact old world and entire checkpoint round-trip (342.081958ms)
+✔ pre-massive campaign2-9: current worlds stay current and reject a different identity (243.178875ms)
+✔ pre-massive campaign2-9: malformed old points remain rejected without mutation (150.223958ms)
+✔ pre-massive campaign2-17: exact old world and entire checkpoint round-trip (408.071958ms)
+✔ pre-massive campaign2-17: current worlds stay current and reject a different identity (290.415375ms)
+✔ pre-massive campaign2-17: malformed old points remain rejected without mutation (186.625916ms)
+✔ pre-massive classic-rubble: exact old world and entire checkpoint round-trip (311.827834ms)
+✔ pre-massive classic-rubble: current worlds stay current and reject a different identity (189.16525ms)
+✔ pre-massive classic-rubble: malformed old points remain rejected without mutation (245.413125ms)
+✔ pre-massive campaign2-rubble: exact old world and entire checkpoint round-trip (376.165458ms)
+✔ pre-massive campaign2-rubble: current worlds stay current and reject a different identity (186.847125ms)
+✔ pre-massive campaign2-rubble: malformed old points remain rejected without mutation (173.176ms)
+✔ switch preserves world, position, health, inventory and separate equipment; held input switches once (246.204333ms)
+✔ light jetpack gains sustained height, consumes fuel, and heavy has only its free jump (1581.049959ms)
+✔ class snapshots restore both economies, held weapon, fuel and an ascending jetpack without mutating rejected saves (1028.434334ms)
+✔ projectile keeps its heavy origin through switch and save/restore (828.144125ms)
+✔ only heavy player explosives breach walls; bullets and enemy blasts cannot bypass class gates (2.27575ms)
+✔ heavy automatic pistol is faster and class experience stays with the shooter (575.940083ms)
+✔ each class owns its capacity upgrades while shared ammunition survives switching and saves (736.846666ms)
+✔ generated class campaign adds both ordered locks and alternates boss requirements without changing legacy worlds (10307.556125ms)
+✔ all eighteen generated corridors require heavy breach, light flight and relay activation in that order (30824.207625ms)
+✔ eighteen class bosses reject the wrong profile, route rewards to both banks, and carry their progression (31509.222959ms)
+✔ switching upgraded vitality preserves integrity percentage without healing by repeated switches (199.676667ms)
+✔ each character stays at its own location; switching and checkpoint restore retain both positions (552.889791ms)
+✔ partner marker reports distance, elevation and a bounded direction for targets ahead and behind (0.240709ms)
+✔ the heavy class breaches relief and retaining walls; floors and mandatory locks stay protected (0.10625ms)
+✔ The starting arsenal is locked and every discharged weapon consumes finite ammunition exactly once (486.636625ms)
+✔ Physical weapon racks unlock in order, duplicate racks provide ammunition, and full bags retain their surplus (454.12375ms)
+✔ Supplies cannot be collected through a thin wall or from another floor (256.071791ms)
+✔ An empty weapon uses a short weak butt strike without heat or projectile; defensive pulse does not replace ammunition (1114.559417ms)
+✔ Undeployed reservations have no hit volume, perception, pulse, blast or elevator collision (241.677834ms)
+✔ Waves keep stable IDs, wait for real kills, announce their entry and walk continuously after hidden deployment (696.546375ms)
+✔ Looking away never permits a visible spawn, and a destroyed deployment screen leaves reserves waiting (492.538084ms)
+✔ Global combat budget bounds overlapping encounters and disengaged actors return on foot without despawning (355.958584ms)
+✔ Inventory, partial caches, pending waves and reservations round-trip atomically without resupply (661.235083ms)
+✔ Generation-six movement is faster, normalizes diagonals and agrees at 20–120 Hz through reversal and release (1539.28575ms)
+✔ Destroyed pipe mouths stop steam, sound triggers and damage immediately while surviving mouths stay anchored (753.242625ms)
+✔ The energetic air profile keeps deterministic pad arcs, midflight inventory saves and swept walls and ceilings (1935.73875ms)
+✔ A nearby workshop applies purchased stats to real combat without advancing time or refilling upgrade capacity (1176.869416ms)
+✔ Workshop transactions require a live operator and an unobstructed physical workshop (226.161084ms)
+✔ Boss salvage awards its physical credits and core once, keeps ammo overflow and rejects corrupted economy checkpoints (704.124ms)
+✔ Four-slot loadouts migrate old inventories without gifts and enforce distinct owned weapons in each hand (1022.078125ms)
+✔ Two hands discharge independently while swapping preserves each weapon cooldown and shared finite ammunition (412.005708ms)
+✔ Hand-specific muzzle paths prevent shooting through an adjacent corner while the unobstructed hand can hit (393.869834ms)
+✔ A finite player grenade launches from the selected hand, follows gravity, bounces safely and restores mid-flight (1146.0875ms)
+✔ A frontal bullet now lands at full strength because nothing absorbs it any more (362.975542ms)
+✔ The dodge always dashes and keeps its short invulnerability without striking (316.008166ms)
+✔ Both weapon cooldowns and hand ownership save atomically without free ammunition (989.046625ms)
+✔ Grenade racks are physical, an old shield pickup stays inert and the workshop never sells one (729.035375ms)
+✔ DDA finds the nearest wall across several 8 m buckets (32.325417ms)
+✔ DDA walks a long run to a distant bucket (23.709834ms)
+✔ DDA ignores a wall behind the origin (17.698458ms)
+✔ DDA misses a wall outside the ray corridor (17.315291ms)
+✔ Downward ray reaches the ground plane when there is no floor (24.86975ms)
+✔ Origin outside the bucket grid falls back to the full scan (27.908166ms)
+✔ render interpolation keeps live state unchanged and reuses mirrors (0.631709ms)
+✔ teleports, replacement identity and reset never interpolate from stale positions (0.138834ms)
+✔ les marges automatiques gardent le taux de reconstruction sous 15 % à 80 m/s (51.459625ms)
+✔ une marge fixe impose la reconstruction et reste couvrante (58.053125ms)
+✔ cullMargin 0 reproduit exactement la sélection sans cache (79.768416ms)
+✔ la marge ne rétrécit jamais pendant la validité du cache (57.007666ms)
+✔ a destruction revision replaces every colour/depth instance cache and retains lights/environment (20.168708ms)
+✔ geometry updates preserve the adaptive resolution and can retire destroyed lamps (21.271375ms)
+✔ Canvas geometry/light revisions match a fresh scene and leave unchanged frames identical (33.573958ms)
+✔ translucent FX skip all shadow passes, preserve depth writes and render before the weapon overlay (9.575375ms)
+✔ Canvas arena range includes a full giant from the arena border without extending ordinary detail tiers (10.756667ms)
+✔ GPU arena keeps essential terrain behind the giant while fine-detail ranges remain bounded (8.497833ms)
+✔ Canvas giant bodies cast grounded shadows above the old sixteen-metre height limit (11.937ms)
+✔ blackouts dim only real nearby lamp contributions, preserve shadow geometry and recover within 1.2 seconds (21.442958ms)
+✔ danger telegraphs keep their designed opacity at grazing ground angles (20.291125ms)
+✔ foliage is one immutable closed crown shared with exact raycasts and every GPU quality (26.9375ms)
+✔ transient lights are local, bounded and never reassign existing shadow slots or rebuild geometry (9.33375ms)
+✔ Canvas transient lighting reaches cached surfaces and expires outside its real range (11.521167ms)
+✔ only explicit flames use the animated fire material, leaving smoke and danger masks unchanged (5.787708ms)
+✔ a translucent first-person overlay blends after the opaque hand depth and never enters world shadows (17.875125ms)
+✔ smoke and spark finish stays in one depth-safe FX pass while hazard and ring contracts keep precedence (8.08075ms)
+✔ a distant destruction revision preserves warm colour, torch, lamp and sun selections (7.724208ms)
+✔ a full destruction delta restores the scene even when its numeric revision is unchanged (7.177916ms)
+✔ Canvas lamp dependencies preserve exact lighting through far removals, additions and ordering ties (48.02325ms)
+✔ moving a static identity updates both colour rows and Canvas shadow geometry (35.665709ms)
+✔ native GPU rendering keeps physical pixels in every detail mode and under sustained load (250.081542ms)
+✔ native software fallback honors a manual scale within its explicit software ceiling (11.649542ms)
+✔ le CPU filtre les niveaux statiques et garde les instances dynamiques (17.124875ms)
+✔ incremental queries preserve the old cell order and fresh rebuild results through destruction, moves and reorderings (364.520875ms)
+✔ only affected cells rebuild and unchanged metadata survives with stable instance rows (0.17875ms)
+✔ negative boundaries, large radii, moved identities and the four-cell overflow fallback stay exact (0.591625ms)
+✔ extreme extents use a bounded sparse fallback without losing query order (0.141042ms)
+✔ repeated mesh identities preserve every insertion across revisions (0.17875ms)
+✔ shared added/removed deltas match the generation diff and full reconstruction (37.194167ms)
+✔ les casters du soleil suivent la caméra malgré le tableau de filtre réutilisé (19.394792ms)
+✔ le cache temporel de vue rend exactement les mêmes instances avec et sans cache (ombres false) (94.199583ms)
+✔ le cache temporel de vue rend exactement les mêmes instances avec et sans cache (ombres true) (94.380542ms)
+✔ le cache temporel de vue est réellement réutilisé pendant la visite (19.587334ms)
+✔ une modification du monde invalide immédiatement la sélection de garde (5.893208ms)
+✔ deux sélections différentes de même hash et même taille actualisent les instances GPU (16.05375ms)
+✔ digest observes simulation without flushing navigation or changing state (106.3215ms)
+✔ quantized inputs and dated selection, difficulty, snapshot and restore commands replay exactly (1267.046458ms)
+✔ one recording spans six scene lifetimes with identical scene digests (1417.275041ms)
+✔ 100 seconds with rigid bodies, physical grenades and checkpoint commands replay exactly (1904.435916ms)
+✔ page-format recording is accepted and reproduced by the replay CLI (3130.266792ms)
+✔ local invalidation catches string-pulled crossing segment but preserves distant route and wait (64.369125ms)
+✔ decorative revision and render offset change leave nav map, cached edges and actor routes untouched (60.081709ms)
+✔ unknown solid dirty area conservatively resets all paths and queues full grid in bounded batches (54.502375ms)
+✔ checkpoint after a breach matches restored nav; invalid restoration preserves live state and cursor (144.906125ms)
+✔ Swept movement stops at a thin wall and slides along it, including a large move (59.768375ms)
+✔ Spatial collision lookup matches exhaustive disc checks at bucket edges, corners and all body sizes (2864.263292ms)
+✔ A very large frame delta cannot teleport the player through a wall (29.819375ms)
+✔ Ray and weapon hit the near wall, never an enemy behind it (35.432708ms)
+✔ A shot hits the nearest exposed enemy before a wall and registers a kill once (48.977583ms)
+✔ An exposed enemy can be hit above low cover when the actual 3D firing ray is clear (29.633917ms)
+✔ Sustained fire overheats; shots remain blocked until the weapon cools (31.902833ms)
+✔ Dash briefly grants immunity and cannot be retriggered during its cooldown (30.654375ms)
+✔ A lethal projectile ends the frame before a relay can heal a dead player (17.564167ms)
+✔ Normal movement collects three relays before the exit wins, with no repeated events (30.806ms)
+✔ A real generated level can be completed using navigation and ordinary collision-respecting movement (5035.703167ms)
+✔ Fracture rewards close range, preserves shot accuracy accounting and has a slower recovery (101.879083ms)
+✔ Pulse immediately enters cooldown, clears nearby projectiles, respects walls and pushes safely (22.743583ms)
+✔ Turret attacks have a readable windup and a dodgeable locked burst (21.16075ms)
+✔ Scouts strafe while heavies telegraph a committed charge that can be sidestepped (50.725792ms)
+✔ A charging heavy cannot deal contact damage through a thin wall (25.915458ms)
+✔ Boss begins at 30 HP, telegraphs fan attacks and changes phase once at half health (32.86325ms)
+✔ All relays still leave the exit locked until the boss has been destroyed (19.867417ms)
+✔ Kill chains increase score once and expire without erasing earned points (29.7345ms)
+✔ Vent phases warn before activation and apply timed damage instead of damage every frame (25.662875ms)
+✔ Checkpoint round-trip preserves combat, weapon, cooldowns and object references (71.463791ms)
+✔ Malformed or incompatible checkpoints are rejected atomically (44.656333ms)
+✔ Fresh generated checkpoints round-trip for all three stages, including the boss world (5325.36225ms)
+✔ Recovery mode clears immediate projectile danger and grants only temporary unsaved protection (260.056666ms)
+✔ Analogue movement retains stick magnitude and diagonals cannot exceed cardinal speed (186.189375ms)
+✔ Walk, run, reversal and braking give the same travelled route at 20–120 simulation steps per second (105.306834ms)
+✔ Acceleration is soft while release and reversal are responsive without mouse aim lag (33.603375ms)
+✔ Sprint presentation follows a smooth physical transition instead of the sprint key alone (35.1605ms)
+✔ Pushing a wall produces no fake velocity, stride, sprint or dash animation while sliding remains possible (35.174459ms)
+✔ Dash travel is bounded and frame-rate independent with no retained boost or extended immunity (92.185042ms)
+✔ Version-one checkpoints restore at rest, including a saved dash, without animation spikes or movement creep (106.853083ms)
+✔ Sight has a field of view and lost contact preserves a last observation instead of following a hidden player (114.822083ms)
+✔ Unalerted mobile guards patrol locally and all movement remains on physical walkable ground (29.625041ms)
+✔ Actual weapon and pulse noises carry their event position, with shorter hearing through an opaque wall (100.887792ms)
+✔ An observer warns nearby allies with known coordinates but a blind relay cannot alert the entire map (26.97525ms)
+✔ A scout physically takes an alternate route around a solid obstacle to reach a flank (38.317708ms)
+✔ A wounded scout reaches real occluding cover, waits, then peeks; the whole tactical sequence survives a checkpoint (124.624292ms)
+✔ Squads separate collision-safely and presentation speed measures displacement instead of intentions (61.396583ms)
+✔ Even a committed burst with its barrel against a wall cannot create a projectile behind that wall (26.6045ms)
+✔ A locally planned investigation travels the same collision-respecting route at 20–120 steps per second (137.613333ms)
+✔ Malformed tactical checkpoints fail atomically while compatible legacy saves import only their stored aim (78.152125ms)
+✔ The Custodian keeps its last-known search inside its arena instead of getting stranded in a service route (43.702833ms)
+✔ Real outdoor geometry supports tactical updates and exact cover checkpoints without invalid enemy positions (2652.444834ms)
+✔ Ordinary walking follows the actual ramp smoothly; an unconnected high ledge rejects walking and dash (27.611584ms)
+✔ Raised architecture collides at body height; terrain intercepts low shots and correctly aimed high shots hit (8.437917ms)
+✔ F is an edge-triggered interaction, power opens a physical gate, and lifted player cannot collect from another height (19.144583ms)
+✔ Lift carries feet continuously, blocks premature exit to a high landing, and can be recalled without a passenger (29.88275ms)
+✔ A descending lift stops above a body underneath, then resumes after the obstruction leaves (25.589167ms)
+✔ A lift checkpoint resumes halfway between floors and corrupted mechanism, gate or platform state is rejected atomically (24.979209ms)
+✔ Relay exit also requires each real mechanism; activation does not retrigger and old worlds remain ungated (40.663041ms)
+✔ Projectiles and hot vents are height-aware, and a lift deck blocks a ray from below (21.185125ms)
+✔ Advanced squads physically assault, flank or suppress from distinct positions (65.508ms)
+✔ Advanced aim leads observed motion, then remains committed when the player changes direction (20.506458ms)
+✔ An advanced gunner does not shoot through a squad mate and fires after the lane clears (25.69925ms)
+✔ Hundreds of real actors retain positions while distant; local searches obey a fixed per-frame budget (106.710083ms)
+✔ Infantry navigates down a genuine ramp without changing floor suddenly or losing its body height (19.268417ms)
+✔ A low gunner observes and attacks a player on the upper floor using an elevated aim and projectile (19.298125ms)
+✔ An ascending occupied platform stops before carrying the player into a low ceiling (20.235916ms)
+✔ Advanced patrol memory does not reveal a hidden player’s new coordinates or velocity (48.477333ms)
+✔ New heavy and Custodian helmets can be hit at visible height from level ground and an upper terrace, with no headshot bonus (213.205791ms)
+✔ Added helmet volumes preserve raised-floor alignment, nearest victim and opaque wall occlusion (86.076583ms)
+✔ Helmet targeting does not enlarge world collision, grant extra health, or alter legacy torso fixtures (68.414583ms)
+✔ Advanced heavy rifle and both Custodian cannons emit at their actual nominal mouths; cover stops an offset barrel (98.533208ms)
+✔ An exposed visor sees over chest-high cover while a blocked rifle waits; an ally helmet also blocks the firing lane (40.593ms)
+✔ Barrel-aligned heavy and Custodian attacks can still hit an upper terrace (28.5555ms)
+✔ Walking into a jump pad launches a continuous ballistic arc from the actual entry point and lands on its upper terrace (7.159667ms)
+✔ Jump-pad trajectories agree at 20–120 Hz and modest air steering changes the physical landing (35.791084ms)
+✔ A pad flight hits a thin wall and cannot cross a ceiling or a raised elevator deck (29.256875ms)
+✔ A stationary pad cannot bounce forever; leaving and returning deliberately rearms it (9.34275ms)
+✔ Midair checkpoints preserve momentum and reject invalid aerial state atomically (16.7615ms)
+✔ A mobile sentinel chooses a useful pad, crosses the gap physically and lands without invented player knowledge (12.341958ms)
+✔ New sentinels reposition their firing range while legacy turrets remain fixed (46.409458ms)
+✔ Combat dodge reacts after an observed incoming shot, has a readable delay, and survives a checkpoint (90.380625ms)
+✔ Bots estimate vertical motion from visible flight instead of tracking future airborne coordinates (10.437541ms)
+✔ A real rocket opens a traversable wall breach, preserves cover for that blast, and updates AI routes and rays (203.315417ms)
+✔ Repeated Impulse hits retain structural damage across checkpoints; Fracture can break a real prop (239.749084ms)
+✔ A muzzle blocked by a nearby wall produces a visible unarmed dud and never spawns a rocket behind the wall (55.859375ms)
+✔ An armed rocket self-blast is bounded; opaque cover prevents damage even while scenery breaks (58.70525ms)
+✔ A destroyed gate really opens while a broken required control remains usable for progression and restore (304.72ms)
+✔ A grenadier announces a real ballistic throw, keeps its committed aim and gives enough time to leave the blast (27.019958ms)
+✔ A rocketeer refuses an ally inside the blast area, then launches once the ally leaves (25.529959ms)
+✔ Grenade trajectories respect a low ceiling even when the bot repositions for a lower arc (31.918875ms)
+✔ A punctured pipe warns before hot gas, hurts at its actual nozzle and can be escaped or blocked by cover (76.885041ms)
+✔ A pressure plate announces spikes and allows retreat; a press stops at the body instead of clipping through it (115.459584ms)
+✔ A moving blade stops at physical contact and restores its actual stopped pose (80.414333ms)
+✔ Destruction checkpoints retain flying explosives and leaking machinery; corrupted changes fail atomically (185.819041ms)
+✔ Fallback outdoor substrate never overrides a higher ramp or terrace (20.327083ms)
+✔ ground() answers exactly like a scan of its 8 m bucket, on floor edges, cell borders and odd values (2629.0885ms)
+✔ ground() follows the floor list and the trap list it reads, including restored traps (127.391125ms)
+✔ A real rocket knocks the player off a terrace and falling onto the deep substrate is fatal (16.330125ms)
+✔ The actual three generated arenas cannot strand the player after a blast-sized shove through a destroyed rail (2130.848791ms)
+✔ An already invalid player below terrain dies despite recovery and dash (13.288542ms)
+✔ A grounded checkpoint on a collider underneath terrain is rejected without changing the live game (3.460584ms)
+✔ Breached ground-level exterior, ordinary lower floors and space beneath raised props stay safe (36.867958ms)
+✔ Each giant has its real size and health, remains dormant outside the arena, and physically blocks passage (1599.23575ms)
+✔ A giant slam announces the exact danger area, can be escaped, and exposes the visible core for stronger aimed damage (566.57ms)
+✔ Giant phases release only the six physically preplaced reinforcements, retain IDs, and clamp the entire silhouette to its arena (582.675166ms)
+✔ The three giant scripts produce distinct physical attacks and real cannon rockets instead of damage-only visual effects (1778.219333ms)
+✔ Giant helmets, legs and exposed cores are targetable at their scaled positions while opaque walls still occlude them (680.280458ms)
+✔ A giant encounter restores telegraphs, projectiles, phases and reserves exactly, rejects corrupted scripts and saves its real death (846.382625ms)
+✔ The first-sector entry has ten real seconds of grace, then observable enemies resume normal announced attacks (48.303167ms)
+✔ Difficulty changes real hostile cadence, projectile speed and damage while preserving enemy health and actor count (123.173333ms)
+✔ Horror events use fixed physical sites; an ambush follows the audible site without discovering a hidden player (16.045208ms)
+✔ Director pressure, difficulty and event timing round-trip exactly and malformed horror saves fail atomically (63.186292ms)
+✔ A breach changes collision immediately; the walking map follows it locally in bounded batches, and a change beyond a quarter of the grid stays amortised (1972.891291ms)
+✔ After several breaches and a door opening, the walking map and every cached edge at rest equal a full rebuild (164.369708ms)
+✔ A door opened by progression updates the walking map beside it as soon as it clears a body, matching a full rebuild at every step (1287.859ms)
+✔ Route tests and cached edges read the static map only; a moving blade still blocks bodies (SIM-V1) (67.267ms)
+✔ Periodic pipe bursts spare their physical source, but external destruction ends future autonomous bursts (85.6975ms)
+✔ a shot severs a real rail which falls, collides, bounces and persists in a coherent settled pose (107.542208ms)
+✔ persistent wreckage restores exactly in flight and at rest, while corrupt rubble checkpoints fail atomically (295.131417ms)
+✔ an actual breached wall keeps substantial rubble after landing without adding player collision blockers (82.983875ms)
+✔ a destroyed sliding gate becomes actual metal plates, retains its volume, and restores after settling (74.813166ms)
+✔ detached hollow hardware lands on its rendered torus instead of hovering on an invisible filled box (168.97025ms)
+✔ settled wreckage wakes and falls when its real supporting platform is destroyed (74.164792ms)
+✔ a demolition storm has a finite rubble budget and cannot retire settled wreckage at the player’s feet (624.712916ms)
+✔ Rubble sleep: a sleeping piece wakes when a revision removes its own support, while other resting pieces keep their exact pose (67.972458ms)
+✔ Rubble sleep: a piece resting on a lift deck is re-checked every step and follows the deck down (64.130875ms)
+✔ Rubble sleep: a sinking floor trap drops the rubble resting on it, as nothing sleeps while a floor trap exists (62.452208ms)
+✔ Rubble sleep: restored resting rubble is revalidated at its first step, as sleep is never saved (218.096791ms)
+✔ A nearby material impact is directional; distance and height silence remote impacts (31.078541ms)
+✔ Real collision rays muffle a source behind a wall but preserve an impact on its visible face (42.809291ms)
+✔ Intact nearby machines and hot leaks are the only continuous indoor emitters (56.100167ms)
+✔ Occlusion probes are bounded, cached, and invalidated by destruction and door movement (23.721375ms)
+✔ A louder unobstructed machine can replace an occluded closer one; player actions stay centered (21.413917ms)
+✔ les annonces du boss portent a 90 m et ne descendent pas sous 0,6 de niveau dans l enclos (MIX-05) (34.762166ms)
+✔ physical dimensions use rounded edges and the observer never mutates the canvas (0.787625ms)
+✔ pixel and device limits are explicit without a hidden floor that can exceed them (0.154334ms)
+✔ sustained load reports once without choosing a scale or changing the target (2.443417ms)
+✔ pointer ownership, invalid input, cancellation and independent held actions (1.114833ms)
+✔ floating joystick follows finger and sprint has hysteresis (0.15575ms)
+✔ fire aim ignores initial tremor, sums coalesced distance once per frame (0.159708ms)
+✔ portrait world FOV preserves horizontal visibility and gyro orientation/invalid samples (0.174125ms)
+✔ wake lock is released after delayed acquisition, re-acquired on visibility, and disposed (0.737042ms)
+✔ gyro permission result cannot reactivate after user switched it off (0.104834ms)
+✔ controller select moves one enabled option in either direction (0.205625ms)
+✔ seed 1, classique 1 : chaque piège barre un passage obligatoire du secteur (34.565458ms)
+✔ seed 1, classique 1 : relais, sortie et objets restent atteignables (37.798583ms)
+✔ seed 1, classique 2 : chaque piège barre un passage obligatoire du secteur (17.830875ms)
+✔ seed 1, classique 2 : relais, sortie et objets restent atteignables (45.377375ms)
+✔ seed 1, classique 3 : chaque piège barre un passage obligatoire du secteur (18.896083ms)
+✔ seed 1, classique 3 : relais, sortie et objets restent atteignables (44.817208ms)
+✔ seed 1, campagne 1 : chaque piège barre un passage obligatoire du secteur (20.537459ms)
+✔ seed 1, campagne 1 : relais, sortie et objets restent atteignables (18.552ms)
+✔ seed 1, campagne 4 : chaque piège barre un passage obligatoire du secteur (16.886166ms)
+✔ seed 1, campagne 4 : relais, sortie et objets restent atteignables (23.28525ms)
+✔ seed 1, campagne 7 : chaque piège barre un passage obligatoire du secteur (15.050375ms)
+✔ seed 1, campagne 7 : relais, sortie et objets restent atteignables (22.927ms)
+✔ seed 1, campagne 10 : chaque piège barre un passage obligatoire du secteur (14.714708ms)
+✔ seed 1, campagne 10 : relais, sortie et objets restent atteignables (26.123167ms)
+✔ seed 1, campagne 13 : chaque piège barre un passage obligatoire du secteur (18.676333ms)
+✔ seed 1, campagne 13 : relais, sortie et objets restent atteignables (32.06775ms)
+✔ seed 1, campagne 18 : chaque piège barre un passage obligatoire du secteur (22.844583ms)
+✔ seed 1, campagne 18 : relais, sortie et objets restent atteignables (36.264792ms)
+✔ seed 1, campagne V2 1 : chaque piège barre un passage obligatoire du secteur (18.072875ms)
+✔ seed 1, campagne V2 1 : relais, sortie et objets restent atteignables (28.073334ms)
+✔ seed 1, campagne V2 2 : chaque piège barre un passage obligatoire du secteur (18.42375ms)
+✔ seed 1, campagne V2 2 : relais, sortie et objets restent atteignables (29.364209ms)
+✔ seed 1, campagne V2 3 : chaque piège barre un passage obligatoire du secteur (21.81475ms)
+✔ seed 1, campagne V2 3 : relais, sortie et objets restent atteignables (42.880417ms)
+✔ seed 1, campagne V2 4 : chaque piège barre un passage obligatoire du secteur (14.186792ms)
+✔ seed 1, campagne V2 4 : relais, sortie et objets restent atteignables (28.8785ms)
+✔ seed 1, campagne V2 5 : chaque piège barre un passage obligatoire du secteur (17.80525ms)
+✔ seed 1, campagne V2 5 : relais, sortie et objets restent atteignables (36.139875ms)
+✔ seed 1, campagne V2 6 : chaque piège barre un passage obligatoire du secteur (21.536833ms)
+✔ seed 1, campagne V2 6 : relais, sortie et objets restent atteignables (34.581167ms)
+✔ seed 1, campagne V2 7 : chaque piège barre un passage obligatoire du secteur (16.777875ms)
+✔ seed 1, campagne V2 7 : relais, sortie et objets restent atteignables (37.052458ms)
+✔ seed 1, campagne V2 8 : chaque piège barre un passage obligatoire du secteur (13.620167ms)
+✔ seed 1, campagne V2 8 : relais, sortie et objets restent atteignables (38.159ms)
+✔ seed 1, campagne V2 9 : chaque piège barre un passage obligatoire du secteur (26.332667ms)
+✔ seed 1, campagne V2 9 : relais, sortie et objets restent atteignables (53.353917ms)
+✔ seed 1, campagne V2 10 : chaque piège barre un passage obligatoire du secteur (13.413584ms)
+✔ seed 1, campagne V2 10 : relais, sortie et objets restent atteignables (30.053833ms)
+✔ seed 1, campagne V2 11 : chaque piège barre un passage obligatoire du secteur (19.22375ms)
+✔ seed 1, campagne V2 11 : relais, sortie et objets restent atteignables (34.010708ms)
+✔ seed 1, campagne V2 12 : chaque piège barre un passage obligatoire du secteur (19.043959ms)
+✔ seed 1, campagne V2 12 : relais, sortie et objets restent atteignables (42.59675ms)
+✔ seed 1, campagne V2 13 : chaque piège barre un passage obligatoire du secteur (19.455709ms)
+✔ seed 1, campagne V2 13 : relais, sortie et objets restent atteignables (46.883417ms)
+✔ seed 1, campagne V2 14 : chaque piège barre un passage obligatoire du secteur (16.428875ms)
+✔ seed 1, campagne V2 14 : relais, sortie et objets restent atteignables (35.904417ms)
+✔ seed 1, campagne V2 15 : chaque piège barre un passage obligatoire du secteur (23.682583ms)
+✔ seed 1, campagne V2 15 : relais, sortie et objets restent atteignables (47.957917ms)
+✔ seed 1, campagne V2 16 : chaque piège barre un passage obligatoire du secteur (15.002875ms)
+✔ seed 1, campagne V2 16 : relais, sortie et objets restent atteignables (27.939083ms)
+✔ seed 1, campagne V2 17 : chaque piège barre un passage obligatoire du secteur (17.4205ms)
+✔ seed 1, campagne V2 17 : relais, sortie et objets restent atteignables (34.82925ms)
+✔ seed 1, campagne V2 18 : chaque piège barre un passage obligatoire du secteur (20.01075ms)
+✔ seed 1, campagne V2 18 : relais, sortie et objets restent atteignables (45.44925ms)
+✔ seed 96, classique 1 : chaque piège barre un passage obligatoire du secteur (16.152083ms)
+✔ seed 96, classique 1 : relais, sortie et objets restent atteignables (40.8125ms)
+✔ seed 96, classique 2 : chaque piège barre un passage obligatoire du secteur (16.240584ms)
+✔ seed 96, classique 2 : relais, sortie et objets restent atteignables (47.0085ms)
+✔ seed 96, classique 3 : chaque piège barre un passage obligatoire du secteur (19.548041ms)
+✔ seed 96, classique 3 : relais, sortie et objets restent atteignables (53.283417ms)
+✔ seed 96, campagne 1 : chaque piège barre un passage obligatoire du secteur (20.170708ms)
+✔ seed 96, campagne 1 : relais, sortie et objets restent atteignables (27.042167ms)
+✔ seed 96, campagne 4 : chaque piège barre un passage obligatoire du secteur (22.607709ms)
+✔ seed 96, campagne 4 : relais, sortie et objets restent atteignables (27.009541ms)
+✔ seed 96, campagne 7 : chaque piège barre un passage obligatoire du secteur (18.354708ms)
+✔ seed 96, campagne 7 : relais, sortie et objets restent atteignables (35.902291ms)
+✔ seed 96, campagne 10 : chaque piège barre un passage obligatoire du secteur (32.612ms)
+✔ seed 96, campagne 10 : relais, sortie et objets restent atteignables (116.085ms)
+✔ seed 96, campagne 13 : chaque piège barre un passage obligatoire du secteur (70.0735ms)
+✔ seed 96, campagne 13 : relais, sortie et objets restent atteignables (133.571875ms)
+✔ seed 96, campagne 18 : chaque piège barre un passage obligatoire du secteur (27.096917ms)
+✔ seed 96, campagne 18 : relais, sortie et objets restent atteignables (77.939291ms)
+✔ seed 96, campagne V2 1 : chaque piège barre un passage obligatoire du secteur (22.753875ms)
+✔ seed 96, campagne V2 1 : relais, sortie et objets restent atteignables (60.60975ms)
+✔ seed 96, campagne V2 2 : chaque piège barre un passage obligatoire du secteur (31.107209ms)
+✔ seed 96, campagne V2 2 : relais, sortie et objets restent atteignables (41.493792ms)
+✔ seed 96, campagne V2 3 : chaque piège barre un passage obligatoire du secteur (28.010167ms)
+✔ seed 96, campagne V2 3 : relais, sortie et objets restent atteignables (61.3035ms)
+✔ seed 96, campagne V2 4 : chaque piège barre un passage obligatoire du secteur (23.817958ms)
+✔ seed 96, campagne V2 4 : relais, sortie et objets restent atteignables (69.942875ms)
+✔ seed 96, campagne V2 5 : chaque piège barre un passage obligatoire du secteur (19.279583ms)
+✔ seed 96, campagne V2 5 : relais, sortie et objets restent atteignables (38.155625ms)
+✔ seed 96, campagne V2 6 : chaque piège barre un passage obligatoire du secteur (20.889417ms)
+✔ seed 96, campagne V2 6 : relais, sortie et objets restent atteignables (63.012292ms)
+✔ seed 96, campagne V2 7 : chaque piège barre un passage obligatoire du secteur (29.977667ms)
+✔ seed 96, campagne V2 7 : relais, sortie et objets restent atteignables (87.175166ms)
+✔ seed 96, campagne V2 8 : chaque piège barre un passage obligatoire du secteur (32.978958ms)
+✔ seed 96, campagne V2 8 : relais, sortie et objets restent atteignables (56.383459ms)
+✔ seed 96, campagne V2 9 : chaque piège barre un passage obligatoire du secteur (21.228666ms)
+✔ seed 96, campagne V2 9 : relais, sortie et objets restent atteignables (93.963667ms)
+✔ seed 96, campagne V2 10 : chaque piège barre un passage obligatoire du secteur (23.398083ms)
+✔ seed 96, campagne V2 10 : relais, sortie et objets restent atteignables (68.920083ms)
+✔ seed 96, campagne V2 11 : chaque piège barre un passage obligatoire du secteur (26.522084ms)
+✔ seed 96, campagne V2 11 : relais, sortie et objets restent atteignables (59.265625ms)
+✔ seed 96, campagne V2 12 : chaque piège barre un passage obligatoire du secteur (27.667917ms)
+✔ seed 96, campagne V2 12 : relais, sortie et objets restent atteignables (55.864875ms)
+✔ seed 96, campagne V2 13 : chaque piège barre un passage obligatoire du secteur (19.172334ms)
+✔ seed 96, campagne V2 13 : relais, sortie et objets restent atteignables (61.495375ms)
+✔ seed 96, campagne V2 14 : chaque piège barre un passage obligatoire du secteur (21.228708ms)
+✔ seed 96, campagne V2 14 : relais, sortie et objets restent atteignables (53.271208ms)
+✔ seed 96, campagne V2 15 : chaque piège barre un passage obligatoire du secteur (25.632458ms)
+✔ seed 96, campagne V2 15 : relais, sortie et objets restent atteignables (56.650167ms)
+✔ seed 96, campagne V2 16 : chaque piège barre un passage obligatoire du secteur (15.872042ms)
+✔ seed 96, campagne V2 16 : relais, sortie et objets restent atteignables (38.721125ms)
+✔ seed 96, campagne V2 17 : chaque piège barre un passage obligatoire du secteur (16.711083ms)
+✔ seed 96, campagne V2 17 : relais, sortie et objets restent atteignables (40.052042ms)
+✔ seed 96, campagne V2 18 : chaque piège barre un passage obligatoire du secteur (26.782459ms)
+✔ seed 96, campagne V2 18 : relais, sortie et objets restent atteignables (52.59425ms)
+✔ seed 2026, classique 1 : chaque piège barre un passage obligatoire du secteur (18.14775ms)
+✔ seed 2026, classique 1 : relais, sortie et objets restent atteignables (40.070292ms)
+✔ seed 2026, classique 2 : chaque piège barre un passage obligatoire du secteur (18.379291ms)
+✔ seed 2026, classique 2 : relais, sortie et objets restent atteignables (43.554167ms)
+✔ seed 2026, classique 3 : chaque piège barre un passage obligatoire du secteur (21.285083ms)
+✔ seed 2026, classique 3 : relais, sortie et objets restent atteignables (46.622ms)
+✔ seed 2026, campagne 1 : chaque piège barre un passage obligatoire du secteur (17.861875ms)
+✔ seed 2026, campagne 1 : relais, sortie et objets restent atteignables (27.678958ms)
+✔ seed 2026, campagne 4 : chaque piège barre un passage obligatoire du secteur (15.2855ms)
+✔ seed 2026, campagne 4 : relais, sortie et objets restent atteignables (23.571917ms)
+✔ seed 2026, campagne 7 : chaque piège barre un passage obligatoire du secteur (18.438166ms)
+✔ seed 2026, campagne 7 : relais, sortie et objets restent atteignables (30.369667ms)
+✔ seed 2026, campagne 10 : chaque piège barre un passage obligatoire du secteur (14.569167ms)
+✔ seed 2026, campagne 10 : relais, sortie et objets restent atteignables (43.333709ms)
+✔ seed 2026, campagne 13 : chaque piège barre un passage obligatoire du secteur (14.701167ms)
+✔ seed 2026, campagne 13 : relais, sortie et objets restent atteignables (38.721542ms)
+✔ seed 2026, campagne 18 : chaque piège barre un passage obligatoire du secteur (16.397917ms)
+✔ seed 2026, campagne 18 : relais, sortie et objets restent atteignables (65.084ms)
+✔ seed 2026, campagne V2 1 : chaque piège barre un passage obligatoire du secteur (17.262042ms)
+✔ seed 2026, campagne V2 1 : relais, sortie et objets restent atteignables (29.637458ms)
+✔ seed 2026, campagne V2 2 : chaque piège barre un passage obligatoire du secteur (17.2615ms)
+✔ seed 2026, campagne V2 2 : relais, sortie et objets restent atteignables (31.763333ms)
+✔ seed 2026, campagne V2 3 : chaque piège barre un passage obligatoire du secteur (21.6035ms)
+✔ seed 2026, campagne V2 3 : relais, sortie et objets restent atteignables (47.702791ms)
+✔ seed 2026, campagne V2 4 : chaque piège barre un passage obligatoire du secteur (22.664458ms)
+✔ seed 2026, campagne V2 4 : relais, sortie et objets restent atteignables (42.842ms)
+✔ seed 2026, campagne V2 5 : chaque piège barre un passage obligatoire du secteur (17.47ms)
+✔ seed 2026, campagne V2 5 : relais, sortie et objets restent atteignables (46.454416ms)
+✔ seed 2026, campagne V2 6 : chaque piège barre un passage obligatoire du secteur (22.501667ms)
+✔ seed 2026, campagne V2 6 : relais, sortie et objets restent atteignables (38.896167ms)
+✔ seed 2026, campagne V2 7 : chaque piège barre un passage obligatoire du secteur (15.646708ms)
+✔ seed 2026, campagne V2 7 : relais, sortie et objets restent atteignables (32.835334ms)
+✔ seed 2026, campagne V2 8 : chaque piège barre un passage obligatoire du secteur (18.000542ms)
+✔ seed 2026, campagne V2 8 : relais, sortie et objets restent atteignables (45.027459ms)
+✔ seed 2026, campagne V2 9 : chaque piège barre un passage obligatoire du secteur (21.351416ms)
+✔ seed 2026, campagne V2 9 : relais, sortie et objets restent atteignables (48.507791ms)
+✔ seed 2026, campagne V2 10 : chaque piège barre un passage obligatoire du secteur (15.793541ms)
+✔ seed 2026, campagne V2 10 : relais, sortie et objets restent atteignables (42.548584ms)
+✔ seed 2026, campagne V2 11 : chaque piège barre un passage obligatoire du secteur (17.617375ms)
+✔ seed 2026, campagne V2 11 : relais, sortie et objets restent atteignables (46.111625ms)
+✔ seed 2026, campagne V2 12 : chaque piège barre un passage obligatoire du secteur (19.540416ms)
+✔ seed 2026, campagne V2 12 : relais, sortie et objets restent atteignables (43.66725ms)
+✔ seed 2026, campagne V2 13 : chaque piège barre un passage obligatoire du secteur (18.245375ms)
+✔ seed 2026, campagne V2 13 : relais, sortie et objets restent atteignables (42.972458ms)
+✔ seed 2026, campagne V2 14 : chaque piège barre un passage obligatoire du secteur (19.415792ms)
+✔ seed 2026, campagne V2 14 : relais, sortie et objets restent atteignables (31.641416ms)
+✔ seed 2026, campagne V2 15 : chaque piège barre un passage obligatoire du secteur (18.640166ms)
+✔ seed 2026, campagne V2 15 : relais, sortie et objets restent atteignables (46.314292ms)
+✔ seed 2026, campagne V2 16 : chaque piège barre un passage obligatoire du secteur (17.542333ms)
+✔ seed 2026, campagne V2 16 : relais, sortie et objets restent atteignables (46.965542ms)
+✔ seed 2026, campagne V2 17 : chaque piège barre un passage obligatoire du secteur (21.810667ms)
+✔ seed 2026, campagne V2 17 : relais, sortie et objets restent atteignables (41.332208ms)
+✔ seed 2026, campagne V2 18 : chaque piège barre un passage obligatoire du secteur (22.465083ms)
+✔ seed 2026, campagne V2 18 : relais, sortie et objets restent atteignables (44.302834ms)
+✔ FPassages distingue un couloir obligatoire d un couloir de contournement (0.529417ms)
+✔ une explosion démonte la machine qui barre le chemin obligatoire (202.704542ms)
+✔ une arme légère abîme la machine sans jamais la démonter (227.841375ms)
+✔ démonter les machines ne coupe aucun chemin : elles ne portent aucun collier solide (19.146916ms)
+✔ un corps dans la bande d arrêt d une lame ne la fige pas hors de son repos (648.219208ms)
+✔ une lame au repos ne traverse pas un ennemi encore dans sa bande d arrêt (239.341625ms)
+✔ Held rifle fires eighty shots per ten seconds at 30/60/120/144 Hz when heat is isolated (275.460167ms)
+✔ Continuous fire has bounded thermal downtime and switching to a cool weapon works immediately (94.184959ms)
+✔ Left-hand heat does not lock the right weapon and pulse cools its own weapon (25.901542ms)
+✔ Thermal state round-trips, old checkpoints migrate and malformed arrays are rejected atomically (96.593708ms)
+✔ Release discards timing credit and snapshot continuation has identical firing cadence (109.788375ms)
+✔ Legacy three-slot worlds retain the original shared thermal format (35.742125ms)
+{
+  "status": "PASS",
+  "cases": 18,
+  "radius": 0.28,
+  "spacing": 0.25,
+  "checks": [
+    "finite values",
+    "determinism",
+    "spawn clearance",
+    "independent flood fill",
+    "all relays reachable",
+    "exit reachable",
+    "enemy and pickup placement",
+    "distinct stage graphs and footprints",
+    "every corridor physically connected",
+    "all objectives accessible with every vent hot",
+    "safe hazard warning windows",
+    "three colossal guardians, open arenas and scripted-wave clearance",
+    "geometry budgets",
+    "explicit generation 6 checkpoint identity",
+    "LOD silhouettes preserved",
+    "collision geometry visible",
+    "solid trunks at eye height",
+    "real open sky at spawn",
+    "three distinct outdoor biomes",
+    "sealed visible outdoor boundaries",
+    "continuous 3D ramps and terraces",
+    "tenfold individually simulated garrisons",
+    "progressive mechanism unlock reachability",
+    "two unobstructed elevator shafts with ramp alternatives",
+    "ballistic launch discs and 3m landing zones",
+    "real ceilings stop airborne bodies",
+    "industrial and natural detail systems",
+    "wall-attached rigid details",
+    "ambient surface orientation",
+    "monumental arena silhouettes outside giant envelope",
+    "ambient explosions preserve mission controls",
+    "seven real horror cue anchors",
+    "small sequenced encounters and four physically hidden entries",
+    "finite per-encounter ammo budgets with missed-shot margin",
+    "progressive weapon racks on both opening branches",
+    "three reachable persistent workshops",
+    "real connected steam nozzles",
+    "branched trees with shared irregular crown geometry",
+    "four firearms, an early ammunition cache and two finite grenade caches"
+  ],
+  "meshes": {
+    "min": 12524,
+    "max": 17587
+  },
+  "representativeStages": [
+    {
+      "stage": 0,
+      "meshes": 14132,
+      "colliders": 444,
+      "trees": 48,
+      "outdoorRooms": 6,
+      "tiers": [
+        4018,
+        6247,
+        3867
+      ],
+      "ambientSources": 10,
+      "economy": {
+        "budget": [
+          {
+            "zone": 1,
+            "waves": [
+              3,
+              3
+            ],
+            "hp": 20,
+            "ammo": [
+              64,
+              8,
+              0,
+              0
+            ],
+            "finiteDrops": [
+              16,
+              0,
+              0,
+              0
+            ],
+            "conservativeDamage": 54.4,
+            "margin": 1.72
+          },
+          {
+            "zone": 2,
+            "waves": [
+              5,
+              5,
+              5
+            ],
+            "hp": 62,
+            "ammo": [
+              80,
+              12,
+              4,
+              0
+            ],
+            "finiteDrops": [
+              32,
+              8,
+              2,
+              0
+            ],
+            "conservativeDamage": 94.8,
+            "margin": 0.529
+          },
+          {
+            "zone": 3,
+            "waves": [
+              3,
+              4
+            ],
+            "hp": 23,
+            "ammo": [
+              40,
+              8,
+              0,
+              0
+            ],
+            "finiteDrops": [
+              16,
+              0,
+              0,
+              0
+            ],
+            "conservativeDamage": 41.2,
+            "margin": 0.791
+          },
+          {
+            "zone": 4,
+            "waves": [
+              5,
+              6,
+              6
+            ],
+            "hp": 72,
+            "ammo": [
+              80,
+              12,
+              4,
+              0
+            ],
+            "finiteDrops": [
+              32,
+              12,
+              0,
+              2
+            ],
+            "conservativeDamage": 94.8,
+            "margin": 0.317
+          },
+          {
+            "zone": 5,
+            "waves": [
+              6,
+              6,
+              6
+            ],
+            "hp": 75,
+            "ammo": [
+              80,
+              12,
+              2,
+              0
+            ],
+            "finiteDrops": [
+              32,
+              10,
+              0,
+              3
+            ],
+            "conservativeDamage": 83.8,
+            "margin": 0.117
+          },
+          {
+            "zone": 6,
+            "waves": [
+              5,
+              5,
+              6
+            ],
+            "hp": 66,
+            "ammo": [
+              80,
+              12,
+              4,
+              4
+            ],
+            "finiteDrops": [
+              28,
+              10,
+              2,
+              0
+            ],
+            "conservativeDamage": 94.8,
+            "margin": 0.436
+          },
+          {
+            "zone": 7,
+            "waves": [
+              5,
+              6,
+              6
+            ],
+            "hp": 72,
+            "ammo": [
+              80,
+              12,
+              2,
+              0
+            ],
+            "finiteDrops": [
+              24,
+              10,
+              2,
+              1
+            ],
+            "conservativeDamage": 83.8,
+            "margin": 0.164
+          },
+          {
+            "zone": 8,
+            "waves": [
+              5,
+              6,
+              6
+            ],
+            "hp": 70,
+            "ammo": [
+              80,
+              12,
+              2,
+              4
+            ],
+            "finiteDrops": [
+              32,
+              10,
+              0,
+              2
+            ],
+            "conservativeDamage": 83.8,
+            "margin": 0.197
+          }
+        ],
+        "bossAmmo": [
+          144,
+          24,
+          12,
+          4
+        ],
+        "arsenal": {
+          "slots": 4,
+          "openingCache": 1,
+          "grenadeRack": 6,
+          "grenadeCaches": [
+            8,
+            9
+          ],
+          "floorGrenades": 12,
+          "finiteGrenadierDrops": 8
+        }
+      }
+    },
+    {
+      "stage": 1,
+      "meshes": 12616,
+      "colliders": 417,
+      "trees": 10,
+      "outdoorRooms": 6,
+      "tiers": [
+        3918,
+        5771,
+        2927
+      ],
+      "ambientSources": 6,
+      "economy": {
+        "budget": [
+          {
+            "zone": 1,
+            "waves": [
+              4,
+              4
+            ],
+            "hp": 26,
+            "ammo": [
+              64,
+              8,
+              0,
+              0
+            ],
+            "finiteDrops": [
+              16,
+              0,
+              0,
+              0
+            ],
+            "conservativeDamage": 54.4,
+            "margin": 1.092
+          },
+          {
+            "zone": 2,
+            "waves": [
+              5,
+              5,
+              6,
+              6
+            ],
+            "hp": 90,
+            "ammo": [
+              104,
+              16,
+              4,
+              0
+            ],
+            "finiteDrops": [
+              40,
+              12,
+              1,
+              2
+            ],
+            "conservativeDamage": 117.6,
+            "margin": 0.307
+          },
+          {
+            "zone": 3,
+            "waves": [
+              6,
+              6,
+              6,
+              6
+            ],
+            "hp": 99,
+            "ammo": [
+              104,
+              16,
+              3,
+              0
+            ],
+            "finiteDrops": [
+              40,
+              14,
+              1,
+              2
+            ],
+            "conservativeDamage": 112.1,
+            "margin": 0.132
+          },
+          {
+            "zone": 4,
+            "waves": [
+              4,
+              5
+            ],
+            "hp": 29,
+            "ammo": [
+              40,
+              8,
+              0,
+              0
+            ],
+            "finiteDrops": [
+              20,
+              0,
+              0,
+              0
+            ],
+            "conservativeDamage": 41.2,
+            "margin": 0.421
+          },
+          {
+            "zone": 5,
+            "waves": [
+              5,
+              5,
+              6,
+              6
+            ],
+            "hp": 89,
+            "ammo": [
+              104,
+              16,
+              4,
+              0
+            ],
+            "finiteDrops": [
+              40,
+              12,
+              1,
+              1
+            ],
+            "conservativeDamage": 117.6,
+            "margin": 0.321
+          },
+          {
+            "zone": 6,
+            "waves": [
+              6,
+              6,
+              6,
+              6
+            ],
+            "hp": 99,
+            "ammo": [
+              104,
+              16,
+              3,
+              4
+            ],
+            "finiteDrops": [
+              44,
+              14,
+              2,
+              1
+            ],
+            "conservativeDamage": 112.1,
+            "margin": 0.132
+          },
+          {
+            "zone": 7,
+            "waves": [
+              6,
+              6,
+              6,
+              6
+            ],
+            "hp": 99,
+            "ammo": [
+              104,
+              16,
+              3,
+              4
+            ],
+            "finiteDrops": [
+              44,
+              14,
+              1,
+              2
+            ],
+            "conservativeDamage": 112.1,
+            "margin": 0.132
+          }
+        ],
+        "bossAmmo": [
+          176,
+          32,
+          12,
+          4
+        ],
+        "arsenal": {
+          "slots": 4,
+          "openingCache": 1,
+          "grenadeRack": 6,
+          "grenadeCaches": [
+            7,
+            8
+          ],
+          "floorGrenades": 12,
+          "finiteGrenadierDrops": 8
+        }
+      }
+    },
+    {
+      "stage": 2,
+      "meshes": 17458,
+      "colliders": 500,
+      "trees": 40,
+      "outdoorRooms": 6,
+      "tiers": [
+        4878,
+        8360,
+        4220
+      ],
+      "ambientSources": 8,
+      "economy": {
+        "budget": [
+          {
+            "zone": 1,
+            "waves": [
+              4,
+              6
+            ],
+            "hp": 33,
+            "ammo": [
+              64,
+              8,
+              0,
+              0
+            ],
+            "finiteDrops": [
+              24,
+              0,
+              0,
+              0
+            ],
+            "conservativeDamage": 54.4,
+            "margin": 0.648
+          },
+          {
+            "zone": 2,
+            "waves": [
+              5,
+              6,
+              6,
+              6
+            ],
+            "hp": 93,
+            "ammo": [
+              112,
+              16,
+              4,
+              0
+            ],
+            "finiteDrops": [
+              48,
+              12,
+              2,
+              0
+            ],
+            "conservativeDamage": 122,
+            "margin": 0.312
+          },
+          {
+            "zone": 3,
+            "waves": [
+              4,
+              3,
+              4
+            ],
+            "hp": 36,
+            "ammo": [
+              40,
+              8,
+              0,
+              0
+            ],
+            "finiteDrops": [
+              28,
+              0,
+              0,
+              0
+            ],
+            "conservativeDamage": 41.2,
+            "margin": 0.144
+          },
+          {
+            "zone": 4,
+            "waves": [
+              5,
+              5,
+              5,
+              5,
+              5
+            ],
+            "hp": 103,
+            "ammo": [
+              112,
+              16,
+              4,
+              0
+            ],
+            "finiteDrops": [
+              44,
+              16,
+              0,
+              2
+            ],
+            "conservativeDamage": 122,
+            "margin": 0.184
+          },
+          {
+            "zone": 5,
+            "waves": [
+              5,
+              6,
+              6,
+              6
+            ],
+            "hp": 94,
+            "ammo": [
+              112,
+              16,
+              3,
+              0
+            ],
+            "finiteDrops": [
+              40,
+              12,
+              0,
+              3
+            ],
+            "conservativeDamage": 116.5,
+            "margin": 0.239
+          },
+          {
+            "zone": 6,
+            "waves": [
+              6,
+              6,
+              6,
+              6
+            ],
+            "hp": 97,
+            "ammo": [
+              112,
+              16,
+              4,
+              0
+            ],
+            "finiteDrops": [
+              44,
+              14,
+              2,
+              0
+            ],
+            "conservativeDamage": 122,
+            "margin": 0.258
+          },
+          {
+            "zone": 7,
+            "waves": [
+              6,
+              6,
+              6,
+              6
+            ],
+            "hp": 99,
+            "ammo": [
+              112,
+              16,
+              3,
+              4
+            ],
+            "finiteDrops": [
+              40,
+              14,
+              2,
+              1
+            ],
+            "conservativeDamage": 116.5,
+            "margin": 0.177
+          },
+          {
+            "zone": 8,
+            "waves": [
+              5,
+              6,
+              6,
+              6
+            ],
+            "hp": 94,
+            "ammo": [
+              112,
+              16,
+              3,
+              4
+            ],
+            "finiteDrops": [
+              44,
+              14,
+              0,
+              2
+            ],
+            "conservativeDamage": 116.5,
+            "margin": 0.239
+          }
+        ],
+        "bossAmmo": [
+          208,
+          40,
+          12,
+          4
+        ],
+        "arsenal": {
+          "slots": 4,
+          "openingCache": 1,
+          "grenadeRack": 7,
+          "grenadeCaches": [
+            8,
+            9
+          ],
+          "floorGrenades": 12,
+          "finiteGrenadierDrops": 8
+        }
+      }
+    }
+  ],
+  "accessibleCells": {
+    "min": 117148,
+    "max": 137482
+  },
+  "targetsChecked": 4800
+}
+✔ checks/world.test.mjs (42211.862333ms)
+ℹ tests 1232
+ℹ suites 0
+ℹ pass 1231
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 1
+ℹ duration_ms 124217.12075
+
+✖ failing tests:
+
+test at checks/fphysics.test.mjs:328:11
+⚠ (d) déplacement depuis le premier contact < 0,1 m (0.418666ms) # le cube glisse après son basculement (solveur du prototype, voir le diagnostic)
+  AssertionError [ERR_ASSERTION]: moved 1.5584957685663867 (centre), 1.3885176850582925 (edge)
+      at TestContext.<anonymous> (file:///Users/david/Documents/Codex/2026-11-15/no/work/ferro-reference-metal/checks/fphysics.test.mjs:329:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1325:25)
+      at Test.start (node:internal/test_runner/test:1191:17)
+      at TestContext.test (node:internal/test_runner/test:382:20)
+      at TestContext.<anonymous> (file:///Users/david/Documents/Codex/2026-11-15/no/work/ferro-reference-metal/checks/fphysics.test.mjs:328:11)
+      at async Test.run (node:internal/test_runner/test:1332:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }

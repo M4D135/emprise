@@ -1,0 +1,168 @@
+✔ exact unions remove tile seams, preserve steps, holes and material boundaries (1.888334ms)
+✔ a fast capsule stops at a 12 cm wall without time sampling (1.003792ms)
+✔ capsule uses rounded corners and rotated body surfaces (0.554375ms)
+✔ sphere and arbitrarily oriented capsule distance, stationary overlap and invalid input (0.512542ms)
+✔ character slides, steps up a crate and does not climb a tall wall or cross a ceiling (0.837917ms)
+✔ dynamic support velocity, restore and changed geometry remain consistent (2.026709ms)
+✔ sliding across 24 tiles matches the single slab exactly at three speeds (18.188459ms)
+✔ partial coplanar seams are masked while exposed edges stay solid after removal (3.398125ms)
+✔ awake governor sleeps supported slow islands, never objects falling through the air (11.210583ms)
+✔ a grazing, slow contact does not wake a sleeping neighbour (0.487666ms)
+✔ a character may leave a pre-existing overlap but cannot move farther into it (0.197417ms)
+✔ local seam updates match a fresh reconstruction after reorder, insertion and removal (14.190667ms)
+✔ two metre cable keeps length through thirty seconds and resumes exactly (61.002625ms)
+✔ six ball links remain finite and connected at mass ratio ten (266.019417ms)
+✔ hinge rotates around its axis within limits while weld holds orientation (2.63825ms)
+✔ break impulse drops a suspended load and invalid joint restore is atomic (3.327208ms)
+✔ body rays test oriented boxes, sphere and capsule rather than their enclosing box (2.378375ms)
+✔ removal invalidates old handles, contact cache and query results across restore (22.5275ms)
+✔ collision events are bounded, finite and report an energetic impact only once per body pair (4.199292ms)
+✔ a local static change wakes the affected stack without waking a remote prop (1.574041ms)
+✔ P01 Chargement : un seul global FPhysics, matières gelées, chargement vm (7.572417ms)
+✔ P02 Source : motifs interdits, membres de Math, blocs TRIG (17.152666ms)
+ℹ src/physics.js : 81287 octets
+ℹ 1 bloc(s) TRIG, 124 appels à Math vérifiés
+✔ P03 Angles : quaternions unitaires, matrice du jeu, aller-retour, blocage de cardan (2.01975ms)
+ℹ 1 000 triplets : |q| - 1 ≤ 3.33e-16, matrice ≤ 8.88e-16, aller-retour ≤ 4.22e-15
+ℹ blocage de cardan ry = 1.5708 : matrice 1.66e-16, aller-retour 1.49e-8
+ℹ blocage de cardan ry = -1.5708 : matrice 1.66e-16, aller-retour 1.11e-16
+✔ P04 Création : validation, réglages par défaut, empreinte (10.267583ms)
+ℹ 58 jeux d'options invalides refusés par TypeError
+ℹ empreinte par défaut sur B64 : 04031f9d ; 49 réglages, chacun change l'empreinte
+✔ P05 Chute libre exacte (2.128958ms)
+ℹ après 120 sous-pas : y = 3.950000000000008, vy = -11.999999999999973 (attendu 3,95 et -12, Euler semi-implicite)
+✔ P06 Repos (2.868666ms)
+ℹ au bout de 2 s : y = 0.394672 (enfoncement 5.33 mm), endormie au sous-pas 63
+✔ P07 Rebond (2.299334ms)
+ℹ après le premier choc, le centre remonte à 0.2982, soit 0.0982 m au-dessus de 0,2 ; endormie au sous-pas 167 (1.39 s)
+▶ P08 Pentes
+  ✔ (a) slopeX 0,5 (1.094417ms)
+  ✔ (b) slopeX 1 (1.586667ms)
+  ✔ (c) slopeZ 0,5 (0.557708ms)
+  ✔ (d) endormie après 3 s, axe Y sur la normale (0.057833ms)
+  ⚠ (d) déplacement depuis le premier contact < 0,1 m (0.263917ms) # le cube glisse après son basculement (solveur du prototype, voir le diagnostic)
+✔ P08 Pentes (5.14875ms)
+ℹ (a) slopeX 0,5 : déplacement 0.0082 m (dx -0.0032, dz 0.0002) après 3 s ; endormie
+ℹ (b) slopeX 1 : déplacement 1.6213 m (dx -1.1427, dz 0.0001) après 1 s ; éveillée
+ℹ (c) slopeZ 0,5 : déplacement 0.0081 m (dx 0.0000, dz -0.0031) après 3 s ; endormie
+ℹ (d) premier contact au sous-pas 34 ; après 3 s : endormie, axe Y à 9.91e-4 de la normale ; depuis le premier contact, l'arête du premier contact a bougé de 1.3885 m et le centre de 1.5585 m (le seul basculement sur la face déplace le centre de 0,195 m)
+✔ P09 Sphère qui roule (2.089292ms)
+ℹ à 1 s : vx = 1.2272, ωz = -4.1273, |vx + 0,3 ωz| / |vx| = 8.98e-3 ; centre ≥ 0.29466 ; endormie à 7.38 s après 3.730 m
+✔ P10 Capsules (3.298208ms)
+ℹ (a) au sol : y = 0.14460 après 3 s, |axe·Y| = 2.85e-7, endormie
+ℹ (b) sur la boîte : y = 0.64460 après 3 s, |axe·Y| = 2.32e-7, endormie
+ℹ (c) croisées : la haute se pose à y = 0.43856 (attendu ≈ 0,439), la basse à 0.14422 ; toutes deux dorment au sous-pas 100
+ℹ (d) sphère sur la caisse : centre final (0.1000, 1.0391, -0.0000), jamais sous 1.03909
+✔ P11 Pile de 10 (stack10) (27.542833ms)
+ℹ NOSLEEP : dérive 30.69 mm à 1 s, 16.83 mm à 5 s, 23.39 mm à 10 s (seuil 30 mm ; prototype sur dalle 30,7 / 16,8 / 23,4)
+ℹ tassement du sommet à 10 s : 86.06 mm (attendu ≈ 85 mm)
+ℹ plus bas sommet : -9.24 mm de 1 s à 10 s (sous-pas 1113) ; -23.56 mm sur tout l'essai (sous-pas 21, chute initiale)
+ℹ réglages par défaut : toute la pile dort au sous-pas 123 (1.025 s)
+✔ P12 Pyramide de 55 (pyramid55) (189.078375ms)
+ℹ NOSLEEP : dérive 9.63 mm à 1 s, 16.39 mm à 5 s, 19.39 mm à 10 s (seuil 20 mm ; prototype sur dalle 9,6 / 16,4 / 19,4)
+ℹ plus bas sommet : -11.73 mm de 1 s à 10 s (sous-pas 195) ; -13.71 mm sur tout l'essai (sous-pas 16, chute initiale)
+ℹ réglages par défaut : tout dort au sous-pas 87 (0.725 s)
+✔ P19 Traversées (boîtes) : 800 tirs contre un mur de 12 cm à 120 Hz (123.193416ms)
+ℹ 14 m/s : 0/200 traversées ; centre le plus avancé à x = 4.9205 (face du mur à 5)
+ℹ 24 m/s : 0/200 traversées ; centre le plus avancé à x = 4.8785 (face du mur à 5)
+ℹ 30 m/s : 0/200 traversées ; centre le plus avancé à x = 4.9098 (face du mur à 5)
+ℹ 40 m/s : 0/200 traversées ; centre le plus avancé à x = 4.8276 (face du mur à 5)
+✔ P19 Traversées (sphère) : 1 000 tirs à 24 m/s contre le mur de 12 cm (95.6995ms)
+ℹ 0/1000 traversées ; centre le plus avancé pendant les tirs : x = 4.8350 (rayon 0,17 : contact à 4,83)
+✔ P32 Ascenseur (4.458917ms)
+ℹ après la mise en place : boîte à 0.59477 (endormie) ; en haut : ascenseur à 1.1, boîte à 1.59466 ; écart boîte - ascenseur pendant la montée : 0.4868 à 0.4947
+ℹ sans nouvelle cible : ascenseur à 1.1, boîte endormie 0.67 s plus tard, à y = 1.59477
+✔ P33 Couches (3.750667ms)
+ℹ X à y = 0.39467, Y à y = 0.39477 : Y a traversé X (groupe 2 contre masque 1 : la règle exige les deux sens)
+✔ P41 Même processus : chaque chaîne calculée deux fois est identique (663.955875ms)
+ℹ stack10 à 600 sous-pas : 5af686dc/283b179e
+ℹ pyramid55 à 600 sous-pas : f1a824a1/6a47467f
+ℹ rubble300 à 300 sous-pas : e9d0d0c3/3975d516
+ℹ blast200 à 300 sous-pas : 01b0c057/70fd66db
+✔ P45 Aller-retour JSON (619.130458ms)
+ℹ stack10 à 100 sous-pas (10 éveillés) : b219608d, puis 283b179e des deux côtés 300 sous-pas plus tard ; instantané de 7022 caractères, cache de 40 entrées
+ℹ pyramid55 à 1200 sous-pas (0 éveillés) : 6a47467f, puis 6a47467f des deux côtés 300 sous-pas plus tard ; instantané de 44043 caractères, cache de 492 entrées
+ℹ rubble300 à 240 sous-pas (298 éveillés) : 91d8970c, puis 9704212d des deux côtés 300 sous-pas plus tard ; instantané de 233899 caractères, cache de 1548 entrées
+ℹ blast200 à 300 sous-pas (199 éveillés) : bf7010a0, puis c24f1549 des deux côtés 300 sous-pas plus tard ; instantané de 120227 caractères, cache de 525 entrées
+ℹ formes rondes à 40 sous-pas : 4091f823 des deux côtés 300 sous-pas plus tard ; cache de 3 entrées
+ℹ ascenseur entre setKinematic et step : 98917686 des deux côtés 300 sous-pas plus tard
+✔ P46 snapshot ne modifie rien (62.941417ms)
+ℹ stack10 : 283b179e après 300 sous-pas, avec ou sans instantanés ; chaîne b4d9490c/283b179e
+ℹ pyramid55 : 6a47467f après 300 sous-pas, avec ou sans instantanés ; chaîne 0d00077d/6a47467f
+✔ Étape 2a — corps : description, poignées, body() (0.982583ms)
+✔ Étape 2a — attente, création endormie, réveil différé (3.710125ms)
+ℹ le dormeur est réveillé au sous-pas 30 par la caisse qui tombe ; réveils : 1
+✔ Étape 2a — setStatics : boîtes, dalle, empreinte, réveil (2.461583ms)
+ℹ caisse posée sur la boîte statique : y = 1.39466 ; sans le bit 1 du masque : y = -22.78
+✔ Étape 2a — pas de temps : erreurs, accumulateur, découpage (31.806667ms)
+ℹ step(0.2) : 8 sous-pas, 16 sous-pas jetés
+ℹ stack10, 300 sous-pas par 1/60, 1/120 et 1/30 : 283b179e, 283b179e, 283b179e
+✔ Étape 2a — restore refusé sans rien changer, zéros négatifs (10.679333ms)
+ℹ 13 instantanés corrompus refusés, hachage inchangé (b219608d)
+✔ Étape 2a — pose, matrix, chronométrage (8.065459ms)
+ℹ phaseMs avec une horloge factice : 15, 15, 15, 30
+ℹ stack10 à 60 sous-pas : 40 points, 10 paires, 10 tests, 10 éveillés
+✔ Étape 2b — impulse et setVelocity : un seul corps réveillé, vitesse gardée en attente, bornes (2.481ms)
+ℹ impulsion (0, 6, 0) au coin de la barre : dv = 0, 0.5, 0 ; dw = -2.4000, 0.0000, 2.4000
+✔ Étape 2b — blast de base, sans occultation : portée, direction, plafond, réveil (5.951208ms)
+ℹ corps 0 : point le plus proche à 0.6000 m, |dv| = 14.0000 m/s
+ℹ corps 1 : point le plus proche à 2.6000 m, |dv| = 9.4444 m/s
+ℹ corps 3 : point le plus proche à 2.4807 m, |dv| = 9.7758 m/s
+✔ Étape 2b — scènes rubble300 et blast200 : construction, chute, souffle (429.105542ms)
+ℹ rubble300 : tout dort à la fin du sous-pas 587 (4.89 s ; prototype 11,93 s) ; pic de 300 éveillés ; centre le plus bas 0.0395 ; 0 pièce(s) hors de la cour ; plus bas sommet au repos -12.77 mm
+ℹ blast200 : 29 barils, 171 cubes
+ℹ souffle : 198 corps poussés, 2 hors de portée ; tout dort 4.38 s après ; plus bas sommet -48.67 mm pendant les 15 s (P29, étape 7 : ≥ -15 mm)
+✔ Étape 2b — découpage du temps sur rubble300 (P44, première partie) (468.770375ms)
+ℹ rubble300, 300 sous-pas par 1/60, 1/120 et 1/30 : 3975d516, 3975d516, 3975d516
+✔ Étape 3 — formes et corps cinématiques : description, tailles, masses, body() (0.800584ms)
+ℹ sphère metal r 0,2 : 2.1782 kg ; capsule wood r 0,1 h 0,6 : 0.1340 kg ; capsule fine : taille 0.04, 0.52, 0.04
+✔ Étape 3 — sols plats et en pente : surfaces, matières, refus (5.829084ms)
+ℹ caisse sur le sol plat : y = 0.89466 ; cube sur la rampe : déplacement 0.00549 m en 3 s
+✔ Étape 3 — setKinematic : cible exacte, attente, bornes, arrêt, ni décor ni autre cinématique (5.551917ms)
+ℹ plateau : la caisse a suivi de 0.5583 m (plateau 0,6 m) ; palette : caisse poussée à x = 1.3948
+✔ Étape 3 — amortissement de roulement : sphère au contact seulement (0.862542ms)
+ℹ spin vertical après 0,5 s : sphère au sol 1.799821 (attendu 1.799821), sphère en l'air 4.852264, cube en l'air 4.852264 (attendu 4.852264)
+✔ Étape 3 — blast sur une sphère et une capsule (0.627ms)
+ℹ sphère : dv = 1.4775, 0.2586, 0.0000 ; capsule : dv = -4.8692, 1.1361, 0.0000 ; centre dans la sphère : dv = -3.8461, 13.4613, 0.0000
+✔ Étape 3 — formes rondes entre elles : sphères empilées, capsules parallèles (3.058209ms)
+ℹ sphère sur sphère : basse à 0.29451, haute à 0.78901
+ℹ capsule courte sur la longue (longue créée en premier) : y = 0.43866, |axe·Y| = 1.12e-4
+ℹ capsule courte sur la longue (courte créée en premier) : y = 0.43867, |axe·Y| = 6.37e-5
+✔ Étape 3 — restore : formes rondes et corps cinématiques, refus sans rien changer (1.268042ms)
+ℹ 15 instantanés corrompus refusés, hachage inchangé (26fcb4e4) ; restauration valide : 9112cd86 des deux côtés 120 sous-pas plus tard
+✔ distributed modules match the canonical source and the package manifest (4.27675ms)
+✔ a fresh non-browser host loads without EMPRISE and compiles deterministic recipes (13.472333ms)
+✔ merged physics exposes geometry, joints and reusable reads in the standalone bundle (28.142333ms)
+✔ the optional synthesized music transport can be loaded after the core (2.279917ms)
+✔ METAL capsule queries preserve EMPRISE oriented static geometry (1.649083ms)
+✔ optional simulation services load without a game namespace (2.16ms)
+✔ GL-only features select the capable backend without losing requested features (1.199541ms)
+ℹ tests 68
+ℹ suites 0
+ℹ pass 67
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 1
+ℹ duration_ms 2883.315958
+
+✖ failing tests:
+
+test at tests/ferro/fphysics.test.mjs:328:11
+⚠ (d) déplacement depuis le premier contact < 0,1 m (0.263917ms) # le cube glisse après son basculement (solveur du prototype, voir le diagnostic)
+  AssertionError [ERR_ASSERTION]: moved 1.5584957685663867 (centre), 1.3885176850582925 (edge)
+      at TestContext.<anonymous> (file:///Users/david/Documents/Codex/2026-11-15/no/work/ferro-editor-emprise/tests/ferro/fphysics.test.mjs:329:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1325:25)
+      at Test.start (node:internal/test_runner/test:1191:17)
+      at TestContext.test (node:internal/test_runner/test:382:20)
+      at TestContext.<anonymous> (file:///Users/david/Documents/Codex/2026-11-15/no/work/ferro-editor-emprise/tests/ferro/fphysics.test.mjs:328:11)
+      at async Test.run (node:internal/test_runner/test:1332:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }

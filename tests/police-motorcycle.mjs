@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-for(const f of ['ferro/renderer','ferro/geometry','bitume/main','bitume/voiture','bitume/conduite','vehicles'])await import('../src/'+f+'.js');
+for(const f of ['ferro/renderer','ferro/geometry','bitume/main','bitume/voiture','ferro/vehicle-dynamics','bitume/conduite','vehicles'])await import('../src/'+f+'.js');
 const geometry=new Map(),register=FRender.forme;FRender.forme=(name,triangles)=>{geometry.set(name,triangles);register(name,triangles);};await import('../src/mobility.js');FRender.forme=register;
 const V=RADE.vehicles,car={model:'policebike',color:'#e6e9e8',x:0,z:0,y:.08,cap:0,distance:0,police:true,siren:true,driver:{inside:true,hp:100}},draw=(v=car,o={})=>{const out=[];V.render(v,out,{rider:true,time:0,...o});return out;};
 const near=draw(),far=draw(car,{distance:100});

@@ -12,7 +12,7 @@ test('distributed modules match the canonical source and the package manifest',(
 });
 test('a fresh non-browser host loads without EMPRISE and compiles deterministic recipes',()=>{
  const g=host(),f=g.FERRO;assert.equal(g.RADE,undefined);assert.equal(f.version,manifest.version);assert.equal(f.apiVersion,manifest.apiVersion);
- for(const [key,value] of Object.entries(f.capabilities()))assert.equal(value,!['music','musicTransitions'].includes(key),key);
+ for(const [key,value] of Object.entries(f.capabilities()))assert.equal(value,!['music','musicTransitions','surface','gpuProfile','skies','reflections','passages','tacticalNetwork','loop','scheduler','jobs','demo'].includes(key),key);
  assert.throws(()=>f.require('absent'),/non chargé/);assert.throws(()=>f.music,/non chargé/);
  assert.equal(f.geometry,g.BITUME.carene);assert.equal(f.navigation,g.PDR.nav);
  const recipe=f.recipes.demo(),a=f.compileRecipe(recipe),b=host().FERRO.compileRecipe(recipe);assert(a.meshes.length>0);assert.equal(JSON.stringify(a),JSON.stringify(b));
@@ -36,3 +36,7 @@ test('METAL capsule queries preserve EMPRISE oriented static geometry',()=>{
  const hit=w.sweepCapsule([-3,0,0],[6,0,0],{radius:.1,height:1.8});assert(hit.hit);assert(Math.abs(hit.nx)>.7&&Math.abs(hit.nz)>.7,'collision normal follows the rotated wall');
  const before=w.staticsHash;assert.throws(()=>w.setStatics([{center:[0,1,0],half:[2,1,.1],rotation:[1,1,0,0,1,0,0,0,1]}],[]));assert.equal(w.staticsHash,before,'invalid replacement leaves the world intact');
 });
+
+test('optional simulation services load without a game namespace',()=>{const g=host();vm.runInContext(read('dist/ferro-runtime/ferro-simulation.js').toString(),g);for(const key of ['passages','tacticalNetwork','loop','scheduler','jobs','demo'])assert(g.FERRO.require(key));assert.equal(g.RADE,undefined);});
+
+test('GL-only features select the capable backend without losing requested features',async()=>{const g=host();let triedGPU=false;const result=await g.FRenderBackends.create({}, {backend:'auto',sceneReflections:true}, {supported:true,webgpu:async()=>{triedGPU=true;},webgl2:()=>({gl:{},stats:{backend:'webgl2'}})});assert.equal(triedGPU,false);assert.equal(result.backend,'webgl2');assert.match(result.fallbackReason,/WebGL2/);});

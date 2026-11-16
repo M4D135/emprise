@@ -1,8 +1,8 @@
 {
   "version": "0.6.4",
-  "build": "18a0d30a31",
-  "bytes": 22833994,
-  "sha256": "5416b74d75290b9b5e9358d67c59da0769495bf96efd0f99d494201a8efeacb2",
+  "build": "9819899b6c",
+  "bytes": 22870116,
+  "sha256": "ff1bf7d83c989d8b6925c642f0870ac30a904de8ef0a6f1f605e3bbb4cc96704",
   "modules": [
     "ferro/fmath",
     "ferro/renderer",
@@ -11,6 +11,7 @@
     "ferro/backends",
     "ferro/geometry",
     "ferro/materials",
+    "ferro/vehicle-dynamics",
     "ferro/physics-geometry",
     "ferro/physics",
     "ferro/destruction",
@@ -20,6 +21,8 @@
     "ferro/effects",
     "ferro/audio",
     "ferro/recipes",
+    "ferro/crowd",
+    "ferro/crowd-webgpu",
     "ferro/engine",
     "metal/simulation",
     "metal/actors",

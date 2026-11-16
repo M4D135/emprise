@@ -1,0 +1,849 @@
+{
+  "errors": [],
+  "renderedFrames": 30,
+  "snapshots": [
+    {
+      "drawCalls": 10,
+      "triangles": 2592,
+      "instances": 25,
+      "contextLost": false,
+      "webglVersion": 2,
+      "backend": "webgl2",
+      "engine": "ferro-reference",
+      "bloom": true,
+      "shadows": true,
+      "primitiveIndex": {
+        "shapes": 7,
+        "references": 2352,
+        "vertices": 618,
+        "restored": 0
+      },
+      "native": {
+        "device": [
+          2880,
+          1800
+        ],
+        "buffer": [
+          2880,
+          1800
+        ],
+        "scale": 1,
+        "capped": null,
+        "changes": 1
+      },
+      "budget": {
+        "target": 60,
+        "p50": 0,
+        "p95": 0,
+        "over": 0,
+        "sustained": false
+      },
+      "budgetLog": [],
+      "sceneReflections": {
+        "mode": "probe",
+        "ready": true,
+        "faces": 0,
+        "cycles": 1,
+        "screenPasses": 0,
+        "history": 0,
+        "revision": 0
+      },
+      "pbrLayers": 2,
+      "staticTotal": 25,
+      "worldRevision": 0,
+      "renderScale": 1,
+      "pixelRatio": 1,
+      "width": 2880,
+      "height": 1800,
+      "msaa": 0,
+      "composition": true,
+      "viewDistance": 82,
+      "cache": {
+        "viewFrames": 12,
+        "viewRebuilds": 0,
+        "torchRebuilds": 0,
+        "sunRebuilds": 0,
+        "marginDistance": 1,
+        "marginAngle": 4
+      },
+      "staticSuperset": 25,
+      "staticVisible": 25,
+      "staticCulled": 0,
+      "dynamicLights": 0,
+      "blackoutLights": 0,
+      "shadowMaps": 1,
+      "shadowMode": "sun-atlas",
+      "uploadBytes": 0,
+      "fxInstances": 0,
+      "crowdInstances": 0,
+      "pdrLotInstances": 0,
+      "sky": "lisiere-aube",
+      "backgroundWater": 0,
+      "backgroundDrawCalls": 0,
+      "lotsVisibles": 0,
+      "reflections": false,
+      "reflectionSteps": 0
+    },
+    {
+      "drawCalls": 10,
+      "triangles": 2592,
+      "instances": 25,
+      "contextLost": false,
+      "webglVersion": 2,
+      "backend": "webgl2",
+      "engine": "ferro-reference",
+      "bloom": true,
+      "shadows": true,
+      "primitiveIndex": {
+        "shapes": 7,
+        "references": 2352,
+        "vertices": 618,
+        "restored": 0
+      },
+      "native": {
+        "device": [
+          2880,
+          1800
+        ],
+        "buffer": [
+          2880,
+          1800
+        ],
+        "scale": 1,
+        "capped": null,
+        "changes": 1
+      },
+      "budget": {
+        "target": 60,
+        "p50": 0,
+        "p95": 0,
+        "over": 0,
+        "sustained": false
+      },
+      "budgetLog": [],
+      "sceneReflections": {
+        "mode": "screen",
+        "ready": true,
+        "faces": 0,
+        "cycles": 1,
+        "screenPasses": 1,
+        "history": 4,
+        "revision": 0
+      },
+      "pbrLayers": 2,
+      "staticTotal": 25,
+      "worldRevision": 0,
+      "renderScale": 1,
+      "pixelRatio": 1,
+      "width": 2880,
+      "height": 1800,
+      "msaa": 0,
+      "composition": true,
+      "viewDistance": 82,
+      "cache": {
+        "viewFrames": 24,
+        "viewRebuilds": 0,
+        "torchRebuilds": 0,
+        "sunRebuilds": 0,
+        "marginDistance": 1,
+        "marginAngle": 4
+      },
+      "staticSuperset": 25,
+      "staticVisible": 25,
+      "staticCulled": 0,
+      "dynamicLights": 0,
+      "blackoutLights": 0,
+      "shadowMaps": 1,
+      "shadowMode": "sun-atlas",
+      "uploadBytes": 0,
+      "fxInstances": 0,
+      "crowdInstances": 0,
+      "pdrLotInstances": 0,
+      "sky": "lisiere-aube",
+      "backgroundWater": 0,
+      "backgroundDrawCalls": 0,
+      "lotsVisibles": 0,
+      "reflections": false,
+      "reflectionSteps": 0
+    },
+    {
+      "drawCalls": 10,
+      "triangles": 2592,
+      "instances": 25,
+      "contextLost": false,
+      "webglVersion": 2,
+      "backend": "webgl2",
+      "engine": "ferro-reference",
+      "bloom": true,
+      "shadows": true,
+      "primitiveIndex": {
+        "shapes": 7,
+        "references": 2352,
+        "vertices": 618,
+        "restored": 0
+      },
+      "native": {
+        "device": [
+          2880,
+          1800
+        ],
+        "buffer": [
+          2880,
+          1800
+        ],
+        "scale": 1,
+        "capped": null,
+        "changes": 1
+      },
+      "budget": {
+        "target": 60,
+        "p50": 0,
+        "p95": 0,
+        "over": 0,
+        "sustained": false
+      },
+      "budgetLog": [],
+      "sceneReflections": {
+        "mode": "off",
+        "ready": false,
+        "faces": 0,
+        "cycles": 1,
+        "screenPasses": 0,
+        "history": 4,
+        "revision": 0
+      },
+      "pbrLayers": 2,
+      "staticTotal": 25,
+      "worldRevision": 0,
+      "renderScale": 1,
+      "pixelRatio": 1,
+      "width": 2880,
+      "height": 1800,
+      "msaa": 0,
+      "composition": true,
+      "viewDistance": 82,
+      "cache": {
+        "viewFrames": 30,
+        "viewRebuilds": 0,
+        "torchRebuilds": 0,
+        "sunRebuilds": 0,
+        "marginDistance": 1,
+        "marginAngle": 4
+      },
+      "staticSuperset": 25,
+      "staticVisible": 25,
+      "staticCulled": 0,
+      "dynamicLights": 0,
+      "blackoutLights": 0,
+      "shadowMaps": 1,
+      "shadowMode": "sun-atlas",
+      "uploadBytes": 0,
+      "fxInstances": 0,
+      "crowdInstances": 0,
+      "pdrLotInstances": 0,
+      "sky": "lisiere-aube",
+      "backgroundWater": 0,
+      "backgroundDrawCalls": 0,
+      "lotsVisibles": 0,
+      "reflections": false,
+      "reflectionSteps": 0
+    }
+  ],
+  "profile": {
+    "gpu": true,
+    "frames": 30,
+    "discarded": 0,
+    "overflow": 0,
+    "pending": 10,
+    "history": [
+      {
+        "frame": 1,
+        "cpu": {
+          "shadows": 2.799999952316284,
+          "reflection-probe": 7.699999988079071,
+          "world": 1.5999999642372131,
+          "effects": 0.10000002384185791,
+          "post": 3
+        },
+        "gpu": {
+          "shadows": 0.54575,
+          "reflection-probe": 0.534499,
+          "world": 0.772374,
+          "effects": 0,
+          "post": 0.631041
+        },
+        "queries": 5,
+        "completed": 5,
+        "valid": true
+      },
+      {
+        "frame": 2,
+        "cpu": {
+          "shadows": 1.800000011920929,
+          "reflection-probe": 4.5,
+          "world": 0.8999999761581421,
+          "effects": 0.09999996423721313,
+          "post": 2.300000011920929
+        },
+        "gpu": {
+          "shadows": 0.211125,
+          "reflection-probe": 0.116583,
+          "world": 0.771249,
+          "effects": 0,
+          "post": 0.547749
+        },
+        "queries": 5,
+        "completed": 5,
+        "valid": true
+      },
+      {
+        "frame": 3,
+        "cpu": {
+          "shadows": 1.699999988079071,
+          "reflection-probe": 4.199999988079071,
+          "world": 1,
+          "effects": 0.10000002384185791,
+          "post": 2.699999988079071
+        },
+        "gpu": {
+          "shadows": 0.496791,
+          "reflection-probe": 0.784874,
+          "world": 2.44725,
+          "effects": 0,
+          "post": 2.577208
+        },
+        "queries": 5,
+        "completed": 5,
+        "valid": true
+      },
+      {
+        "frame": 4,
+        "cpu": {
+          "shadows": 1.800000011920929,
+          "reflection-probe": 4,
+          "world": 1,
+          "effects": 0,
+          "post": 2.5
+        },
+        "gpu": {
+          "shadows": 0.976249,
+          "reflection-probe": 0.056374,
+          "world": 3.714833,
+          "effects": 0,
+          "post": 4.120083
+        },
+        "queries": 5,
+        "completed": 5,
+        "valid": true
+      },
+      {
+        "frame": 5,
+        "cpu": {
+          "shadows": 1.899999976158142,
+          "reflection-probe": 4.100000023841858,
+          "world": 1,
+          "effects": 0.10000002384185791,
+          "post": 2.399999976158142
+        },
+        "gpu": {
+          "shadows": 0.96625,
+          "reflection-probe": 0.116291,
+          "world": 3.385749,
+          "effects": 0,
+          "post": 2.729624
+        },
+        "queries": 5,
+        "completed": 5,
+        "valid": true
+      },
+      {
+        "frame": 6,
+        "cpu": {
+          "shadows": 2,
+          "reflection-probe": 4.099999964237213,
+          "world": 1,
+          "effects": 0.10000002384185791,
+          "post": 2.199999988079071
+        },
+        "gpu": {
+          "shadows": 0.978958,
+          "reflection-probe": 0.147083,
+          "world": 1.304749,
+          "effects": 0,
+          "post": 1.121249
+        },
+        "queries": 5,
+        "completed": 5,
+        "valid": true
+      },
+      {
+        "frame": 7,
+        "cpu": {
+          "shadows": 1.800000011920929,
+          "reflection-probe": 0.20000004768371582,
+          "world": 1,
+          "effects": 0.10000002384185791,
+          "post": 2.400000035762787
+        },
+        "gpu": {
+          "shadows": 0.496125,
+          "reflection-probe": 0,
+          "world": 1.304125,
+          "effects": 0,
+          "post": 2.324583
+        },
+        "queries": 5,
+        "completed": 5,
+        "valid": true
+      },
+      {
+        "frame": 8,
+        "cpu": {
+          "shadows": 2,
+          "reflection-probe": 0.19999998807907104,
+          "world": 1.100000023841858,
+          "effects": 0.09999996423721313,
+          "post": 2.5
+        },
+        "gpu": {
+          "shadows": 0.508625,
+          "reflection-probe": 0,
+          "world": 1.325249,
+          "effects": 0,
+          "post": 1.120625
+        },
+        "queries": 5,
+        "completed": 5,
+        "valid": true
+      },
+      {
+        "frame": 9,
+        "cpu": {
+          "shadows": 1.9000000357627869,
+          "reflection-probe": 0.19999998807907104,
+          "world": 1,
+          "effects": 0.10000002384185791,
+          "post": 2.699999988079071
+        },
+        "gpu": {
+          "shadows": 0.495125,
+          "reflection-probe": 0,
+          "world": 1.312708,
+          "effects": 0,
+          "post": 1.124333
+        },
+        "queries": 5,
+        "completed": 5,
+        "valid": true
+      },
+      {
+        "frame": 10,
+        "cpu": {
+          "shadows": 2,
+          "reflection-probe": 0.20000004768371582,
+          "world": 1,
+          "effects": 0.09999996423721313,
+          "post": 2.600000023841858
+        },
+        "gpu": {
+          "shadows": 0.509666,
+          "reflection-probe": 0,
+          "world": 1.448333,
+          "effects": 0,
+          "post": 1.2805
+        },
+        "queries": 5,
+        "completed": 5,
+        "valid": true
+      },
+      {
+        "frame": 11,
+        "cpu": {
+          "shadows": 1.800000011920929,
+          "reflection-probe": 0.10000002384185791,
+          "world": 0.8999999761581421,
+          "effects": 0.09999996423721313,
+          "post": 2.5
+        },
+        "gpu": {
+          "shadows": 0.495375,
+          "reflection-probe": 0,
+          "world": 1.906999,
+          "effects": 0,
+          "post": 1.276833
+        },
+        "queries": 5,
+        "completed": 5,
+        "valid": true
+      },
+      {
+        "frame": 12,
+        "cpu": {
+          "shadows": 1.899999976158142,
+          "reflection-probe": 0.10000002384185791,
+          "world": 0.9000000357627869,
+          "effects": 0.10000002384185791,
+          "post": 2.5
+        },
+        "gpu": {
+          "shadows": 0.51375,
+          "reflection-probe": 0,
+          "world": 1.978708,
+          "effects": 0,
+          "post": 1.2045
+        },
+        "queries": 5,
+        "completed": 5,
+        "valid": true
+      },
+      {
+        "frame": 13,
+        "cpu": {
+          "shadows": 1.7999999523162842,
+          "reflection-probe": 0.09999996423721313,
+          "world": 1.2000000476837158,
+          "effects": 0,
+          "post": 2.300000011920929
+        },
+        "gpu": {
+          "shadows": 0.495458,
+          "reflection-probe": 0,
+          "world": 2.449583,
+          "effects": 0,
+          "post": 2.55025
+        },
+        "queries": 5,
+        "completed": 5,
+        "valid": true
+      },
+      {
+        "frame": 14,
+        "cpu": {
+          "shadows": 2.099999964237213,
+          "reflection-probe": 0.10000002384185791,
+          "world": 1,
+          "effects": 0.10000002384185791,
+          "post": 2.300000011920929
+        },
+        "gpu": {
+          "shadows": 0.962083,
+          "reflection-probe": 0,
+          "world": 3.342,
+          "effects": 0,
+          "post": 1.966958
+        },
+        "queries": 5,
+        "completed": 5,
+        "valid": true
+      },
+      {
+        "frame": 15,
+        "cpu": {
+          "shadows": 1.899999976158142,
+          "reflection-probe": 0.20000004768371582,
+          "world": 1,
+          "effects": 0.10000002384185791,
+          "post": 2.399999976158142
+        },
+        "gpu": {
+          "shadows": 0.968166,
+          "reflection-probe": 0,
+          "world": 3.319875,
+          "effects": 0,
+          "post": 1.973124
+        },
+        "queries": 5,
+        "completed": 5,
+        "valid": true
+      },
+      {
+        "frame": 16,
+        "cpu": {
+          "shadows": 2,
+          "reflection-probe": 0.20000004768371582,
+          "world": 1.0999999642372131,
+          "effects": 0.10000002384185791,
+          "post": 2.400000035762787
+        },
+        "gpu": {
+          "shadows": 0.966416,
+          "reflection-probe": 0,
+          "world": 3.373875,
+          "effects": 0,
+          "post": 1.969166
+        },
+        "queries": 5,
+        "completed": 5,
+        "valid": true
+      },
+      {
+        "frame": 17,
+        "cpu": {
+          "shadows": 2,
+          "reflection-probe": 0.10000002384185791,
+          "world": 1,
+          "effects": 0,
+          "post": 2.299999952316284
+        },
+        "gpu": {
+          "shadows": 0.967499,
+          "reflection-probe": 0,
+          "world": 3.308333,
+          "effects": 0,
+          "post": 1.97075
+        },
+        "queries": 5,
+        "completed": 5,
+        "valid": true
+      },
+      {
+        "frame": 18,
+        "cpu": {
+          "shadows": 2,
+          "reflection-probe": 0.19999998807907104,
+          "world": 1.0999999642372131,
+          "effects": 0,
+          "post": 2.399999976158142
+        },
+        "gpu": {
+          "shadows": 2.003124,
+          "reflection-probe": 0,
+          "world": 3.218374,
+          "effects": 0,
+          "post": 1.971583
+        },
+        "queries": 5,
+        "completed": 5,
+        "valid": true
+      },
+      {
+        "frame": 19,
+        "cpu": {
+          "shadows": 1.899999976158142,
+          "reflection-probe": 0.19999998807907104,
+          "world": 1.199999988079071,
+          "effects": 0,
+          "post": 2.5
+        },
+        "gpu": {
+          "shadows": 1.992999,
+          "reflection-probe": 0,
+          "world": 3.289874,
+          "effects": 0,
+          "post": 1.973291
+        },
+        "queries": 5,
+        "completed": 5,
+        "valid": true
+      },
+      {
+        "frame": 20,
+        "cpu": {
+          "shadows": 1.7999999523162842,
+          "reflection-probe": 0.19999998807907104,
+          "world": 1,
+          "effects": 0,
+          "post": 2.400000035762787
+        },
+        "gpu": {
+          "shadows": 1.993499,
+          "reflection-probe": 0,
+          "world": 3.334,
+          "effects": 0,
+          "post": 1.972541
+        },
+        "queries": 5,
+        "completed": 5,
+        "valid": true
+      },
+      {
+        "frame": 21,
+        "cpu": {
+          "shadows": 2,
+          "reflection-probe": 0.19999998807907104,
+          "world": 1,
+          "effects": 0.09999996423721313,
+          "post": 2.5
+        },
+        "gpu": {
+          "shadows": 0.968624,
+          "reflection-probe": 0,
+          "world": 3.282083,
+          "effects": 0,
+          "post": 1.972583
+        },
+        "queries": 5,
+        "completed": 5,
+        "valid": true
+      },
+      {
+        "frame": 22,
+        "cpu": {
+          "shadows": 1.800000011920929,
+          "reflection-probe": 0.09999996423721313,
+          "world": 1,
+          "effects": 0.09999996423721313,
+          "post": 2.5
+        },
+        "gpu": {
+          "shadows": 1.574833,
+          "reflection-probe": 0,
+          "world": 3.308208,
+          "effects": 0,
+          "post": 1.974
+        },
+        "queries": 5,
+        "completed": 5,
+        "valid": true
+      },
+      {
+        "frame": 23,
+        "cpu": {
+          "shadows": 2,
+          "reflection-probe": 0.19999998807907104,
+          "world": 1,
+          "effects": 0.10000002384185791,
+          "post": 2.399999976158142
+        },
+        "gpu": {
+          "shadows": 0.970916,
+          "reflection-probe": 0,
+          "world": 3.444,
+          "effects": 0,
+          "post": 2.992999
+        },
+        "queries": 5,
+        "completed": 5,
+        "valid": true
+      },
+      {
+        "frame": 24,
+        "cpu": {
+          "shadows": 2.399999976158142,
+          "reflection-probe": 0.19999998807907104,
+          "world": 1,
+          "effects": 0,
+          "post": 2.300000011920929
+        },
+        "gpu": {
+          "shadows": 0.971,
+          "reflection-probe": 0,
+          "world": 3.526666,
+          "effects": 0,
+          "post": 2.054541
+        },
+        "queries": 5,
+        "completed": 5,
+        "valid": true
+      },
+      {
+        "frame": 25,
+        "cpu": {
+          "shadows": 2.300000011920929,
+          "reflection-probe": 0.10000002384185791,
+          "world": 0.9000000357627869,
+          "effects": 0.10000002384185791,
+          "post": 2.600000023841858
+        },
+        "gpu": {
+          "shadows": 0.965124,
+          "reflection-probe": 0,
+          "world": 3.328708,
+          "effects": 0,
+          "post": 2.595583
+        },
+        "queries": 5,
+        "completed": 5,
+        "valid": true
+      },
+      {
+        "frame": 26,
+        "cpu": {
+          "shadows": 1.899999976158142,
+          "reflection-probe": 0.20000004768371582,
+          "world": 1,
+          "effects": 0.09999996423721313,
+          "post": 2.600000023841858
+        },
+        "gpu": {
+          "shadows": 0.965541,
+          "reflection-probe": 0,
+          "world": 4.137499,
+          "effects": 0,
+          "post": 3.226874
+        },
+        "queries": 5,
+        "completed": 5,
+        "valid": true
+      },
+      {
+        "frame": 27,
+        "cpu": {
+          "shadows": 1.9000000357627869,
+          "reflection-probe": 0.09999996423721313,
+          "world": 1.100000023841858,
+          "effects": 0,
+          "post": 2.400000035762787
+        },
+        "gpu": {
+          "shadows": 0.498,
+          "reflection-probe": 0,
+          "world": 1.846375,
+          "effects": 0,
+          "post": 1.264708
+        },
+        "queries": 5,
+        "completed": 5,
+        "valid": true
+      },
+      {
+        "frame": 28,
+        "cpu": {
+          "shadows": 2,
+          "reflection-probe": 0.09999996423721313,
+          "world": 1,
+          "effects": 0.09999996423721313,
+          "post": 2.399999976158142
+        },
+        "gpu": {
+          "shadows": 0.50775,
+          "reflection-probe": 0,
+          "world": 1.309291,
+          "effects": 0,
+          "post": 1.357625
+        },
+        "queries": 5,
+        "completed": 5,
+        "valid": true
+      },
+      {
+        "frame": 29,
+        "cpu": {
+          "shadows": 1.7999999523162842,
+          "reflection-probe": 0.09999996423721313,
+          "world": 1,
+          "effects": 0.10000002384185791,
+          "post": 2.5
+        },
+        "gpu": {},
+        "queries": 5,
+        "completed": 0,
+        "valid": true
+      },
+      {
+        "frame": 30,
+        "cpu": {
+          "shadows": 1.800000011920929,
+          "reflection-probe": 0.09999996423721313,
+          "world": 1,
+          "effects": 0.09999996423721313,
+          "post": 2.5
+        },
+        "gpu": {},
+        "queries": 5,
+        "completed": 0,
+        "valid": true
+      }
+    ]
+  }
+}

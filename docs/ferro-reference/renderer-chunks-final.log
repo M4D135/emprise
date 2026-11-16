@@ -1,0 +1,1 @@
+PASS chunk reconciliation: 18 differential stages against 3ac8e4c; exact order, bounds, rows, buffer calls and fallback paths.

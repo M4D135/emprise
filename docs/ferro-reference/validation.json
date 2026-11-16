@@ -1,0 +1,145 @@
+{
+  "version": "0.3.0",
+  "date": "2026-11-16T02:02:16.265314+00:00",
+  "status": "qualified",
+  "moduleCount": 32,
+  "identicalModulesInFourHosts": true,
+  "sizeLimitBytes": null,
+  "proceduralContent": "Generated geometry, materials and audio; authored recipes and map data remain data, validation screenshots are not runtime assets.",
+  "tests": [
+    {
+      "name": "FERRO core",
+      "command": "node --test tests/ferro/*.test.mjs",
+      "log": "core-final.log",
+      "tests": 68,
+      "pass": 67,
+      "fail": 0,
+      "todo": 1
+    },
+    {
+      "name": "METAL",
+      "command": "node --test checks/*.test.mjs",
+      "log": "metal-final-full.tap",
+      "tests": 1232,
+      "pass": 1231,
+      "fail": 0,
+      "todo": 1
+    },
+    {
+      "name": "BITUME",
+      "command": "node --test verifications/*.test.mjs",
+      "unit": "test files",
+      "log": "bitume-final-tests.log",
+      "tests": 29,
+      "pass": 29,
+      "fail": 0,
+      "todo": 0
+    },
+    {
+      "name": "Point de rupture",
+      "command": "node --test verifications/*.test.mjs",
+      "unit": "test files",
+      "log": "pdr-final-tests.log",
+      "tests": 17,
+      "pass": 17,
+      "fail": 0,
+      "todo": 0
+    }
+  ],
+  "builds": {
+    "emprise": {
+      "bytes": 22870116,
+      "sha256": "ff1bf7d83c989d8b6925c642f0870ac30a904de8ef0a6f1f605e3bbb4cc96704"
+    },
+    "metal": {
+      "bytes": 1467516,
+      "sha256": "2a7196698bf68f5ab3c0fbfced6556961129b6ad002210e291ef22c9305f87fe"
+    },
+    "bitume": {
+      "bytes": 606234,
+      "sha256": "3690e8ee678ec0cbc5fea39fc8c52778d2dcd8e3d79aa4bdff3c8c6edaeae4a6"
+    },
+    "point-de-rupture": {
+      "bytes": 1675352,
+      "sha256": "0564fd15eb7835183f412319aa0a83e4716f3fe954430454ac1b2f960dbd0429"
+    },
+    "editor": {
+      "bytes": 710798,
+      "sha256": "1684883b66d41363b2924fe5f89bee36c6eef3e2e622949bff284ff2e0b4d6d9"
+    },
+    "enginePackage": {
+      "bytes": 724277,
+      "sha256": "3cb0aa994532b646f74661fc2555e5ed8e0319bca4cd14508203a3d018609f08"
+    }
+  },
+  "nativeBrowser": {
+    "scope": "Chrome on Mac, final four game HTML files; not a universal performance claim",
+    "fourHostsPassed": true,
+    "standaloneWebGL2AndWebGPU": true,
+    "advancedWebGL2Profiles": true,
+    "webgpuRecovery": [
+      "device-lost",
+      "adapter-rejected"
+    ],
+    "editorChecks": 31,
+    "editorScope": "31 functional checks; only version label and package download link changed afterward"
+  },
+  "knownLimitations": [
+    "One historic physics TODO, represented in both core and METAL suites: a tilted cube slides after tipping. Advanced METAL sky/local-reflection/native profiles use WebGL2; no WebGPU parity claim."
+  ],
+  "package": {
+    "version": "0.3.0",
+    "moduleCount": 32,
+    "manifestFilesVerified": 38,
+    "archiveSha256": "3cb0aa994532b646f74661fc2555e5ed8e0319bca4cd14508203a3d018609f08",
+    "standaloneInstall": true,
+    "modifiedModuleRejected": true,
+    "install": "bitume: 0.3.0 installed, 32 identical modules",
+    "check": "FERRO 0.3.0: 32 reference modules verified"
+  },
+  "evidence": {
+    "acceptance-final.log": "eb7b9a1b109cad99a0c1c87edc69b0259122894fee2f24f23db63f08e5f602f8",
+    "bitume-browser.json": "57e7ec070b294fcdaf0d89c0b904624bae949b33534c6e1515c4422c3adc8699",
+    "bitume-browser.png": "39b3ab0653fb6fd9983d257ffd3a57d41fd1e9b97ca6ed2acad17b58ad8a327e",
+    "bitume-final-tests.log": "f929af8e3b6e813f87f0aa6d1bf188749254450d65d47a3ee2d49f148d8d1523",
+    "core-final.log": "17e3158852f743b1f8b7636e77bb624477e0a908bd17050d318443b29beba0c8",
+    "destruction-cache.log": "ecbe60ad9aa3751d4056df4aaf35263fbfc82a82013ebd9c0467ca7cc84325f5",
+    "destruction-supports.log": "23075a14198ff1ae4c0c35a85fdf5b2dcb11f201cd45fd01c8db8b8e5ea59836",
+    "editor-browser.json": "9a4fcbf448caeae0d14447d4c3765b804eb9258b83f013ae8f12857e93214770",
+    "editor-webgl2.png": "013509651ea2fc4f4ca61c017bf0ec171ba4ec9fe440673fd958931f6ee78ab2",
+    "editor-webgpu.png": "f5bf5f9081aedc09ee5ffb47d8afdd0624f252f30aff52ba75719dd56900a84d",
+    "editor.log": "e6b0beae1d96fafe83d486518d87d1dfc0e8b22d1e1a1e6ae5231d1e859b42f9",
+    "emprise-paper-map.png": "cdca1aabb633ba81edcb60198219762497abcbb557cc972f3d0a305f3fabce54",
+    "emprise-sandbox-browser.json": "ebb175847d39ca0ed68faff736b37b12540f7bdc036f44bd69fadfcd33c1cfe9",
+    "emprise-sandbox-capture.png": "e7ff1dcb54f1370d1a63a48428e0fb13bf9db18e715c779beed255f2e0c40645",
+    "emprise-sandbox-final.log": "7aaf0f5449158501d232642bb8c1b51d0abb1f34ea91b496fe6568f35f4b7754",
+    "emprise-sandbox-recording.json": "8913dd355db8b22dc4a2e753e95def0b348c89ae7178e703bc760a90fdd0db7a",
+    "environment-final.log": "e757416813740aa24ceda15deef563477c71dc7a037dde7da4d5523e762263f0",
+    "extras-final.log": "e6ebb4eb46dd8713e695df83af2b259561a134c20121862761498357c1ceaa60",
+    "extras.json": "fd25e3957d455aca5df783947b9e7949d918cbdc7259015495134cc7a7330100",
+    "extras.png": "b6b9ac8040d38ed999810c366444409c96b63fa5b681dadee05f567e8793a524",
+    "ferro-reference-recovery-webgl2.png": "0806f881ab5bdcf7fd1ebcfedfb35fdb527cf29ec94bfbd8d2aaaccbfefd2559",
+    "ferro-reference-recovery.json": "b0c2719eb9eb0f176d9bf76353ccca64ce501e88931c525dd28127d3f144b0d1",
+    "fragmentation.log": "70f50b3db95a270c84f5706e9bb629ff8df3939ec8e8fb9dbe01b72c4b4d3536",
+    "hosts-final.log": "b37f30f6a1111efc298a7dbabde7ea3d2628c7080a74c71aec3db7dd084e94fe",
+    "metal-browser.json": "0e7b958be271613d8cddb3e6050b8d2043849f6c36a0537e816706cfd19bad73",
+    "metal-browser.png": "067c6bcbdd3ddc3b848661eaf53d30a70b251e48be5ca3d5ae9065035cc2af1b",
+    "metal-final-full.tap": "fc52f112de67c8e43e58b17f24e8b8d3a512339151461aa78ac1a3625c5a67af",
+    "mobility-models-final.log": "52fab64c561f028ca2ca9de232460b3ef053cac646706f2b2646480c58db980f",
+    "neutral-browser.json": "883ad8d231742fb1087a9b7c7d9ce9d5a2e33e07238cc81f8fed34635626d833",
+    "neutral-webgl2.png": "ddb937efd3acf27ff05ecc62e1c8deddb539cc6439c300e9d706de88176ec0fc",
+    "neutral-webgpu.png": "ef22a66402af315a2c8d9552927f0a6a3f42ff48cdf10f0d669474e78d4d5590",
+    "package-final.json": "229808240d554797ef933427cee8252c17d9a0d3ca4d151d15e2debbefbeba50",
+    "pdr-browser.json": "8bf3c77a859db557b01c1db2334540b810c6987df5af93af51c5a57aadc2a21f",
+    "pdr-browser.png": "b923aa44a8cbcb29cb84bba0030557a617ca425318f369483ac8f3f4fa911dc9",
+    "pdr-final-tests.log": "33d2346644bf7e43d81055bb4e89731e06b5510807fa2e4087fdad06d8918191",
+    "primitive-indexing-final.log": "5462b81067cfc3fabf8b7b76d273786231f84a4c1dcb5eceede336d833a37f6d",
+    "recovery-final.log": "ff365d72411edc121878db2730413ad2b5db55d1add422633fdecde9d2ea3de8",
+    "renderer-chunks-final.log": "320969f75b98885d6c5a1837428c51ee13fbd389f41ff4466a8bea01fd8cff56",
+    "runtime-final.log": "883ad8d231742fb1087a9b7c7d9ce9d5a2e33e07238cc81f8fed34635626d833",
+    "traffic-obstacle-pruning-final.log": "281e736a52efb91861edec175a1978f3e914edbf1348cd77e1c9ab736bdafd29",
+    "traffic-presentation-final.log": "a738fe00583667d60555cda98c90d4bf086c82a00058a57db88728bca6e95841",
+    "urban-blast-batching-failure-final.log": "f725cab34621b4a360968056677d8dc0933ad31cc0f83fe0ef5a7c9dfd0b04c6",
+    "urban-body-read.log": "18e9c3b7c1998d0a2df838525d9468feb7d0cf58e5646bb9b247446b88ddad1e"
+  }
+}

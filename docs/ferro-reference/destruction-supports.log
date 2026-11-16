@@ -1,0 +1,16 @@
+{
+  "pass": true,
+  "fixtures": 27,
+  "operations": 372,
+  "comparisons": "Exact ordered events/debris, meshes, colliders, persisted state and group descriptions",
+  "coverage": [
+    "forward/backward single-pass chains",
+    "pending hits and misses",
+    "detach without eager collapse",
+    "invalid and pristine restores",
+    "restore already unsupported",
+    "ratios above one",
+    "duplicates/missing/zero-volume supports",
+    "cycles/self-links/dependents"
+  ]
+}

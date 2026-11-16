@@ -1,0 +1,171 @@
+approach
+fight
+occupy
+income
+{
+  "scenario": {
+    "complete": true,
+    "time": 16.39999999999971,
+    "stage": "done",
+    "cash": 243.76874999999657,
+    "earned": 3.7687500000000367,
+    "owner": 0,
+    "hp": 100,
+    "shots": 9,
+    "wanted": 5,
+    "log": [
+      {
+        "stage": "approach",
+        "time": 5.04,
+        "hp": 100,
+        "position": [
+          60.647162621580414,
+          107.29455985521416
+        ]
+      },
+      {
+        "stage": "buy",
+        "time": 5.05,
+        "hp": 100,
+        "position": [
+          60.626454421716176,
+          107.2627354828355
+        ]
+      },
+      {
+        "stage": "contest",
+        "time": 5.06,
+        "hp": 100,
+        "position": [
+          60.61186159991233,
+          107.24030922665749
+        ]
+      },
+      {
+        "stage": "fight",
+        "time": 6.41,
+        "hp": 100,
+        "position": [
+          60.5771302176176,
+          107.18693402018762
+        ]
+      },
+      {
+        "stage": "occupy",
+        "time": 11.4,
+        "hp": 100,
+        "position": [
+          60.5771302176176,
+          107.18693402018762
+        ]
+      },
+      {
+        "stage": "income",
+        "time": 16.4,
+        "hp": 100,
+        "position": [
+          60.5771302176176,
+          107.18693402018762
+        ]
+      }
+    ]
+  },
+  "metrics": {
+    "frame": {
+      "n": 987,
+      "p50": 16.69999999999891,
+      "p95": 17.5
+    },
+    "cpu": {
+      "n": 986,
+      "p50": 3.400000035762787,
+      "p95": 5.699999988079071
+    },
+    "resolution": [
+      1440,
+      900
+    ],
+    "pedestrians": 480,
+    "traffic": 15,
+    "renderer": {
+      "backend": "webgpu",
+      "webglVersion": 0,
+      "webgpu": true,
+      "contextLost": false,
+      "deviceLost": false,
+      "drawCalls": 2069,
+      "triangles": 3351593,
+      "instances": 80321,
+      "uploadBytes": 189312,
+      "errorEvents": [],
+      "gpuTimingAvailable": true,
+      "primitiveIndexing": true,
+      "primitiveIndexStats": {
+        "shapes": 7,
+        "references": 2352,
+        "vertices": 618,
+        "restored": 0
+      },
+      "pbrLayers": 2,
+      "renderScale": 1,
+      "pixelRatio": 1,
+      "width": 1440,
+      "height": 900,
+      "msaa": 4,
+      "requestedBackend": "auto",
+      "fallbackReason": null,
+      "worldRevision": 0,
+      "staticTotal": 308272,
+      "biome": "ville",
+      "chunks": 9493,
+      "chunkBuildBytes": 19729344,
+      "chunkUpdateIncremental": false,
+      "chunkEntriesVisited": 308271,
+      "viewDistance": 64,
+      "staticVisible": 76882,
+      "staticCulled": 231389,
+      "dynamicLights": 6,
+      "blackoutLights": 0,
+      "fxInstances": 21,
+      "uniformUploadBytes": 2432,
+      "bloom": true,
+      "shadows": true,
+      "shadowMode": "sun-atlas",
+      "shadowMaps": 1,
+      "crowdInstances": 0,
+      "pdrLotInstances": 0,
+      "shadowChunks": 250,
+      "shadowStatic": 39165,
+      "backgroundWater": 1,
+      "backgroundDrawCalls": 1,
+      "visibleChunks": 647,
+      "lotsVisibles": 0,
+      "reflections": true,
+      "reflectionSteps": 48,
+      "gpuBuffers": 9510,
+      "gpuTextures": 15,
+      "pipelineCount": 16,
+      "uniformSlots": 9
+    },
+    "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/157.0.0.0 Safari/537.36"
+  },
+  "architecture": {
+    "facades": 240,
+    "windows": 4716,
+    "pieces": 56814
+  },
+  "errors": [],
+  "ui": {
+    "mapRequiresPurchase": true,
+    "paperMapWithM": true,
+    "noMinimap": true,
+    "worldRunsWhileReading": true,
+    "cityPlanBoard": true,
+    "persistenceOnReload": true,
+    "cashBefore": 247.00624999999363,
+    "cashAfter": 247.26424999999364
+  },
+  "buildSha256": "ff1bf7d83c989d8b6925c642f0870ac30a904de8ef0a6f1f605e3bbb4cc96704",
+  "hardware": "MacBook Air Mac17,4, Apple M5, 24 Go",
+  "url": "file://dist/index.html"
+}

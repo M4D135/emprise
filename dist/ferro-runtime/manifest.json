@@ -1,9 +1,9 @@
 {
   "format": "ferro-engine",
-  "version": "0.2.0-preview.1",
+  "version": "0.3.0",
   "apiVersion": 1,
   "pilot": "emprise",
-  "status": "pilot-validation",
+  "status": "reference",
   "contentPolicy": "Procedural geometry, generated surfaces and synthesized sound. No imported visual or audio assets.",
   "modules": [
     {
@@ -33,6 +33,10 @@
     {
       "id": "materials",
       "path": "src/ferro/materials.js"
+    },
+    {
+      "id": "vehicle-dynamics",
+      "path": "src/ferro/vehicle-dynamics.js"
     },
     {
       "id": "physics-geometry",
@@ -69,6 +73,14 @@
     {
       "id": "recipes",
       "path": "src/ferro/recipes.js"
+    },
+    {
+      "id": "crowd",
+      "path": "src/ferro/crowd.js"
+    },
+    {
+      "id": "crowd-webgpu",
+      "path": "src/ferro/crowd-webgpu.js"
     }
   ],
   "optionalModules": [
@@ -79,6 +91,46 @@
     {
       "id": "music",
       "path": "src/ferro/music.js"
+    },
+    {
+      "id": "surface",
+      "path": "src/ferro/surface.js"
+    },
+    {
+      "id": "gpu-profile",
+      "path": "src/ferro/gpu-profile.js"
+    },
+    {
+      "id": "skies",
+      "path": "src/ferro/skies.js"
+    },
+    {
+      "id": "reflections",
+      "path": "src/ferro/reflections.js"
+    },
+    {
+      "id": "passages",
+      "path": "src/ferro/passages.js"
+    },
+    {
+      "id": "brain",
+      "path": "src/ferro/brain.js"
+    },
+    {
+      "id": "loop",
+      "path": "src/ferro/loop.js"
+    },
+    {
+      "id": "schedule",
+      "path": "src/ferro/schedule.js"
+    },
+    {
+      "id": "jobs",
+      "path": "src/ferro/jobs.js"
+    },
+    {
+      "id": "demo",
+      "path": "src/ferro/demo.js"
     }
   ],
   "hostAPI": "src/ferro/engine.js",
@@ -88,12 +140,11 @@
     "bitume",
     "point-de-rupture"
   ],
-  "validatedHost": "emprise",
   "migrationStatus": {
-    "emprise": "isolated pilot",
-    "metal": "not propagated",
-    "bitume": "not propagated",
-    "point-de-rupture": "not propagated"
+    "emprise": "qualified reference modules",
+    "metal": "qualified reference modules",
+    "bitume": "qualified reference modules",
+    "point-de-rupture": "qualified reference modules"
   },
   "origins": {
     "emprise": "672bb463466584f997ea572e40d48b149009bffe",
@@ -101,6 +152,21 @@
     "bitume": "365b3e2d43c9d4fd84a81c7d7974b62c2a906129",
     "point-de-rupture": "5ba44c9d2f9c667eac687b9d0fa2f170606ce2f8"
   },
+  "reference": {
+    "source": "EMPRISE/src/ferro",
+    "distribution": "versioned modules with SHA256 lock",
+    "policy": "game rules and procedural styles are injected; engine sources must not diverge"
+  },
+  "sizePolicy": {
+    "limitBytes": null,
+    "decision": "David, 2026-11-16: no size ceiling; fully procedural content"
+  },
+  "validatedHosts": [
+    "emprise",
+    "metal",
+    "bitume",
+    "point-de-rupture"
+  ],
   "files": [
     {
       "id": "math",
@@ -113,29 +179,29 @@
       "id": "render",
       "path": "src/ferro/renderer.js",
       "packagePath": "modules/renderer.js",
-      "bytes": 181698,
-      "sha256": "e1ad456373b7211b62627acceba8b51cc5b172fe4651ebc940016259b1ec3759"
+      "bytes": 207498,
+      "sha256": "5abc2a4026b8a93519f45246cdb141550f50f34f0eb70884442bdf16cdec5c75"
     },
     {
       "id": "webgpu-shaders",
       "path": "src/ferro/webgpu-shaders.js",
       "packagePath": "modules/webgpu-shaders.js",
-      "bytes": 397961,
-      "sha256": "30e6e88093fe12f41c00e77d11dfac57156568ae0c991c287e3497f0e6366d83"
+      "bytes": 402708,
+      "sha256": "0be7951f56ce7549cbde57d7c4926cb44f8769a41fb10d9258c7b635611e2a0a"
     },
     {
       "id": "webgpu",
       "path": "src/ferro/webgpu-renderer.js",
       "packagePath": "modules/webgpu-renderer.js",
-      "bytes": 49225,
-      "sha256": "d6e48b76e2aa981c5ccf4cd1cb00aeb126130e0e883b3f82d9b827e31c3a510e"
+      "bytes": 49322,
+      "sha256": "0c654b0f3eefec30dfe77bc4e9f37eac33be1c3314b2713d40c3d9d3178792ff"
     },
     {
       "id": "backends",
       "path": "src/ferro/backends.js",
       "packagePath": "modules/backends.js",
-      "bytes": 3486,
-      "sha256": "436cc5684ee3c8d950874489d4b267ae9e4a65e365771da434e70fe2e7ff518b"
+      "bytes": 3900,
+      "sha256": "947f6b562e773acaf0d3ad59e1daea5a248185bd5c10b0d918a9e372e5f8dfb6"
     },
     {
       "id": "geometry",
@@ -150,6 +216,13 @@
       "packagePath": "modules/materials.js",
       "bytes": 1866,
       "sha256": "fd1789bd21ec43d4cd028d3ebffdb490e5bfe53d8b73fa0f7bdbd44ce7d2a954"
+    },
+    {
+      "id": "vehicle-dynamics",
+      "path": "src/ferro/vehicle-dynamics.js",
+      "packagePath": "modules/vehicle-dynamics.js",
+      "bytes": 3980,
+      "sha256": "cd67cf8a8d15250e72a69cf883eeb2793a3f67bc272924b3fd7662ce5f553d8c"
     },
     {
       "id": "physics-geometry",
@@ -169,8 +242,8 @@
       "id": "destruction",
       "path": "src/ferro/destruction.js",
       "packagePath": "modules/destruction.js",
-      "bytes": 36450,
-      "sha256": "1eb0501110dd4f8369ff3812431d1e65b5d9df2ae17484368ef7aec6085aaeb1"
+      "bytes": 42672,
+      "sha256": "c18d53831b23e55d798d02e698fd7eb670a28dd998de51a5bcd5195fe733eeea"
     },
     {
       "id": "navigation",
@@ -215,6 +288,20 @@
       "sha256": "761acc958d522bd2873529672fbb7fad22208bf0190ca395622136ac3582953f"
     },
     {
+      "id": "crowd",
+      "path": "src/ferro/crowd.js",
+      "packagePath": "modules/crowd.js",
+      "bytes": 59966,
+      "sha256": "ee00aa7b358a71a1e8c93ab2779d0edc3d80828f4c4ad32d41900177221ceac9"
+    },
+    {
+      "id": "crowd-webgpu",
+      "path": "src/ferro/crowd-webgpu.js",
+      "packagePath": "modules/crowd-webgpu.js",
+      "bytes": 17138,
+      "sha256": "bc2719bdbef13f74789bde0caad5d24fea70f44ac52148085a27d448ada9e9f8"
+    },
+    {
       "id": "imuse",
       "path": "src/ferro/imuse.js",
       "packagePath": "modules/imuse.js",
@@ -229,23 +316,119 @@
       "sha256": "e59d6d2ed84bb70bf108f54d8d1f8510a02533f36e1d0741ac1d144c8830ea20"
     },
     {
+      "id": "surface",
+      "path": "src/ferro/surface.js",
+      "packagePath": "modules/surface.js",
+      "bytes": 3419,
+      "sha256": "46915edee28daa0408ea1c18abd664babef76e2e6bce52c2990a431f90cee77e"
+    },
+    {
+      "id": "gpu-profile",
+      "path": "src/ferro/gpu-profile.js",
+      "packagePath": "modules/gpu-profile.js",
+      "bytes": 2548,
+      "sha256": "513e7cb0523a50f62edb427f2ed563ec98d9bc771a70f357fce8409157faa9c4"
+    },
+    {
+      "id": "skies",
+      "path": "src/ferro/skies.js",
+      "packagePath": "modules/skies.js",
+      "bytes": 23094,
+      "sha256": "bd4b38002c8c800a5f7551a73712c721909ed22ae145d15fbf7f853ff30eddea"
+    },
+    {
+      "id": "reflections",
+      "path": "src/ferro/reflections.js",
+      "packagePath": "modules/reflections.js",
+      "bytes": 11548,
+      "sha256": "51467e58cfaabfe6d9f5c7a5ccdf73afd35e33159bddae4778dd5a0bdd43ffbf"
+    },
+    {
+      "id": "passages",
+      "path": "src/ferro/passages.js",
+      "packagePath": "modules/passages.js",
+      "bytes": 10190,
+      "sha256": "16fbe21b2dbd0bc0abf16a2e2c6346940f8703fc9513a9906ab1a38303dacdaa"
+    },
+    {
+      "id": "brain",
+      "path": "src/ferro/brain.js",
+      "packagePath": "modules/brain.js",
+      "bytes": 8923,
+      "sha256": "598175891738fbdef6788d2d5e0eee89e279a472837a49e4966ca19e0de7bcf9"
+    },
+    {
+      "id": "loop",
+      "path": "src/ferro/loop.js",
+      "packagePath": "modules/loop.js",
+      "bytes": 7685,
+      "sha256": "f6777ad3141ed9b9dae6b860aded5aa625433c87f3068077a5204324a7c42e2f"
+    },
+    {
+      "id": "schedule",
+      "path": "src/ferro/schedule.js",
+      "packagePath": "modules/schedule.js",
+      "bytes": 4221,
+      "sha256": "48a8b7cf0bba9a54ef6cff896110a654195b05606392c2d74ef3a3691edf9d12"
+    },
+    {
+      "id": "jobs",
+      "path": "src/ferro/jobs.js",
+      "packagePath": "modules/jobs.js",
+      "bytes": 5829,
+      "sha256": "c027761f5d29d62ef542e444c95a17c551fececc1cbeb492668c2d35d7b13aa7"
+    },
+    {
+      "id": "demo",
+      "path": "src/ferro/demo.js",
+      "packagePath": "modules/demo.js",
+      "bytes": 28562,
+      "sha256": "1169679cfa96463222f6343a6f4f3feeadfc7b90cd65d8f1b7ece6e9e0600575"
+    },
+    {
       "id": "host",
       "path": "src/ferro/engine.js",
       "packagePath": "modules/engine.js",
-      "bytes": 1608,
-      "sha256": "15c3607852c7bc71b988cccfc97e7df5a6a28406b7b22046f7d70b6a8c694f64"
+      "bytes": 1871,
+      "sha256": "10a4fc260276efb2905fe52427f5547b8238408ab9529386b6e15567b9cd7dcf"
     },
     {
       "id": "ferro-runtime.js",
       "packagePath": "ferro-runtime.js",
-      "bytes": 958153,
-      "sha256": "752ed2ad0a4aa5aef4c6b3abd0361501118234af2b557e780b62ab8e22e5c823"
+      "bytes": 1076773,
+      "sha256": "ed70dbef89c2838c2bc1ee2894a951bad4411aee35004628ddff77bf40062cc9"
     },
     {
       "id": "ferro-music.js",
       "packagePath": "ferro-music.js",
-      "bytes": 72075,
-      "sha256": "174286fcd1b727ff01bd83366baf40b919afd36fa273b3cad77ea06b9b8128db"
+      "bytes": 72065,
+      "sha256": "3cb3efbf66654fd93453d5e6947ee188a9118d4317f5bc5fd94921e5720175cb"
+    },
+    {
+      "id": "ferro-simulation.js",
+      "packagePath": "ferro-simulation.js",
+      "bytes": 65456,
+      "sha256": "9c9221802a19526b4d9448c8a98e37fe9b09a5644bbe6f6cb5f81079c98c0339"
+    },
+    {
+      "id": "ferro-render-extras.js",
+      "packagePath": "ferro-render-extras.js",
+      "bytes": 40653,
+      "sha256": "d54f0583ec3463efc850efb4662466e3df4aa7aaae90a99888fb53ae5bab0c71"
+    },
+    {
+      "id": "check-ferro-lock.py",
+      "path": "tools/check-ferro-lock.py",
+      "packagePath": "tools/check-ferro-lock.py",
+      "bytes": 609,
+      "sha256": "86ffbc1e5e35d869447586584863ea28acfa6685f1f1ec7d3fa657d04c8e0a9d"
+    },
+    {
+      "id": "install-ferro.py",
+      "path": "tools/install-ferro.py",
+      "packagePath": "tools/install-ferro.py",
+      "bytes": 2177,
+      "sha256": "8d2a185a4f0db556211a15226b719077ec459c7f7aa38ce73cd5c0130946918b"
     }
   ]
 }

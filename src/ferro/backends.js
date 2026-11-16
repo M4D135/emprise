@@ -7,9 +7,9 @@
  // timed-out adapter eventually finishes. A rejected GPU is never reactivated.
  function release(renderer){try{renderer?.dispose?.();}catch{}}
  async function create(canvas,options={},providers={}){
-  const requested=preference(options.backend),gpu=providers.webgpu||root.FRenderWebGPU?.create,gl=providers.webgl2||root.FRender?.create;
+  const requiredGL=!!(options.sceneReflections||options.advancedSky||options.resolution==='native'),requested=preference(options.backend),gpu=providers.webgpu||root.FRenderWebGPU?.create,gl=providers.webgl2||root.FRender?.create;
   const supported=providers.supported??!!root.navigator?.gpu,replace=providers.replaceCanvas||replaceCanvas;
-  let fallbackReason=null,phase='initializing',failure=null,timedOut=false,timer=null,activationResult;
+  let fallbackReason=requiredGL?'Profil de rendu avancé disponible en WebGL2.':null,phase='initializing',failure=null,timedOut=false,timer=null,activationResult;
   function deliver(){
    if(phase!=='active'||!failure)return activationResult;
    phase='failed';
@@ -27,7 +27,7 @@
    if(phase==='pending'){phase='active';return deliver();}
    return activationResult;
   }
-  if(requested!=='webgl2'){
+  if(requested!=='webgl2'&&!requiredGL){
    if(supported&&gpu){
     let candidate=null;
     try{
@@ -51,5 +51,5 @@
   renderer.stats.requestedBackend=requested;renderer.stats.fallbackReason=fallbackReason;
   return {renderer,canvas,requested,backend:'webgl2',fallbackReason,activate(){}};
  }
- root.FRenderBackends={create,replaceCanvas,preference};
+ root.FRenderBackends={create,replaceCanvas,preference,capabilities:{webgl2:{proceduralPBR:true,crowds:true,screenReflections:true,localProbes:true,advancedSky:true,nativeSurface:true},webgpu:{proceduralPBR:true,crowds:true,screenReflections:true,localProbes:false,advancedSky:false,nativeSurface:false}}};
 })(globalThis);
