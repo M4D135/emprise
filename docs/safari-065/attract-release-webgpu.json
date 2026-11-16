@@ -1,0 +1,127 @@
+{
+  "backend": "webgpu",
+  "delaySeconds": 5.004399999976158,
+  "firstDemoPlayingSeconds": 9.206599999964237,
+  "pollObservedDelaySeconds": 5.007699999988079,
+  "timingReadRoundTripSeconds": 0.00014833296881988645,
+  "pageTiming": {
+    "titles": [
+      471.80000001192093,
+      11725.699999988079,
+      27959.19999998808,
+      69691.69999998808,
+      94025.69999998808,
+      99247.60000002384
+    ],
+    "cycles": [
+      {
+        "titleAt": 471.80000001192093,
+        "loadingAt": 5476.199999988079,
+        "readyAt": 9655.300000011921,
+        "initialTime": 0,
+        "firstDrawAt": 9672.699999988079,
+        "firstDrawEnd": 9678.399999976158,
+        "progressAt": 11657.300000011921,
+        "progressTime": 1.9833333333333287,
+        "cancelled": true
+      },
+      {
+        "titleAt": 11725.699999988079,
+        "loadingAt": 16742.399999976158,
+        "readyAt": 20651.80000001192,
+        "initialTime": 0,
+        "firstDrawAt": 20653.600000023842,
+        "firstDrawEnd": 20657.30000001192,
+        "progressAt": 22653,
+        "progressTime": 1.9833333333333287,
+        "cancelled": true
+      },
+      {
+        "titleAt": 27959.19999998808,
+        "loadingAt": 32975.69999998808,
+        "readyAt": 37194.39999997616,
+        "initialTime": 0,
+        "firstDrawAt": 37205.69999998808,
+        "firstDrawEnd": 37207.39999997616,
+        "progressAt": 39196.69999998808,
+        "progressTime": 1.991666666666662,
+        "cancelled": true
+      },
+      {
+        "titleAt": 69691.69999998808,
+        "loadingAt": 74692.39999997616,
+        "readyAt": 79383.80000001192,
+        "initialTime": 0,
+        "firstDrawAt": 79397.19999998808,
+        "firstDrawEnd": 79402.39999997616,
+        "progressAt": 81384,
+        "progressTime": 1.9833333333333287,
+        "cancelled": true
+      }
+    ]
+  },
+  "timingDefinition": "Page performance.now: title visibility, loading request, ready, first draw submission and 2s simulation checkpoint. CDP observation latency is reported separately; first draw submission does not prove compositor presentation.",
+  "recordings": [
+    "Tir et conduite \u00b7 clavier / souris r\u00e9els",
+    "Commerce contest\u00e9 \u00b7 session de test valid\u00e9e",
+    "V\u00e9hicule sous le feu \u00b7 test de destruction",
+    "Patrouille \u00e0 pied \u00b7 interpellation de nuit"
+  ],
+  "keysAndMouseReturnToTitle": true,
+  "singleResidentSession": true,
+  "initialTitleWithoutWorld": {
+    "at": 1794821850198,
+    "created": 0,
+    "ready": true,
+    "sessionNull": true,
+    "rendererNull": true,
+    "crowdNull": true,
+    "drawCount": 0,
+    "persisted": null
+  },
+  "freshSaveBaseline": {
+    "cash": 200,
+    "hp": 100,
+    "inventory": {
+      "weapons": [
+        true,
+        true,
+        true
+      ],
+      "ammo": [
+        180,
+        36,
+        12
+      ]
+    },
+    "weapon": 0,
+    "map": false,
+    "time": 0,
+    "weather": {
+      "clockHours": 14,
+      "elapsed": 0,
+      "wet": 0,
+      "cloud": 0.22,
+      "rain": 0,
+      "wind": 0.28,
+      "storm": 0,
+      "cloudX": 0,
+      "cloudZ": 0
+    },
+    "business": {
+      "bandage": 0,
+      "provision": 0,
+      "valuable": 0,
+      "ammo": 0
+    }
+  },
+  "normalizationAfterFirstPlay": true,
+  "liveStateRestoredExactly": true,
+  "saveUnchanged": true,
+  "livePlayAfterDemo": true,
+  "explosionReplayValidated": true,
+  "policeReplayValidated": true,
+  "errors": [],
+  "url": "file://dist/index.html",
+  "buildSha256": "0ead4a29b00eb2cbbb297c92330332f4ded9f071aa950d04f50f28a355fb4a90"
+}

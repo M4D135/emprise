@@ -20,7 +20,7 @@ def install(game,dest):
   target.parent.mkdir(parents=True,exist_ok=True)
   if target.resolve()!=source.resolve():shutil.copy2(source,target)
   entries.append({'id':module['id'],'path':relative,'sha256':hashlib.sha256(source.read_bytes()).hexdigest()})
- lock={'format':'ferro-lock','version':spec['version'],'reference':'EMPRISE/src/ferro','game':game,'modules':entries}
+ lock={'format':'ferro-lock','version':spec['version'],'reference':spec.get('reference',{}).get('source','EMPRISE/src/ferro'),'game':game,'modules':entries}
  (dest/'FERRO.lock.json').write_text(json.dumps(lock,indent=2)+'\n')
  (dest/'tools').mkdir(exist_ok=True)
  check=dest/'tools/check-ferro-lock.py'

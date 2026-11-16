@@ -1,0 +1,1603 @@
+{
+  "variantSources": {
+    "base": "074ad6d98542c7f1fff95625d0d49a748ba65f6f89cdae35ab694708bf157748",
+    "receiver": "07d8c94ccc6588b401c562945226fe0d9812784bbaedc39f950532790cca0b0a",
+    "face": "56eff0c49f9c866401608f305305c95a55192fd7e9c254658414c4f19f62dd2b",
+    "both": "f304f183f054c01dc5c40b30d2fd8bd09ebdaad4c9eda43a58dccd5f52015391"
+  },
+  "vehicleSha256": "ccbe56d14337481bc51810dd0a1c0338ec9cbbdbc8bf1ee80b09d17e46d18111",
+  "cases": {
+    "base": {
+      "fixed": [
+        {
+          "step": 0,
+          "meanDark": 13.165521978021978,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5505890505890498,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0,
+          "maxTemporalDelta": 0,
+          "error": 0
+        },
+        {
+          "step": 1,
+          "meanDark": 13.165521978021978,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5505890505890498,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0,
+          "maxTemporalDelta": 0,
+          "error": 0
+        },
+        {
+          "step": 2,
+          "meanDark": 13.165521978021978,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5505890505890498,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0,
+          "maxTemporalDelta": 0,
+          "error": 0
+        },
+        {
+          "step": 3,
+          "meanDark": 13.165521978021978,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5505890505890498,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0,
+          "maxTemporalDelta": 0,
+          "error": 0
+        },
+        {
+          "step": 4,
+          "meanDark": 13.165521978021978,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5505890505890498,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0,
+          "maxTemporalDelta": 0,
+          "error": 0
+        },
+        {
+          "step": 5,
+          "meanDark": 13.165521978021978,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5505890505890498,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0,
+          "maxTemporalDelta": 0,
+          "error": 0
+        },
+        {
+          "step": 6,
+          "meanDark": 13.165521978021978,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5505890505890498,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0,
+          "maxTemporalDelta": 0,
+          "error": 0
+        },
+        {
+          "step": 7,
+          "meanDark": 13.165521978021978,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5505890505890498,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0,
+          "maxTemporalDelta": 0,
+          "error": 0
+        },
+        {
+          "step": 8,
+          "meanDark": 13.165521978021978,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5505890505890498,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0,
+          "maxTemporalDelta": 0,
+          "error": 0
+        },
+        {
+          "step": 9,
+          "meanDark": 13.165521978021978,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5505890505890498,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0,
+          "maxTemporalDelta": 0,
+          "error": 0
+        },
+        {
+          "step": 10,
+          "meanDark": 13.165521978021978,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5505890505890498,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0,
+          "maxTemporalDelta": 0,
+          "error": 0
+        },
+        {
+          "step": 11,
+          "meanDark": 13.165521978021978,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5505890505890498,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0,
+          "maxTemporalDelta": 0,
+          "error": 0
+        },
+        {
+          "step": 12,
+          "meanDark": 13.165521978021978,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5505890505890498,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0,
+          "maxTemporalDelta": 0,
+          "error": 0
+        }
+      ],
+      "center": [
+        {
+          "step": 0,
+          "meanDark": 13.165521978021978,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5505890505890498,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0,
+          "maxTemporalDelta": 0,
+          "error": 0
+        },
+        {
+          "step": 1,
+          "meanDark": 13.165521978021978,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5505890505890498,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0,
+          "maxTemporalDelta": 0,
+          "error": 0
+        },
+        {
+          "step": 2,
+          "meanDark": 13.165521978021978,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5505890505890498,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0,
+          "maxTemporalDelta": 0,
+          "error": 0
+        },
+        {
+          "step": 3,
+          "meanDark": 13.165521978021978,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5505890505890498,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0,
+          "maxTemporalDelta": 0,
+          "error": 0
+        },
+        {
+          "step": 4,
+          "meanDark": 13.165521978021978,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5505890505890498,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0,
+          "maxTemporalDelta": 0,
+          "error": 0
+        },
+        {
+          "step": 5,
+          "meanDark": 13.165521978021978,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5505890505890498,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0,
+          "maxTemporalDelta": 0,
+          "error": 0
+        },
+        {
+          "step": 6,
+          "meanDark": 13.165521978021978,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5505890505890498,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0,
+          "maxTemporalDelta": 0,
+          "error": 0
+        },
+        {
+          "step": 7,
+          "meanDark": 13.165521978021978,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5505890505890498,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0,
+          "maxTemporalDelta": 0,
+          "error": 0
+        },
+        {
+          "step": 8,
+          "meanDark": 13.165521978021978,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5505890505890498,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0,
+          "maxTemporalDelta": 0,
+          "error": 0
+        },
+        {
+          "step": 9,
+          "meanDark": 13.165521978021978,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5505890505890498,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0,
+          "maxTemporalDelta": 0,
+          "error": 0
+        },
+        {
+          "step": 10,
+          "meanDark": 13.165521978021978,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5505890505890498,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0,
+          "maxTemporalDelta": 0,
+          "error": 0
+        },
+        {
+          "step": 11,
+          "meanDark": 13.165521978021978,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5505890505890498,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0,
+          "maxTemporalDelta": 0,
+          "error": 0
+        },
+        {
+          "step": 12,
+          "meanDark": 13.165521978021978,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5505890505890498,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0,
+          "maxTemporalDelta": 0,
+          "error": 0
+        }
+      ],
+      "sun": [
+        {
+          "step": 0,
+          "meanDark": 13.165521978021978,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5505890505890498,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0,
+          "maxTemporalDelta": 0,
+          "error": 0
+        },
+        {
+          "step": 1,
+          "meanDark": 13.196085164835164,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5533610533610531,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0.055288461538461536,
+          "maxTemporalDelta": 1,
+          "error": 0
+        },
+        {
+          "step": 2,
+          "meanDark": 13.088942307692308,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5585585585585604,
+          "changedPixels": 31,
+          "meanTemporalDelta": 0.18887362637362637,
+          "maxTemporalDelta": 32,
+          "error": 0
+        },
+        {
+          "step": 3,
+          "meanDark": 13.119505494505495,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5582120582120573,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0.047046703296703296,
+          "maxTemporalDelta": 1,
+          "error": 0
+        },
+        {
+          "step": 4,
+          "meanDark": 13.150412087912088,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5446985446985444,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0.04739010989010989,
+          "maxTemporalDelta": 1,
+          "error": 0
+        },
+        {
+          "step": 5,
+          "meanDark": 13.038804945054945,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5464310464310473,
+          "changedPixels": 32,
+          "meanTemporalDelta": 0.19608516483516483,
+          "maxTemporalDelta": 30,
+          "error": 0
+        },
+        {
+          "step": 6,
+          "meanDark": 13.066277472527473,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.54019404019404,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0.05013736263736264,
+          "maxTemporalDelta": 1,
+          "error": 0
+        },
+        {
+          "step": 7,
+          "meanDark": 13.099244505494505,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5405405405405408,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0.05013736263736264,
+          "maxTemporalDelta": 2,
+          "error": 0
+        },
+        {
+          "step": 8,
+          "meanDark": 13.133241758241759,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5467775467775469,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0.04979395604395604,
+          "maxTemporalDelta": 1,
+          "error": 0
+        },
+        {
+          "step": 9,
+          "meanDark": 13.02506868131868,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5592515592515594,
+          "changedPixels": 33,
+          "meanTemporalDelta": 0.1878434065934066,
+          "maxTemporalDelta": 31,
+          "error": 0
+        },
+        {
+          "step": 10,
+          "meanDark": 13.058722527472527,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5519750519750513,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0.05013736263736264,
+          "maxTemporalDelta": 1,
+          "error": 0
+        },
+        {
+          "step": 11,
+          "meanDark": 13.095467032967033,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.545391545391545,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0.047046703296703296,
+          "maxTemporalDelta": 1,
+          "error": 0
+        },
+        {
+          "step": 12,
+          "meanDark": 13.127747252747254,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5495495495495502,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0.04807692307692308,
+          "maxTemporalDelta": 1,
+          "error": 0
+        }
+      ]
+    },
+    "receiver": {
+      "fixed": [
+        {
+          "step": 0,
+          "meanDark": 13.165521978021978,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5505890505890498,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0,
+          "maxTemporalDelta": 0,
+          "error": 0
+        },
+        {
+          "step": 1,
+          "meanDark": 13.165521978021978,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5505890505890498,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0,
+          "maxTemporalDelta": 0,
+          "error": 0
+        },
+        {
+          "step": 2,
+          "meanDark": 13.165521978021978,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5505890505890498,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0,
+          "maxTemporalDelta": 0,
+          "error": 0
+        },
+        {
+          "step": 3,
+          "meanDark": 13.165521978021978,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5505890505890498,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0,
+          "maxTemporalDelta": 0,
+          "error": 0
+        },
+        {
+          "step": 4,
+          "meanDark": 13.165521978021978,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5505890505890498,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0,
+          "maxTemporalDelta": 0,
+          "error": 0
+        },
+        {
+          "step": 5,
+          "meanDark": 13.165521978021978,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5505890505890498,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0,
+          "maxTemporalDelta": 0,
+          "error": 0
+        },
+        {
+          "step": 6,
+          "meanDark": 13.165521978021978,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5505890505890498,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0,
+          "maxTemporalDelta": 0,
+          "error": 0
+        },
+        {
+          "step": 7,
+          "meanDark": 13.165521978021978,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5505890505890498,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0,
+          "maxTemporalDelta": 0,
+          "error": 0
+        },
+        {
+          "step": 8,
+          "meanDark": 13.165521978021978,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5505890505890498,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0,
+          "maxTemporalDelta": 0,
+          "error": 0
+        },
+        {
+          "step": 9,
+          "meanDark": 13.165521978021978,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5505890505890498,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0,
+          "maxTemporalDelta": 0,
+          "error": 0
+        },
+        {
+          "step": 10,
+          "meanDark": 13.165521978021978,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5505890505890498,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0,
+          "maxTemporalDelta": 0,
+          "error": 0
+        },
+        {
+          "step": 11,
+          "meanDark": 13.165521978021978,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5505890505890498,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0,
+          "maxTemporalDelta": 0,
+          "error": 0
+        },
+        {
+          "step": 12,
+          "meanDark": 13.165521978021978,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5505890505890498,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0,
+          "maxTemporalDelta": 0,
+          "error": 0
+        }
+      ],
+      "center": [
+        {
+          "step": 0,
+          "meanDark": 13.165521978021978,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5505890505890498,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0,
+          "maxTemporalDelta": 0,
+          "error": 0
+        },
+        {
+          "step": 1,
+          "meanDark": 13.165521978021978,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5505890505890498,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0,
+          "maxTemporalDelta": 0,
+          "error": 0
+        },
+        {
+          "step": 2,
+          "meanDark": 13.165521978021978,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5505890505890498,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0,
+          "maxTemporalDelta": 0,
+          "error": 0
+        },
+        {
+          "step": 3,
+          "meanDark": 13.165521978021978,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5505890505890498,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0,
+          "maxTemporalDelta": 0,
+          "error": 0
+        },
+        {
+          "step": 4,
+          "meanDark": 13.165521978021978,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5505890505890498,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0,
+          "maxTemporalDelta": 0,
+          "error": 0
+        },
+        {
+          "step": 5,
+          "meanDark": 13.165521978021978,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5505890505890498,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0,
+          "maxTemporalDelta": 0,
+          "error": 0
+        },
+        {
+          "step": 6,
+          "meanDark": 13.165521978021978,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5505890505890498,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0,
+          "maxTemporalDelta": 0,
+          "error": 0
+        },
+        {
+          "step": 7,
+          "meanDark": 13.165521978021978,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5505890505890498,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0,
+          "maxTemporalDelta": 0,
+          "error": 0
+        },
+        {
+          "step": 8,
+          "meanDark": 13.165521978021978,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5505890505890498,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0,
+          "maxTemporalDelta": 0,
+          "error": 0
+        },
+        {
+          "step": 9,
+          "meanDark": 13.165521978021978,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5505890505890498,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0,
+          "maxTemporalDelta": 0,
+          "error": 0
+        },
+        {
+          "step": 10,
+          "meanDark": 13.165521978021978,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5505890505890498,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0,
+          "maxTemporalDelta": 0,
+          "error": 0
+        },
+        {
+          "step": 11,
+          "meanDark": 13.165521978021978,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5505890505890498,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0,
+          "maxTemporalDelta": 0,
+          "error": 0
+        },
+        {
+          "step": 12,
+          "meanDark": 13.165521978021978,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5505890505890498,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0,
+          "maxTemporalDelta": 0,
+          "error": 0
+        }
+      ],
+      "sun": [
+        {
+          "step": 0,
+          "meanDark": 13.165521978021978,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5505890505890498,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0,
+          "maxTemporalDelta": 0,
+          "error": 0
+        },
+        {
+          "step": 1,
+          "meanDark": 13.196085164835164,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5533610533610531,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0.055288461538461536,
+          "maxTemporalDelta": 1,
+          "error": 0
+        },
+        {
+          "step": 2,
+          "meanDark": 13.088942307692308,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5585585585585604,
+          "changedPixels": 31,
+          "meanTemporalDelta": 0.18887362637362637,
+          "maxTemporalDelta": 32,
+          "error": 0
+        },
+        {
+          "step": 3,
+          "meanDark": 13.119505494505495,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5582120582120573,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0.047046703296703296,
+          "maxTemporalDelta": 1,
+          "error": 0
+        },
+        {
+          "step": 4,
+          "meanDark": 13.150412087912088,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5446985446985444,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0.04739010989010989,
+          "maxTemporalDelta": 1,
+          "error": 0
+        },
+        {
+          "step": 5,
+          "meanDark": 13.038804945054945,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5464310464310473,
+          "changedPixels": 32,
+          "meanTemporalDelta": 0.19608516483516483,
+          "maxTemporalDelta": 30,
+          "error": 0
+        },
+        {
+          "step": 6,
+          "meanDark": 13.066277472527473,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.54019404019404,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0.05013736263736264,
+          "maxTemporalDelta": 1,
+          "error": 0
+        },
+        {
+          "step": 7,
+          "meanDark": 13.099244505494505,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5405405405405408,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0.05013736263736264,
+          "maxTemporalDelta": 2,
+          "error": 0
+        },
+        {
+          "step": 8,
+          "meanDark": 13.132898351648352,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5460845460845463,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0.04945054945054945,
+          "maxTemporalDelta": 1,
+          "error": 0
+        },
+        {
+          "step": 9,
+          "meanDark": 13.022664835164836,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5578655578655578,
+          "changedPixels": 32,
+          "meanTemporalDelta": 0.18578296703296704,
+          "maxTemporalDelta": 31,
+          "error": 0
+        },
+        {
+          "step": 10,
+          "meanDark": 13.057005494505495,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5519750519750513,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0.050824175824175824,
+          "maxTemporalDelta": 1,
+          "error": 0
+        },
+        {
+          "step": 11,
+          "meanDark": 13.095467032967033,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.545391545391545,
+          "changedPixels": 1,
+          "meanTemporalDelta": 0.048763736263736264,
+          "maxTemporalDelta": 3,
+          "error": 0
+        },
+        {
+          "step": 12,
+          "meanDark": 13.127747252747254,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5495495495495502,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0.04807692307692308,
+          "maxTemporalDelta": 1,
+          "error": 0
+        }
+      ]
+    },
+    "face": {
+      "fixed": [
+        {
+          "step": 0,
+          "meanDark": 13.211881868131869,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5637560637560637,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0,
+          "maxTemporalDelta": 0,
+          "error": 0
+        },
+        {
+          "step": 1,
+          "meanDark": 13.211881868131869,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5637560637560637,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0,
+          "maxTemporalDelta": 0,
+          "error": 0
+        },
+        {
+          "step": 2,
+          "meanDark": 13.211881868131869,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5637560637560637,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0,
+          "maxTemporalDelta": 0,
+          "error": 0
+        },
+        {
+          "step": 3,
+          "meanDark": 13.211881868131869,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5637560637560637,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0,
+          "maxTemporalDelta": 0,
+          "error": 0
+        },
+        {
+          "step": 4,
+          "meanDark": 13.211881868131869,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5637560637560637,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0,
+          "maxTemporalDelta": 0,
+          "error": 0
+        },
+        {
+          "step": 5,
+          "meanDark": 13.211881868131869,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5637560637560637,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0,
+          "maxTemporalDelta": 0,
+          "error": 0
+        },
+        {
+          "step": 6,
+          "meanDark": 13.211881868131869,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5637560637560637,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0,
+          "maxTemporalDelta": 0,
+          "error": 0
+        },
+        {
+          "step": 7,
+          "meanDark": 13.211881868131869,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5637560637560637,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0,
+          "maxTemporalDelta": 0,
+          "error": 0
+        },
+        {
+          "step": 8,
+          "meanDark": 13.211881868131869,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5637560637560637,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0,
+          "maxTemporalDelta": 0,
+          "error": 0
+        },
+        {
+          "step": 9,
+          "meanDark": 13.211881868131869,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5637560637560637,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0,
+          "maxTemporalDelta": 0,
+          "error": 0
+        },
+        {
+          "step": 10,
+          "meanDark": 13.211881868131869,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5637560637560637,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0,
+          "maxTemporalDelta": 0,
+          "error": 0
+        },
+        {
+          "step": 11,
+          "meanDark": 13.211881868131869,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5637560637560637,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0,
+          "maxTemporalDelta": 0,
+          "error": 0
+        },
+        {
+          "step": 12,
+          "meanDark": 13.211881868131869,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5637560637560637,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0,
+          "maxTemporalDelta": 0,
+          "error": 0
+        }
+      ],
+      "center": [
+        {
+          "step": 0,
+          "meanDark": 13.211881868131869,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5637560637560637,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0,
+          "maxTemporalDelta": 0,
+          "error": 0
+        },
+        {
+          "step": 1,
+          "meanDark": 13.211881868131869,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5637560637560637,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0,
+          "maxTemporalDelta": 0,
+          "error": 0
+        },
+        {
+          "step": 2,
+          "meanDark": 13.211881868131869,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5637560637560637,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0,
+          "maxTemporalDelta": 0,
+          "error": 0
+        },
+        {
+          "step": 3,
+          "meanDark": 13.211881868131869,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5637560637560637,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0,
+          "maxTemporalDelta": 0,
+          "error": 0
+        },
+        {
+          "step": 4,
+          "meanDark": 13.211881868131869,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5637560637560637,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0,
+          "maxTemporalDelta": 0,
+          "error": 0
+        },
+        {
+          "step": 5,
+          "meanDark": 13.211881868131869,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5637560637560637,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0,
+          "maxTemporalDelta": 0,
+          "error": 0
+        },
+        {
+          "step": 6,
+          "meanDark": 13.211881868131869,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5637560637560637,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0,
+          "maxTemporalDelta": 0,
+          "error": 0
+        },
+        {
+          "step": 7,
+          "meanDark": 13.211881868131869,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5637560637560637,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0,
+          "maxTemporalDelta": 0,
+          "error": 0
+        },
+        {
+          "step": 8,
+          "meanDark": 13.211881868131869,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5637560637560637,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0,
+          "maxTemporalDelta": 0,
+          "error": 0
+        },
+        {
+          "step": 9,
+          "meanDark": 13.211881868131869,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5637560637560637,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0,
+          "maxTemporalDelta": 0,
+          "error": 0
+        },
+        {
+          "step": 10,
+          "meanDark": 13.211881868131869,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5637560637560637,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0,
+          "maxTemporalDelta": 0,
+          "error": 0
+        },
+        {
+          "step": 11,
+          "meanDark": 13.211881868131869,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5637560637560637,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0,
+          "maxTemporalDelta": 0,
+          "error": 0
+        },
+        {
+          "step": 12,
+          "meanDark": 13.211881868131869,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5637560637560637,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0,
+          "maxTemporalDelta": 0,
+          "error": 0
+        }
+      ],
+      "sun": [
+        {
+          "step": 0,
+          "meanDark": 13.211881868131869,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5637560637560637,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0,
+          "maxTemporalDelta": 0,
+          "error": 0
+        },
+        {
+          "step": 1,
+          "meanDark": 13.239697802197803,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5627165627165627,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0.047046703296703296,
+          "maxTemporalDelta": 1,
+          "error": 0
+        },
+        {
+          "step": 2,
+          "meanDark": 13.125343406593407,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5495495495495488,
+          "changedPixels": 32,
+          "meanTemporalDelta": 0.1816620879120879,
+          "maxTemporalDelta": 32,
+          "error": 0
+        },
+        {
+          "step": 3,
+          "meanDark": 13.167582417582418,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5544005544005546,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0.06009615384615385,
+          "maxTemporalDelta": 1,
+          "error": 0
+        },
+        {
+          "step": 4,
+          "meanDark": 13.198832417582418,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5595980595980599,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0.05254120879120879,
+          "maxTemporalDelta": 1,
+          "error": 0
+        },
+        {
+          "step": 5,
+          "meanDark": 13.093063186813186,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5512820512820518,
+          "changedPixels": 32,
+          "meanTemporalDelta": 0.19162087912087913,
+          "maxTemporalDelta": 29,
+          "error": 0
+        },
+        {
+          "step": 6,
+          "meanDark": 13.125343406593407,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5488565488565487,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0.04945054945054945,
+          "maxTemporalDelta": 1,
+          "error": 0
+        },
+        {
+          "step": 7,
+          "meanDark": 13.152815934065934,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5440055440055447,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0.04601648351648352,
+          "maxTemporalDelta": 2,
+          "error": 0
+        },
+        {
+          "step": 8,
+          "meanDark": 13.184409340659341,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.545045045045044,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0.04739010989010989,
+          "maxTemporalDelta": 1,
+          "error": 0
+        },
+        {
+          "step": 9,
+          "meanDark": 13.077953296703297,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5488565488565496,
+          "changedPixels": 31,
+          "meanTemporalDelta": 0.18681318681318682,
+          "maxTemporalDelta": 31,
+          "error": 0
+        },
+        {
+          "step": 10,
+          "meanDark": 13.108516483516484,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5502425502425499,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0.044986263736263736,
+          "maxTemporalDelta": 1,
+          "error": 0
+        },
+        {
+          "step": 11,
+          "meanDark": 13.140796703296703,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5495495495495502,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0.05425824175824176,
+          "maxTemporalDelta": 2,
+          "error": 0
+        },
+        {
+          "step": 12,
+          "meanDark": 13.173763736263735,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5471240471240464,
+          "changedPixels": 1,
+          "meanTemporalDelta": 0.05013736263736264,
+          "maxTemporalDelta": 3,
+          "error": 0
+        }
+      ]
+    },
+    "both": {
+      "fixed": [
+        {
+          "step": 0,
+          "meanDark": 13.211881868131869,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5637560637560637,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0,
+          "maxTemporalDelta": 0,
+          "error": 0
+        },
+        {
+          "step": 1,
+          "meanDark": 13.211881868131869,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5637560637560637,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0,
+          "maxTemporalDelta": 0,
+          "error": 0
+        },
+        {
+          "step": 2,
+          "meanDark": 13.211881868131869,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5637560637560637,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0,
+          "maxTemporalDelta": 0,
+          "error": 0
+        },
+        {
+          "step": 3,
+          "meanDark": 13.211881868131869,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5637560637560637,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0,
+          "maxTemporalDelta": 0,
+          "error": 0
+        },
+        {
+          "step": 4,
+          "meanDark": 13.211881868131869,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5637560637560637,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0,
+          "maxTemporalDelta": 0,
+          "error": 0
+        },
+        {
+          "step": 5,
+          "meanDark": 13.211881868131869,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5637560637560637,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0,
+          "maxTemporalDelta": 0,
+          "error": 0
+        },
+        {
+          "step": 6,
+          "meanDark": 13.211881868131869,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5637560637560637,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0,
+          "maxTemporalDelta": 0,
+          "error": 0
+        },
+        {
+          "step": 7,
+          "meanDark": 13.211881868131869,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5637560637560637,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0,
+          "maxTemporalDelta": 0,
+          "error": 0
+        },
+        {
+          "step": 8,
+          "meanDark": 13.211881868131869,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5637560637560637,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0,
+          "maxTemporalDelta": 0,
+          "error": 0
+        },
+        {
+          "step": 9,
+          "meanDark": 13.211881868131869,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5637560637560637,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0,
+          "maxTemporalDelta": 0,
+          "error": 0
+        },
+        {
+          "step": 10,
+          "meanDark": 13.211881868131869,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5637560637560637,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0,
+          "maxTemporalDelta": 0,
+          "error": 0
+        },
+        {
+          "step": 11,
+          "meanDark": 13.211881868131869,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5637560637560637,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0,
+          "maxTemporalDelta": 0,
+          "error": 0
+        },
+        {
+          "step": 12,
+          "meanDark": 13.211881868131869,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5637560637560637,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0,
+          "maxTemporalDelta": 0,
+          "error": 0
+        }
+      ],
+      "center": [
+        {
+          "step": 0,
+          "meanDark": 13.211881868131869,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5637560637560637,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0,
+          "maxTemporalDelta": 0,
+          "error": 0
+        },
+        {
+          "step": 1,
+          "meanDark": 13.211881868131869,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5637560637560637,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0,
+          "maxTemporalDelta": 0,
+          "error": 0
+        },
+        {
+          "step": 2,
+          "meanDark": 13.211881868131869,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5637560637560637,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0,
+          "maxTemporalDelta": 0,
+          "error": 0
+        },
+        {
+          "step": 3,
+          "meanDark": 13.211881868131869,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5637560637560637,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0,
+          "maxTemporalDelta": 0,
+          "error": 0
+        },
+        {
+          "step": 4,
+          "meanDark": 13.211881868131869,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5637560637560637,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0,
+          "maxTemporalDelta": 0,
+          "error": 0
+        },
+        {
+          "step": 5,
+          "meanDark": 13.211881868131869,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5637560637560637,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0,
+          "maxTemporalDelta": 0,
+          "error": 0
+        },
+        {
+          "step": 6,
+          "meanDark": 13.211881868131869,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5637560637560637,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0,
+          "maxTemporalDelta": 0,
+          "error": 0
+        },
+        {
+          "step": 7,
+          "meanDark": 13.211881868131869,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5637560637560637,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0,
+          "maxTemporalDelta": 0,
+          "error": 0
+        },
+        {
+          "step": 8,
+          "meanDark": 13.211881868131869,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5637560637560637,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0,
+          "maxTemporalDelta": 0,
+          "error": 0
+        },
+        {
+          "step": 9,
+          "meanDark": 13.211881868131869,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5637560637560637,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0,
+          "maxTemporalDelta": 0,
+          "error": 0
+        },
+        {
+          "step": 10,
+          "meanDark": 13.211881868131869,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5637560637560637,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0,
+          "maxTemporalDelta": 0,
+          "error": 0
+        },
+        {
+          "step": 11,
+          "meanDark": 13.211881868131869,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5637560637560637,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0,
+          "maxTemporalDelta": 0,
+          "error": 0
+        },
+        {
+          "step": 12,
+          "meanDark": 13.211881868131869,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5637560637560637,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0,
+          "maxTemporalDelta": 0,
+          "error": 0
+        }
+      ],
+      "sun": [
+        {
+          "step": 0,
+          "meanDark": 13.211881868131869,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5637560637560637,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0,
+          "maxTemporalDelta": 0,
+          "error": 0
+        },
+        {
+          "step": 1,
+          "meanDark": 13.239697802197803,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5627165627165627,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0.047046703296703296,
+          "maxTemporalDelta": 1,
+          "error": 0
+        },
+        {
+          "step": 2,
+          "meanDark": 13.125343406593407,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5495495495495488,
+          "changedPixels": 32,
+          "meanTemporalDelta": 0.1816620879120879,
+          "maxTemporalDelta": 32,
+          "error": 0
+        },
+        {
+          "step": 3,
+          "meanDark": 13.167582417582418,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5544005544005546,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0.06009615384615385,
+          "maxTemporalDelta": 1,
+          "error": 0
+        },
+        {
+          "step": 4,
+          "meanDark": 13.198832417582418,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5595980595980599,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0.05254120879120879,
+          "maxTemporalDelta": 1,
+          "error": 0
+        },
+        {
+          "step": 5,
+          "meanDark": 13.093063186813186,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5512820512820518,
+          "changedPixels": 32,
+          "meanTemporalDelta": 0.19162087912087913,
+          "maxTemporalDelta": 29,
+          "error": 0
+        },
+        {
+          "step": 6,
+          "meanDark": 13.125343406593407,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5488565488565487,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0.04945054945054945,
+          "maxTemporalDelta": 1,
+          "error": 0
+        },
+        {
+          "step": 7,
+          "meanDark": 13.152815934065934,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5440055440055447,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0.04601648351648352,
+          "maxTemporalDelta": 2,
+          "error": 0
+        },
+        {
+          "step": 8,
+          "meanDark": 13.184409340659341,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.545045045045044,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0.04739010989010989,
+          "maxTemporalDelta": 1,
+          "error": 0
+        },
+        {
+          "step": 9,
+          "meanDark": 13.077953296703297,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5488565488565496,
+          "changedPixels": 31,
+          "meanTemporalDelta": 0.18681318681318682,
+          "maxTemporalDelta": 31,
+          "error": 0
+        },
+        {
+          "step": 10,
+          "meanDark": 13.108516483516484,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5502425502425499,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0.044986263736263736,
+          "maxTemporalDelta": 1,
+          "error": 0
+        },
+        {
+          "step": 11,
+          "meanDark": 13.14010989010989,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5495495495495502,
+          "changedPixels": 0,
+          "meanTemporalDelta": 0.05357142857142857,
+          "maxTemporalDelta": 1,
+          "error": 0
+        },
+        {
+          "step": 12,
+          "meanDark": 13.173763736263735,
+          "maxDark": 55,
+          "meanColumnCurvature": 1.5471240471240464,
+          "changedPixels": 1,
+          "meanTemporalDelta": 0.050824175824175824,
+          "maxTemporalDelta": 3,
+          "error": 0
+        }
+      ]
+    }
+  }
+}

@@ -40,7 +40,7 @@
   const hz = n => 440 * Math.pow(2, (n - 69) / 12);
 
   function creer() {
-    let ctx = null, pret = false, enPause = false, coupFin = 0;
+    let ctx = null, pret = false, enPause = false, coupFin = 0, prochainKlaxon = 0;
     let musiqueOn = false, minuteur = null, pas = 0, prochain = 0, busMus = null, echo = null;
     const vols = { general: 1, moteur: 1, effets: 1 };
     let maitre = null, busMot = null, busEff = null, bruit = null, m = null, pneus = null, vib = null, herbe = null;
@@ -237,11 +237,31 @@
       ponctuelle(s, [ph, g], t, 0.45);
     }
 
+    // Short, spatial dual-tone horn. Traffic supplies distance attenuation;
+    // the local limiter keeps overlapping queues from creating a wall of sound.
+    function klaxon(t, p) {
+      const niveau = clamp(Number.isFinite(p.level) ? p.level : 0, 0, 1);
+      if (enPause || niveau < .01 || t < prochainKlaxon) return;
+      prochainKlaxon = t + .18;
+      const duree = .24, g = gain(0), pb = filtre('lowpass', 1350, .7), pan = ctx.createStereoPanner();
+      pan.pan.value = clamp(Number.isFinite(p.pan) ? p.pan : 0, -1, 1);
+      g.gain.setValueAtTime(.0001, t);
+      g.gain.linearRampToValueAtTime(.035 * niveau, t + .012);
+      g.gain.setValueAtTime(.035 * niveau, t + .17);
+      g.gain.exponentialRampToValueAtTime(.0001, t + duree);
+      pb.connect(g).connect(pan).connect(busEff);
+      const bas = osc('sawtooth', 400), haut = osc('triangle', 500);
+      bas.connect(pb); haut.connect(pb);
+      ponctuelle(bas, [pb, g, pan], t, duree);
+      ponctuelle(haut, [], t, duree);
+    }
+
     function evenement(nom, p) {
       if (!pret) return;
       p = p || {};
       const t = ctx.currentTime;
       switch (nom) {
+        case 'klaxon': klaxon(t, p); break;
         case 'rapport': coupureMoteur(t); detonation(t, p.haut ? 0.7 : 0.5); break;
         case 'rupteur': coupureMoteur(t); detonation(t, 0.8); break;
         case 'choc': choc(t, clamp((p.force ?? 8) / 15, 0.15, 1)); break;           // vitesse perdue, m/s

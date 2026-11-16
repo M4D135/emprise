@@ -1,0 +1,146 @@
+{
+  "htmlSha256": "33a85ccbbd86252e01a119327485837528f984294415a50d540c446d31f8539f",
+  "method": "Four real scenes created sequentially and detached; explicit GC only at empty title; diagnostic retention, not gameplay timing.",
+  "rows": [
+    {
+      "cycle": 0,
+      "phase": "demo",
+      "heap": {
+        "usedSize": 941019088,
+        "totalSize": 1017217024,
+        "embedderHeapUsedSize": 3629016,
+        "backingStorageSize": 159958469
+      },
+      "stats": {
+        "draws": 295,
+        "total": 308272,
+        "time": 0.39166666666666705
+      }
+    },
+    {
+      "cycle": 0,
+      "phase": "empty-title-before-GC",
+      "heap": {
+        "usedSize": 942134916,
+        "totalSize": 1017217024,
+        "embedderHeapUsedSize": 3540232,
+        "backingStorageSize": 159958469
+      }
+    },
+    {
+      "cycle": 0,
+      "phase": "empty-title-after-GC",
+      "heap": {
+        "usedSize": 184560936,
+        "totalSize": 191184896,
+        "embedderHeapUsedSize": 1512984,
+        "backingStorageSize": 61209841
+      }
+    },
+    {
+      "cycle": 1,
+      "phase": "demo",
+      "heap": {
+        "usedSize": 937642508,
+        "totalSize": 1005862912,
+        "embedderHeapUsedSize": 3691616,
+        "backingStorageSize": 159695757
+      },
+      "stats": {
+        "draws": 322,
+        "total": 308272,
+        "time": 0.4000000000000004
+      }
+    },
+    {
+      "cycle": 1,
+      "phase": "empty-title-before-GC",
+      "heap": {
+        "usedSize": 938767844,
+        "totalSize": 1005862912,
+        "embedderHeapUsedSize": 3659304,
+        "backingStorageSize": 159695757
+      }
+    },
+    {
+      "cycle": 1,
+      "phase": "empty-title-after-GC",
+      "heap": {
+        "usedSize": 184874808,
+        "totalSize": 188039168,
+        "embedderHeapUsedSize": 1580296,
+        "backingStorageSize": 61209888
+      }
+    },
+    {
+      "cycle": 2,
+      "phase": "demo",
+      "heap": {
+        "usedSize": 960410276,
+        "totalSize": 1027407872,
+        "embedderHeapUsedSize": 3508024,
+        "backingStorageSize": 160139317
+      },
+      "stats": {
+        "draws": 348,
+        "total": 308272,
+        "time": 0.39166666666666705
+      }
+    },
+    {
+      "cycle": 2,
+      "phase": "empty-title-before-GC",
+      "heap": {
+        "usedSize": 961530716,
+        "totalSize": 1027407872,
+        "embedderHeapUsedSize": 3396208,
+        "backingStorageSize": 160139317
+      }
+    },
+    {
+      "cycle": 2,
+      "phase": "empty-title-after-GC",
+      "heap": {
+        "usedSize": 185121988,
+        "totalSize": 188825600,
+        "embedderHeapUsedSize": 1508232,
+        "backingStorageSize": 61213770
+      }
+    },
+    {
+      "cycle": 3,
+      "phase": "demo",
+      "heap": {
+        "usedSize": 957411900,
+        "totalSize": 1028734976,
+        "embedderHeapUsedSize": 3545328,
+        "backingStorageSize": 160135519
+      },
+      "stats": {
+        "draws": 375,
+        "total": 308272,
+        "time": 0.40833333333333377
+      }
+    },
+    {
+      "cycle": 3,
+      "phase": "empty-title-before-GC",
+      "heap": {
+        "usedSize": 958530892,
+        "totalSize": 1028734976,
+        "embedderHeapUsedSize": 3396056,
+        "backingStorageSize": 160135519
+      }
+    },
+    {
+      "cycle": 3,
+      "phase": "empty-title-after-GC",
+      "heap": {
+        "usedSize": 240537664,
+        "totalSize": 244645888,
+        "embedderHeapUsedSize": 1556472,
+        "backingStorageSize": 61213812
+      }
+    }
+  ]
+}

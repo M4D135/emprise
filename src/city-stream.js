@@ -16,10 +16,33 @@ function terrainTriangle(out,A,B,C,mat,color,extra={}){const es=[[A,B,C],[B,C,A]
 }
 function polygonMesh(out,rings,y,mat,color,extra={}){const flat=[],holes=[];for(let i=0;i<rings.length;i++){if(i)holes.push(flat.length/2);for(const p of rings[i])flat.push(p[0],p[1]);}if(flat.length<6)return;const indices=earcut(flat,holes,2);for(let i=0;i<indices.length;i+=3){const a=indices[i]*2,b=indices[i+1]*2,c=indices[i+2]*2;if(typeof y==='function')terrainTriangle(out,[flat[a],y(flat[a],flat[a+1]),flat[a+1]],[flat[b],y(flat[b],flat[b+1]),flat[b+1]],[flat[c],y(flat[c],flat[c+1]),flat[c+1]],mat,color,extra);else rightTriangle(out,[flat[a],flat[a+1]],[flat[b],flat[b+1]],[flat[c],flat[c+1]],y,mat,color,extra);}}
 function create(data=R.cityData,{groundAt=()=>.08,budgetMs=3,maxBuildingsPerTick=64,saved=null,excludeBuilding=()=>false}={}){
- if(!data)throw Error('Missing Marseille vector data');const size=data.chunkSize||512,loaded=new Map(),decoded=new Map(),indices=new Map(),wallCache=new WeakMap(),roomCache=new WeakMap(),breaches=new Map(),brokenLamps=new Set(),lampHits=new Map(),lampIndex=new Map(),known=new Set(Object.keys(data.tiles)),stats={residentChunks:0,queuedChunks:0,pendingBuildings:0,lastBuildMs:0,totalBuilt:0,instances:0},B=data.bounds,bounds=Array.isArray(B)?{minX:B[0],minZ:B[1],maxX:B[2],maxZ:B[3]}:{...B};let geometry=[],revision=0,centre='',wanted=new Set(),queue=[],job=null,lastFocus={x:0,z:0};
+ if(!data)throw Error('Missing Seille vector data');const size=data.chunkSize||512,loaded=new Map(),decoded=new Map(),indices=new Map(),wallCache=new WeakMap(),roomCache=new WeakMap(),breaches=new Map(),brokenLamps=new Set(),lampHits=new Map(),lampIndex=new Map(),known=new Set(Object.keys(data.tiles)),stats={residentChunks:0,queuedChunks:0,pendingBuildings:0,lastBuildMs:0,totalBuilt:0,instances:0},B=data.bounds,bounds=Array.isArray(B)?{minX:B[0],minZ:B[1],maxX:B[2],maxZ:B[3]}:{...B};let geometry=[],revision=0,centre='',wanted=new Set(),queue=[],job=null,lastFocus={x:0,z:0};
+ // Published chunk arrays are immutable: edits replace c.meshes before adding
+ // their replacement geometry. Weak snapshot metadata lets the renderer catch
+ // up after several publications without retaining an unbounded edit history.
+ const geometrySnapshots=new WeakMap();geometrySnapshots.set(geometry,[]);
  const stamp=()=>globalThis.performance?.now?.()??Date.now(),tileKey=(x,z)=>Math.floor(x/size)+','+Math.floor(z/size),fetch=k=>{if(!known.has(k))return null;if(!decoded.has(k))decoded.set(k,data.decode?data.decode(k):data.tiles[k]);if(decoded.size>32)for(const old of decoded.keys())if(old!==k&&!wanted.has(old)&&!loaded.has(old)&&job?.key!==old){decoded.delete(old);indices.delete(old);data.release?.(old);break;}return decoded.get(k);};
  const localKeys=(x,z,r=0)=>{const keys=[];for(let iz=Math.floor((z-r)/size)-1;iz<=Math.floor((z+r)/size)+1;iz++)for(let ix=Math.floor((x-r)/size)-1;ix<=Math.floor((x+r)/size)+1;ix++)keys.push(ix+','+iz);return keys;};
- function refresh(){geometry=[];lampIndex.clear();for(const c of loaded.values()){for(const m of c.meshes)geometry.push(m);for(const l of c.lamps||[])if(!brokenLamps.has(l.id)){const key=Math.floor(l.x/64)+','+Math.floor(l.z/64);if(!lampIndex.has(key))lampIndex.set(key,[]);if(!lampIndex.get(key).some(q=>q.id===l.id))lampIndex.get(key).push(l);}}stats.residentChunks=loaded.size;stats.instances=geometry.length;revision++;}
+ function refresh(){const rows=[],arrays=[];let start=0;lampIndex.clear();for(const c of loaded.values()){rows.push({key:c.key,meshes:c.meshes,start,count:c.meshes.length});arrays.push(c.meshes);start+=c.meshes.length;for(const l of c.lamps||[])if(!brokenLamps.has(l.id)){const key=Math.floor(l.x/64)+','+Math.floor(l.z/64);if(!lampIndex.has(key))lampIndex.set(key,[]);if(!lampIndex.get(key).some(q=>q.id===l.id))lampIndex.get(key).push(l);}}geometry=[].concat(...arrays);geometrySnapshots.set(geometry,rows);stats.residentChunks=loaded.size;stats.instances=geometry.length;revision++;}
+ function takeGeometryDelta(before){
+  const old=geometrySnapshots.get(before),next=geometrySnapshots.get(geometry);if(!old)return null;
+  const splices=[],positions=new Map(old.map((q,i)=>[q.key,i]));let a=0,b=0;
+  const oldStart=i=>i<old.length?old[i].start:before.length,newStart=i=>i<next.length?next[i].start:geometry.length;
+  const range=(start,end,from,to)=>{
+   // Changed chunks may retain a prefix/suffix (e.g. a broken lamp). Preserve
+   // those identities; complicated internal reorders safely use renderer fallback.
+   while(start<end&&from<to&&before[start]===geometry[from]){start++;from++;}
+   while(end>start&&to>from&&before[end-1]===geometry[to-1]){end--;to--;}
+   if(start!==end||from!==to)splices.push({start,deleteCount:end-start,items:geometry.slice(from,to)});
+  };
+  for(let j=0;j<next.length;j++){const i=positions.get(next[j].key);if(i===undefined||i<a)continue;
+   range(oldStart(a),oldStart(i),newStart(b),newStart(j));
+   if(old[i].meshes!==next[j].meshes||old[i].count!==next[j].count)range(old[i].start,old[i].start+old[i].count,next[j].start,next[j].start+next[j].count);
+   a=i+1;b=j+1;
+  }
+  range(oldStart(a),before.length,newStart(b),geometry.length);
+  return {before,after:geometry,full:false,splices};
+ }
  function box(out,p,s,cap,mat,color,extra={}){if(s.some(v=>!Number.isFinite(v)||v<=0))return;out.push({shape:'box',p,s,r:[0,-cap,0],mat,color,outdoor:true,streamed:true,...extra});}
  function start(k){const t=fetch(k),[ix,iz]=k.split(',').map(Number);return t?{key:k,t,meshes:[],indexKeys:localKeys((ix+.5)*size,(iz+.5)*size).filter(id=>known.has(id)),indexCursor:0,index:0,greenIndex:0,waterIndex:0,roadIndex:0,roadSegment:1,roadSub:0,roadPlan:null,lampQueue:[],lampIndex:0,lamps:[],phase:0}:null;}
  function advance(c,focus){
@@ -104,7 +127,7 @@ function create(data=R.cityData,{groundAt=()=>.08,budgetMs=3,maxBuildingsPerTick
  function roadAt(x,z){const idx=indexed(tileKey(x,z));if(!idx)return null;let best=null,bestD=Infinity;for(const {road:r,a,b,width} of idx.roads.get(Math.floor(x/64)+','+Math.floor(z/64))||[]){const dx=b[0]-a[0],dz=b[1]-a[1],len=dx*dx+dz*dz,t=len?Math.max(0,Math.min(1,((x-a[0])*dx+(z-a[1])*dz)/len)):0,d=Math.hypot(x-a[0]-dx*t,z-a[1]-dz*t);if(d<width/2&&d<bestD){best=r;bestD=d;}}return best;}
 
  restore(saved);
- return {tick,candidates,blocked,water,roadAt,bounds,stats,damage,save,restore,roofHeight,streetLights,get geometry(){return geometry;},get revision(){return revision;},get pending(){return !!job||queue.length>0;},surface(x,z){return roadAt(x,z)?{mu:1.15,type:'piste',pente:0,devers:0}:{mu:.85,type:'pave',pente:0,devers:0};}};
+ return {tick,candidates,blocked,water,roadAt,bounds,stats,damage,save,restore,roofHeight,streetLights,takeGeometryDelta,get geometry(){return geometry;},get revision(){return revision;},get pending(){return !!job||queue.length>0;},surface(x,z){return roadAt(x,z)?{mu:1.15,type:'piste',pente:0,devers:0}:{mu:.85,type:'pave',pente:0,devers:0};}};
 }
 R.cityStream={create,polygonMesh,rightTriangle};
 

@@ -1,0 +1,21 @@
+{
+  "referenceCommitForPreviousSelection": "781230ad4032ffa41ad5f477a7a3ce8338669a95",
+  "fixtureSha256": "65a64016e4e9f4a36fa012c6e2749b30c41b177c2c7514804815cfc4dc85c6f3",
+  "files": {
+    "light-render.json": "e87234ebc3c9d4b01ed96dcc8d86a633b2056973c69399a39dc4f5e026a46eae",
+    "lights-before-0.png": "f1eaa03291cbe25795aa015856919f22c0dc3d08289e4ff41edbccad2e1750c7",
+    "lights-before-45.png": "ec2ef922859fa16165f6c2775a00c43481db8ec2472c0c64f9a7c0b7aa0c5ce8",
+    "lights-after-0.png": "6339b7814bdc68d7d6cc91514ce6ac83a953f62503e08f49f0ff4f2d2f5a4d36",
+    "lights-after-45.png": "ec2ef922859fa16165f6c2775a00c43481db8ec2472c0c64f9a7c0b7aa0c5ce8",
+    "fixture.js": "65a64016e4e9f4a36fa012c6e2749b30c41b177c2c7514804815cfc4dc85c6f3",
+    "previous-selection.js": "878d061c53644722068885465028f2986a98fcd8fae3d4388f4d6bb7bb905850",
+    "solar-temporal.json": "cfa29499db974a45184f8fc1d6f5d02f318ec10099609f2bbbdc5ad8ec7fb4cd",
+    "solar-fixture.js": "f9b00fafaac71369af2bbe7aa8e58e6297ec6f44ca0385768ce41499ba3f3356",
+    "trim.json": "c4b8726f4db5f72b3a2f23a0668168ab2cbe7277ec229aaf5d1582810125ca95",
+    "trim-base.png": "5ad073be9d3b1b28496dd810d8397e1d9bea4db21315dd0151a4c9a304fd175b",
+    "trim-receiver.png": "a33210703c1059cd5aa2361f993aa994a244d18a2c94a5f501dc036b08217d71",
+    "trim-face.png": "1269fc5f1f8dbcb561ef2e48e70052abb15d97235870540c900a337032d8b9a8",
+    "trim-both.png": "1269fc5f1f8dbcb561ef2e48e70052abb15d97235870540c900a337032d8b9a8",
+    "trim-fixture.js": "f4fa38e220aaf1b3b1dc5adf8c8e452e8f99e953e0a17ea98f8993b4caa3935a"
+  }
+}

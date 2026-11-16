@@ -1,8 +1,8 @@
-# FERRO 0.3.0 — moteur procédural de référence
+# FERRO 0.3.2 — moteur procédural de référence
 
 Décision de David, 16 novembre 2026 : moteur commun prioritaire, EMPRISE pilote, éditeur secondaire. Aucun plafond de taille des sources, du moteur ou des builds. La taille est mesurée ; elle ne décide pas des fonctionnalités.
 
-La source de référence est `EMPRISE/src/ferro`. Les 32 modules sont distribués à EMPRISE, METAL, BITUME et Point de rupture avec les mêmes octets. Chaque jeu possède `FERRO.lock.json` ; son build vérifie les SHA256 et refuse une copie divergente. Les réglages, règles et styles propres au jeu restent dans des adaptateurs.
+La source de référence est `src/ferro` du dépôt [M4D135/FERRO](https://github.com/M4D135/FERRO). Elle a été extraite du pilote EMPRISE sans changer les 32 modules qualifiés. Les 32 modules sont distribués à EMPRISE, METAL, BITUME et Point de rupture avec les mêmes octets. Chaque jeu possède `FERRO.lock.json` ; son build vérifie les SHA256 et refuse une copie divergente. Les réglages, règles et styles propres au jeu restent dans des adaptateurs.
 
 ## Apports réunis
 
@@ -30,6 +30,7 @@ Les modules optionnels sont disponibles dans les quatre dépôts ; les builds n'
 Depuis le dépôt de référence, ou depuis l'archive décompressée :
 
 ```sh
+python3 tools/install-ferro.py emprise /chemin/vers/EMPRISE
 python3 tools/install-ferro.py metal /chemin/vers/METAL
 python3 tools/install-ferro.py bitume /chemin/vers/bitume
 python3 tools/install-ferro.py point-de-rupture /chemin/vers/point-de-rupture/Jeu
@@ -37,6 +38,12 @@ python3 tools/check-ferro-lock.py /chemin/vers/le/jeu
 ```
 
 Pour corriger le moteur : modifier la référence, qualifier le pilote, changer la version, reconstruire le paquet, réinstaller les modules et qualifier les jeux concernés. Une modification propre à un jeu passe par son adaptateur, pas par une copie locale du moteur.
+
+La version 0.3.1 ajoute l’option `preferWebGL2OnSafari`, opt-in pour le choix automatique. Les scènes `revisionedMeshes` évitent les copies de contrôle réservées aux mutations implicites. `setWorld([])` libère les références à l’ancien monde sans supprimer les programmes compilés.
+
+## Éclairage transitoire stable
+
+Depuis 0.3.2, une source transitoire peut définir `selectionPower` comme puissance nominale de sélection. Sa puissance instantanée `power` reste celle du rendu, y compris zéro : un gyrophare ne remplace plus périodiquement un lampadaire voisin. Le budget de lampes et les shaders restent identiques. Sans cette propriété, la sélection historique est inchangée. Le helper est partagé par WebGL2 et WebGPU ; `tests/ferro/renderer-lights.test.mjs` couvre les phases, limites et compatibilité.
 
 ## API et profils
 
@@ -57,10 +64,10 @@ La sélection automatique choisit WebGL2 lorsqu'un profil exige ces fonctions av
 
 ## Atelier
 
-L'atelier 0.1 utilise le moteur 0.3.0 : objets, transformations, matériaux, répétitions, annuler/rétablir, visite libre, recettes JSON et export JavaScript déterministe. Il est publié sur `https://ferro.estrasse.fr/`, avec le paquet du moteur. Le moteur constitue la référence commune des quatre jeux.
+L'atelier 0.1 utilise le moteur 0.3.2 : objets, transformations, matériaux, répétitions, annuler/rétablir, visite libre, recettes JSON et export JavaScript déterministe. Il est publié sur `https://ferro.estrasse.fr/`, avec le paquet du moteur. Le moteur constitue la référence commune des quatre jeux.
 
 ## Qualification et limite connue
 
-Les preuves de cette version sont conservées dans `docs/ferro-reference/` : tests du noyau, suites des jeux, pages réelles dans Chrome, captures, récupération WebGPU et contrôles des empreintes. Les essais natifs ont été faits sur le Mac ; ils ne représentent pas une mesure universelle de performances ni une validation de tous les appareils.
+Les preuves initiales sont conservées dans `docs/ferro-reference/`. Les contrôles de 0.3.1 sont dans `docs/performance-031/` ; ceux du correctif d’éclairage 0.3.2 dans `docs/lighting-032/`, avec ses limites et ses captures. Les essais natifs ont été faits sur le Mac ; ils ne représentent pas une mesure universelle de performances ni une validation de tous les appareils.
 
 Un test physique historique reste marqué TODO : un cube incliné glisse après son basculement au-delà du seuil de déplacement attendu. Il est conservé et signalé ; ce comportement du solveur n'est pas présenté comme corrigé. Les tests de fonctionnement et de compatibilité exigés pour la propagation doivent passer sans échec hors de ce TODO explicite.

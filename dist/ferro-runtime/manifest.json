@@ -1,6 +1,6 @@
 {
   "format": "ferro-engine",
-  "version": "0.3.0",
+  "version": "0.3.2",
   "apiVersion": 1,
   "pilot": "emprise",
   "status": "reference",
@@ -153,9 +153,14 @@
     "point-de-rupture": "5ba44c9d2f9c667eac687b9d0fa2f170606ce2f8"
   },
   "reference": {
-    "source": "EMPRISE/src/ferro",
+    "source": "M4D135/FERRO:src/ferro",
     "distribution": "versioned modules with SHA256 lock",
-    "policy": "game rules and procedural styles are injected; engine sources must not diverge"
+    "policy": "game rules and procedural styles are injected; engine sources must not diverge",
+    "repository": "https://github.com/M4D135/FERRO",
+    "extractedFrom": {
+      "repository": "https://github.com/M4D135/emprise",
+      "commit": "0a68dbe2b907e6795c3c8fe2f7701fa9d59d191c"
+    }
   },
   "sizePolicy": {
     "limitBytes": null,
@@ -179,8 +184,8 @@
       "id": "render",
       "path": "src/ferro/renderer.js",
       "packagePath": "modules/renderer.js",
-      "bytes": 207498,
-      "sha256": "5abc2a4026b8a93519f45246cdb141550f50f34f0eb70884442bdf16cdec5c75"
+      "bytes": 209041,
+      "sha256": "074ad6d98542c7f1fff95625d0d49a748ba65f6f89cdae35ab694708bf157748"
     },
     {
       "id": "webgpu-shaders",
@@ -193,15 +198,15 @@
       "id": "webgpu",
       "path": "src/ferro/webgpu-renderer.js",
       "packagePath": "modules/webgpu-renderer.js",
-      "bytes": 49322,
-      "sha256": "0c654b0f3eefec30dfe77bc4e9f37eac33be1c3314b2713d40c3d9d3178792ff"
+      "bytes": 49588,
+      "sha256": "5416639acac871ef042f953e13e199a98ed07f441023c4bcf7d71d5de2522529"
     },
     {
       "id": "backends",
       "path": "src/ferro/backends.js",
       "packagePath": "modules/backends.js",
-      "bytes": 3900,
-      "sha256": "947f6b562e773acaf0d3ad59e1daea5a248185bd5c10b0d918a9e372e5f8dfb6"
+      "bytes": 4652,
+      "sha256": "769e607b8349aa47bae32a8ef9f4747267119de49e7b057c874294049da9ccea"
     },
     {
       "id": "geometry",
@@ -390,31 +395,31 @@
       "path": "src/ferro/engine.js",
       "packagePath": "modules/engine.js",
       "bytes": 1871,
-      "sha256": "10a4fc260276efb2905fe52427f5547b8238408ab9529386b6e15567b9cd7dcf"
+      "sha256": "60cd8cafa388da240aa37ee438888fe1886074801bf16596f3a434f31d59c5d0"
     },
     {
       "id": "ferro-runtime.js",
       "packagePath": "ferro-runtime.js",
-      "bytes": 1076773,
-      "sha256": "ed70dbef89c2838c2bc1ee2894a951bad4411aee35004628ddff77bf40062cc9"
+      "bytes": 1079334,
+      "sha256": "157b4ea72e2e4d5d2d3e1012a5069899b7716c3a66d35e551791345ccaa1a2db"
     },
     {
       "id": "ferro-music.js",
       "packagePath": "ferro-music.js",
       "bytes": 72065,
-      "sha256": "3cb3efbf66654fd93453d5e6947ee188a9118d4317f5bc5fd94921e5720175cb"
+      "sha256": "00b282e8e963617377ee86ff9ddeec39fbe80ada3877c7636c5cecefeb8d4a6d"
     },
     {
       "id": "ferro-simulation.js",
       "packagePath": "ferro-simulation.js",
       "bytes": 65456,
-      "sha256": "9c9221802a19526b4d9448c8a98e37fe9b09a5644bbe6f6cb5f81079c98c0339"
+      "sha256": "ada2a661fb580ec1947f115c68bbe2f168f989121c8e90f454e0bafd06ef8187"
     },
     {
       "id": "ferro-render-extras.js",
       "packagePath": "ferro-render-extras.js",
       "bytes": 40653,
-      "sha256": "d54f0583ec3463efc850efb4662466e3df4aa7aaae90a99888fb53ae5bab0c71"
+      "sha256": "cf7ee3ba2f25ec6f51ee8e3c538ed3cdb156a3cfad812b18a7f7e960df2180fb"
     },
     {
       "id": "check-ferro-lock.py",
@@ -427,8 +432,8 @@
       "id": "install-ferro.py",
       "path": "tools/install-ferro.py",
       "packagePath": "tools/install-ferro.py",
-      "bytes": 2177,
-      "sha256": "8d2a185a4f0db556211a15226b719077ec459c7f7aa38ce73cd5c0130946918b"
+      "bytes": 2216,
+      "sha256": "adf9ae19e35008c31137067666ed705cdd5c893f0d0638d6eccc6a7c9d7c9ee6"
     }
   ]
 }

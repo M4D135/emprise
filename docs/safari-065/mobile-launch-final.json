@@ -1,0 +1,743 @@
+{
+  "status": "passed",
+  "html": "/Users/david/Documents/Codex/2026-11-14/files-pasted-by-the-user-cr/outputs/rade/dist/index.html",
+  "htmlSha256": "0ead4a29b00eb2cbbb297c92330332f4ded9f071aa950d04f50f28a355fb4a90",
+  "protocol": {
+    "viewport": [
+      430,
+      932
+    ],
+    "deviceScaleFactor": 3,
+    "touchPoints": 5,
+    "requestedBackend": "auto",
+    "userAgent": "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1",
+    "emulatedIOSVersion": "18.0",
+    "freshProfile": true,
+    "testMode": false,
+    "controllerOverride": false,
+    "qualityOverrides": false
+  },
+  "limitations": [
+    "Chromium on this Mac with an iPhone Safari user-agent and mobile viewport; not Safari/WebKit or a physical iPhone 15 Pro Max.",
+    "The iOS 18.0 user-agent is an explicit representative fixture, not the version installed on the reported device.",
+    "CDP heap/DOM samples exclude GPU/driver memory, process RSS and iOS memory limits; no forced garbage collection.",
+    "The ordinary renderer may cap its internal pixel ratio below emulated DPR 3; actual dimensions are reported without a test quality override.",
+    "This short launch/input regression does not establish sustained physical-device performance or exclude an iOS memory termination."
+  ],
+  "checks": [
+    "Production title is usable with zero sessions, crowds, renderers and draws; touch UI at 430×932, DPR 3",
+    "Automatic demo begins after five seconds; a real touch returns to a title without a resident session or retained world, preserving storage",
+    "Touching Jouer loads the explicit fresh-save baseline, preserves all factory-normalized state before the first play tick, and writes its first real save; normal effects and MSAA remain enabled",
+    "Two real CDP fingers move and fire concurrently; releasing both stops fire/movement ownership while simulation continues",
+    "Touch pause saves the current money, ammunition and position; touch resume remains playable"
+  ],
+  "memory": [
+    {
+      "phase": "initial-title",
+      "heap": {
+        "usedSize": 146733700,
+        "totalSize": 193200128,
+        "embedderHeapUsedSize": 1445408,
+        "backingStorageSize": 29670775
+      },
+      "dom": {
+        "documents": 1,
+        "nodes": 492,
+        "jsEventListeners": 90
+      }
+    },
+    {
+      "phase": "automatic-demo",
+      "heap": {
+        "usedSize": 911188400,
+        "totalSize": 997916672,
+        "embedderHeapUsedSize": 3686240,
+        "backingStorageSize": 159856033
+      },
+      "dom": {
+        "documents": 1,
+        "nodes": 561,
+        "jsEventListeners": 91
+      }
+    },
+    {
+      "phase": "returned-empty-title",
+      "heap": {
+        "usedSize": 920278640,
+        "totalSize": 998178816,
+        "embedderHeapUsedSize": 3752472,
+        "backingStorageSize": 159856156
+      },
+      "dom": {
+        "documents": 1,
+        "nodes": 565,
+        "jsEventListeners": 93
+      }
+    },
+    {
+      "phase": "live-play",
+      "heap": {
+        "usedSize": 1831206596,
+        "totalSize": 1929003008,
+        "embedderHeapUsedSize": 5779600,
+        "backingStorageSize": 299972186
+      },
+      "dom": {
+        "documents": 1,
+        "nodes": 593,
+        "jsEventListeners": 95
+      }
+    },
+    {
+      "phase": "resumed-after-input",
+      "heap": {
+        "usedSize": 1836650868,
+        "totalSize": 1935032320,
+        "embedderHeapUsedSize": 6682632,
+        "backingStorageSize": 299854531
+      },
+      "dom": {
+        "documents": 1,
+        "nodes": 815,
+        "jsEventListeners": 99
+      }
+    }
+  ],
+  "quality": [
+    {
+      "phase": "initial-title",
+      "graphics": {
+        "reflections": true,
+        "shadows": true
+      },
+      "css": [
+        430,
+        932
+      ],
+      "dpr": 3,
+      "canvas": [
+        300,
+        150
+      ]
+    },
+    {
+      "phase": "automatic-demo",
+      "graphics": {
+        "reflections": true,
+        "shadows": true
+      },
+      "renderer": {
+        "drawCalls": 1562,
+        "triangles": 2531992,
+        "instances": 48512,
+        "contextLost": false,
+        "webglVersion": 2,
+        "backend": "webgl2",
+        "engine": "ferro-reference",
+        "bloom": true,
+        "shadows": true,
+        "primitiveIndex": {
+          "shapes": 7,
+          "references": 2352,
+          "vertices": 618,
+          "restored": 0
+        },
+        "pbrLayers": 2,
+        "requestedBackend": "auto",
+        "fallbackReason": "WebGL2 privilégié pour la fluidité dans Safari.",
+        "staticTotal": 308272,
+        "biome": "ville",
+        "worldRevision": 0,
+        "renderScale": 1,
+        "pixelRatio": 1.5,
+        "width": 645,
+        "height": 1398,
+        "msaa": 4,
+        "composition": false,
+        "chunks": 9493,
+        "chunkBuildBytes": 19729344,
+        "chunkUpdateIncremental": false,
+        "chunkEntriesVisited": 308271,
+        "viewDistance": 64,
+        "cache": {
+          "viewFrames": 23,
+          "viewRebuilds": 0,
+          "torchRebuilds": 0,
+          "sunRebuilds": 0,
+          "marginDistance": 1,
+          "marginAngle": 4
+        },
+        "staticSuperset": 0,
+        "staticVisible": 45839,
+        "staticCulled": 262432,
+        "dynamicLights": 3,
+        "blackoutLights": 0,
+        "shadowMaps": 1,
+        "shadowMode": "sun-atlas",
+        "uploadBytes": 140288,
+        "fxInstances": 14,
+        "crowdInstances": 0,
+        "pdrLotInstances": 0,
+        "backgroundWater": 1,
+        "backgroundDrawCalls": 1,
+        "visibleChunks": 325,
+        "lotsVisibles": 0,
+        "reflections": true,
+        "reflectionSteps": 48,
+        "shadowChunks": 265,
+        "shadowStatic": 40243
+      },
+      "css": [
+        430,
+        932
+      ],
+      "dpr": 3,
+      "canvas": [
+        645,
+        1398
+      ]
+    },
+    {
+      "phase": "returned-empty-title",
+      "graphics": {
+        "reflections": true,
+        "shadows": true
+      },
+      "css": [
+        430,
+        932
+      ],
+      "dpr": 3,
+      "canvas": [
+        645,
+        1398
+      ]
+    },
+    {
+      "phase": "live-play",
+      "graphics": {
+        "reflections": true,
+        "shadows": true
+      },
+      "renderer": {
+        "drawCalls": 1562,
+        "triangles": 2531992,
+        "instances": 48512,
+        "contextLost": false,
+        "webglVersion": 2,
+        "backend": "webgl2",
+        "engine": "ferro-reference",
+        "bloom": true,
+        "shadows": true,
+        "primitiveIndex": {
+          "shapes": 7,
+          "references": 2352,
+          "vertices": 618,
+          "restored": 0
+        },
+        "pbrLayers": 2,
+        "requestedBackend": "webgl2",
+        "fallbackReason": null,
+        "staticTotal": 308272,
+        "biome": "ville",
+        "worldRevision": 0,
+        "renderScale": 1,
+        "pixelRatio": 1.5,
+        "width": 645,
+        "height": 1398,
+        "msaa": 4,
+        "composition": false,
+        "chunks": 9493,
+        "chunkBuildBytes": 19729344,
+        "chunkUpdateIncremental": false,
+        "chunkEntriesVisited": 308271,
+        "viewDistance": 64,
+        "cache": {
+          "viewFrames": 7,
+          "viewRebuilds": 0,
+          "torchRebuilds": 0,
+          "sunRebuilds": 0,
+          "marginDistance": 1,
+          "marginAngle": 4
+        },
+        "staticSuperset": 0,
+        "staticVisible": 45839,
+        "staticCulled": 262432,
+        "dynamicLights": 3,
+        "blackoutLights": 0,
+        "shadowMaps": 1,
+        "shadowMode": "sun-atlas",
+        "uploadBytes": 140288,
+        "fxInstances": 14,
+        "crowdInstances": 0,
+        "pdrLotInstances": 0,
+        "backgroundWater": 1,
+        "backgroundDrawCalls": 1,
+        "visibleChunks": 325,
+        "lotsVisibles": 0,
+        "reflections": true,
+        "reflectionSteps": 48,
+        "shadowChunks": 265,
+        "shadowStatic": 40243
+      },
+      "css": [
+        430,
+        932
+      ],
+      "dpr": 3,
+      "canvas": [
+        645,
+        1398
+      ]
+    },
+    {
+      "phase": "resumed-after-input",
+      "graphics": {
+        "reflections": true,
+        "shadows": true
+      },
+      "renderer": {
+        "drawCalls": 1462,
+        "triangles": 2458780,
+        "instances": 43186,
+        "contextLost": false,
+        "webglVersion": 2,
+        "backend": "webgl2",
+        "engine": "ferro-reference",
+        "bloom": true,
+        "shadows": true,
+        "primitiveIndex": {
+          "shapes": 7,
+          "references": 2352,
+          "vertices": 618,
+          "restored": 0
+        },
+        "pbrLayers": 2,
+        "requestedBackend": "webgl2",
+        "fallbackReason": null,
+        "staticTotal": 308272,
+        "biome": "ville",
+        "worldRevision": 0,
+        "renderScale": 1,
+        "pixelRatio": 1.5,
+        "width": 645,
+        "height": 1398,
+        "msaa": 4,
+        "composition": false,
+        "chunks": 9493,
+        "chunkBuildBytes": 19729344,
+        "chunkUpdateIncremental": false,
+        "chunkEntriesVisited": 308271,
+        "viewDistance": 64,
+        "cache": {
+          "viewFrames": 75,
+          "viewRebuilds": 0,
+          "torchRebuilds": 0,
+          "sunRebuilds": 0,
+          "marginDistance": 1,
+          "marginAngle": 4
+        },
+        "staticSuperset": 0,
+        "staticVisible": 40573,
+        "staticCulled": 267698,
+        "dynamicLights": 3,
+        "blackoutLights": 0,
+        "shadowMaps": 1,
+        "shadowMode": "sun-atlas",
+        "uploadBytes": 136448,
+        "fxInstances": 14,
+        "crowdInstances": 0,
+        "pdrLotInstances": 0,
+        "backgroundWater": 1,
+        "backgroundDrawCalls": 1,
+        "visibleChunks": 273,
+        "lotsVisibles": 0,
+        "reflections": true,
+        "reflectionSteps": 48,
+        "shadowChunks": 265,
+        "shadowStatic": 39922
+      },
+      "css": [
+        430,
+        932
+      ],
+      "dpr": 3,
+      "canvas": [
+        645,
+        1398
+      ]
+    }
+  ],
+  "screenshots": [
+    "docs/safari-065/mobile-launch-final-title.png",
+    "docs/safari-065/mobile-launch-final-live.png",
+    "docs/safari-065/mobile-launch-final-resumed.png"
+  ],
+  "browser": {
+    "protocolVersion": "1.3",
+    "product": "Chrome/157.0.8103.51",
+    "revision": "@653674df293788cf4932c40d914e9e15b41a2d31",
+    "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/157.0.0.0 Safari/537.36",
+    "jsVersion": "15.7.112.23"
+  },
+  "documentId": "1794821805482:0.9468494119770003",
+  "build": {
+    "version": "0.6.5",
+    "name": "Fluidité",
+    "engine": "FERRO",
+    "title": "EMPRISE",
+    "id": "0d3f9c1d2b"
+  },
+  "versionLabel": "V0.6.5 FERRO · AUTO · BUILD 0d3f9c1d2b",
+  "initialTitle": {
+    "at": 1794821805967,
+    "created": 0,
+    "ready": true,
+    "sessionNull": true,
+    "rendererNull": true,
+    "crowdNull": true,
+    "drawCount": 0,
+    "persisted": null
+  },
+  "demo": {
+    "timing": {
+      "loadingAt": 5493.800000011921,
+      "titleAt": 491.5,
+      "readyAt": 9726.700000047684
+    },
+    "loadingDelaySeconds": 5.002300000011921,
+    "label": "Tir et conduite · clavier / souris réels"
+  },
+  "emptyTitle": {
+    "sessionReleased": true,
+    "crowdReleased": true,
+    "rendererReleased": true,
+    "staticTotal": null
+  },
+  "restoration": {
+    "factory": {
+      "cash": 200,
+      "hp": 100,
+      "player": {
+        "x": 74.5,
+        "y": 0.08,
+        "z": 130,
+        "yaw": 1.5707963267948966,
+        "pitch": 0,
+        "hp": 100,
+        "heat": 0,
+        "overheated": false,
+        "dash": 0,
+        "dashing": 0,
+        "pulseCooldown": 0,
+        "airborne": false,
+        "airVX": 0,
+        "airVY": 0,
+        "airVZ": 0,
+        "airTime": 0,
+        "padCooldown": 0,
+        "padId": null
+      },
+      "inventory": {
+        "weapons": [
+          true,
+          true,
+          true
+        ],
+        "ammo": [
+          180,
+          36,
+          12
+        ]
+      },
+      "weapon": 0,
+      "map": false,
+      "time": 0,
+      "weather": {
+        "clockHours": 14,
+        "elapsed": 0,
+        "wet": 0,
+        "cloud": 0.22,
+        "rain": 0,
+        "wind": 0.28,
+        "storm": 0,
+        "cloudX": 0,
+        "cloudZ": 0
+      },
+      "business": {
+        "bandage": 0,
+        "provision": 0,
+        "valuable": 0,
+        "ammo": 0
+      }
+    },
+    "restored": {
+      "cash": 200,
+      "hp": 100,
+      "player": {
+        "x": 74.5,
+        "y": 0.08,
+        "z": 130,
+        "yaw": 1.5707963267948966,
+        "pitch": 0,
+        "hp": 100,
+        "heat": 0,
+        "overheated": false,
+        "dash": 0,
+        "dashing": 0,
+        "pulseCooldown": 0,
+        "airborne": false,
+        "airVX": 0,
+        "airVY": 0,
+        "airVZ": 0,
+        "airTime": 0,
+        "padCooldown": 0,
+        "padId": null
+      },
+      "inventory": {
+        "weapons": [
+          true,
+          true,
+          true
+        ],
+        "ammo": [
+          180,
+          36,
+          12
+        ]
+      },
+      "weapon": 0,
+      "map": false,
+      "time": 0,
+      "weather": {
+        "clockHours": 14,
+        "elapsed": 0,
+        "wet": 0,
+        "cloud": 0.22,
+        "rain": 0,
+        "wind": 0.28,
+        "storm": 0,
+        "cloudX": 0,
+        "cloudZ": 0
+      },
+      "business": {
+        "bandage": 0,
+        "provision": 0,
+        "valuable": 0,
+        "ammo": 0
+      }
+    },
+    "startAt": 10462.600000023842,
+    "playAt": 14644.800000011921
+  },
+  "freshSaveBaseline": {
+    "cash": 200,
+    "hp": 100,
+    "inventory": {
+      "weapons": [
+        true,
+        true,
+        true
+      ],
+      "ammo": [
+        180,
+        36,
+        12
+      ]
+    },
+    "weapon": 0,
+    "map": false,
+    "time": 0,
+    "weather": {
+      "clockHours": 14,
+      "elapsed": 0,
+      "wet": 0,
+      "cloud": 0.22,
+      "rain": 0,
+      "wind": 0.28,
+      "storm": 0,
+      "cloudX": 0,
+      "cloudZ": 0
+    },
+    "business": {
+      "bandage": 0,
+      "provision": 0,
+      "valuable": 0,
+      "ammo": 0
+    }
+  },
+  "input": {
+    "before": {
+      "running": true,
+      "mode": "foot",
+      "time": 0.26666666666666666,
+      "x": 74.5,
+      "z": 130,
+      "shots": 0,
+      "ammo": [
+        180,
+        36,
+        12
+      ],
+      "pointers": 0,
+      "command": {
+        "moveX": 0,
+        "moveY": 0,
+        "lookX": 0,
+        "lookY": 0,
+        "left": false,
+        "right": false,
+        "back": 0,
+        "forward": 0,
+        "sprint": false,
+        "brake": false,
+        "paint": false,
+        "melee": false,
+        "pulse": false,
+        "weapon1": false,
+        "weapon2": false,
+        "weapon3": false,
+        "grab": false,
+        "throw": false,
+        "ignite": false,
+        "repair": false,
+        "fire": false,
+        "steer": 0,
+        "drift": false
+      },
+      "errors": []
+    },
+    "twoFingers": {
+      "running": true,
+      "mode": "foot",
+      "time": 0.4000000000000004,
+      "x": 74.74397186042111,
+      "z": 130,
+      "shots": 1,
+      "ammo": [
+        179,
+        36,
+        12
+      ],
+      "pointers": 2,
+      "command": {
+        "moveX": 0,
+        "moveY": 1,
+        "lookX": 0,
+        "lookY": 0,
+        "left": false,
+        "right": false,
+        "back": 0,
+        "forward": 1,
+        "sprint": false,
+        "brake": false,
+        "paint": false,
+        "melee": false,
+        "pulse": false,
+        "weapon1": false,
+        "weapon2": false,
+        "weapon3": false,
+        "grab": false,
+        "throw": false,
+        "ignite": false,
+        "repair": false,
+        "fire": true,
+        "steer": 0,
+        "drift": false
+      },
+      "errors": []
+    },
+    "released": {
+      "running": true,
+      "mode": "foot",
+      "time": 0.7166666666666666,
+      "x": 74.94670340882837,
+      "z": 130,
+      "shots": 1,
+      "ammo": [
+        179,
+        36,
+        12
+      ],
+      "pointers": 0,
+      "command": {
+        "moveX": 0,
+        "moveY": 0,
+        "lookX": 0,
+        "lookY": 0,
+        "left": false,
+        "right": false,
+        "back": 0,
+        "forward": 0,
+        "sprint": false,
+        "brake": false,
+        "paint": false,
+        "melee": false,
+        "pulse": false,
+        "weapon1": false,
+        "weapon2": false,
+        "weapon3": false,
+        "grab": false,
+        "throw": false,
+        "ignite": false,
+        "repair": false,
+        "fire": false,
+        "steer": 0,
+        "drift": false
+      },
+      "errors": []
+    },
+    "settled": {
+      "running": true,
+      "mode": "foot",
+      "time": 1.0749999999999986,
+      "x": 74.94670340882837,
+      "z": 130,
+      "shots": 1,
+      "ammo": [
+        179,
+        36,
+        12
+      ],
+      "pointers": 0,
+      "command": {
+        "moveX": 0,
+        "moveY": 0,
+        "lookX": 0,
+        "lookY": 0,
+        "left": false,
+        "right": false,
+        "back": 0,
+        "forward": 0,
+        "sprint": false,
+        "brake": false,
+        "paint": false,
+        "melee": false,
+        "pulse": false,
+        "weapon1": false,
+        "weapon2": false,
+        "weapon3": false,
+        "grab": false,
+        "throw": false,
+        "ignite": false,
+        "repair": false,
+        "fire": false,
+        "steer": 0,
+        "drift": false
+      },
+      "errors": []
+    }
+  },
+  "savedAfterPause": {
+    "valid": true,
+    "cashExact": true,
+    "ammoExact": true,
+    "playerExact": true,
+    "bytes": 15687
+  },
+  "errors": {
+    "page": [],
+    "game": [],
+    "backendEvents": []
+  }
+}

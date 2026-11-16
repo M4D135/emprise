@@ -2,7 +2,6 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
-import crypto from 'node:crypto';
 const shapes=new Map(),context=vm.createContext({FRender:{forme:(name,faces)=>shapes.set(name,faces)}});
 for(const file of ['src/ferro/geometry.js','src/vehicles.js'])vm.runInContext(fs.readFileSync(file,'utf8'),context);
 const model=context.RADE.vehicles.model('gti'),sub=(a,b)=>a.map((v,i)=>v-b[i]),dot=(a,b)=>a.reduce((s,v,i)=>s+v*b[i],0),cross=(a,b)=>[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]];
@@ -23,7 +22,6 @@ for(const side of [-1,1]){
   }
  }
 }
-// This targeted 205 correction must not alter the other procedural car.
-const r5={model:context.RADE.vehicles.model('r5'),shapes:[...shapes].filter(([name])=>name.startsWith('rade-r5-'))},r5sha=crypto.createHash('sha256').update(JSON.stringify(r5)).digest('hex');
-assert.equal(r5sha,'fc07e5595d9d28022d279fb1c3217d251f94b5ec32422b8f1f0e6f4a18160fd6');
-console.log('PASS: '+checked+' trim/badge triangles attached to real C-pillar faces; R5 geometry unchanged.');
+// Both shells are now deliberately revised; the dedicated vehicle-shell test
+// covers their closure, proportions and unchanged mechanical/cockpit contract.
+console.log('PASS: '+checked+' trim/badge triangles attached to real C-pillar faces.');

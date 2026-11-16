@@ -1,0 +1,80 @@
+{
+  "backend": "webgpu",
+  "delaySeconds": 5.009099999964238,
+  "firstDemoPlayingSeconds": 8.502299999952315,
+  "pollObservedDelaySeconds": 7.377799999952316,
+  "timingReadRoundTripSeconds": 0.0016525409882888198,
+  "pageTiming": {
+    "titles": [
+      4188.700000047684,
+      14714.100000023842,
+      30880.80000001192,
+      71847.60000002384,
+      94964.10000002384,
+      98977.70000004768
+    ],
+    "cycles": [
+      {
+        "titleAt": 4188.700000047684,
+        "loadingAt": 9197.800000011921,
+        "readyAt": 12685.100000023842,
+        "initialTime": 0,
+        "firstDrawAt": 12687.5,
+        "firstDrawEnd": 12691,
+        "progressAt": 14686.200000047684,
+        "progressTime": 1.991666666666662,
+        "cancelled": true
+      },
+      {
+        "titleAt": 14714.100000023842,
+        "loadingAt": 19731.30000001192,
+        "readyAt": 23615.400000035763,
+        "initialTime": 0,
+        "firstDrawAt": 23618.400000035763,
+        "firstDrawEnd": 23621.400000035763,
+        "progressAt": 25619,
+        "progressTime": 1.991666666666662,
+        "cancelled": true
+      },
+      {
+        "titleAt": 30880.80000001192,
+        "loadingAt": 35896.90000003576,
+        "readyAt": 39375,
+        "initialTime": 0,
+        "firstDrawAt": 39376.200000047684,
+        "firstDrawEnd": 39377.90000003576,
+        "progressAt": 41376,
+        "progressTime": 1.9833333333333287,
+        "cancelled": true
+      },
+      {
+        "titleAt": 71847.60000002384,
+        "loadingAt": 76864.90000003576,
+        "readyAt": 80310.80000001192,
+        "initialTime": 0,
+        "firstDrawAt": 80318.70000004768,
+        "firstDrawEnd": 80322.40000003576,
+        "progressAt": 82312.10000002384,
+        "progressTime": 1.9833333333333287,
+        "cancelled": true
+      }
+    ]
+  },
+  "timingDefinition": "Page performance.now: title visibility, loading request, ready, first draw submission and 2s simulation checkpoint. CDP observation latency is reported separately; first draw submission does not prove compositor presentation.",
+  "recordings": [
+    "Tir et conduite \u00b7 clavier / souris r\u00e9els",
+    "Commerce contest\u00e9 \u00b7 session de test valid\u00e9e",
+    "V\u00e9hicule sous le feu \u00b7 test de destruction",
+    "Patrouille \u00e0 pied \u00b7 interpellation de nuit"
+  ],
+  "keysAndMouseReturnToTitle": true,
+  "singleResidentSession": true,
+  "liveStateRestoredExactly": true,
+  "saveUnchanged": true,
+  "livePlayAfterDemo": true,
+  "explosionReplayValidated": true,
+  "policeReplayValidated": true,
+  "errors": [],
+  "url": "file://dist/index.html",
+  "buildSha256": "64af9fd3adb1fd62a4be913225c6f6dd216adec73f91d1cfd6cf67f99ff483bd"
+}

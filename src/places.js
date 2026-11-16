@@ -15,6 +15,15 @@
   const data = () => R.placesData || EMPTY;
   const finite = value => typeof value === 'number' && Number.isFinite(value);
 
+  // Fictional presentation only. Raw geodata, IDs, URLs and attribution stay intact.
+  function displayLabel(value) {
+    if (typeof value !== 'string') return value;
+    return value.replace(/marseill(?:aises|aise|ais|e)/gi, word => {
+      const label = ({marseille:'Seille',marseillais:'Local',marseillaise:'Locale',marseillaises:'Locales'})[word.toLowerCase()];
+      return word === word.toUpperCase() ? label.toUpperCase() : word[0] === word[0].toLowerCase() ? label.toLowerCase() : label;
+    });
+  }
+
   function round2(value) {
     const sign = value < 0 ? -1 : 1;
     return sign * Math.floor(Math.abs(value) * 100 + 0.5) / 100;
@@ -308,6 +317,7 @@
 
   R.places = {
     data,
+    displayLabel,
     get metadata() { return data().metadata || {}; },
     get places() { return data().places || []; },
     get addresses() { return data().addresses || []; },

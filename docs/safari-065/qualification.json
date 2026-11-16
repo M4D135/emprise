@@ -1,0 +1,34 @@
+{
+  "build": "4a9600e51a",
+  "sourceState": "Release0.6.5: Safari lifecycle, procedural vehicle shells, stable lamps, Seille, quieter engines and waiting traffic horns.",
+  "unitCoverage": [
+    "demo-lifecycle.mjs",
+    "renderer-recovery-lifecycle.mjs",
+    "title-save-equivalence.mjs",
+    "frame-timestamp.mjs",
+    "fatal-recovery.mjs",
+    "mobile-controls.mjs",
+    "city-stream-delta.mjs",
+    "game-static-delta.mjs",
+    "vehicle-shell.mjs",
+    "vehicle-trim.mjs",
+    "cockpit.mjs",
+    "drivers.mjs",
+    "vehicle-explosion.mjs",
+    "city-display-name.mjs",
+    "vehicle-rotation-cache.mjs",
+    "traffic-horns.mjs",
+    "traffic-obstacle-pruning.mjs",
+    "traffic-presentation.mjs",
+    "traffic-horn-audio.py"
+  ],
+  "notes": [
+    "Unit results were run by the owning agents and root when their source changed; no claim that each unrelated suite was re-run after every documentation edit.",
+    "No external visual/audio assets introduced.",
+    "Safari native window measurements and Chrome production/touch validation are reported separately."
+  ],
+  "ferroVersion": "0.3.2",
+  "ferroCommit": "ddc8378",
+  "modules": 32,
+  "canonicalModulesMatch": true
+}

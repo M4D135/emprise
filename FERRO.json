@@ -1,6 +1,6 @@
 {
   "format": "ferro-engine",
-  "version": "0.3.0",
+  "version": "0.3.2",
   "apiVersion": 1,
   "pilot": "emprise",
   "status": "reference",
@@ -153,9 +153,14 @@
     "point-de-rupture": "5ba44c9d2f9c667eac687b9d0fa2f170606ce2f8"
   },
   "reference": {
-    "source": "EMPRISE/src/ferro",
+    "source": "M4D135/FERRO:src/ferro",
     "distribution": "versioned modules with SHA256 lock",
-    "policy": "game rules and procedural styles are injected; engine sources must not diverge"
+    "policy": "game rules and procedural styles are injected; engine sources must not diverge",
+    "repository": "https://github.com/M4D135/FERRO",
+    "extractedFrom": {
+      "repository": "https://github.com/M4D135/emprise",
+      "commit": "0a68dbe2b907e6795c3c8fe2f7701fa9d59d191c"
+    }
   },
   "sizePolicy": {
     "limitBytes": null,

@@ -88,7 +88,7 @@ function create({pedestrians=480,expanded=!!R.campaign,saved=null,now=Date.now()
   if(phase>=2&&sim.state.enemies.slice(0,3).every(e=>e.hp<=0)&&phase<3){phase=3;if(!expanded)tell('Zone sécurisée. Retrouvez votre véhicule.');}
   if(returned&&car.v>2&&phase===3){phase=4;if(!expanded)tell('MISSION ACCOMPLIE · La ville reste ouverte.');}
   world.playerSeated=mode!=='foot';
-  if(campaign){campaign.tick(dt,lastEvents);trafficClock+=dt;if(trafficClock>=1/30){trafficRender.before(traffic.cars);traffic.update(trafficClock,campaign.law,player);trafficRender.after(traffic.cars,trafficClock);trafficClock=0;}
+  if(campaign){campaign.tick(dt,lastEvents);trafficClock+=dt;if(trafficClock>=1/30){trafficRender.before(traffic.cars);traffic.update(trafficClock,campaign.law,player);for(const e of traffic.events||[]){const dx=e.x-player.x,dz=e.z-player.z,distance=Math.hypot(dx,dz);if(distance>=45)continue;const fade=1-distance/45;lastEvents.push({...e,level:e.level*fade*fade,pan:Math.max(-1,Math.min(1,(dx*Math.cos(player.yaw)+dz*Math.sin(player.yaw))/Math.max(1,distance)))});}trafficRender.after(traffic.cars,trafficClock);trafficClock=0;}
    const law=campaign.law,policeContext={seated:mode==='car',vehicle:car,speed:mode==='car'?car.v:sim.state.locomotion.speed,hidden:!!interiors?.active||mode==='swim'||mode==='boat'};
    police?.update(dt,policeContext);law.seen=!!law.seen||!!police?.seen;
    const status=police?police.arrestStatus(player,policeContext):traffic.arrestStatus(player,policeContext);

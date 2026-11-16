@@ -1,0 +1,80 @@
+{
+  "backend": "webgl2",
+  "delaySeconds": 5.005199999988079,
+  "firstDemoPlayingSeconds": 8.358399999976157,
+  "pollObservedDelaySeconds": 7.300899999976158,
+  "timingReadRoundTripSeconds": 0.0016674170037731528,
+  "pageTiming": {
+    "titles": [
+      3841.600000023842,
+      14063.199999988079,
+      30029.80000001192,
+      71030,
+      94296.60000002384,
+      97626.5
+    ],
+    "cycles": [
+      {
+        "titleAt": 3841.600000023842,
+        "loadingAt": 8846.800000011921,
+        "readyAt": 11990,
+        "initialTime": 0,
+        "firstDrawAt": 11993.300000011921,
+        "firstDrawEnd": 12200,
+        "progressAt": 13991.699999988079,
+        "progressTime": 1.824999999999996,
+        "cancelled": true
+      },
+      {
+        "titleAt": 14063.199999988079,
+        "loadingAt": 19079.100000023842,
+        "readyAt": 22249.5,
+        "initialTime": 0,
+        "firstDrawAt": 22251,
+        "firstDrawEnd": 22768.69999998808,
+        "progressAt": 24250.5,
+        "progressTime": 1.5333333333333303,
+        "cancelled": true
+      },
+      {
+        "titleAt": 30029.80000001192,
+        "loadingAt": 35046.90000003576,
+        "readyAt": 38295.69999998808,
+        "initialTime": 0,
+        "firstDrawAt": 38297.10000002384,
+        "firstDrawEnd": 38573.19999998808,
+        "progressAt": 40298.60000002384,
+        "progressTime": 1.7749999999999961,
+        "cancelled": true
+      },
+      {
+        "titleAt": 71030,
+        "loadingAt": 76047.10000002384,
+        "readyAt": 79508,
+        "initialTime": 0,
+        "firstDrawAt": 79516.30000001192,
+        "firstDrawEnd": 79721.80000001192,
+        "progressAt": 81509.40000003576,
+        "progressTime": 1.8333333333333293,
+        "cancelled": true
+      }
+    ]
+  },
+  "timingDefinition": "Page performance.now: title visibility, loading request, ready, first draw submission and 2s simulation checkpoint. CDP observation latency is reported separately; first draw submission does not prove compositor presentation.",
+  "recordings": [
+    "Tir et conduite \u00b7 clavier / souris r\u00e9els",
+    "Commerce contest\u00e9 \u00b7 session de test valid\u00e9e",
+    "V\u00e9hicule sous le feu \u00b7 test de destruction",
+    "Patrouille \u00e0 pied \u00b7 interpellation de nuit"
+  ],
+  "keysAndMouseReturnToTitle": true,
+  "singleResidentSession": true,
+  "liveStateRestoredExactly": true,
+  "saveUnchanged": true,
+  "livePlayAfterDemo": true,
+  "explosionReplayValidated": true,
+  "policeReplayValidated": true,
+  "errors": [],
+  "url": "file://dist/index.html",
+  "buildSha256": "64af9fd3adb1fd62a4be913225c6f6dd216adec73f91d1cfd6cf67f99ff483bd"
+}

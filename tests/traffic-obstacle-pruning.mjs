@@ -45,7 +45,10 @@ const dense=compare('dense queue structural reduction',{vehicles:[{model:'car',x
 assert(dense.queriesAfter<dense.queriesBefore/20,'skip proven losing visibility rays in dense crowd');
 
 // Whole real traffic update + vehicle physics, not a mocked decision function.
-function makeWorld(){const w={fleet:[],car:{x:-500,z:-500},weather:null,playerSeated:false,ground:()=>.08,surface:()=>({mu:1.15,type:'piste'}),city:{rues:{aretes:[]}},pedestrians:Array.from({length:160},(_,i)=>({x:5+i%20,z:-12+Math.floor(i/20)*3,hp:i%17?100:0})),policeOfficers:[],blocked:(x,z)=>Math.abs(x)>210||Math.abs(z)>210||x>7&&x<7.4&&z>10&&z<30,withoutCar:fn=>fn(),carContact:()=>null};w.moveVehicle=(c,dx,dz,cap)=>{const x=c.x+dx,z=c.z+dz;if(w.blocked(x,z))return {nx:-Math.cos(cap),nz:-Math.sin(cap),depth:.1};c.x=x;c.z=z;c.cap=cap;return null;};for(let x=-60;x<=60;x+=20)w.city.rues.aretes.push({sorte:'rue',largeur:6,points:[x,-60,x,60]});for(let z=-60;z<=60;z+=20)w.city.rues.aretes.push({sorte:'rue',largeur:6,points:[-60,z,60,z]});return w;}
+// The horn feature intentionally adds civilian pedestrian braking. Keep this
+// old trajectory oracle pedestrian-free; scan() cases above still prove exact
+// pedestrian obstacle winners, and traffic-horns.mjs covers the new braking.
+function makeWorld(){const w={fleet:[],car:{x:-500,z:-500},weather:null,playerSeated:false,ground:()=>.08,surface:()=>({mu:1.15,type:'piste'}),city:{rues:{aretes:[]}},pedestrians:[],policeOfficers:[],blocked:(x,z)=>Math.abs(x)>210||Math.abs(z)>210||x>7&&x<7.4&&z>10&&z<30,withoutCar:fn=>fn(),carContact:()=>null};w.moveVehicle=(c,dx,dz,cap)=>{const x=c.x+dx,z=c.z+dz;if(w.blocked(x,z))return {nx:-Math.cos(cap),nz:-Math.sin(cap),depth:.1};c.x=x;c.z=z;c.cap=cap;return null;};for(let x=-60;x<=60;x+=20)w.city.rues.aretes.push({sorte:'rue',largeur:6,points:[x,-60,x,60]});for(let z=-60;z<=60;z+=20)w.city.rues.aretes.push({sorte:'rue',largeur:6,points:[-60,z,60,z]});return w;}
 function factory(source){const R={vehicles:RADE.vehicles},realm=vm.createContext({RADE:R,PDR,BITUME});vm.runInContext(source,realm);return R.traffic.create;}
 const worlds=[makeWorld(),makeWorld()],traffic=[factory(before)(worlds[0],{count:12}),factory(after)(worlds[1],{count:12})],laws=worlds.map(()=>({heat:0,wanted:0,seen:false,lastKnown:null,reportRevision:0,cooldown:0}));
 for(let i=0;i<450;i++){

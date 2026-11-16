@@ -1,0 +1,566 @@
+{
+  "date": "2026-11-16",
+  "machine": "MacBook Air M5, 24 GB",
+  "safari": "27.2 (22625.2.8.11.9)",
+  "initialPublicBuild": "9819899b6c",
+  "observedNativeSafariBefore": {
+    "backend": "webgpu",
+    "samples": 285,
+    "rafMs": {
+      "p50": 90,
+      "p95": 123,
+      "max": 565
+    },
+    "cpuMs": {
+      "p50": 7,
+      "p95": 20,
+      "max": 561
+    },
+    "resolution": [
+      1806,
+      997
+    ],
+    "draws": 1842,
+    "triangles": 3162452,
+    "demo": "Tir et conduite",
+    "errors": []
+  },
+  "sameBuildForcedWebGL2": {
+    "samples": 300,
+    "rafMs": {
+      "p50": 17,
+      "p95": 19
+    },
+    "cpuMs": {
+      "p50": 5,
+      "p95": 7
+    },
+    "resolution": [
+      1806,
+      997
+    ],
+    "note": "Representative rolling window in the ordinary title/replays, not a frozen pixel-identical replay frame."
+  },
+  "stabilityBefore": "Native Safari reloaded both pre-fix and first candidate because of high memory use during repeated demos. Backend selection alone is not a sufficient fix.",
+  "measurementNotes": [
+    "Native Safari values read from an injected diagnostic textarea through accessibility; no WebDriver or altered quality settings.",
+    "Chrome raw comparison files record real title and automatic replay timing, not a fixed stress fixture. Current-before profile captures have profiling overhead; do not infer a small percentage speed gain from them.",
+    "Two-world memory experiment uses explicit Chrome GC only to identify retained memory, not to measure gameplay timing."
+  ],
+  "nativeSafariOneSessionCandidate": {
+    "build": "c054c47a17",
+    "secondsWithoutReload": 244,
+    "bootCounter": 1,
+    "checks": [
+      "Multiple automatic replays, including traffic, combat and vehicle destruction.",
+      "Exit replay through a real key, then enter live play through the title button.",
+      "Live player restored to 200 EUR, 100 HP, 180 rounds.",
+      "No browser memory-reload banner or game errors."
+    ],
+    "lastDemoWindow": {
+      "elapsed": 189,
+      "samples": 300,
+      "rafMs": {
+        "p50": 17,
+        "p95": 21,
+        "max": 2987
+      },
+      "cpuMs": {
+        "p50": 4,
+        "p95": 7,
+        "max": 367
+      },
+      "note": "Max includes explicit loading transition; active-game HUD at the observation showed 58 FPS and 47 ms peak."
+    },
+    "liveWindow": {
+      "elapsed": 244,
+      "samples": 300,
+      "rafMs": {
+        "p50": 16,
+        "p95": 22,
+        "max": 37
+      },
+      "cpuMs": {
+        "p50": 5,
+        "p95": 7,
+        "max": 11
+      },
+      "resolution": [
+        1806,
+        997
+      ],
+      "draws": 2143,
+      "triangles": 3509302
+    },
+    "quality": {
+      "msaa": 4,
+      "shadows": true,
+      "reflections": true
+    },
+    "limitation": "Not a guarantee of constant 60 FPS. Loading transitions remain visible; timings are browser RAF/CPU, not physical presentation."
+  },
+  "finalBuild": {
+    "version": "0.6.5",
+    "build": "4a9600e51a",
+    "bytes": 22892193,
+    "sha256": "57509819e074dafde526144f2bfa7ba8f32f2c07e7ddf4723350c39ab595ea8a"
+  },
+  "finalGuards": "Only one resident world. Compiled renderer retained on other backends; Safari WebGL2 explicitly disposes its context between worlds and clears R.human renderer reference before reconstruction. Audio primed in initiating gesture, obsolete renderer callbacks rejected, negative animation timestamps clamped. Static geometry warmed under loading cover without advancing simulation or camera.",
+  "frameClockRegression": {
+    "first": {
+      "now": 13386.100000023842,
+      "time": 0,
+      "samples": [
+        -837.1999999880791,
+        832.8999999999996
+      ]
+    },
+    "afterTwoSeconds": {
+      "now": 15392,
+      "time": 1.224999999999998,
+      "samples": [
+        -837.1999999880791,
+        832.8999999999996,
+        17.200000000000728,
+        16.69999999999891,
+        16.700000000000728,
+        15.600000000000364,
+        17.69999999999891,
+        16.700000000000728,
+        16.700000000000728,
+        16.599999999998545
+      ],
+      "min": -837.1999999880791,
+      "errors": []
+    },
+    "fix": "Clamp stale animation timestamps to zero elapsed time and never move the last timestamp backwards; exact fixed-step trajectories unchanged for normal timestamps."
+  },
+  "engineCommit": "781230a",
+  "finalSafariAttempt": {
+    "build": "c44473058b",
+    "status": "title initialization verified; timing unavailable while Safari reports document.visibilityState=hidden",
+    "ready": true,
+    "backend": "webgl2",
+    "errors": [],
+    "draws": 0,
+    "notes": "Not counted as an endurance/performance pass. Tab returned to about:blank; previous native 244-second candidate observation remains separate."
+  },
+  "finalBrowserValidation": {
+    "webgpu": {
+      "fourRecordedScenarios": "PASS",
+      "titleDelaySeconds": 5.009099999964238,
+      "firstDemoDrawSeconds": 8.502299999952315,
+      "simulationAfterTwoSeconds": 1.991666666666662,
+      "saveUnchanged": true,
+      "liveStateRestoredExactly": true,
+      "errors": []
+    },
+    "webgl2": {
+      "fourRecordedScenarios": "PASS",
+      "titleDelaySeconds": 5.005199999988079,
+      "firstDemoDrawSeconds": 8.358399999976157,
+      "simulationAfterTwoSeconds": 1.824999999999996,
+      "saveUnchanged": true,
+      "liveStateRestoredExactly": true,
+      "errors": []
+    },
+    "build": "c44473058b"
+  },
+  "beforeWarmupBuild": {
+    "version": "0.6.5",
+    "sha256": "64af9fd3adb1fd62a4be913225c6f6dd216adec73f91d1cfd6cf67f99ff483bd",
+    "sizeBytes": 22879661,
+    "build": "c44473058b"
+  },
+  "iPhoneReport": {
+    "model": "iPhone 15 Pro Max",
+    "phase": "after title screen",
+    "publicVersionAtReport": "0.6.4",
+    "physicalDeviceValidation": false
+  },
+  "enginePublication": {
+    "commit": "781230ad4032ffa41ad5f477a7a3ce8338669a95",
+    "tag": "v0.3.1",
+    "archiveSha256": "52ac2a77d29e0f3f22e6b79c13ef7220940709e799a00d78b39b5aecaa6bc5ed",
+    "receipt": "/Users/david/Documents/Codex/2026-11-15/no/outputs/FERRO-0.3.1-livraison.json"
+  },
+  "nativeSafariWarmupCandidate": {
+    "build": "588901a1ef",
+    "bootCounter": 2,
+    "visibleStartObservationSeconds": 170,
+    "notes": "Initial hidden-page period excluded. Boot counter2 follows explicit diagnostic reload, not automatic memory reload. Active native test in progress.",
+    "observations": [
+      {
+        "elapsed": 269,
+        "activeSecondsAtLeast": 99,
+        "bootCounter": 2,
+        "visible": true,
+        "scene": "Patrouille à pied · interpellation de nuit",
+        "samples": 300,
+        "callbackMs": {
+          "p50": 16,
+          "p95": 21,
+          "max": 38
+        },
+        "cpuMs": {
+          "p50": 5,
+          "p95": 7,
+          "max": 8
+        },
+        "resolution": [
+          1806,
+          997
+        ],
+        "draws": 2148,
+        "triangles": 3440354,
+        "quality": {
+          "msaa": 4,
+          "shadows": true,
+          "reflections": true
+        },
+        "errors": []
+      }
+    ],
+    "status": "FAILED endurance: Safari displayed memory reload banner, boot counter rose from2 to3 after previous successful269s sample"
+  },
+  "warmupCandidateBuild": {
+    "version": "0.6.5",
+    "build": "588901a1ef",
+    "sha256": "33a85ccbbd86252e01a119327485837528f984294415a50d540c446d31f8539f",
+    "bytes": 22880103
+  },
+  "nativeSafariContextRelease": {
+    "build": "027d4733f1",
+    "status": "Passed observed native endurance and return to live play; not an uninterrupted visibility or constant-60-FPS guarantee",
+    "bootCounter": 1,
+    "elapsedSeconds": 544,
+    "drawCount": 16972,
+    "memoryReloadBanner": false,
+    "observations": [
+      {
+        "elapsed": 358,
+        "source": "User screenshot 2026-11-16 10.10.17",
+        "visible": true,
+        "drawCount": 14015,
+        "callbackMs": {
+          "p50": 16,
+          "p95": 21,
+          "max": 46
+        },
+        "cpuMs": {
+          "p50": 5,
+          "p95": 7,
+          "max": 10
+        },
+        "scene": "Patrouille à pied · interpellation de nuit"
+      },
+      {
+        "elapsed": 399,
+        "visible": false,
+        "drawCount": 14109,
+        "callbackMs": {
+          "p50": 16,
+          "p95": 25,
+          "max": 54
+        },
+        "cpuMs": {
+          "p50": 5,
+          "p95": 7,
+          "max": 24
+        }
+      },
+      {
+        "elapsed": 521,
+        "visible": true,
+        "drawCount": 16458,
+        "callbackMs": {
+          "p50": 17,
+          "p95": 21,
+          "max": 44
+        },
+        "cpuMs": {
+          "p50": 4,
+          "p95": 7,
+          "max": 22
+        },
+        "scene": "Véhicule sous le feu · test de destruction"
+      },
+      {
+        "elapsed": 544,
+        "visible": true,
+        "demo": false,
+        "drawCount": 16972,
+        "callbackMs": {
+          "p50": 17,
+          "p95": 21,
+          "max": 38
+        },
+        "cpuMs": {
+          "p50": 5,
+          "p95": 7,
+          "max": 10
+        },
+        "hp": 100,
+        "cash": 200,
+        "ammunition": 180,
+        "resolution": [
+          1806,
+          997
+        ],
+        "draws": 2113,
+        "triangles": 3327976
+      }
+    ],
+    "quality": {
+      "msaa": 4,
+      "shadows": true,
+      "reflections": true
+    },
+    "errors": [],
+    "limitations": [
+      "Some periods were hidden; elapsed time is wall time, not uninterrupted foreground duration.",
+      "300-sample rolling callback windows, not physical presentation timing. Cold transitions still show occasional spikes.",
+      "Physical iPhone 15 Pro Max validation remains unavailable."
+    ]
+  },
+  "startupChange": "Production title now has zero worlds, crowds and renderers. Saved JSON and opening timestamp only. First automatic demo creates the first world directly; first Play loads and normalizes the captured save once. Quality and population unchanged in live play.",
+  "finalEngineCandidate": {
+    "version": "0.3.2",
+    "selectionPower": "Preserve steady lamp ranking during rotating beacon flashes."
+  },
+  "releaseValidation": {
+    "build": "0d3f9c1d2b",
+    "webgpuAttract": {
+      "liveStateRestoredExactly": true,
+      "saveUnchanged": true,
+      "livePlayAfterDemo": true,
+      "explosionReplayValidated": true,
+      "policeReplayValidated": true,
+      "errors": []
+    },
+    "mobileLaunch": "PASS see mobile-launch-final.json; Chrome touch emulation, not physical iPhone",
+    "startupHeapMiB": {
+      "candidateTitle": 1120.15,
+      "releaseTitle": 139.94,
+      "candidateFirstDemo": 1854.17,
+      "releaseFirstDemo": 868.98,
+      "note": "Observed CDP JS heap checkpoints without forced GC. Excludes driver/GPU memory; later demo-to-play heap can grow before collection."
+    }
+  },
+  "enginePublication032": {
+    "commit": "ddc8378",
+    "tag": "v0.3.2",
+    "archiveSha256": "8ae2058a0c62f39909c5a05d3e7154e7ab7dc8208e589a4ec90c5cb2898b122d"
+  },
+  "pacingModelComparison": {
+    "baselineBuild": "027d4733f1",
+    "baselineCallbackMs": {
+      "p50": 16.7,
+      "p95": 17.6,
+      "max": 17.9
+    },
+    "baselineCpuMs": {
+      "p50": 3.3,
+      "p95": 5.1
+    },
+    "updatedCallbackMs": {
+      "p50": 16.7,
+      "p95": 17.5,
+      "max": 22.8
+    },
+    "updatedCpuMs": {
+      "p50": 3.4,
+      "p95": 5.5
+    },
+    "population": 480,
+    "traffic": 15,
+    "resolution": [
+      1754,
+      1026
+    ],
+    "limitations": [
+      "Sequential ordinary first recorded scene; not a pixel-identical frame capture.",
+      "An earlier updated-build run was slower (p95 callback29.9ms, CPU20.1ms); retained in pacing-release-webgl2.json. A separate animated portal was active, but its causal contribution is not established.",
+      "Injected native diagnostic conflicted with the first comparison probe; that invalid attempt produced no usable samples. Clean baseline SHA was verified before retry."
+    ]
+  },
+  "nativeFreshTabComparison": {
+    "instrumentation": "Wrapped renderer.draw, session.update and crowd.cadre; same diagnostic wrapper for both builds. This is profiled timing, not unprofiled physical presentation.",
+    "baseline": {
+      "build": "027d4733f1",
+      "elapsed": 32,
+      "scene": "first automatic replay",
+      "callbackMs": {
+        "p50": 21,
+        "p95": 27,
+        "max": 101
+      },
+      "cpuMs": {
+        "p50": 11,
+        "p95": 18,
+        "max": 37
+      },
+      "drawMeanMs": 5.97,
+      "simStepMeanMs": 1.02
+    },
+    "updated": {
+      "build": "02622032df",
+      "elapsed": 72,
+      "scene": "live after automatic replay",
+      "callbackMs": {
+        "p50": 24,
+        "p95": 30,
+        "max": 104
+      },
+      "cpuMs": {
+        "p50": 12,
+        "p95": 19,
+        "max": 29
+      },
+      "drawMeanMs": 4.27,
+      "simStepMeanMs": 0.84,
+      "errors": []
+    },
+    "limits": [
+      "Different scene/time; not a like-for-like performance score.",
+      "An older local Safari test tab was found loaded and closed before this comparison. Its causal contribution is not established.",
+      "Both builds slower than earlier native observations; no constant60FPS claim."
+    ]
+  },
+  "nativeSafariPreFinal": {
+    "build": "fb242213ea",
+    "status": "No reload and return to live verified. Slower native pacing retained; fresh-tab baseline was also slower than earlier observations. Cause not established.",
+    "bootCounter": 1,
+    "memoryReloadBanner": false,
+    "observations": [
+      {
+        "elapsed": 282,
+        "phase": "title-empty",
+        "visible": true,
+        "drawCount": 8466
+      },
+      {
+        "elapsed": 320,
+        "demo": false,
+        "visible": true,
+        "drawCount": 9330,
+        "callbackMs": {
+          "p50": 26,
+          "p95": 34,
+          "max": 105
+        },
+        "cpuMs": {
+          "p50": 15,
+          "p95": 23,
+          "max": 77
+        },
+        "hp": 100,
+        "cash": 200,
+        "ammunition": 180
+      },
+      {
+        "elapsed": 350,
+        "demo": false,
+        "visible": true,
+        "drawCount": 10450,
+        "callbackMs": {
+          "p50": 25,
+          "p95": 31,
+          "max": 106
+        },
+        "cpuMs": {
+          "p50": 14,
+          "p95": 20,
+          "max": 83
+        }
+      },
+      {
+        "elapsed": 405,
+        "demo": false,
+        "visible": true,
+        "drawCount": 12449,
+        "callbackMs": {
+          "p50": 29,
+          "p95": 41,
+          "max": 276
+        },
+        "cpuMs": {
+          "p50": 18,
+          "p95": 27,
+          "max": 78
+        }
+      }
+    ],
+    "quality": {
+      "msaa": 4,
+      "shadows": true,
+      "reflections": true
+    },
+    "resolution": [
+      1806,
+      997
+    ],
+    "errors": []
+  },
+  "nativeSafariFinal": {
+    "build": "1bd3fceeca",
+    "status": "Functional native check passed; pacing remains below60FPS in these conditions. No constant60 claim.",
+    "elapsed": 78,
+    "boot": 1,
+    "visible": true,
+    "drawCount": 2165,
+    "callbackMs": {
+      "p50": 26,
+      "p95": 34,
+      "max": 117
+    },
+    "cpuMs": {
+      "p50": 13,
+      "p95": 20,
+      "max": 35
+    },
+    "resolution": [
+      1806,
+      997
+    ],
+    "quality": {
+      "msaa": 4,
+      "shadows": true,
+      "reflections": true
+    },
+    "demo": false,
+    "hp": 100,
+    "cash": 200,
+    "ammunition": 180,
+    "errors": [],
+    "notes": [
+      "Actual title, automatic replay, return to title and live play via native button.",
+      "Profile wrappers add overhead. GUI/compositor/capture load varied, no causal attribution.",
+      "This build predates newly requested horn feature."
+    ]
+  },
+  "finalHostAudio": {
+    "engineBusGain": 0.3,
+    "previousGain": 1,
+    "decibelsChange": -10.46,
+    "otherEffectsUnchanged": true
+  },
+  "publishedCandidateValidation": {
+    "build": "1bd3fceeca",
+    "mobileLaunch": "PASS — mobile-launch-published-candidate.json; Chrome touch emulation, not physical iPhone",
+    "vehicleCache": "194 cases / 109800 exact matching output meshes; bounded rotation lookup; see rotation-cache-validation.json"
+  },
+  "intermediatePublicUi": {
+    "commit": "8f08b2ca65017bae0d7c76ef1e33c868ef4e1478",
+    "sha256": "ecb01856fdb9aaf43cab0c82fcc2e204a6385f27b88189d5e2c82c06210182eb",
+    "bytes": 22869754,
+    "runtimeBase": "0a68dbe2b907e6795c3c8fe2f7701fa9d59d191c",
+    "notes": "Published by coordinated FERRO chat; only title/slogans modified; main and runtime checkout unchanged."
+  },
+  "hornValidation": {
+    "trafficUnit": "33 cases PASS; traffic-obstacle-pruning and traffic-presentation PASS",
+    "audioOffline": "PASS — traffic-horn-audio.json",
+    "recordedScenarios": "PASS WebGPU — attract-horns-webgpu.json",
+    "nativeScope": "Last native Safari check is pre-horn build1bd3fceeca; subsequent additions are traffic/audio and separately tested. No claim of exact final native timing."
+  }
+}

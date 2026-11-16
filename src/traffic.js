@@ -22,6 +22,7 @@ const PURSUIT_SPEED=[0,10,11.5,13];
 function create(world,{count=12}={}){
  const random=PDR.villeReelle.hasard(881);
  const nodes=[],edges=[],ids=new Map(),cars=[];
+ const hornStates=new WeakMap(),pedestrianCells=new Map(),pedestrianRows=[];let events=[],pedestrianRowCount=0;
  let clock=0,tick=0;
  let lawRef=null;
  let lastReportRevision=0;
@@ -484,10 +485,47 @@ function create(world,{count=12}={}){
   c.progressMoved=0;
  }
 
+ // Sound timing never consumes driving randomness or mutates vehicle snapshots.
+ function hornAllowed(c){return c.ai&&!c.hidden&&!c.parked&&!c.exploded&&!c.burning&&!c.burned&&!c.uncontrolled&&c.moteur&&c.driver?.inside&&c.driver.hp>0;}
+ function variation(id,sequence){let n=(Math.imul((id|0)+1,0x45d9f3b)^Math.imul(sequence+1,0x27d4eb2d))>>>0;n=Math.imul(n^(n>>>16),0x45d9f3b)>>>0;return ((n^(n>>>16))>>>0)/4294967296;}
+ function horn(c,dt,waiting,reason){
+  if(!hornAllowed(c)){hornStates.delete(c);return;}
+  let q=hornStates.get(c);if(q&&q.driver!==c.driver){hornStates.delete(c);q=null;}
+  if(!waiting||c.v>.65){if(q)q.wait=0;return;}
+  if(!q){q={driver:c.driver,wait:0,next:0,sequence:0};hornStates.set(c,q);}
+  q.wait+=dt;
+  if(q.wait<1.6+variation(c.id,0)*.4||clock<q.next)return;
+  events.push({name:'carHorn',type:'klaxon',vehicleId:c.id,x:c.x,y:c.y+.75,z:c.z,level:.7+variation(c.id,q.sequence+1)*.2,reason,blockedFor:q.wait});
+  q.sequence++;q.next=clock+3.5+variation(c.id,q.sequence+2)*2.5;
+ }
+ // One O(population) pass per traffic update, rather than one per car. Reuse
+ // bucket arrays; crawling people remain obstacles just like standing people.
+ function indexPedestrians(){
+  for(let i=0;i<pedestrianRowCount;i++)pedestrianRows[i].length=0;
+  pedestrianCells.clear();pedestrianRowCount=0;
+  for(const p of world.pedestrians||[]){
+   if(!p||p.hp<=0||p.inside||p.hidden||!Number.isFinite(p.x)||!Number.isFinite(p.z))continue;
+   const key=Math.floor(p.x/8)+','+Math.floor(p.z/8);let row=pedestrianCells.get(key);
+   if(!row){row=pedestrianRows[pedestrianRowCount]||(pedestrianRows[pedestrianRowCount]=[]);pedestrianRowCount++;pedestrianCells.set(key,row);}row.push(p);
+  }
+ }
+ function pedestrianAhead(c){
+  const spec=R.vehicles.SPECS[c.model],halfLength=spec.length/2,halfWidth=spec.width/2+.43,reach=halfLength+clamp(4+c.v,5,16),co=Math.cos(c.cap),si=Math.sin(c.cap),endX=c.x+co*reach,endZ=c.z+si*reach;
+  const x0=Math.floor((Math.min(c.x,endX)-Math.abs(si)*halfWidth)/8),x1=Math.floor((Math.max(c.x,endX)+Math.abs(si)*halfWidth)/8),z0=Math.floor((Math.min(c.z,endZ)-Math.abs(co)*halfWidth)/8),z1=Math.floor((Math.max(c.z,endZ)+Math.abs(co)*halfWidth)/8);let best=Infinity;
+  for(let ix=x0;ix<=x1;ix++)for(let iz=z0;iz<=z1;iz++)for(const p of pedestrianCells.get(ix+','+iz)||[]){
+   const dx=p.x-c.x,dz=p.z-c.z,u=dx*co+dz*si,v=-dx*si+dz*co,gap=u-halfLength-.35;
+   if(u<=.25||u>reach||Math.abs(v)>=halfWidth||gap>=best)continue;
+   if(Math.abs((p.baseY??c.y)-(c.y||0))>1.5||!clearLine(c,p,.12))continue;
+   best=gap;
+  }
+  return best;
+ }
+
  function driveToward(c,dt,player,target,desiredSpeed,{stop=false,steerScale=2.3}={}){
   const dx=target.x-c.x,dz=target.z-c.z,err=angle(Math.atan2(dz,dx)-c.cap);
   const steer=clamp(err*steerScale,-1,1);
   if(c.reverse>0){
+   horn(c,dt,false,null);
    c.reverse=Math.max(0,c.reverse-dt);
    c.commandMoving=false;
    const rear=obstacleScan(c,player,-1),safe=rear.distance>1.3;
@@ -516,6 +554,7 @@ function create(world,{count=12}={}){
   },world,dt);
   c.travel+=Math.hypot(c.x-x,c.z-z);
   trackProgress(c,dt,c.x-x,c.z-z,player);
+  horn(c,dt,!stop&&desiredSpeed>.8&&targetSpeed<.8&&ahead.kind!=='static'&&ahead.kind!==null&&Math.hypot(c.x-x,c.z-z)<dt*.7,ahead.kind);
  }
 
  function pathTarget(c,goal){
@@ -607,8 +646,8 @@ function create(world,{count=12}={}){
   driveToward(c,dt,player,point,speed,{stop});
  }
 
- // Civilian behaviour is intentionally unchanged: same lane choice, same random
- // sequence and the same far hidden recycling as before.
+ // Lane choice, random draws and hidden recycling remain unchanged. A shared
+ // pedestrian index now allows civilians to stop before people in their lane.
  function civilianDrive(c,dt,player){
   c.siren=false;
   let target=lane(c),speed=c.model==='tmax'?7:6;
@@ -616,14 +655,15 @@ function create(world,{count=12}={}){
   const dx=target.x-c.x,dz=target.z-c.z,dist=Math.hypot(dx,dz),err=angle(Math.atan2(dz,dx)-c.cap);
   speed*=clamp(1-Math.abs(err)*.6,.25,1);
   const co=Math.cos(c.cap),si=Math.sin(c.cap);
-  let obstacle=Infinity;
+  let obstacle=Infinity,obstacleKind=null;
   for(const other of world.fleet){
    if(other===c)continue;
    const x=other.x-c.x,z=other.z-c.z,u=x*co+z*si,v=-x*si+z*co;
-   if(u>0&&Math.abs(v)<(R.vehicles.SPECS[c.model].width+R.vehicles.SPECS[other.model].width)/2+.04)obstacle=Math.min(obstacle,u-R.vehicles.SPECS[other.model].length/2-R.vehicles.SPECS[c.model].length/2);
+   if(u>0&&Math.abs(v)<(R.vehicles.SPECS[c.model].width+R.vehicles.SPECS[other.model].width)/2+.04){const gap=u-R.vehicles.SPECS[other.model].length/2-R.vehicles.SPECS[c.model].length/2;if(gap<obstacle){obstacle=gap;obstacleKind='vehicle';}}
   }
   const px=player.x-c.x,pz=player.z-c.z,pu=px*co+pz*si,pv=-px*si+pz*co;
-  if(world.car!==c&&pu>0&&Math.abs(pv)<1.3)obstacle=Math.min(obstacle,pu-2);
+  if(world.car!==c&&pu>0&&Math.abs(pv)<1.3&&pu-2<obstacle){obstacle=pu-2;obstacleKind='player';}
+  const pedestrian=pedestrianAhead(c);if(pedestrian<obstacle){obstacle=pedestrian;obstacleKind='pedestrian';}
   if(obstacle<4+c.v*.65)speed=Math.min(speed,Math.max(0,(obstacle-1)*1.3));
   const waiting=c.police&&obstacle<4+c.v*.65;
   if(c.v<.9&&!waiting)c.stuck+=dt;else c.stuck=0;
@@ -641,6 +681,7 @@ function create(world,{count=12}={}){
   const x=c.x,z=c.z;
   R.vehicles.step(c,cmd,world,dt);
   c.travel+=Math.hypot(c.x-x,c.z-z);
+  horn(c,dt,!reverse&&dist>1&&speed<.8&&obstacleKind!==null&&Math.hypot(c.x-x,c.z-z)<dt*.7,obstacleKind);
   if(!c.police&&!reverse&&(c.jams||0)>4&&Math.hypot(c.x-player.x,c.z-player.z)>80&&!clearLine(c,player,.2)){
    for(let n=0;n<60;n++){
     const id=candidates[Math.floor(random()*candidates.length)],q=nodes[id],to=nodes[q.links[0]];
@@ -674,7 +715,8 @@ function create(world,{count=12}={}){
  }
 
  function update(dt,law,player){
-  clock+=dt;
+  events=[];if(!(dt>0&&Number.isFinite(dt)))return;
+  indexPedestrians();clock+=dt;
   tick++;
   if(law)lawRef=law;
   readReport(law);
@@ -688,6 +730,7 @@ function create(world,{count=12}={}){
   updateDispatch(law);
   if(law&&stableWanted(law)>0&&active.length&&intel.valid&&clock-intel.time>22&&active.every(c=>c.state==='patrol'||c.state==='disengage'))intel={...intel,valid:false};
   for(const c of cars){
+   if(!hornAllowed(c))hornStates.delete(c);
    if(!c.ai)continue;
    if(c.police){
     c.lastKnown=intel.valid?{x:intel.x,z:intel.z,time:intel.time}:null;
@@ -704,6 +747,7 @@ function create(world,{count=12}={}){
 
  return {
   cars,nodes,edges,nearest,route,update,clearLine,metrics,
+  get events(){return events;},
   arrestStatus,
   get intel(){return {seq:intel.seq,time:intel.time,x:intel.x,z:intel.z,vx:intel.vx,vz:intel.vz,valid:intel.valid};},
   get time(){return clock;},

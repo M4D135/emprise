@@ -1,0 +1,33 @@
+{
+  "oracle": "0a68dbe2b907e6795c3c8fe2f7701fa9d59d191c render() + current geometry",
+  "cases": 194,
+  "comparedMeshes": 109800,
+  "lookupLimit": 64,
+  "timing": {
+    "scope": "Node pure render, no GPU or simulation; excludes model generation and renderer packing",
+    "rendersPerTrial": 240,
+    "beforeMs": [
+      283.37275,
+      317.9269999999997,
+      327.55229099999997,
+      320.12791700000025
+    ],
+    "afterMs": [
+      225.129416,
+      228.161791,
+      252.89866600000005,
+      239.18120800000042
+    ],
+    "medianBeforeMs": 320.12791700000025,
+    "medianAfterMs": 239.18120800000042,
+    "ratio": 0.7471426117454175
+  },
+  "checks": [
+    "Exact numeric render equality incl signed zeros/nonfinite fallback",
+    "Real urban damage wrapper incl lifted bonnet and broken glass",
+    "Cache invalidation when local rotation modified/replaced",
+    "100 rotations eviction stress,64entry lookup maximum",
+    "No mutable alias between output rotations",
+    "Existing cockpit, vehicle-shell and vehicle-trim tests PASS"
+  ]
+}

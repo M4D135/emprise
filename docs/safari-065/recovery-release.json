@@ -1,0 +1,164 @@
+{
+  "build": {
+    "version": "0.6.5",
+    "build": "0d3f9c1d2b",
+    "bytes": 22884904,
+    "sha256": "0ead4a29b00eb2cbbb297c92330332f4ded9f071aa950d04f50f28a355fb4a90",
+    "modules": [
+      "ferro/fmath",
+      "ferro/renderer",
+      "ferro/webgpu-shaders",
+      "ferro/webgpu-renderer",
+      "ferro/backends",
+      "ferro/geometry",
+      "ferro/materials",
+      "ferro/vehicle-dynamics",
+      "ferro/physics-geometry",
+      "ferro/physics",
+      "ferro/destruction",
+      "ferro/navigation",
+      "ferro/input",
+      "ferro/motion",
+      "ferro/effects",
+      "ferro/audio",
+      "ferro/recipes",
+      "ferro/crowd",
+      "ferro/crowd-webgpu",
+      "ferro/engine",
+      "metal/simulation",
+      "metal/actors",
+      "metal/audio-recipes",
+      "metal/weapon",
+      "bitume/main",
+      "bitume/voiture",
+      "bitume/conduite",
+      "bitume/son",
+      "pdr/villes/marseille",
+      "pdr/ville-reelle",
+      "pdr/sim/regles",
+      "human-data",
+      "body-data",
+      "human",
+      "materials",
+      "pdr/foule",
+      "pdr/foule-webgpu",
+      "vehicles",
+      "mobility",
+      "marine",
+      "marine-water",
+      "details",
+      "architecture",
+      "people",
+      "boundaries",
+      "clearance",
+      "coast-data",
+      "coast",
+      "city-data",
+      "city-stream",
+      "core-heights",
+      "landmarks",
+      "camera",
+      "world",
+      "crowd",
+      "traffic",
+      "campaign",
+      "replay",
+      "replays",
+      "weather",
+      "places-data",
+      "places",
+      "interiors",
+      "breach",
+      "urban",
+      "injuries",
+      "police",
+      "business",
+      "loot",
+      "phone",
+      "session",
+      "gamepad",
+      "mobile",
+      "game"
+    ]
+  },
+  "htmlSha256": "0ead4a29b00eb2cbbb297c92330332f4ded9f071aa950d04f50f28a355fb4a90",
+  "description": "Actual device loss, uncaptured GPU validation, adapter/API/init failure; same live session and replaced-canvas input",
+  "cases": [
+    {
+      "case": "device-lost",
+      "state": {
+        "backend": "webgl2",
+        "sameSession": true,
+        "state": "{\"cash\":4321.5,\"hp\":73,\"inventory\":{\"weapons\":[true,true,true],\"ammo\":[71,17,6]},\"weapon\":0}",
+        "before": "{\"cash\":4321.5,\"hp\":73,\"inventory\":{\"weapons\":[true,true,true],\"ammo\":[71,17,6]},\"weapon\":0}",
+        "errors": [],
+        "events": [
+          {
+            "from": "webgpu",
+            "to": "webgl2",
+            "reason": "destroyed",
+            "message": "Device was destroyed."
+          }
+        ],
+        "reason": "WebGPU destroyed: Device was destroyed.",
+        "running": true,
+        "recovering": false,
+        "canvasReplaced": true,
+        "pointerLocked": false,
+        "loading": false
+      },
+      "input": {
+        "commands": {
+          "forward": 1,
+          "moveY": 1,
+          "interact": true,
+          "fire": true,
+          "lookX": 0.0528,
+          "lookY": 0.0264,
+          "zoomDelta": 0.75
+        },
+        "contextMenuPrevented": true,
+        "testing": false
+      },
+      "framesAfter": 26
+    },
+    {
+      "case": "installation-error",
+      "state": {
+        "backend": "webgl2",
+        "sameSession": true,
+        "state": "{\"cash\":4321.5,\"hp\":73,\"inventory\":{\"weapons\":[true,true,true],\"ammo\":[71,17,6]},\"weapon\":0}",
+        "before": "{\"cash\":4321.5,\"hp\":73,\"inventory\":{\"weapons\":[true,true,true],\"ammo\":[71,17,6]},\"weapon\":0}",
+        "errors": [],
+        "events": [
+          {
+            "from": "webgpu",
+            "to": "webgl2",
+            "reason": "installation",
+            "message": "Injected native installation failure"
+          }
+        ],
+        "reason": "WebGPU installation: Injected native installation failure",
+        "running": false,
+        "recovering": false,
+        "canvasReplaced": false,
+        "pointerLocked": false,
+        "loading": false
+      },
+      "input": {
+        "commands": {
+          "forward": 1,
+          "moveY": 1,
+          "interact": true,
+          "fire": true,
+          "lookX": 0.0528,
+          "lookY": 0.0264,
+          "zoomDelta": 0.75
+        },
+        "contextMenuPrevented": true,
+        "testing": false
+      },
+      "framesAfter": 22
+    }
+  ]
+}

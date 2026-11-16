@@ -1,10 +1,17 @@
 #!/usr/bin/env python3
 """Build only the FERRO workshop as one offline HTML; never rebuild the game."""
-import argparse, pathlib, re
+import argparse, json, pathlib, re
 ROOT=pathlib.Path(__file__).resolve().parents[1]
 def build(destination):
     editor=ROOT/'editor'
     html=(editor/'index.html').read_text()
+    version=json.loads((ROOT/'FERRO.json').read_text())['version']
+    if not re.fullmatch(r'[0-9]+\.[0-9]+\.[0-9]+(?:-[A-Za-z0-9.-]+)?',version):
+        raise ValueError('Invalid FERRO version')
+    html,labels=re.subn(r'(data-ferro-version>)[^<]*(</span>)',lambda m:m[1]+version+m[2],html)
+    html,links=re.subn(r'(data-ferro-download href=")[^"]*(")',lambda m:m[1]+'FERRO-'+version+'.zip'+m[2],html)
+    if labels!=2 or links!=1:
+        raise ValueError('Expected two FERRO version labels and one package link')
     css=(editor/'style.css').read_text()
     html=html.replace('<link rel="stylesheet" href="style.css">','<style>'+css+'</style>')
     def inline(match):

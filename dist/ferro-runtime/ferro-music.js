@@ -1,4 +1,4 @@
-/* FERRO 0.3.0 — procedural engine. */
+/* FERRO 0.3.2 — procedural engine. */
 /* FImuse — generic adaptive music director, modelled on LucasArts iMUSE.
  *
  * The brick knows nothing about the host game: it only sees abstract cues, segments,

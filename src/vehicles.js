@@ -7,6 +7,29 @@ const PALETTE=['#bb2729','#e7e7db','#18252f','#1a4c92','#8f999c','#19594d','#c5a
 const rgb=hex=>[1,3,5].map(i=>parseInt(hex.slice(i,i+2),16)/255);
 const fonts={'0':['111','101','101','101','111'],'1':['010','110','010','010','111'],'2':['111','001','111','100','111'],'3':['111','001','111','001','111'],'4':['101','101','111','001','001'],'5':['111','100','111','001','111'],'6':['111','100','111','101','111'],'7':['111','001','010','010','010'],'8':['111','101','111','101','111'],'9':['111','101','111','001','111'],'G':['111','100','101','101','111'],'T':['111','010','010','010','010'],'I':['111','010','010','010','111'],'R':['110','101','110','101','101'],'U':['101','101','101','101','111'],'B':['110','101','110','101','110'],'O':['111','101','101','101','111'],'.':['0','0','0','0','1']};
 const models=new Map();let serial=0;
+// Model panels keep their local rotations between frames. Share each exact
+// local basis, then compose it once per car pose, not once per panel. Public
+// pieces remain mutable: compare scalar values, including signed zero, before
+// reusing a basis. The lookup is capped; removed panels are only weakly held.
+const rotationCaches=new WeakMap(),ZERO_ROTATION=[0,0,0],ROTATION_CACHE_LIMIT=64;
+function rotationCache(model){let c=rotationCaches.get(model);if(!c){c={pieces:new WeakMap(),groups:new Map(),frame:0};rotationCaches.set(model,c);}c.frame++;return c;}
+function panelRotation(mesh,matrix,cache){
+ const r=mesh.r||ZERO_ROTATION,rx=r[0],ry=r[1],rz=r[2];
+ // Preserve the generic coercion/non-finite behaviour without caching values
+ // whose user-defined conversion could change between calls.
+ if(!Number.isFinite(rx)||!Number.isFinite(ry)||!Number.isFinite(rz))return BITUME.voiture.angles(BITUME.voiture.mulM(matrix,BITUME.voiture.euler(...r)));
+ let saved=cache.pieces.get(mesh);
+ if(!saved||!Object.is(saved.rx,rx)||!Object.is(saved.ry,ry)||!Object.is(saved.rz,rz)){
+  const key=(Object.is(rx,-0)?'-0':rx)+','+(Object.is(ry,-0)?'-0':ry)+','+(Object.is(rz,-0)?'-0':rz);
+  let group=cache.groups.get(key);
+  if(!group){group={local:BITUME.voiture.euler(rx,ry,rz),frame:0,world:null};if(cache.groups.size===ROTATION_CACHE_LIMIT)cache.groups.delete(cache.groups.keys().next().value);cache.groups.set(key,group);}
+  saved={rx,ry,rz,group};cache.pieces.set(mesh,saved);
+ }
+ const group=saved.group;if(group.frame!==cache.frame){group.world=BITUME.voiture.angles(BITUME.voiture.mulM(matrix,group.local));group.frame=cache.frame;}
+ // Damage and external consumers may mutate an output rotation. Never expose
+ // the cached array or share a mutable rotation between rendered instances.
+ return group.world.slice();
+}
 function model(type='gti',color='#bb2729'){
  const key=type+color;if(models.has(key))return models.get(key);
  const r5=type==='r5',spec=SPECS[type],paint=rgb(color),pieces=[],interior=[],wheels=[],W=spec.width/2,L=spec.length/2;
@@ -28,31 +51,79 @@ function model(type='gti',color='#bb2729'){
  // Body shell. Arch cut-outs are geometry, not dark discs painted on a box.
  box([0,.27,0],[3.15,.18,1.34],DARK,7);
  const wb=spec.wheelbase/2,wr=r5?.277:.293,arch=r5?.348:.35;
+ const frontRoof=r5?.22:.27,rearRoof=r5?-1.18:-1.04,roofY=1.335,rearBottom=r5?-1.69:-1.72;
+ // The shoulder, bonnet and cabin share the SAME edge coordinates. The old
+ // vertical skins stopped 2 cm below / 7 cm outside the glazing, leaving daylight.
+ const wide=x=>W-(Math.abs(x)>L-.25?(.25-(L-Math.abs(x)))*.15:0);
+ const bodyEdge=x=>{const xs=[.84,L-.27,L-.02,L],ys=[.84,.82,.765,.745];let y=.84;if(x>xs[0]){let k=0;while(k<xs.length-2&&x>xs[k+1])k++;y=ys[k]+(ys[k+1]-ys[k])*(x-xs[k])/(xs[k+1]-xs[k]);}return [x,y,wide(x)*.968];};
+ const hx=[.84,L-.27,L-.02,L],hy=[.86,.805,.765,.745],hz=[-1,-.90,-.52,0,.52,.90,1];
+ const hw=[.70,W-.045,W-.08,wide(L)*.968];
+ const hoodAt=(k,t)=>[hx[k],hy[k]+.024*(1-t*t)*(k===0||k===3?0:1),t*hw[k]];
+ const shoulder=x=>{
+  if(x<=rearBottom)return [x,.84+(.86-.84)*(x+L)/(rearBottom+L),.70];
+  if(x<=hx[0])return [x,.86,.70];
+  let k=0;while(k<hx.length-2&&x>hx[k+1])k++;const t=(x-hx[k])/(hx[k+1]-hx[k]);
+  return [x,hy[k]+(hy[k+1]-hy[k])*t,hw[k]+(hw[k+1]-hw[k])*t];
+ };
+ const allFlares=[];
+ const sections=[...new Set([...Array.from({length:121},(_,i)=>-L+2*L*i/120),rearBottom,...hx])].sort((a,b)=>a-b);
  for(const side of [-1,1]){
-  const polys=[];for(let i=0;i<120;i++){
-   const x0=-L+(2*L)*i/120,x1=-L+(2*L)*(i+1)/120;
+  const polys=[];for(let i=0;i<sections.length-1;i++){
+   const x0=sections[i],x1=sections[i+1];
    const low=x=>{let y=.29;for(const axle of [-wb,wb]){const d=x-axle;if(Math.abs(d)<arch)y=Math.max(y,wr+Math.sqrt(arch*arch-d*d));}return y;};
-   const wide=x=>W-(Math.abs(x)>L-.25?(.25-(L-Math.abs(x)))*.15:0);
-   for(let row=0;row<5;row++){const at=(x,t)=>{const y=low(x)+(.84-low(x))*t,bulge=.968+.032*Math.sin(t*Math.PI);return [x,y,side*wide(x)*bulge];},p=[at(x0,row/5),at(x1,row/5),at(x1,(row+1)/5),at(x0,(row+1)/5)];polys.push(side>0?p:p.slice().reverse());}
+   for(let row=0;row<5;row++){const at=(x,t)=>{const y=low(x)+(bodyEdge(x)[1]-low(x))*t,bulge=.968+.032*Math.sin(t*Math.PI);return [x,y,side*wide(x)*bulge];},p=[at(x0,row/5),at(x1,row/5),at(x1,(row+1)/5),at(x0,(row+1)/5)];polys.push(side>0?p:p.slice().reverse());}
+   const q=[bodyEdge(x0),bodyEdge(x1),shoulder(x1),shoulder(x0)].map(v=>[v[0],v[1],side*v[2]]);
+   polys.push(side>0?q:q.reverse());
   }surface('side'+side,polys,paint,17,{smooth:true});
-  // Plastic arches (205) / body-colour extensions (Supercinq), continuous segments.
-  for(const ax of [-wb,wb])for(let j=0;j<20;j++){const a=PI*j/20,b=PI*(j+1)/20;bar([ax+Math.cos(a)*arch,wr+Math.sin(a)*arch,side*(W+.012)],[ax+Math.cos(b)*arch,wr+Math.sin(b)*arch,side*(W+.012)],r5?.07:.055,r5?paint:DARK,r5?17:7);}
-  box([0,.49,side*(W+.015)],[1.66,r5?.14:.09,.025],DARK,7);
+  // Broad moulded extensions, not a row of cylindrical tubes. Three cross-
+  // sections round the lip; the Supercinq has a flatter, wider painted flare.
+  for(const ax of [-wb,wb]){
+   const flare=[],radii=[arch-.008,arch+.018,arch+(r5?.09:.055)],depth=[W+.028,W+(r5?.063:.045),W-.009];
+   const at=(j,k)=>{const a=PI*j/24,r=radii[k],dy=Math.sin(a)*r;return [ax+Math.cos(a)*r,wr+(r5?Math.min(dy,r-.022):dy),side*depth[k]];};
+   for(let j=0;j<24;j++)for(let k=0;k<2;k++){const q=[at(j,k),at(j+1,k),at(j+1,k+1),at(j,k+1)];flare.push(side>0?q.reverse():q);}
+   allFlares.push(...flare);
+  }
+  box([0,.49,side*(W+.015)],[1.66,r5?.16:.09,.025],r5?paint:DARK,r5?17:7);
   if(!r5)box([0,.513,side*(W+.03)],[1.66,.014,.012],RED,17);
   box([0,.26,side*(W-.01)],[1.85,.085,.09],r5?paint:DARK,r5?17:7);
   // Door outlines, handle, lock and side indicator.
-  box([-.47,.65,side*(W+.025)],[.13,.035,.025],BLACK,7);part('cylinder',[-.5,.59,side*(W+.033)],[.018,.012,.018],SILVER,0,[PI/2,0,0]);
-  box([-.63,.68,side*(W+.006)],[.008,.29,.008],BLACK,7);box([.77,.7,side*(W+.006)],[.008,.27,.008],BLACK,7);
+  box([-.47,r5?.70:.73,side*(W+.025)],r5?[.035,.105,.025]:[.13,.035,.025],BLACK,7);part('cylinder',[-.5,.59,side*(W+.033)],[.018,.012,.018],SILVER,0,[PI/2,0,0]);
+  box([-.53,.565,side*(W+.006)],[.006,.55,.008],BLACK,7);box([.77,.565,side*(W+.006)],[.006,.55,.008],BLACK,7);
   box([1.02,.715,side*(W+.02)],[.065,.038,.016],[.95,.38,.06],5);
   box([.64,.94,side*(W+.12)],[.21,.11,.20],r5?paint:DARK,r5?17:7);box([.536,.945,side*(W+.12)],[.006,.078,.147],[.43,.55,.56],8);
-  if(r5)text('GT TURBO',-.39,.39,side*(W+.031),.014,SILVER,'side');
+  if(r5)text('GT TURBO',-.39,.39,side*(W+.031),.014,RED,'side');
  }
- const hood=[];const hx=[.80,L-.27,L-.02],hy=[.85,.805,.765],hz=[-1,-.90,-.52,0,.52,.90,1];
- for(let i=0;i<hx.length-1;i++)for(let j=0;j<hz.length-1;j++){const at=(k,t)=>[hx[k],hy[k]+.024*(1-t*t),t*(W-.045-(k===2?.035:0))];hood.push([at(i,hz[j]),at(i+1,hz[j]),at(i+1,hz[j+1]),at(i,hz[j+1])]);}
+ surface('arches',allFlares,r5?paint:DARK,r5?17:7,{smooth:true,double:true});
+ // Wheel-well backs and curved liners stop the opposite skyline showing
+ // through the clearance above a tyre. All four are one shared dark mesh.
+ const liners=[];
+ for(const side of [-1,1])for(const ax of [-wb,wb]){
+  const at=(j,z)=>{const a=PI*j/24;return [ax+Math.cos(a)*arch,wr+Math.sin(a)*arch,side*z];};
+  for(let j=0;j<24;j++){
+   liners.push([[ax,wr,side*.602],at(j,.602),at(j+1,.602)]);
+   liners.push([at(j,.602),at(j,W*.99),at(j+1,W*.99),at(j+1,.602)]);
+  }
+ }
+ surface('wheel-wells',liners,BLACK,7,{double:true,smooth:true});
+ const hood=[];
+ for(let i=0;i<hx.length-1;i++)for(let j=0;j<hz.length-1;j++)hood.push([hoodAt(i,hz[j]),hoodAt(i+1,hz[j]),hoodAt(i+1,hz[j+1]),hoodAt(i,hz[j+1])]);
  surface('hood',hood,paint,17,{double:true,smooth:true});
- box([L-.025,.62,0],[.06,.25,1.45],paint);box([-L+.035,.64,0],[.07,.36,1.48],paint);
- const frontRoof=r5?.22:.27,rearRoof=r5?-1.18:-1.04,roofY=1.35,rearBottom=r5?-1.69:-1.72;
- part('bevel',[(rearRoof+frontRoof)/2,roofY,0],[frontRoof-rearRoof+.045,.045,1.25],paint,17);box([(rearRoof+frontRoof)/2,roofY-.03,0],[frontRoof-rearRoof-.06,.018,1.17],[.35,.34,.31],7);for(const side of [-1,1])bar([rearRoof,roofY+.006,side*.622],[frontRoof,roofY+.006,side*.622],.015,DARK,7);
+ box([L-.025,.62,0],[.06,.25,1.45],paint);
+ // Closed hatch apron joins the rear window sill and both quarter shoulders.
+ const backZ=bodyEdge(-L)[2];
+ surface('hatch-lower',[[[-L,.46,-backZ],[-L,.46,backZ],[-L,.84,backZ],[-L,.84,-backZ]],
+  [[-L,.84,-.70],[-L,.84,.70],[rearBottom,.86,.70],[rearBottom,.86,-.70]]],paint,17,{double:true});
+ // A shallow crowned pressed roof replaces the bevelled rectangular slab. Its
+ // perimeter exactly meets the side rails and both windscreen header returns.
+ const roof=[],rx=[rearRoof,(rearRoof+frontRoof)/2,frontRoof],rz=[-.61,-.56,-.36,0,.36,.56,.61];
+ const roofAt=(i,j)=>{const z=rz[j],t=(rx[i]-rearRoof)/(frontRoof-rearRoof);return [rx[i],roofY+.018*(1-(z/.61)**2)+.007*Math.sin(t*PI)*(1-(z/.61)**2),z];};
+ for(let i=0;i<2;i++)for(let j=0;j<rz.length-1;j++)roof.push([roofAt(i,j),roofAt(i,j+1),roofAt(i+1,j+1),roofAt(i+1,j)]);
+ for(const [x,glassY]of [[frontRoof,roofY-.015],[rearRoof,roofY-.015]])for(let j=0;j<rz.length-1;j++){
+  const i=x===frontRoof?2:0,q=[roofAt(i,j),roofAt(i,j+1),[x,glassY,rz[j+1]/.61*.60],[x,glassY,rz[j]/.61*.60]];roof.push(x===frontRoof?q:q.reverse());
+ }
+ surface('roof',roof,paint,17,{smooth:true,double:true});
+ box([(rearRoof+frontRoof)/2,roofY-.03,0],[frontRoof-rearRoof-.06,.018,1.17],[.35,.34,.31],7);
+ for(const side of [-1,1])bar([rearRoof,roofY+.002,side*.611],[frontRoof,roofY+.002,side*.611],.010,DARK,7);
  const wind=[[.84,.86,-.70],[frontRoof,roofY-.015,-.60],[frontRoof,roofY-.015,.60],[.84,.86,.70]];
  surface('windshield',[wind],GLASS,8,{fx:true,alpha:.24,double:true,window:true});for(let j=0;j<wind.length;j++)bar(wind[j],wind[(j+1)%wind.length],.022,BLACK,7);
  const rear=[[rearBottom,.86,.69],[rearRoof,roofY-.015,.60],[rearRoof,roofY-.015,-.60],[rearBottom,.86,-.69]];
@@ -62,7 +133,7 @@ function model(type='gti',color='#bb2729'){
  for(const side of [-1,1]){
   const q=(x,y,z)=>[x,y,side*z],A=q(.84,.86,.70),B=q(frontRoof,roofY,.61),C=q(rearRoof,roofY,.61),D=q(rearBottom,.86,.70);
   const F0=q(.775,.89,.697),F1=q(frontRoof-.025,roofY-.055,.608),F2=q(-.48,roofY-.055,.608),F3=q(-.48,.89,.697);
-  const Q0=q(-.585,.89,.697),Q1=q(-.585,roofY-.055,.608),Q2=q(rearRoof+.145,roofY-.065,.611),Q3=q(rearBottom+(r5?.17:.255),.89,.697);
+  const Q0=q(-.535,.89,.697),Q1=q(-.535,roofY-.055,.608),Q2=q(rearRoof+.145,roofY-.065,.611),Q3=q(r5?rearBottom+.17:rearRoof+.035,.89,.697);
   const panel=(name,polys,color=paint,mat=17)=>surface(name+side,polys,color,mat,{double:true});
   panel('a-pillar',[[A,B,F1,F0]]);panel('roof-rail',[[B,C,Q2,Q1,F2,F1]]);
   panel('c-pillar',[[C,D,Q3,Q2]]);panel('belt-rail',[[D,A,F0,F3,Q0,Q3]]);
@@ -91,7 +162,8 @@ function model(type='gti',color='#bb2729'){
      polys.push(clipped.map(p=>{const wb=cross2(a,p,c)/den,wc=cross2(a,b,p)/den,z=a[2]+wb*(b[2]-a[2])+wc*(c[2]-a[2]);return [p[0]+n[0]*scale,p[1]+n[1]*scale,z+n[2]*scale];}));
     }return polys;
    }
-   panel('quarter-trim',onPillar(trim,.003),DARK,7);
+   const badgePlate=(y,w)=>{const [a,b]=span(y),x=(a+b)/2,h=.024;return [[x-w/2,y-h],[x+w/2,y-h],[x+w/2,y+h],[x-w/2,y+h]];};
+   panel('quarter-trim',[...onPillar(badgePlate(1.027,.138),.003),...onPillar(badgePlate(1.104,.11),.003)],DARK,7);
    function trimText(label,top,size,color,mat){
     const polys=[],[left,right]=span(top-size*2),start=(left+right)/2+(label.length*4-1)*size/2;
     for(let k=0;k<label.length;k++){const glyph=fonts[label[k]];for(let j=0;j<5;j++)for(let i=0;i<glyph[j].length;i++)if(glyph[j][i]==='1'){
@@ -117,7 +189,7 @@ function model(type='gti',color='#bb2729'){
  }
  for(const side of [-1,1]){
   box([L+.014,.655,side*.515],[.025,r5?.20:.175,.335],[.83,.87,.80],8);
-  box([L+.03,r5?.535:.645,side*(r5?.515:.70)],[.027,r5?.055:.15,r5?.335:.095],r5?[1,.38,.04]:[.85,.89,.82],8);
+  box([L+.03,r5?.535:.645,side*(r5?.515:.70)],[.027,r5?.055:.15,r5?.335:.095],[1,.38,.04],8);
   box([L+.075,.29,side*.53],[.025,.105,.17],r5?[1,.75,.15]:[.92,.9,.72],8);
   for(let j=0;j<7;j++)box([L+.03,.58+j*.025,side*.51],[.008,.004,.30],[.58,.65,.65],8);
   box([-L-.009,.75,side*.635],[.023,r5?.31:.22,.18],RED,6);
@@ -128,7 +200,7 @@ function model(type='gti',color='#bb2729'){
  if(r5){bar([L+.057,.61,.15],[L+.057,.67,.19],.013,SILVER,0);bar([L+.057,.67,.19],[L+.057,.73,.15],.013,SILVER,0);bar([L+.057,.73,.15],[L+.057,.67,.11],.013,SILVER,0);bar([L+.057,.67,.11],[L+.057,.61,.15],.013,SILVER,0);}
  else box([L+.055,.65,0],[.015,.08,.055],SILVER,0);
  box([-L-.023,.86,0],[.03,.11,1.10],DARK,7);for(let j=0;j<4;j++)box([-L-.04,.82+j*.024,0],[.006,.007,1.05],BLACK,7);
- box([rearRoof-.08,1.35,0],[.22,.04,1.24],r5?paint:DARK,r5?17:7);
+ part('bevel',[rearRoof-.055,roofY+.005,0],[r5?.14:.10,.026,1.22],r5?paint:DARK,r5?17:7);
  bar([.83,.875,-.58],[.72,.89,-.09],.015,BLACK,7);bar([.83,.875,.1],[.72,.89,.58],.015,BLACK,7);
  bar([frontRoof,1.37,0],[frontRoof-.27,1.68,0],.009,DARK,0);
  part('cylinder',[-L-.08,.23,-.48],[.065,.23,.065],SILVER,0,[0,0,PI/2]);
@@ -198,8 +270,9 @@ function cockpitGeometry(pose,put){const cloth=[.065,.10,.14],cuff=[.045,.065,.0
 
 function render(car,out,options={}){
  const mod=model(car.model||'gti',car.color||'#bb2729'),M=BITUME.voiture.attitude(car.cap,car.tangage||0,car.roulis||0),rot=BITUME.voiture.angles(M),pos=[car.x,car.y||.16,car.z];
- function put(m){if(options.cockpit&&m.window)return;const p=BITUME.voiture.mul(M,m.p),r=BITUME.voiture.angles(BITUME.voiture.mulM(M,BITUME.voiture.euler(...(m.r||[0,0,0]))));out.push({...m,p:p.map((v,i)=>v+pos[i]),r});}
- for(const m of mod.pieces)put(m);
+ const bases=rotationCache(mod);
+ function put(m,panel=false){if(options.cockpit&&m.window)return;const p=BITUME.voiture.mul(M,m.p),r=panel?panelRotation(m,M,bases):BITUME.voiture.angles(BITUME.voiture.mulM(M,BITUME.voiture.euler(...(m.r||[0,0,0]))));out.push({...m,p:p.map((v,i)=>v+pos[i]),r});}
+ for(const m of mod.pieces)put(m,true);
  // Rolling wheels. Peugeot perforated alloy / Renault dished, finely vented alloy.
  for(const axle of [-1,1])for(const side of [-1,1]){
   const x=axle*mod.wb,z=side*.72,y=mod.wr,steer=axle>0?-(car.braquage||0):0,roll=(car.distance||0)/mod.wr;

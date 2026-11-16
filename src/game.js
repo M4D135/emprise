@@ -3,28 +3,32 @@ let canvas=document.getElementById('scene');
 const $=id=>document.getElementById(id),clamp=(v,a,b)=>Math.max(a,Math.min(b,v)),testMode=new URLSearchParams(location.search).has('test');
 const actions=[['left','KeyA'],['right','KeyD'],['back','KeyS'],['forward','KeyW'],['sprint','ShiftLeft'],['brake','Space'],['interact','KeyE'],['engine','KeyF'],['paint','KeyH'],['camera','KeyC'],['map','KeyM'],['melee','KeyV'],['pulse','KeyR'],['weapon1','Digit1'],['weapon2','Digit2'],['weapon3','Digit3'],['grab','KeyG'],['throw','KeyB'],['ignite','KeyI'],['repair','KeyT'],['fire','Enter']].map(([id,key])=>({id,keys:id==='forward'?['KeyW','KeyZ','ArrowUp']:id==='left'?['KeyA','KeyQ']:id==='back'?['KeyS','ArrowDown']:[key],type:['interact','engine','paint','camera','map','weapon1','weapon2','weapon3','grab','throw','ignite','repair','pulse','melee'].includes(id)?'press':'hold'}));
 const input=FInput.create({actions,getGamepads:()=>[],sticks:{move:{type:'move',x:['left','right'],y:['back','forward'],pad:'LS'},look:{type:'look',pad:'RS'}}});
-let session,live,renderer,crowdView,motion=FMotion.create(),running=false,ready=false,last=0,acc=0,frameCount=0,view='poursuite',silent=false,audio=FAudio.create(),engineSound=BITUME.son.creer(),drag=false,previousMode='foot';
+let session=null,live=null,renderer=null,crowdView=null,motion=FMotion.create(),running=false,ready=false,last=0,acc=0,frameCount=0,view='poursuite',silent=false,audio=FAudio.create(),engineSound=BITUME.son.creer(),drag=false,previousMode='foot';
+// Urban mix: keep vehicle engines below weapons, footsteps and street ambience.
+engineSound.regler({moteur:.3});
 const followCamera=R.camera.create();let frameDt=1/60;
-let lastCommand={},processedEvents=0,carLookX=0,carLookY=0,testInput=null,cameraOverride=null,drawCount=0,crowdVersion=-1,panel=null,pendingAction=null,pendingBusiness=null,demo=false,replayPlayer=null,preparedDemo=null,demoIndex=0,lastGesture=performance.now(),saveClock=0,fatal=false,interiorVersion=-1,urbanVersion=-1,cityVersion=-1,staticSerial=0;
+let lastCommand={},processedEvents=0,carLookX=0,carLookY=0,testInput=null,cameraOverride=null,drawCount=0,crowdVersion=-1,panel=null,pendingAction=null,pendingBusiness=null,demo=false,replayPlayer=null,demoIndex=0,lastGesture=performance.now(),saveClock=0,fatal=false,interiorVersion=-1,urbanVersion=-1,cityVersion=-1,staticSerial=0;
+let liveSnapshot=null,pendingInitial=null,sessionTransition=null,transitionTarget=null,displayBackend=null,rendererGeneration=0;
 const samples=[],cpuSamples=[],errors=[],recorder=R.replay.recorder(),graphics={reflections:true,shadows:true};
 let queuedZoom=0,liveZoom=0,liveView='poursuite';
 let mapPaint=0,mapBoard=null,mapWhole=false;
 let phoneThread=null,phoneRevision=-1,pendingPhone=null,recoveringRenderer=null,recoveryPointerUnlock=false,resetting=false;
-const renderOptions={msaa:4,shadowMapScale:1,vignette:.9,bloomThreshold:[.9,.99],indexPrimitives:true};
+const renderOptions={msaa:4,shadowMapScale:1,vignette:.9,bloomThreshold:[.9,.99],indexPrimitives:true,preferWebGL2OnSafari:true};
+const recycleSafariGL=FRenderBackends.isSafariOnApple?.(navigator.userAgent)===true;
 const backendEvents=[];
 function onScene(type,handler,options){document.addEventListener(type,event=>{if(event.target===canvas)handler(event);},options);}
 async function recoverRenderer(info){
  if(recoveringRenderer)return recoveringRenderer;if(renderer?.stats?.backend!=='webgpu')return;
- const wasRunning=running;ready=false;running=false;gate();silence();drag=false;recoveryPointerUnlock=document.pointerLockElement===canvas;document.exitPointerLock?.();
+ const wasRunning=running;rendererGeneration++;ready=false;running=false;gate();silence();drag=false;recoveryPointerUnlock=document.pointerLockElement===canvas;document.exitPointerLock?.();
  recoveringRenderer=Promise.resolve().then(async()=>{try{
-  crowdView?.liberer();crowdView=null;renderer.dispose();canvas=FRenderBackends.replaceCanvas(canvas);
+  crowdView?.liberer();crowdView=null;R.human?.beginFrame(null);discardDisplay();
   const result=await FRenderBackends.create(canvas,{...renderOptions,backend:'webgl2'});renderer=result.renderer;canvas=result.canvas;
   const reason=info?.reason||'validation',message=String(info?.message||info?.error?.message||'').slice(0,500);renderer.stats.fallbackReason='WebGPU '+reason+(message?': '+message:'');backendEvents.push({from:'webgpu',to:'webgl2',reason,message});
-  install(session);last=performance.now();ready=true;updateBackendLabel();
-  if(wasRunning){running=true;if(!demo)soundStart();}session.tell('Affichage rétabli.',{remember:false});
+  if(session)install(session);last=performance.now();ready=!sessionTransition;updateBackendLabel();
+  if(wasRunning&&!sessionTransition&&session){running=true;if(!demo)soundStart();}session?.tell('Affichage rétabli.',{remember:false});
  }catch(error){fail(error);}finally{recoveringRenderer=null;}});return recoveringRenderer;
 }
-function updateBackendLabel(){const small=document.querySelector('.game-version small');if(small)small.textContent='FERRO · '+(renderer.stats.backend==='webgpu'?'WebGPU':'WebGL2')+' · BUILD '+R.build.id;}
+function updateBackendLabel(){const small=document.querySelector('.game-version small');if(small)small.textContent='FERRO · '+(renderer?.stats.backend==='webgpu'?'WebGPU':renderer?.stats.backend==='webgl2'?'WebGL2':'AUTO')+' · BUILD '+R.build.id;}
 let padSettings={};try{padSettings=JSON.parse(localStorage.getItem('emprise-pad-v1')||'{}');}catch{}
 const pad=R.gamepad.create({settings:padSettings});let padActive=false,overlay=null,overlayReturn=null,aiming=0,queuedAction=null;
 let touchSettings={};try{touchSettings=JSON.parse(localStorage.getItem('emprise-touch-v1')||'{}');}catch{}
@@ -57,12 +61,12 @@ function openNotebook(){
  const camp=session.campaign,book=session.business,rows=book?.journal()||[],owned=camp.sites.filter(s=>s.gang===0),protectedCount=rows.filter(q=>q.status==='protected').length;
  $('notebook-summary').textContent=Math.floor(camp.state.cash).toLocaleString('fr-FR')+' € · '+(owned.length+protectedCount)+' adresses sous contrôle · '+Math.round(camp.income()+(book?.income||0))+' €/min';
  const mission=book?.mission,raid=camp.state.raid,shopRaid=book?.raid;
- $('notebook-mission').textContent=shopRaid?shopRaid.name+' — '+shopRaid.label+' · '+shopRaid.hint:mission?mission.name+' — '+mission.label:raid?'Contre-attaque à '+camp.sites.find(q=>q.id===raid.site)?.name:camp.state.active?'Affrontement à '+camp.sites.find(q=>q.id===camp.state.active)?.name:'Aucun contrat en cours. Les commerçants donnent leurs pistes au comptoir.';
+ $('notebook-mission').textContent=cityLabel(shopRaid?shopRaid.name+' — '+shopRaid.label+' · '+shopRaid.hint:mission?mission.name+' — '+mission.label:raid?'Contre-attaque à '+camp.sites.find(q=>q.id===raid.site)?.name:camp.state.active?'Affrontement à '+camp.sites.find(q=>q.id===camp.state.active)?.name:'Aucun contrat en cours. Les commerçants donnent leurs pistes au comptoir.');
  const placeList=$('notebook-places');placeList.replaceChildren();
  for(const q of [...owned.map(s=>({name:s.name,address:'',status:'protected',rate:s.rate*(1+(s.upgrade||0)*.35)})),...rows]){
-  const row=document.createElement('article'),name=document.createElement('strong'),info=document.createElement('p');name.textContent=q.name;
-  info.textContent=(typeof q.address==='string'&&q.address?q.address+' · ':'')+({protected:Math.round(q.rate)+' €/min',contested:'Protection contestée',closed:'Commerce fermé',independent:'Visité · protection rivale'}[q.status]||'');
-  if(q.raid)info.textContent+=' · '+q.raid.label;
+  const row=document.createElement('article'),name=document.createElement('strong'),info=document.createElement('p');name.textContent=cityLabel(q.name);
+  info.textContent=cityLabel((typeof q.address==='string'&&q.address?q.address+' · ':'')+({protected:Math.round(q.rate)+' €/min',contested:'Protection contestée',closed:'Commerce fermé',independent:'Visité · protection rivale'}[q.status]||''));
+  if(q.raid)info.textContent+=' · '+cityLabel(q.raid.label);
   row.append(name,info);placeList.append(row);
  }
  if(!placeList.childElementCount)placeList.textContent='Aucune adresse visitée. Entrez dans un commerce pour rencontrer son responsable.';
@@ -71,15 +75,15 @@ function openNotebook(){
   const count=book?.inventory[key]||0,row=document.createElement('div');row.className='notebook-item';const text=document.createElement('span');text.textContent=label+' : '+count;row.append(text);
   if(key!=='valuable'){const button=document.createElement('button');button.textContent='Utiliser';button.disabled=!count||session.player.hp>=100||session.player.hp<=0;button.onclick=()=>{pendingBusiness='use_'+key;hideOverlay();};row.append(button);}inventory.append(row);
  }
- const history=$('notebook-history');history.replaceChildren();for(const event of session.history.slice(-8).reverse()){const li=document.createElement('li');li.textContent=event.text;history.append(li);}
+ const history=$('notebook-history');history.replaceChildren();for(const event of session.history.slice(-8).reverse()){const li=document.createElement('li');li.textContent=cityLabel(event.text);history.append(li);}
  if(!history.childElementCount){const li=document.createElement('li');li.textContent='Rien à noter pour le moment.';history.append(li);}
  showOverlay('notebook');
 }
 function openPhone(){if(!session?.phone||demo)return;phoneThread=null;phoneRevision=-1;showOverlay('phone');renderPhone();}
-function renderPhone(){const phone=session.phone;if(!phone)return;const thread=phoneThread&&phone.threads.find(t=>t.id===phoneThread);$('phone-back').hidden=!thread;$('phone-heading').textContent=thread?.name||'Messages';$('phone-subtitle').textContent=thread?'SMS · conversation privée':'Vos contacts. Vos affaires.';const hour=session.weather?.state.hour??14;$('phone-clock').textContent=String(Math.floor(hour)).padStart(2,'0')+':'+String(Math.floor(hour%1*60)).padStart(2,'0');const content=$('phone-content');content.replaceChildren();
- if(!thread){for(const t of phone.threads){const button=document.createElement('button');button.className='phone-thread';const avatar=document.createElement('span'),body=document.createElement('span'),name=document.createElement('strong'),preview=document.createElement('small');avatar.className='contact-avatar';avatar.textContent=t.name.slice(0,1);name.textContent=t.name;const last=typeof t.lastMessage==='string'?t.lastMessage:t.lastMessage?.text||'';preview.textContent=last;body.append(name,preview);button.append(avatar,body);if(t.unread){const badge=document.createElement('b');badge.className='unread-dot';badge.textContent=t.unread;button.append(badge);}button.onclick=()=>{phoneThread=t.id;phone.open(t.id);renderPhone();};content.append(button);}if(!phone.threads.length){const p=document.createElement('p');p.className='phone-empty';p.textContent='Aucun message pour le moment.';content.append(p);}}
- else{for(const m of phone.messages.filter(m=>m.threadId===thread.id)){const article=document.createElement('article');article.className='sms';const subject=document.createElement('strong'),text=document.createElement('p'),status=document.createElement('small');subject.textContent=m.subject;text.textContent=m.text;status.textContent={offered:'Proposition',accepted:'Acceptée',declined:'Déclinée',completed:'Terminée',failed:'Échouée',info:'Reçu'}[m.status]||'Reçu';article.append(subject,text);if(m.contract){const hint=document.createElement('p');hint.className='sms-hint';hint.textContent=[m.contract.readout,m.contract.hint].filter(Boolean).join(' · ');article.append(hint);}article.append(status);if(m.status==='offered'){const actions=document.createElement('div');actions.className='sms-actions';for(const [value,label]of [['accept','Accepter'],['decline','Décliner']]){const button=document.createElement('button');button.textContent=label;button.onclick=()=>{pendingPhone={id:m.id,action:value};};actions.append(button);}article.append(actions);}content.append(article);}}
- const active=phone.active;$('phone-contract').hidden=!active;$('phone-contract').textContent=active?[active.readout,active.hint].filter(Boolean).join(' · ')+' · '+active.reward+' €':'';phoneRevision=phone.revision;}
+function renderPhone(){const phone=session.phone;if(!phone)return;const thread=phoneThread&&phone.threads.find(t=>t.id===phoneThread);$('phone-back').hidden=!thread;$('phone-heading').textContent=cityLabel(thread?.name||'Messages');$('phone-subtitle').textContent=thread?'SMS · conversation privée':'Vos contacts. Vos affaires.';const hour=session.weather?.state.hour??14;$('phone-clock').textContent=String(Math.floor(hour)).padStart(2,'0')+':'+String(Math.floor(hour%1*60)).padStart(2,'0');const content=$('phone-content');content.replaceChildren();
+ if(!thread){for(const t of phone.threads){const button=document.createElement('button');button.className='phone-thread';const avatar=document.createElement('span'),body=document.createElement('span'),name=document.createElement('strong'),preview=document.createElement('small');avatar.className='contact-avatar';avatar.textContent=t.name.slice(0,1);name.textContent=cityLabel(t.name);const last=typeof t.lastMessage==='string'?t.lastMessage:t.lastMessage?.text||'';preview.textContent=cityLabel(last);body.append(name,preview);button.append(avatar,body);if(t.unread){const badge=document.createElement('b');badge.className='unread-dot';badge.textContent=t.unread;button.append(badge);}button.onclick=()=>{phoneThread=t.id;phone.open(t.id);renderPhone();};content.append(button);}if(!phone.threads.length){const p=document.createElement('p');p.className='phone-empty';p.textContent='Aucun message pour le moment.';content.append(p);}}
+ else{for(const m of phone.messages.filter(m=>m.threadId===thread.id)){const article=document.createElement('article');article.className='sms';const subject=document.createElement('strong'),text=document.createElement('p'),status=document.createElement('small');subject.textContent=cityLabel(m.subject);text.textContent=cityLabel(m.text);status.textContent={offered:'Proposition',accepted:'Acceptée',declined:'Déclinée',completed:'Terminée',failed:'Échouée',info:'Reçu'}[m.status]||'Reçu';article.append(subject,text);if(m.contract){const hint=document.createElement('p');hint.className='sms-hint';hint.textContent=cityLabel([m.contract.readout,m.contract.hint].filter(Boolean).join(' · '));article.append(hint);}article.append(status);if(m.status==='offered'){const actions=document.createElement('div');actions.className='sms-actions';for(const [value,label]of [['accept','Accepter'],['decline','Décliner']]){const button=document.createElement('button');button.textContent=label;button.onclick=()=>{pendingPhone={id:m.id,action:value};};actions.append(button);}article.append(actions);}content.append(article);}}
+ const active=phone.active;$('phone-contract').hidden=!active;$('phone-contract').textContent=cityLabel(active?[active.readout,active.hint].filter(Boolean).join(' · ')+' · '+active.reward+' €':'');phoneRevision=phone.revision;}
 $('close-phone').onclick=hideOverlay;$('phone-back').onclick=()=>{phoneThread=null;renderPhone();};$('phone-alert').onclick=openPhone;
 function padHelp(){const g=k=>pad.glyph(k);$('pad-help').innerHTML=`Stick gauche : marcher / braquer · droit : regarder<br>${g('RT')} : tirer / accélérer · ${g('LT')} : visée précise / freiner puis reculer<br>${g('A')} maintenu : courir / frein à main · ${g('B')} : esquive / frein à main<br>${g('X')} : interagir, entrer / sortir<br>${g('Y')} : arme suivante / changer de vue<br>${g('LB')} : menu des actions · ${g('RB')} : lancer l’objet tenu<br>${g('L3')} : onde · ${g('R3')} : crosse<br>Croix gauche / droite : armes · bas : saisir / contact<br>${g('Back')} : plan acheté · croix haut : téléphone · ${g('Start')} : pause<br>Menus : croix ou stick, ${g('A')} valider, ${g('B')} revenir.`;}
 for(const id of ['title-controls','pause-controls'])$(id).onclick=()=>{padHelp();showOverlay('controls');};
@@ -102,7 +106,7 @@ $('fatal-reload').onclick=()=>location.reload();$('fatal-reset').onclick=()=>sho
 function updatePad(dt,now){const state=pad.poll(dt,now),b=state.pressed;
  if(state.active){useTouch(false);padActive=true;document.body.classList.add('pad');lastGesture=now;}
  $('pad-status').textContent=state.connected?pad.label+' détectée · '+pad.glyph('A')+' pour jouer':'Manette : appuyez sur un bouton pour la détecter.';
- if(state.disconnected&&padActive){gate();if(running&&!demo)pause();session.tell('Manette déconnectée · partie en pause.');return;}
+ if(state.disconnected&&padActive){gate();if(running&&!demo)pause();session?.tell('Manette déconnectée · partie en pause.');return;}
  if(demo){if(state.active){stopDemo();gate();}return;}
  if(state.blocked||!state.connected)return;
  if(overlay){if(b[1]||b[9]||overlay==='actions'&&b[4])hideOverlay();else pad.navigate($(overlay),now);return;}
@@ -112,21 +116,29 @@ function updatePad(dt,now){const state=pad.poll(dt,now),b=state.pressed;
 }
 function mergedInput(){const k=input.step(),p=pad.step(session.mode,session.sim.state.weapon);if(padActive){k.moveX=Math.abs(p.moveX||0)>Math.abs(k.moveX||0)?p.moveX:k.moveX;k.moveY=Math.abs(p.moveY||0)>Math.abs(k.moveY||0)?p.moveY:k.moveY;k.steer=Math.abs(p.steer||0)>Math.abs(k.moveX||0)?p.steer:k.moveX;for(const key of ['forward','back'])k[key]=Math.max(+k[key]||0,p[key]||0);k.lookX=(k.lookX||0)+(p.lookX||0);k.lookY=(k.lookY||0)+(p.lookY||0);for(const key of ['fire','sprint','drift','brake','dash','interact','camera','engine','grab','throw','melee','pulse','map'])k[key]=k[key]||p[key];if(p.weapon!==undefined)k.weapon=p.weapon;aiming=p.aim||0;}else aiming=0;if(touchActive){mobileUI.syncMode(session.mode,session.mode==='boat'&&session.marine?.boat?.kind==='sailboat'?session.marine.boat.control:'');const t=mobile.step(session.sim.state.weapon);for(const key of ['moveX','moveY','steer'])if(Math.abs(t[key]||0)>Math.abs(k[key]||0))k[key]=t[key];for(const key of ['forward','back'])k[key]=Math.max(+k[key]||0,t[key]||0);k.lookX=(k.lookX||0)+t.lookX;k.lookY=(k.lookY||0)+t.lookY;for(const key of ['fire','sprint','brake','dash','interact','camera','engine','map','zoomIn','zoomOut'])k[key]=k[key]||t[key];if(t.weapon!==undefined)k.weapon=t.weapon;for(const key of ['sailAngle','sailHoist'])if(t[key]!==undefined)k[key]=t[key];}if(queuedAction){k[queuedAction]=true;queuedAction=null;}if(queuedZoom){k.zoomDelta=queuedZoom;queuedZoom=0;}return k;}
 const env={skyTop:[.25,.44,.63],skyBottom:[.72,.76,.74],fog:[.64,.70,.71],sunDirection:[-.45,.62,.35],sunColor:[1.62,1.44,1.16],ambient:[.2,.23,.27],wind:.5,fogDensity:.00035,biome:'ville',outdoorZones:[{x:0,z:0,w:6000,d:6000}]};
-function save(){if(!fatal&&!resetting&&!testMode&&!demo&&live?.campaign&&!live.sim.state.dead){const ok=R.storage.save(live.save());if(!ok)live.tell('Sauvegarde indisponible dans ce navigateur.');}}
+function save(){if(!fatal&&!resetting&&!testMode&&!demo&&!sessionTransition&&live?.campaign&&!live.sim.state.dead){const ok=R.storage.save(live.save());if(!ok)live.tell('Sauvegarde indisponible dans ce navigateur.');}}
 function soundStart(){if(!silent&&!demo){audio.start();audio.setMix({master:1,music:0,ambience:.22});audio.setPlaying(true);engineSound.demarrer();engineSound.reprendre();}}
 function silence(){pad.stop();engineSound.suspendre();audio.setPlaying(false);}
-function lock(){if(panel||overlay||demo||padActive||touchActive)return;const promise=canvas.requestPointerLock?.();promise?.catch?.(()=>session.tell('Maintenez le clic pour regarder si la capture est refusée.',{remember:false}));}
+function primeSound(){if(silent)return;audio.start();audio.setPlaying(false);engineSound.demarrer();engineSound.suspendre();}
+function lock(){if(panel||overlay||demo||padActive||touchActive||sessionTransition||!session)return;const promise=canvas.requestPointerLock?.();promise?.catch?.(()=>session?.tell('Maintenez le clic pour regarder si la capture est refusée.',{remember:false}));}
 const staticScenes=new WeakMap(),emptyScenery=[];
 function staticScenery(s){
  const w=s.world,core=w.scenery,landscape=w.landscape||emptyScenery,stream=w.cityStream?.geometry||emptyScenery,previous=staticScenes.get(s),change=w.takeSceneryDelta?.(previous?.core);
  const value=core.concat(landscape,stream);let meshDelta=null;
- if(previous&&previous.landscape===landscape&&previous.stream===stream&&previous.renderMutation===w.renderMutation&&change&&!change.full&&change.before===previous.core&&change.after===core)meshDelta={before:previous.value,after:value,full:false,splices:change.splices};
+ if(previous&&previous.landscape===landscape&&previous.renderMutation===w.renderMutation){
+  const coreDelta=core===previous.core?[]:change&&!change.full&&change.before===previous.core&&change.after===core?change.splices:null;
+  const streamed=stream===previous.stream?null:w.cityStream?.takeGeometryDelta?.(previous.stream);
+  const streamDelta=stream===previous.stream?[]:streamed&&!streamed.full&&streamed.before===previous.stream&&streamed.after===stream?streamed.splices:null;
+  if(coreDelta&&streamDelta){const offset=previous.core.length+previous.landscape.length;meshDelta={before:previous.value,after:value,full:false,splices:[...coreDelta,...streamDelta.map(q=>({...q,start:q.start+offset}))]};}
+ }
  staticScenes.set(s,{core,landscape,stream,value,meshDelta,renderMutation:w.renderMutation});return value;
 }
 async function warmCity(s){if(!s.world.cityStream)return;let n=0;do{s.world.cityStream.tick(s.player.x,s.player.z);if(++n%8===0)await new Promise(resolve=>setTimeout(resolve,0));}while(s.world.cityStream.pending&&n<1600);}
-function install(s){session=s;s.resetTrafficPresentation?.();crowdView?.liberer();s.urban?.prepare();if(s===live){s.urban?.prewarmPhysics?.();s.urban?.prewarmInteriors?.();s.crowd?.prewarmRouting?.();}renderer.setWorld(s.interiors?.active?.scenery||staticScenery(s),[],env);interiorVersion=s.interiors?.revision||0;urbanVersion=s.urban?.revision||0;cityVersion=s.world.cityStream?.revision||0;crowdView=PDR.foule.creerFoule(renderer,{ville:s.world.navCity,plafond:1000,seuil:3});crowdView.regler({joueur:-1,brouillard:false});crowdVersion=-1;motion.reset();input.clear();carLookX=carLookY=0;previousMode=s.mode;acc=0;cameraOverride=null;}
-function start(){if(!ready||fatal)return;if(demo)stopDemo();if(session.sim.state.dead)session.respawn();if(preparedDemo){preparedDemo.session.sim.dispose();preparedDemo=null;}gate();running=true;last=performance.now();acc=0;panel=null;$('title').hidden=true;$('hud').hidden=false;$('paused').hidden=true;$('trade').hidden=true;$('cityplan').hidden=true;syncMobile();soundStart();lock();}
-function pause(){if(demo){stopDemo();return;}if(!ready)return;running=false;if(overlay){$(overlay).hidden=true;overlay=null;}closePanel();gate();drag=false;document.exitPointerLock?.();$('paused').hidden=false;$('pauseTitle').textContent=session.sim.state.dead?'À terre. Le réseau continue.':'Pause';$('resume').textContent=session.sim.state.dead?'REPRENDRE AU REFUGE ↗':'REPRENDRE ↗';$('ledger').textContent=session.campaign?`${Math.floor(session.campaign.state.cash)} € · ${session.campaign.sites.filter(s=>s.gang===0).length+(session.business?.journal().filter(q=>q.status==='protected').length||0)} lieux contrôlés · ${Math.round(session.campaign.income()+(session.business?.income||0))} €/min` : '';silence();save();}
+function install(s){session=s;s.resetTrafficPresentation?.();crowdView?.liberer();s.urban?.prepare();if(s===live){s.urban?.prewarmPhysics?.();s.urban?.prewarmInteriors?.();s.crowd?.prewarmRouting?.();}renderer.setWorld(s.interiors?.active?.scenery||staticScenery(s),[],env,{revisionedMeshes:true});interiorVersion=s.interiors?.revision||0;urbanVersion=s.urban?.revision||0;cityVersion=s.world.cityStream?.revision||0;crowdView=PDR.foule.creerFoule(renderer,{ville:s.world.navCity,plafond:1000,seuil:3});crowdView.regler({joueur:-1,brouillard:false});crowdVersion=-1;motion.reset();input.clear();carLookX=carLookY=0;previousMode=s.mode;acc=0;cameraOverride=null;}
+// Immediate when the live world is resident; otherwise the returned Promise
+// resolves only once reconstruction is complete and live play has begun.
+function start(){if(fatal)return;if(sessionTransition||demo||ready&&!live){primeSound();return transitionSession('play');}if(!ready)return;if(session.sim.state.dead)session.respawn();gate();running=true;last=performance.now();acc=0;panel=null;$('title').hidden=true;$('hud').hidden=false;$('paused').hidden=true;$('trade').hidden=true;$('cityplan').hidden=true;syncMobile();soundStart();lock();}
+function pause(){if(demo)return stopDemo();if(!ready||!session)return;running=false;if(overlay){$(overlay).hidden=true;overlay=null;}closePanel();gate();drag=false;document.exitPointerLock?.();$('paused').hidden=false;$('pauseTitle').textContent=session.sim.state.dead?'À terre. Le réseau continue.':'Pause';$('resume').textContent=session.sim.state.dead?'REPRENDRE AU REFUGE ↗':'REPRENDRE ↗';$('ledger').textContent=session.campaign?`${Math.floor(session.campaign.state.cash)} € · ${session.campaign.sites.filter(s=>s.gang===0).length+(session.business?.journal().filter(q=>q.status==='protected').length||0)} lieux contrôlés · ${Math.round(session.campaign.income()+(session.business?.income||0))} €/min` : '';silence();save();}
 function recoveryFrame(now){
  if(!fatal)return;
  // Initialization can fail before the first game frame. Recovery controls do
@@ -140,13 +152,103 @@ function fail(e){
  fatal=true;ready=false;running=false;demo=false;drag=false;gate();silence();document.exitPointerLock?.();
  if(overlay)$(overlay).hidden=true;overlay=null;panel=null;
  for(const id of ['loading','title','hud','paused','trade','business','cityplan','touch','attract','phone'])$(id).hidden=true;
- $('recovery-detail').textContent=text;$('recovery').inert=false;$('recovery').hidden=false;$('fatal-reload').focus();
+ $('recovery-detail').textContent=cityLabel(text);$('recovery').inert=false;$('recovery').hidden=false;$('fatal-reload').focus();
  requestAnimationFrame(recoveryFrame);console.error(e);
 }
 window.addEventListener('error',e=>fail(e.error||e.message));window.addEventListener('unhandledrejection',e=>fail(e.reason));
-function prepareDemo(){if(preparedDemo||!R.replays.length)return;const tape=R.replays[demoIndex%R.replays.length],s=R.session.create({expanded:tape.expanded!==false,saved:tape.initial||null});s.urban?.prepare();preparedDemo={index:demoIndex,session:s};}
-function startDemo(){if(!ready||!R.replays.length||demo||$('title').hidden)return;liveZoom=followCamera.target;liveView=view;followCamera.reset();view='poursuite';demo=true;running=true;const tape=R.replays[demoIndex++%R.replays.length];replayPlayer=R.replay.player(tape);const prepared=preparedDemo?.index===demoIndex-1?preparedDemo.session:null;preparedDemo=null;install(prepared||R.session.create({expanded:tape.expanded!==false,saved:tape.initial||null}));last=performance.now();$('title').hidden=true;$('hud').hidden=false;$('attract').hidden=false;$('attract-label').textContent=tape.label;silence();}
-function stopDemo(){if(!demo)return;demo=false;running=false;replayPlayer=null;session.sim.dispose();install(live);followCamera.reset(liveZoom);view=liveView;$('title').hidden=false;$('hud').hidden=true;$('attract').hidden=true;lastGesture=performance.now();silence();setTimeout(()=>{if(!running&&!demo&&!$('title').hidden)prepareDemo();},300);}
+const copyState=value=>value===undefined?undefined:JSON.parse(JSON.stringify(value));
+function cityLabel(value){return R.places?.displayLabel?.(value)??value;}
+function rememberLive(){
+ if(!live)return;
+ // Attract mode belongs to the initial title, never to a paused running game.
+ // Persistent saves are not full checkpoints of AI/physics private clocks.
+ if((live.time||0)!==0)throw Error('Une partie en cours ne peut pas être remplacée par la démonstration.');
+ liveSnapshot={saved:copyState(live.save()),expanded:live.expanded,pedestrians:live.crowd?.n,time:live.time||0,player:copyState(live.player),inventory:copyState(live.sim.state.inventory),weapon:live.sim.state.weapon,campaign:copyState(live.campaign?.state),law:copyState(live.campaign?.law)};
+}
+function restoreLive(){
+ if(pendingInitial){live=session=R.session.create({saved:copyState(pendingInitial.saved),now:pendingInitial.now});return;}
+ if(!liveSnapshot)throw Error('La partie à reprendre est indisponible.');
+ const q=liveSnapshot;
+ live=session=R.session.create({expanded:q.expanded,pedestrians:q.pedestrians,saved:copyState(q.saved),now:q.saved.savedAt});
+ // The title does not advance time, earn offline income a second time, or
+ // reset the already restored inventory/player while a recording is shown.
+ if((session.time||0)!==q.time)throw Error('Horloge de reprise incohérente.');
+ if(q.campaign&&session.campaign)Object.assign(session.campaign.state,copyState(q.campaign));
+ if(q.law&&session.campaign?.law)Object.assign(session.campaign.law,copyState(q.law));
+ if(q.inventory)session.sim.state.inventory=copyState(q.inventory);
+ if(q.weapon!==undefined)session.sim.selectWeapon?.(q.weapon);
+ Object.assign(session.player,copyState(q.player));
+}
+function releaseResident(){
+ // Keep this synchronous: no old world local survives an await into construction
+ // of its successor. Keep healthy devices warm except Safari GL: releasing its
+ // context between recordings prevents accumulation across repeated demos.
+ crowdView?.liberer();crowdView=null;R.human?.beginFrame(null);
+ if(session){staticScenes.delete(session);session.sim.dispose();}session=live=null;replayPlayer=null;
+ renderer?.setWorld([],[],env,{revisionedMeshes:true});
+ if(recycleSafariGL&&renderer?.stats.backend==='webgl2')discardDisplay();
+ crowdVersion=interiorVersion=urbanVersion=cityVersion=-1;cameraOverride=null;mapBoard=null;mapPaint++;
+ panel=pendingAction=pendingBusiness=pendingPhone=queuedAction=phoneThread=null;queuedZoom=0;phoneRevision=-1;overlayReturn=null;lastCommand={};acc=0;drag=false;motion.reset();
+ for(const id of ['phone-content','business-actions','notebook-places','notebook-inventory'])$(id)?.replaceChildren();
+}
+function discardDisplay(){
+ rendererGeneration++;if(!renderer)return;
+ const previous=renderer;displayBackend=previous.stats.backend;renderer=null;
+ try{previous.dispose?.();}finally{
+  // FERRO deletes GL resources but leaves context lifetime to its host. This
+  // helper is synchronous: no old renderer is retained into the next world.
+  try{if(displayBackend==='webgl2')previous.gl?.getExtension('WEBGL_lose_context')?.loseContext();}catch{}
+  canvas=FRenderBackends.replaceCanvas?.(canvas)||canvas;
+ }
+}
+const loadingTurn=()=>new Promise(resolve=>requestAnimationFrame(()=>setTimeout(resolve,0)));
+// Callback closures retain only their numeric generation, never a renderer or
+// session. A destroyed device may report its loss after its successor is active.
+function rendererCallbacks(generation){return {
+ onDeviceLost:info=>{if(generation===rendererGeneration)return recoverRenderer(info);},
+ onError:error=>{if(generation===rendererGeneration)return recoverRenderer({reason:'validation',message:error?.message||String(error)});}
+};}
+async function createDisplay(){
+ if(recoveringRenderer)await recoveringRenderer;if(fatal)return;let chosen=null;
+ if(!renderer){const generation=++rendererGeneration;chosen=await FRenderBackends.create(canvas,{...renderOptions,backend:displayBackend||new URLSearchParams(location.search).get('renderer')||'auto',...rendererCallbacks(generation)});renderer=chosen.renderer;canvas=chosen.canvas;}
+ try{install(session);}catch(error){if(renderer?.stats.backend!=='webgpu')throw error;await recoverRenderer({reason:'installation',message:error.message});if(fatal)return;}
+ await chosen?.activate?.();if(recoveringRenderer)await recoveringRenderer;if(fatal)return;updateBackendLabel();
+ if(renderer.stats.backend==='webgl2'&&!$('loading').hidden){
+  // Build/upload static chunks under the loading cover. Use a fixed eye so
+  // neither simulation nor the follow-camera interpolation advances here.
+  ready=false;const p=session.player;
+  renderer.draw({pos:[p.x,p.y+1.62,p.z],yaw:p.yaw,pitch:p.pitch,far:26000,chunked:true},[],{time:session.time,shadows:false,reflections:false,bloom:false,msaa:true,adaptive:false});
+ }
+}
+function resizeDisplay(){renderer?.resize();}
+function transitionSession(target){
+ if(fatal)return Promise.resolve(false);transitionTarget=target;if(sessionTransition)return sessionTransition;
+ ready=false;running=false;gate();silence();document.exitPointerLock?.();if(overlay)$(overlay).hidden=true;overlay=null;
+ for(const id of ['title','hud','paused','trade','business','cityplan','touch','attract'])$(id).hidden=true;$('loading').hidden=false;
+ sessionTransition=Promise.resolve().then(async()=>{
+  // Paint loading first. No second session is ever prepared behind the title.
+  await loadingTurn();if(recoveringRenderer)await recoveringRenderer;if(fatal)return null;rememberLive();releaseResident();await loadingTurn();
+  while(!fatal){
+   const goal=transitionTarget;if(goal==='title')return goal;
+   if(goal==='demo'){const tape=R.replays[demoIndex%R.replays.length];session=R.session.create({expanded:tape.expanded!==false,saved:tape.initial||null});replayPlayer=R.replay.player(tape);$('attract-label').textContent=cityLabel(tape.label);}else restoreLive();
+   await warmCity(session);if(goal!==transitionTarget){releaseResident();await loadingTurn();continue;}
+   await createDisplay();if(fatal)return null;
+   if(goal!==transitionTarget){releaseResident();await loadingTurn();continue;}
+   if(goal==='demo')demoIndex++;return goal;
+  }return null;
+ }).then(goal=>{
+  sessionTransition=null;transitionTarget=null;if(!goal||fatal)return false;
+  ready=true;last=lastGesture=performance.now();acc=0;$('loading').hidden=true;demo=goal==='demo';
+  if(demo){followCamera.reset();view='poursuite';running=true;$('hud').hidden=false;$('attract').hidden=false;}
+  else{followCamera.reset(liveZoom);view=liveView;$('title').hidden=false;if(goal==='play'){start();if(pendingInitial){pendingInitial=null;save();}}}
+  gate();return true;
+ }).catch(error=>{sessionTransition=null;transitionTarget=null;try{releaseResident();}catch{}try{discardDisplay();}catch{}fail(error);return false;});
+ return sessionTransition;
+}
+function startDemo(){if(!ready||sessionTransition||!R.replays.length||demo||$('title').hidden||(live?.time||0)!==0)return;liveZoom=followCamera.target;liveView=view;demo=true;return transitionSession('demo');}
+// Returning to the title frees the recording without recreating the live city.
+// A subsequent click or gamepad action calls start(), which loads it on demand.
+function stopDemo(){if(!demo&&transitionTarget!=='demo')return Promise.resolve(false);return transitionSession('title');}
 function activity(e){lastGesture=performance.now();if(demo){e?.preventDefault?.();e?.stopImmediatePropagation?.();stopDemo();return true;}return false;}
 $('reflections').onchange=e=>graphics.reflections=e.target.checked;$('shadows').onchange=e=>graphics.shadows=e.target.checked;
 $('start').onclick=start;$('resume').onclick=start;$('pause').onclick=pause;$('paint').oninput=e=>{if(session)session.car.color=e.target.value;};
@@ -180,8 +282,8 @@ function context(){const p=session.player;if(session.mode==='car')return {kind:'
  return options.sort((a,b)=>a.distance-b.distance)[0]||null;
 }
 function closePanel(){mapPaint++;gate();panel=null;$('trade').hidden=true;$('cityplan').hidden=true;$('business').hidden=true;input.clear();syncMobile();if(running)lock();}
-function openPanel(kind,target){gate();panel={kind,target};syncMobile();input.clear();drag=false;document.exitPointerLock?.();if(kind==='board'||kind==='map'){drawMap(kind==='board'?target:null);$('cityplan').hidden=false;}else if(kind==='business'){const q=session.business.context();if(!q){closePanel();return;}$('business-name').textContent=q.place?.name||'Dans la chambre';$('business-status').textContent=q.status||'';$('business-stock').textContent='Sac : '+Object.entries(q.inventory||{}).map(([k,v])=>({provision:'Provisions',bandage:'Bandages',valuable:'Objets de valeur',ammo:'Munitions'}[k]||k)+' '+v).join(' · ');$('business-actions').replaceChildren();for(const action of q.actions){const b=document.createElement('button');b.textContent=action.label;b.disabled=!!action.disabled;b.onclick=()=>{pendingBusiness=action.id;closePanel();};$('business-actions').append(b);}$('business').hidden=false;}else{
- const c=session.campaign,s=target,owned=s.gang===0;$('shop-name').textContent=s.name;$('shop-owner').textContent=owned?'Votre réseau':c.owner(s).name+' tient ce secteur.';$('shop-desc').textContent=s.kind==='shop'?`Commerce · ${s.rate} €/min de revenus sous contrôle. Une prise déclenche un affrontement avec les protecteurs en place.`:`Point de deal · ${s.rate} €/min. Une prise attire l'attention des gangs et de la police.`;
+function openPanel(kind,target){gate();panel={kind,target};syncMobile();input.clear();drag=false;document.exitPointerLock?.();if(kind==='board'||kind==='map'){drawMap(kind==='board'?target:null);$('cityplan').hidden=false;}else if(kind==='business'){const q=session.business.context();if(!q){closePanel();return;}$('business-name').textContent=cityLabel(q.place?.name||'Dans la chambre');$('business-status').textContent=cityLabel(q.status||'');$('business-stock').textContent='Sac : '+Object.entries(q.inventory||{}).map(([k,v])=>({provision:'Provisions',bandage:'Bandages',valuable:'Objets de valeur',ammo:'Munitions'}[k]||k)+' '+v).join(' · ');$('business-actions').replaceChildren();for(const action of q.actions){const b=document.createElement('button');b.textContent=cityLabel(action.label);b.disabled=!!action.disabled;b.onclick=()=>{pendingBusiness=action.id;closePanel();};$('business-actions').append(b);}$('business').hidden=false;}else{
+ const c=session.campaign,s=target,owned=s.gang===0;$('shop-name').textContent=cityLabel(s.name);$('shop-owner').textContent=owned?'Votre réseau':c.owner(s).name+' tient ce secteur.';$('shop-desc').textContent=s.kind==='shop'?`Commerce · ${s.rate} €/min de revenus sous contrôle. Une prise déclenche un affrontement avec les protecteurs en place.`:`Point de deal · ${s.rate} €/min. Une prise attire l'attention des gangs et de la police.`;
  $('take-shop').textContent=owned?'RENFORCER L’ÉQUIPE · 250 €':'CONTESTER LE CONTRÔLE';$('take-shop').disabled=!!c.state.active||!!c.state.raid||(owned&&(c.state.cash<250||(s.upgrade||0)>=3));$('heal').hidden=!owned;$('heal').disabled=c.state.cash<40||session.player.hp>=100;$('buy-map').hidden=s.kind!=='shop';$('buy-map').textContent=c.state.mapOwned?'PLAN DÉJÀ POSSÉDÉ':'ACHETER UN PLAN · 60 €';$('buy-map').disabled=c.state.mapOwned||c.state.cash<60;$('trade').hidden=false;
 }}
 $('close-business').onclick=closePanel;$('close-map').onclick=closePanel;$('close-trade').onclick=closePanel;
@@ -193,10 +295,10 @@ function drawMap(board,whole=false){mapBoard=board;mapWhole=whole;const generati
  for(const s of session.campaign.sites){const p=point(s.x,s.z),col=R.campaign.GANGS[s.gang].color;m.fillStyle=`rgba(${col.map(v=>Math.round(v*255)).join(',')},.18)`;m.beginPath();m.arc(...p,44*scale,0,Math.PI*2);m.fill();}
  m.strokeStyle='#f5edd8';m.lineWidth=2;for(const edge of session.world.city.rues.aretes){if(['escalier','sentier'].includes(edge.sorte))continue;m.beginPath();for(let j=0;j<edge.points.length;j+=2){const p=point(edge.points[j],edge.points[j+1]);j?m.lineTo(...p):m.moveTo(...p);}m.stroke();}
  m.fillStyle='#a6a392';for(const b of session.world.city.emprises){m.save();m.translate(...point(b.x,b.z));m.rotate(-b.lacet);m.fillRect(-b.lx*scale/2,-b.lz*scale/2,b.lx*scale,b.lz*scale);m.restore();}
- m.font='bold 11px Arial';for(const s of session.campaign.sites){const p=point(s.x,s.z),col=R.campaign.GANGS[s.gang].color;m.fillStyle=`rgb(${col.map(v=>v*255).join(',')})`;m.fillRect(p[0]-4,p[1]-4,8,8);m.fillStyle='#1b3438';m.fillText(s.name,p[0]+7,p[1]+3);}
+ m.font='bold 11px Arial';for(const s of session.campaign.sites){const p=point(s.x,s.z),col=R.campaign.GANGS[s.gang].color;m.fillStyle=`rgb(${col.map(v=>v*255).join(',')})`;m.fillRect(p[0]-4,p[1]-4,8,8);m.fillStyle='#1b3438';m.fillText(cityLabel(s.name),p[0]+7,p[1]+3);}
  if(board){const p=point(board.x,board.z);m.strokeStyle='#102e38';m.lineWidth=2;m.beginPath();m.arc(...p,8,0,Math.PI*2);m.stroke();m.fillStyle='#102e38';m.fillText('VOUS ÊTES ICI',p[0]+12,p[1]-12);}
- m.fillStyle='#18333a';m.font='bold 14px Arial';m.fillText('N ↑',w-60,28);m.font='11px Arial';m.fillText((whole?'MARSEILLE':'VIEUX-PORT')+' · PLAN SANS GPS',25,h-18);$('map-origin').textContent=board?'PANNEAU PUBLIC':'VOTRE PLAN PAPIER';$('map-extent').textContent=whole?'VOIR LE VIEUX-PORT':'VOIR MARSEILLE';
- if(whole&&R.cityData){m.fillStyle='#779498';m.fillRect(22,32,w-44,h-66);m.fillStyle='#d6cdb5';for(const polygon of R.coastData?.land||[]){m.beginPath();for(const ring of [polygon.outer,...polygon.holes])for(let i=0;i<ring.length;i++){const q=point(...ring[i]);i?m.lineTo(...q):m.moveTo(...q);}m.fill('evenodd');}const keys=Object.keys(R.cityData.tiles);let at=0;function batch(){if(generation!==mapPaint||!panel)return;const until=performance.now()+2;while(at<keys.length&&performance.now()<until){const key=keys[at++],tile=R.cityData.decode(key);m.strokeStyle='#ede7da';m.lineWidth=.7;for(const road of tile.roads){if(road.tunnel||['path','footway','track','steps'].includes(road.class))continue;m.beginPath();for(let i=0;i<road.points.length;i++){const q=point(...road.points[i]);i?m.lineTo(...q):m.moveTo(...q);}m.stroke();}R.cityData.release(key);}if(at<keys.length)requestAnimationFrame(batch);else{m.strokeStyle='#ede7da';m.lineWidth=.7;for(const edge of session.world.city.rues.aretes){m.beginPath();for(let j=0;j<edge.points.length;j+=2){const q=point(edge.points[j],edge.points[j+1]);j?m.lineTo(...q):m.moveTo(...q);}m.stroke();}m.fillStyle='#213b42';m.font='12px Arial';for(const q of session.world.coast?.places||[]){if(!Number.isFinite(q.x)||!Number.isFinite(q.z))continue;const p=point(q.x,q.z);m.fillText(q.name||'',p[0],p[1]);}m.font='bold 12px Arial';m.fillText('Vieux-Port',...point(0,0));}}requestAnimationFrame(batch);}
+ m.fillStyle='#18333a';m.font='bold 14px Arial';m.fillText('N ↑',w-60,28);m.font='11px Arial';m.fillText((whole?'SEILLE':'VIEUX-PORT')+' · PLAN SANS GPS',25,h-18);$('map-origin').textContent=board?'PANNEAU PUBLIC':'VOTRE PLAN PAPIER';$('map-extent').textContent=whole?'VOIR LE VIEUX-PORT':'VOIR SEILLE';
+ if(whole&&R.cityData){m.fillStyle='#779498';m.fillRect(22,32,w-44,h-66);m.fillStyle='#d6cdb5';for(const polygon of R.coastData?.land||[]){m.beginPath();for(const ring of [polygon.outer,...polygon.holes])for(let i=0;i<ring.length;i++){const q=point(...ring[i]);i?m.lineTo(...q):m.moveTo(...q);}m.fill('evenodd');}const keys=Object.keys(R.cityData.tiles);let at=0;function batch(){if(generation!==mapPaint||!panel)return;const until=performance.now()+2;while(at<keys.length&&performance.now()<until){const key=keys[at++],tile=R.cityData.decode(key);m.strokeStyle='#ede7da';m.lineWidth=.7;for(const road of tile.roads){if(road.tunnel||['path','footway','track','steps'].includes(road.class))continue;m.beginPath();for(let i=0;i<road.points.length;i++){const q=point(...road.points[i]);i?m.lineTo(...q):m.moveTo(...q);}m.stroke();}R.cityData.release(key);}if(at<keys.length)requestAnimationFrame(batch);else{m.strokeStyle='#ede7da';m.lineWidth=.7;for(const edge of session.world.city.rues.aretes){m.beginPath();for(let j=0;j<edge.points.length;j+=2){const q=point(edge.points[j],edge.points[j+1]);j?m.lineTo(...q):m.moveTo(...q);}m.stroke();}m.fillStyle='#213b42';m.font='12px Arial';for(const q of session.world.coast?.places||[]){if(!Number.isFinite(q.x)||!Number.isFinite(q.z))continue;const p=point(q.x,q.z);m.fillText(cityLabel(q.name||''),p[0],p[1]);}m.font='bold 12px Arial';m.fillText('Vieux-Port',...point(0,0));}}requestAnimationFrame(batch);}
 
 }
 $('map-extent').onclick=()=>drawMap(mapBoard,!mapWhole);
@@ -242,14 +344,14 @@ function navigationHud(){
  $('wind-arrow').style.transform='rotate('+((q.windFrom+Math.PI/2-p.yaw)*180/Math.PI)+'deg)';
  $('sail-keys').textContent=(station==='trim'?(touchActive?'← / →':padActive?'Stick gauche':'A / D')+' · tourner la manivelle':station==='hoist'?(touchActive?'HISSER / AFFALER':padActive?'RT / LT':'W / S')+' · déployer / rentrer':(touchActive?'Stick':padActive?'Stick gauche':'A / D')+' · gouverner')+' · '+(touchActive?'POSTE':padActive?pad.glyph('Y'):'C')+' changer de poste';
 }
-function hud(){navigationHud();if(session.phone){const n=session.phone.unread;$('phone-alert').hidden=!n;$('phone-count').textContent=n;if(overlay==='phone'){const h=session.weather?.state.hour??14;$('phone-clock').textContent=String(Math.floor(h)).padStart(2,'0')+':'+String(Math.floor(h%1*60)).padStart(2,'0');if(phoneRevision!==session.phone.revision)renderPhone();}}const p=session.player,c=session.car,s=session.sim.state,camp=session.campaign,carMode=session.mode==='car',boatMode=session.mode==='boat',swim=session.mode==='swim',boat=session.marine?.boat;$('mode').textContent=boatMode?R.marine.kinds[boat.kind].name.toUpperCase():swim?'NAGE':carMode?R.vehicles.SPECS[c.model].name.toUpperCase():(session.interiors?.active?(session.interiors.active.place?.name||session.interiors.active.building.name).toUpperCase()+' · '+(session.interiors.active.floor?'ÉT. '+session.interiors.active.floor:'RDC'):'À PIED');$('speed').innerHTML=boatMode?`${Math.round(Math.abs(boat.speed)*3.6)} <small>KM/H</small>`:carMode?`${Math.round(c.v*3.6)} <small>KM/H</small>`:`${Math.ceil(p.hp)} <small>PV</small>`;$('engine').textContent=boatMode?(boat.kind==='sailboat'?(boat.engineOn?'AUXILIAIRE ON':'SOUS VOILE'):boat.engineOn?'CONTACT ON':'F · CONTACT'):swim?'MAJ / A · NAGER VITE · E / X · ÉCHELLE':carMode?`${c.moteur?'CONTACT ON':'F · CONTACT'} / ${c.arriere?'R':c.rapport}${c.condition?' · MOTEUR '+Math.round(c.condition.engine*100)+' % · PNEUS '+Math.round(c.condition.tires*100)+' %':''}`:(s.weapon===2?'LANCE-ROQUETTES':s.weapon===1?'DOUBLE POMPE':'MITRAILLETTE')+' · '+s.inventory.ammo[s.weapon]+(s.weapon===2?' ROQUETTES':' CARTOUCHES');$('engine').classList.toggle('low-ammo',!carMode&&!boatMode&&!swim&&s.inventory.ammo[s.weapon]<=[20,4,2][s.weapon]);$('heat').firstElementChild.style.width=(p.heat*100)+'%';$('cross').hidden=carMode||boatMode||swim||!!panel||!!overlay;$('hit').hidden=!(s.hitMarker>0);$('notice').textContent=(session.message||(!panel&&!touchActive?context()?.label||'':'')).replace(/^E · /,touchActive?'':padActive?pad.glyph('X')+' · ':'E · ');
+function hud(){navigationHud();if(session.phone){const n=session.phone.unread;$('phone-alert').hidden=!n;$('phone-count').textContent=n;if(overlay==='phone'){const h=session.weather?.state.hour??14;$('phone-clock').textContent=String(Math.floor(h)).padStart(2,'0')+':'+String(Math.floor(h%1*60)).padStart(2,'0');if(phoneRevision!==session.phone.revision)renderPhone();}}const p=session.player,c=session.car,s=session.sim.state,camp=session.campaign,carMode=session.mode==='car',boatMode=session.mode==='boat',swim=session.mode==='swim',boat=session.marine?.boat;$('mode').textContent=cityLabel(boatMode?R.marine.kinds[boat.kind].name.toUpperCase():swim?'NAGE':carMode?R.vehicles.SPECS[c.model].name.toUpperCase():(session.interiors?.active?(session.interiors.active.place?.name||session.interiors.active.building.name).toUpperCase()+' · '+(session.interiors.active.floor?'ÉT. '+session.interiors.active.floor:'RDC'):'À PIED'));$('speed').innerHTML=boatMode?`${Math.round(Math.abs(boat.speed)*3.6)} <small>KM/H</small>`:carMode?`${Math.round(c.v*3.6)} <small>KM/H</small>`:`${Math.ceil(p.hp)} <small>PV</small>`;$('engine').textContent=boatMode?(boat.kind==='sailboat'?(boat.engineOn?'AUXILIAIRE ON':'SOUS VOILE'):boat.engineOn?'CONTACT ON':'F · CONTACT'):swim?'MAJ / A · NAGER VITE · E / X · ÉCHELLE':carMode?`${c.moteur?'CONTACT ON':'F · CONTACT'} / ${c.arriere?'R':c.rapport}${c.condition?' · MOTEUR '+Math.round(c.condition.engine*100)+' % · PNEUS '+Math.round(c.condition.tires*100)+' %':''}`:(s.weapon===2?'LANCE-ROQUETTES':s.weapon===1?'DOUBLE POMPE':'MITRAILLETTE')+' · '+s.inventory.ammo[s.weapon]+(s.weapon===2?' ROQUETTES':' CARTOUCHES');$('engine').classList.toggle('low-ammo',!carMode&&!boatMode&&!swim&&s.inventory.ammo[s.weapon]<=[20,4,2][s.weapon]);$('heat').firstElementChild.style.width=(p.heat*100)+'%';$('cross').hidden=carMode||boatMode||swim||!!panel||!!overlay;$('hit').hidden=!(s.hitMarker>0);$('notice').textContent=cityLabel((session.message||(!panel&&!touchActive?context()?.label||'':'')).replace(/^E · /,touchActive?'':padActive?pad.glyph('X')+' · ':'E · '));
  const active=camp?.state.active&&camp.sites.find(x=>x.id===camp.state.active),raid=camp?.state.raid,contract=session.business?.mission,shopRaid=session.business?.raid;$('objective').hidden=!active&&!raid&&!contract&&!shopRaid;
- if(active){const left=active.guards.filter(id=>s.enemies[id].hp>0).length;$('task').textContent=active.name;$('progress').textContent=left?`${left} adversaire${left>1?'s':''} encore en place`:`Occupez le local · ${camp.state.hold.toFixed(1)} / 5 s`;}
- else if(raid){$('task').textContent='Contre-attaque : '+camp.sites.find(x=>x.id===raid.site).name;$('progress').textContent=`${R.campaign.GANGS[raid.gang].name} · ${Math.ceil(raid.timer)} s avant la perte du lieu`;}
- if(!active&&!raid&&shopRaid){$('task').textContent='Protection menacée : '+shopRaid.name;$('progress').textContent=shopRaid.label;}
- else if(!active&&!raid&&contract){$('task').textContent=contract.name;$('progress').textContent=contract.label||contract.description||contract.hint||('Mission de protection · '+contract.stage);}
+ if(active){const left=active.guards.filter(id=>s.enemies[id].hp>0).length;$('task').textContent=cityLabel(active.name);$('progress').textContent=cityLabel(left?`${left} adversaire${left>1?'s':''} encore en place`:`Occupez le local · ${camp.state.hold.toFixed(1)} / 5 s`);}
+ else if(raid){$('task').textContent=cityLabel('Contre-attaque : '+camp.sites.find(x=>x.id===raid.site).name);$('progress').textContent=cityLabel(`${R.campaign.GANGS[raid.gang].name} · ${Math.ceil(raid.timer)} s avant la perte du lieu`);}
+ if(!active&&!raid&&shopRaid){$('task').textContent=cityLabel('Protection menacée : '+shopRaid.name);$('progress').textContent=cityLabel(shopRaid.label);}
+ else if(!active&&!raid&&contract){$('task').textContent=cityLabel(contract.name);$('progress').textContent=cityLabel(contract.label||contract.description||contract.hint||('Mission de protection · '+contract.stage));}
  $('cash').textContent=camp?Math.floor(camp.state.cash).toLocaleString('fr-FR')+' €':'';$('wanted').textContent=camp?.law.wanted?'★'.repeat(camp.law.wanted)+'☆'.repeat(5-camp.law.wanted):'';$('law').textContent=camp?.law.wanted?(camp.law.arrest>0?'INTERPELLATION '+Math.round(camp.law.arrest/4*100)+' %':camp.law.mode.toUpperCase()):'';
- if(touchActive){const target=context();$('touch-interact').textContent=(target?.label||'INTERAGIR').replace(/^E · /,'');$('touch-interact').disabled=!target;$('touch-camera').setAttribute('aria-label',session.mode==='boat'&&session.marine?.boat?.kind==='sailboat'?'Changer de poste : gouvernail, orientation, déploiement':'Changer de vue');}
+ if(touchActive){const target=context();$('touch-interact').textContent=cityLabel((target?.label||'INTERAGIR').replace(/^E · /,''));$('touch-interact').disabled=!target;$('touch-camera').setAttribute('aria-label',session.mode==='boat'&&session.marine?.boat?.kind==='sailboat'?'Changer de poste : gouvernail, orientation, déploiement':'Changer de vue');}
  $('keys').textContent=touchActive?'Gauche : déplacer · Droite : regarder':padActive?pad.glyph('X')+' interagir · '+pad.glyph('LB')+' actions · '+pad.glyph('Start')+' pause':'E interagir · O téléphone · P pause';const recent=samples.slice(-180),mean=recent.reduce((a,b)=>a+b,0)/recent.length,worst=Math.max(...recent);$('perf').textContent=recent.length?Math.round(1000/mean)+' FPS · pic '+Math.round(worst)+' ms':'';
  if(s.dead&&running&&!demo){closePanel();pause();}
 }
@@ -266,7 +368,7 @@ function command(i){const cmd={...i,steer:i.steer??i.moveX,forward:Math.max(Numb
 function sceneLights(){if(session.interiors?.active)return {headlight:null,lights:session.interiors.active.lights};const lights=[...(FEffects.lights(session.sim.state)||[]),...(session.urban?.breachLights||[])],p=session.player,w=session.weather?.state,dim=Math.max(w?.night||0,(w?.cloud||.2)*.55+(w?.storm||0)*.8);let headlight=null;
  for(const source of session.world.fleet){const v=renderVehicle(source);if(!v.moteur||['bike','scooter'].includes(v.model))continue;const d=Math.hypot(v.x-p.x,v.z-p.z);if(d>65)continue;const c=Math.cos(v.cap),s=Math.sin(v.cap),length=R.vehicles.SPECS[v.model].length;
   const l={p:[v.x+c*(length/2+.08),(v.y||.08)+.72,v.z+s*(length/2+.08)],dir:[c,0,s],cone:[.78,.96],color:[1,.91,.72],power:48+dim*45,range:32};if(source===session.car&&session.mode==='car')headlight=l;else lights.push(l);
-  if(v.police&&v.siren&&!v.exploded){const flash=.5+.5*Math.sin(session.time*13),two=R.vehicles.SPECS[v.model].two;let beacon=[v.x,(v.y||.08)+1.55,v.z];if(v.model==='policebike'){const offset=BITUME.voiture.mul(BITUME.voiture.attitude(v.cap,0,v.roulis||0),[-.91,1.603,.14]);beacon=offset.map((n,i)=>n+[v.x,v.y||.08,v.z][i]);}if(!two||v.model==='policebike')lights.push({p:beacon,color:[.08,.3,1],power:45*flash,range:10});}
+  if(v.police&&v.siren&&!v.exploded){const flash=.5+.5*Math.sin(session.time*13),two=R.vehicles.SPECS[v.model].two;let beacon=[v.x,(v.y||.08)+1.55,v.z];if(v.model==='policebike'){const offset=BITUME.voiture.mul(BITUME.voiture.attitude(v.cap,0,v.roulis||0),[-.91,1.603,.14]);beacon=offset.map((n,i)=>n+[v.x,v.y||.08,v.z][i]);}if(!two||v.model==='policebike')lights.push({p:beacon,color:[.08,.3,1],power:45*flash,selectionPower:45,range:10});}
  }
  if((w?.night||0)>.03){for(const l of session.world.streetLights||[]){if(Math.hypot(l.m.p[0]-p.x,l.m.p[2]-p.z)>55||session.urban?.controller&&!session.urban.controller.isAlive(l.id))continue;lights.push({p:[l.m.p[0],l.m.p[1]-.28,l.m.p[2]],color:[1,.77,.44],power:72*w.night,range:19});}}
  if((w?.night||0)>.03)for(const l of session.world.cityStream?.streetLights(p.x,p.z,65,w.night)||[])lights.push({p:[l.x,l.y-.15,l.z],color:l.color,power:l.power,range:l.range});
@@ -274,22 +376,32 @@ function sceneLights(){if(session.interiors?.active)return {headlight:null,light
  if(dim>.35)for(const site of session.campaign?.sites||[])if(site.kind==='shop'&&Math.hypot(site.x-p.x,site.z-p.z)<60)lights.push({p:[site.x,2.5,site.z+2.4],color:[1,.63,.28],power:18*dim,range:13});
  lights.sort((a,b)=>Math.hypot(a.p[0]-p.x,a.p[2]-p.z)-Math.hypot(b.p[0]-p.x,b.p[2]-p.z));return {headlight,lights:lights.slice(0,16)};
 }
-function frame(now){requestAnimationFrame(frame);if(!ready||fatal)return;try{const cpu=performance.now(),ms=last?now-last:16.67;last=now;const dt=Math.min(.05,ms/1000);frameDt=dt;
+function frame(now){requestAnimationFrame(frame);if(!ready||fatal)return;try{const cpu=performance.now(),ms=last?Math.max(0,now-last):16.67;last=Math.max(last,now);const dt=Math.min(.05,ms/1000);frameDt=dt;
  updatePad(dt,now);if(touchActive){syncMobile();if(mobilePlaying())mobile.frame(dt);}
  if(!overlay&&!testMode&&!demo&&!running&&!$('title').hidden&&now-lastGesture>=5000&&R.replays.length)startDemo();
+ if(!ready||sessionTransition||!session)return;
  if(running){input.frame(dt);acc=Math.min(.12,acc+dt);while(acc>=1/120){let raw;if(demo){raw=replayPlayer.next();if(!raw){stopDemo();break;}}else raw=panel||overlay?{}:testInput?testInput(session,1/120):mergedInput();const cmd=command(raw);if(!demo)recorder.push(cmd);lastCommand=cmd;session.update(1/120,cmd);for(const e of session.events){processedEvents++;motion.impulse(e.name);if(!demo)pad.event(e,session.car);if(!silent&&!demo){if(typeof audio[e.name]==='function')audio[e.name](e);if(e.type)engineSound.evenement(e.type,e);}}acc-=1/120;}
+ if(!ready||sessionTransition||!session)return;
  motion.update(dt,session.sim.state.locomotion||{}, {time:session.time,firing:session.sim.state.flash>0},true);if(session.mode!==previousMode){motion.reset();gate();carLookX=carLookY=0;previousMode=session.mode;}
- if(!demo){samples.push(ms);if(samples.length>36000)samples.shift();saveClock+=dt;if(saveClock>5){save();saveClock=0;}}
+ samples.push(ms);if(samples.length>36000)samples.shift();if(!demo){saveClock+=dt;if(saveClock>5){save();saveClock=0;}}
  }
  pad.feedback(dt,now,session.car,running&&!demo&&!panel&&!overlay,session.mode==='car');
  const room=session.interiors?.active;if(!room)session.world.cityStream?.tick(session.player.x,session.player.z);if(interiorVersion!==(session.interiors?.revision||0)||urbanVersion!==(session.urban?.revision||0)||cityVersion!==(session.world.cityStream?.revision||0)){const meshes=room?.scenery||staticScenery(session);renderer.updateWorld(meshes,++staticSerial,[],{revisionedMeshes:true,meshDelta:room?null:staticScenes.get(session)?.meshDelta});interiorVersion=session.interiors?.revision||0;urbanVersion=session.urban?.revision||0;cityVersion=session.world.cityStream?.revision||0;motion.reset();}const cam=camera();if(session.weather)renderer.setEnvironment(room?{...session.weather.environment(),sunColor:[.1,.1,.1],ambient:[.44,.39,.31],fogDensity:0}:{...session.weather.environment(),fogDensity:Math.max(.000035,session.weather.environment().fogDensity*.3)});if(crowdVersion!==session.crowd.version){crowdView.recevoir(session.crowd.packed,session.crowd.n,session.crowd.locomotion);crowdVersion=session.crowd.version;}crowdView.cadre(cam,session.time,session.crowdAlpha);
  const lighting=sceneLights();for(const f of session.urban?.fires||[])if(f.heat>0&&Math.hypot(f.x-session.player.x,f.z-session.player.z)<35)lighting.lights.push({p:[f.x,session.world.ground(f.x,f.z)+1.2,f.z],color:[1,.30,.04],power:24*f.heat,range:9});renderer.draw(cam,models(cam),{time:session.time,flash:session.mode==='foot'?session.sim.state.flash:0,damage:session.sim.state.damage,lights:lighting.lights,headlight:lighting.headlight,sunOnly:!lighting.headlight,torch:false,shadows:graphics.shadows,reflections:graphics.reflections,cloudOffset:session.weather?[session.weather.state.cloudX,session.weather.state.cloudZ]:[0,0],weather:session.weather&&!room?[session.weather.state.wet,session.weather.state.cloud,session.weather.state.storm,session.weather.state.flash]:[0,.22,0,0],bloom:true,msaa:true,sea:R.marineWater?.state(session),foule:room?null:crowdView.fx,adaptive:false,frameMs:ms});drawCount++;
  if(session.weather)audio.setWeather(running&&!demo&&!silent?session.weather.state.rain:0,running&&!demo&&!silent?session.weather.state.gust:0,session.world.roofHeight(session.player.x,session.player.z)>session.player.y+2||session.mode==='car');const c=session.car,boat=session.mode==='boat'?session.marine?.boat:null,ears=session.player;engineSound.mettreAJour({pause:!running||silent||demo,joueur:boat?{regime:boat.engineRpm,gaz:Math.abs(boat.throttle),muet:!boat.engineOn,vue:'cockpit',v:0,glisse:0}:{...c,turbo:c.turbo?.reste>0,muet:session.mode!=='car'||!c.moteur||['bike','scooter'].includes(c.model),vue:view},rivaux:[...session.world.fleet.filter(v=>(v!==c||session.mode!=='car')&&v.moteur&&!['bike','scooter'].includes(v.model)).map(v=>({id:v.id,regime:v.regime,gaz:v.gaz,distance:Math.hypot(v.x-ears.x,v.z-ears.z),angle:0,vRel:0})),...(session.marine?.boats||[]).filter(v=>v!==boat&&v.engineOn).map((v,i)=>({id:60000+i,regime:v.engineRpm||750,gaz:Math.abs(v.throttle||0),distance:Math.hypot(v.x-ears.x,v.z-ears.z),angle:Math.atan2(v.x-ears.x,ears.z-v.z)-ears.yaw,vRel:0}))]});
- if(frameCount++%8===0)hud();if(running&&!demo){cpuSamples.push(performance.now()-cpu);if(cpuSamples.length>36000)cpuSamples.shift();}
+ if(frameCount++%8===0)hud();if(running){cpuSamples.push(performance.now()-cpu);if(cpuSamples.length>36000)cpuSamples.shift();}
  }catch(e){if(renderer?.stats?.backend==='webgpu')recoverRenderer({reason:'frame',message:e.message});else fail(e);}}
-async function init(){try{await new Promise(r=>setTimeout(r,40));await R.materials.load();live=R.session.create({saved:testMode?(new URLSearchParams(location.search).get('weather')==='orage'?{weather:{elapsed:420,wet:.8,cloud:1,rain:1,wind:1.55,storm:1}}:null):R.storage.load()});session=live;await warmCity(live);const chosen=await FRenderBackends.create(canvas,{...renderOptions,backend:new URLSearchParams(location.search).get('renderer')||'auto',onDeviceLost:recoverRenderer,onError:error=>recoverRenderer({reason:'validation',message:error?.message||String(error)})});renderer=chosen.renderer;canvas=chosen.canvas;try{install(live);}catch(error){if(renderer.stats.backend!=='webgpu')throw error;await recoverRenderer({reason:'installation',message:error.message});if(fatal)return;}updateBackendLabel();save();
- R.game={get session(){return session;},get renderer(){return renderer;},get backendEvents(){return backendEvents.slice();},get recoveringRenderer(){return !!recoveringRenderer;},get crowdView(){return crowdView;},input,pad,mobile,audio,engineSound,motion,followCamera,recorder,graphics,samples,cpuSamples,errors,start,pause,save,testing:testMode,get lastCommand(){return lastCommand;},get processedEvents(){return processedEvents;},get running(){return running;},get demo(){return demo;},get panel(){return overlay||panel?.kind||null;},get view(){return view;},set view(v){view=v;},set controller(fn){testInput=fn;},set camera(v){cameraOverride=v;},get drawCount(){return drawCount;},metrics(){const p=a=>{a=a.slice().sort((x,y)=>x-y);return {n:a.length,p50:a[Math.floor(a.length*.5)],p95:a[Math.floor(a.length*.95)]};};return {frame:p(samples),cpu:p(cpuSamples),resolution:[canvas.width,canvas.height],pedestrians:session.crowd.n,traffic:session.traffic?.cars.length,renderer:renderer.stats,userAgent:navigator.userAgent};}};
- prepareDemo();ready=true;await chosen.activate?.();if(recoveringRenderer)await recoveringRenderer;if(fatal)return;lastGesture=performance.now();$('loading').hidden=true;$('title').hidden=false;$('saved-status').textContent=live.campaign.state.offline>1?'Votre réseau a rapporté '+Math.floor(live.campaign.state.offline)+' € en votre absence.':'Une ville ouverte. Vos décisions, leurs conséquences.';window.addEventListener('resize',()=>renderer.resize());requestAnimationFrame(frame);
+async function prepareInitial(){
+ // Production titles own only immutable save data, not a city or GPU context.
+ // Freeze the offline-income endpoint now; demos never earn it a second time.
+ if(!testMode){pendingInitial={saved:copyState(R.storage.load()),now:Date.now()};return;}
+ // Explicit developer fixtures retain an installed, deterministic initial world.
+ const saved=new URLSearchParams(location.search).get('weather')==='orage'?{weather:{elapsed:420,wet:.8,cloud:1,rain:1,wind:1.55,storm:1}}:null;
+ live=session=R.session.create({saved});await warmCity(live);await createDisplay();
+}
+async function init(){try{await new Promise(r=>setTimeout(r,40));await R.materials.load();await prepareInitial();if(fatal)return;save();
+ R.game={get session(){return session;},get renderer(){return renderer;},get transition(){return transitionTarget;},get ready(){return ready;},get backendEvents(){return backendEvents.slice();},get recoveringRenderer(){return !!recoveringRenderer;},get crowdView(){return crowdView;},input,pad,mobile,audio,engineSound,motion,followCamera,recorder,graphics,samples,cpuSamples,errors,start,pause,save,testing:testMode,get lastCommand(){return lastCommand;},get processedEvents(){return processedEvents;},get running(){return running;},get demo(){return demo;},get panel(){return overlay||panel?.kind||null;},get view(){return view;},set view(v){view=v;},set controller(fn){testInput=fn;},set camera(v){cameraOverride=v;},get drawCount(){return drawCount;},metrics(){const p=a=>{a=a.slice().sort((x,y)=>x-y);return {n:a.length,p50:a[Math.floor(a.length*.5)],p95:a[Math.floor(a.length*.95)]};};return {frame:p(samples),cpu:p(cpuSamples),resolution:[canvas.width,canvas.height],pedestrians:session?.crowd?.n||0,traffic:session?.traffic?.cars.length||0,renderer:renderer?.stats||null,userAgent:navigator.userAgent};}};
+ ready=true;lastGesture=performance.now();updateBackendLabel();$('loading').hidden=true;$('title').hidden=false;$('saved-status').textContent=live?.campaign?.state.offline>1?'Votre réseau a rapporté '+Math.floor(live.campaign.state.offline)+' € en votre absence.':pendingInitial?.saved?'Votre partie est prête à reprendre.':'Nouvelle partie';window.addEventListener('resize',resizeDisplay);requestAnimationFrame(frame);
  }catch(e){fail(e);}}
 init();
 })(globalThis.RADE);

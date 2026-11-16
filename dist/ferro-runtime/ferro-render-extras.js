@@ -1,4 +1,4 @@
-/* FERRO 0.3.0 — procedural engine. */
+/* FERRO 0.3.2 — procedural engine. */
 /* FERRO — physical canvas sizing and passive frame budget observations. */
 (function(G){'use strict';
 function create(canvas,{environment:w=G,limit=16384,maxPixels=8847360,scale=1}={}){

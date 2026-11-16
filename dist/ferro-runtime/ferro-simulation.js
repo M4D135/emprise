@@ -1,4 +1,4 @@
-/* FERRO 0.3.0 — procedural engine. */
+/* FERRO 0.3.2 — procedural engine. */
 /* FPassages — passages obligatoires, analysés sur données plates.
    Brique de moteur générique : elle ne connaît ni salles, ni pièges, ni METAL.
    Elle reçoit des rectangles, des solides et un graphe de liens, et répond à
