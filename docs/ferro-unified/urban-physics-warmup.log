@@ -1,0 +1,1 @@
+PASS reserved solver warmup: exactly 8 private steps, pristine snapshot/statics/stats/timers, handles and 240 future ticks/poses exact, active-engine guard, no ordinary-spawn warmup, failure cleanup and distant zone

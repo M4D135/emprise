@@ -83,7 +83,7 @@ async function create(canvas,options={}){
   return b.group;
  }
  // Same mathematically generated texture layers as WebGL, including all mip levels.
- const pbr=[];const layers=G.RADE?.materials?.layers||[],pbrSize=layers[0]?.diff.width||1;
+ const pbr=[];const layers=options.materials?.layers||G.RADE?.materials?.layers||[],pbrSize=layers[0]?.diff.width||1;
  for(const [index,kind]of ['diff','nor_gl','rough'].entries()){
   const levels=Math.floor(Math.log2(pbrSize))+1,t=texture(pbrSize,pbrSize,index===0?'rgba8unorm-srgb':'rgba8unorm',1,Math.max(1,layers.length),levels,'FERRO procedural PBR '+kind);t.view=t.texture.createView({dimension:'2d-array'});pbr.push(t);
   if(layers.length){for(let layer=0;layer<layers.length;layer++)device.queue.copyExternalImageToTexture({source:layers[layer][kind]},{texture:t.texture,origin:[0,0,layer]},[pbrSize,pbrSize]);const enc=device.createCommandEncoder();for(let layer=0;layer<layers.length;layer++)for(let mip=1;mip<levels;mip++){const src=t.texture.createView({dimension:'2d',baseArrayLayer:layer,arrayLayerCount:1,baseMipLevel:mip-1,mipLevelCount:1}),dst=t.texture.createView({dimension:'2d',baseArrayLayer:layer,arrayLayerCount:1,baseMipLevel:mip,mipLevelCount:1});const pass=enc.beginRenderPass({colorAttachments:[{view:dst,loadOp:'clear',clearValue:[0,0,0,1],storeOp:'store'}]});pass.setPipeline(copyPipeline(t.format));pass.setBindGroup(0,copyBind(src));pass.draw(3);pass.end();}device.queue.submit([enc.finish()]);}

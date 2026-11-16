@@ -1970,7 +1970,7 @@
       gl.bindBuffer(gl.ARRAY_BUFFER,worldBuffer);gl.bufferData(gl.ARRAY_BUFFER,worldBatch.values,gl.STATIC_DRAW);
       postVao=gl.createVertexArray();
       whiteTexture=texture(1,1);gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA8,1,1,0,gl.RGBA,gl.UNSIGNED_BYTE,new Uint8Array([255,255,255,255]));
-      pbrTextures=[];const layers=globalThis.RADE?.materials?.layers||[],size=layers[0]?.diff.width||1;
+      pbrTextures=[];const layers=options?.materials?.layers||globalThis.RADE?.materials?.layers||[],size=layers[0]?.diff.width||1;
       for(const [k,kind] of ['diff','nor_gl','rough'].entries()){
         const tex=gl.createTexture();pbrTextures.push(tex);gl.activeTexture(gl.TEXTURE5+k);gl.bindTexture(gl.TEXTURE_2D_ARRAY,tex);
         gl.texStorage3D(gl.TEXTURE_2D_ARRAY,Math.floor(Math.log2(size))+1,k===0?gl.SRGB8_ALPHA8:gl.RGBA8,size,size,Math.max(1,layers.length));
@@ -2438,5 +2438,12 @@
   // Both GPU backends share the procedural shapes, instance layout and visibility
   // rules. No rendering calls or GPU state are shared between the APIs.
   const shared={geometry,indexPrimitiveVertices,pack,packEffects,instancePacker,effectsPacker,packIndexed,spatialIndex,partitionWorld,planChunks,visible,metadata,environmentInfo,outdoorMesh,surfaceFlags,transientLights,horrorLights,cameraAxes,multiply,detailRanges,extendedDistance,resolutionGovernor,settings,indoor:PDR_INDOOR,shapes:FORMES_LIBRES};
-  globalThis.FRender={create,foliageTriangles,forme,shared};
+  function mesh(shape,p,s,mat,r=[0,0,0],emissive=0){
+    return {shape,p,s,mat,r,emissive,color:undefined,surface:undefined,overlay:false,fx:false,
+      alpha:undefined,additive:undefined,outdoor:undefined,actorPart:undefined,actorLod:0,
+      actorScale:undefined,structural:false,debrisId:undefined,sourceId:undefined,material:undefined,
+      effectPart:'',fxFire:false,fxSmoke:false,fxSpark:false,fxPriority:undefined,ground:undefined,
+      innerRatio:undefined,region:undefined};
+  }
+  globalThis.FRender={create,foliageTriangles,forme,shared,mesh};
 })();

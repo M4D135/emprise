@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
 import {execFileSync} from 'node:child_process';
-for(const name of ['ferro/renderer','bitume/carene','bitume/main','bitume/voiture','bitume/conduite','vehicles','mobility','pdr/ville-reelle'])await import('../src/'+name+'.js');
+for(const name of ['ferro/renderer','ferro/geometry','bitume/main','bitume/voiture','bitume/conduite','vehicles','mobility','pdr/ville-reelle'])await import('../src/'+name+'.js');
 const before=execFileSync('git',['show','d22a5eb:src/traffic.js'],{encoding:'utf8',cwd:new URL('..',import.meta.url)}),after=fs.readFileSync(new URL('../src/traffic.js',import.meta.url),'utf8');
 const specs={car:{width:2,length:4},narrow:{width:.7,length:.7},point:{width:0,length:0}};
 function scan(source,world){

@@ -1,6 +1,6 @@
-# FERRO maintenu par RADE
+# FERRO commun, pilote EMPRISE
 
-Socle : Point de rupture `1e8b6351`, complété par les formes libres, le coin, le winding corrigé et les indices 32 bits de BITUME `e9a5e7f9`. Un seul renderer WebGL2. Voir [le dossier d’intégration](../../docs/INTEGRATION.md) et `ORIGINS.json` pour les commits et empreintes de départ.
+Version candidate : `FERRO.json`. Les modules partagés sont maintenus ici et distribués par `tools/build-ferro-runtime.py`. Le rendu EMPRISE possède WebGL2 et WebGPU ; la physique et les autres modules ont été réunis selon [le rapport d’unification](../../docs/FERRO-UNIFIED.md).
 
 Le texte ci-dessous est la provenance historique de la copie PDR, conservée comme archive ; ses chemins et comptes de lignes décrivent cette copie avant la fusion RADE.
 

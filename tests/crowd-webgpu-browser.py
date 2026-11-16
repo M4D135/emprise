@@ -4,7 +4,7 @@ from browser_support import Browser,ROOT
 from pathlib import Path
 import tempfile,json,time,hashlib
 
-modules=['ferro/renderer','bitume/carene','bitume/main','bitume/voiture','human-data','body-data','human','pdr/sim/regles','pdr/foule','ferro/webgpu-shaders','pdr/foule-webgpu']
+modules=['ferro/renderer','ferro/geometry','bitume/main','bitume/voiture','human-data','body-data','human','pdr/sim/regles','pdr/foule','ferro/webgpu-shaders','pdr/foule-webgpu']
 code='\n'.join((ROOT/'src'/f'{m}.js').read_text() for m in modules)
 fixture=r'''
 globalThis.errors=[];globalThis.ready=false;globalThis.frames=[];

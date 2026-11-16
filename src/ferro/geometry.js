@@ -251,3 +251,6 @@
 
   B.carene = { carene, tube, normaliser, lisser, boite, transformer, miroir, monotone, profil, pointSection };
 })(globalThis.BITUME = globalThis.BITUME || {});
+
+// Stable FERRO API; legacy namespace remains an alias of the same implementation.
+globalThis.FGeometry=globalThis.BITUME.carene;

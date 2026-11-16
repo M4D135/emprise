@@ -1,0 +1,22 @@
+TAP version 13
+# Subtest: prepared scores adopt all PCM and seeded orders without synthesizing in the receiving realm
+ok 1 - prepared scores adopt all PCM and seeded orders without synthesizing in the receiving realm
+  ---
+  duration_ms: 873.308042
+  type: 'test'
+  ...
+# Subtest: worker preparation is deduplicated and rejection falls back to a complete local score
+ok 2 - worker preparation is deduplicated and rejection falls back to a complete local score
+  ---
+  duration_ms: 96.93375
+  type: 'test'
+  ...
+1..2
+# tests 2
+# suites 0
+# pass 2
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1006.621667

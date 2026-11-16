@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 import crypto from 'node:crypto';
 const shapes=new Map(),context=vm.createContext({FRender:{forme:(name,faces)=>shapes.set(name,faces)}});
-for(const file of ['src/bitume/carene.js','src/vehicles.js'])vm.runInContext(fs.readFileSync(file,'utf8'),context);
+for(const file of ['src/ferro/geometry.js','src/vehicles.js'])vm.runInContext(fs.readFileSync(file,'utf8'),context);
 const model=context.RADE.vehicles.model('gti'),sub=(a,b)=>a.map((v,i)=>v-b[i]),dot=(a,b)=>a.reduce((s,v,i)=>s+v*b[i],0),cross=(a,b)=>[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]];
 const cross2=(a,b,c)=>(b[0]-a[0])*(c[1]-a[1])-(b[1]-a[1])*(c[0]-a[0]);
 function vertices(shape){const m=model.pieces.find(p=>p.shape===shape);assert(m,shape);return shapes.get(shape).map(tri=>tri.slice(0,3).map(v=>v.map((n,i)=>n*m.s[i]+m.p[i])));}

@@ -1,0 +1,104 @@
+{
+  "format": "ferro-engine",
+  "version": "0.2.0-preview.1",
+  "apiVersion": 1,
+  "pilot": "emprise",
+  "status": "pilot-validation",
+  "contentPolicy": "Procedural geometry, generated surfaces and synthesized sound. No imported visual or audio assets.",
+  "modules": [
+    {
+      "id": "math",
+      "path": "src/ferro/fmath.js"
+    },
+    {
+      "id": "render",
+      "path": "src/ferro/renderer.js"
+    },
+    {
+      "id": "webgpu-shaders",
+      "path": "src/ferro/webgpu-shaders.js"
+    },
+    {
+      "id": "webgpu",
+      "path": "src/ferro/webgpu-renderer.js"
+    },
+    {
+      "id": "backends",
+      "path": "src/ferro/backends.js"
+    },
+    {
+      "id": "geometry",
+      "path": "src/ferro/geometry.js"
+    },
+    {
+      "id": "materials",
+      "path": "src/ferro/materials.js"
+    },
+    {
+      "id": "physics-geometry",
+      "path": "src/ferro/physics-geometry.js"
+    },
+    {
+      "id": "physics",
+      "path": "src/ferro/physics.js"
+    },
+    {
+      "id": "destruction",
+      "path": "src/ferro/destruction.js"
+    },
+    {
+      "id": "navigation",
+      "path": "src/ferro/navigation.js"
+    },
+    {
+      "id": "input",
+      "path": "src/ferro/input.js"
+    },
+    {
+      "id": "motion",
+      "path": "src/ferro/motion.js"
+    },
+    {
+      "id": "effects",
+      "path": "src/ferro/effects.js"
+    },
+    {
+      "id": "audio",
+      "path": "src/ferro/audio.js"
+    },
+    {
+      "id": "recipes",
+      "path": "src/ferro/recipes.js"
+    }
+  ],
+  "optionalModules": [
+    {
+      "id": "imuse",
+      "path": "src/ferro/imuse.js"
+    },
+    {
+      "id": "music",
+      "path": "src/ferro/music.js"
+    }
+  ],
+  "hostAPI": "src/ferro/engine.js",
+  "targets": [
+    "emprise",
+    "metal",
+    "bitume",
+    "point-de-rupture"
+  ],
+  "validatedHost": "emprise",
+  "migrationStatus": {
+    "emprise": "isolated pilot",
+    "metal": "not propagated",
+    "bitume": "not propagated",
+    "point-de-rupture": "not propagated"
+  },
+  "origins": {
+    "emprise": "672bb463466584f997ea572e40d48b149009bffe",
+    "metal": "474aa08bd4bf717947fa794bd50fe0484b97eab0",
+    "bitume": "365b3e2d43c9d4fd84a81c7d7974b62c2a906129",
+    "point-de-rupture": "5ba44c9d2f9c667eac687b9d0fa2f170606ce2f8"
+  }
+}

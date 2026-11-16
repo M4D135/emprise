@@ -1,0 +1,36 @@
+input-recording.json 13.758333333333333 s {
+  shots: 10,
+  mode: 'foot',
+  player: [ 75.88432423852335, 122.196871459515 ],
+  car: [ 77.32815376806953, 122.02101202812034 ],
+  cash: 200,
+  owner: 1,
+  mapOwned: false
+}
+sandbox-recording.json 16.341666666666665 s {
+  shots: 8,
+  mode: 'foot',
+  player: [ 60.5771302176176, 107.18693402018762 ],
+  car: [ 78.3, 130 ],
+  cash: 243.76874999999657,
+  owner: 0,
+  mapOwned: true
+}
+explosion-recording.json 34.333333333333336 s {
+  shots: 73,
+  mode: 'foot',
+  player: [ 61.5, 189 ],
+  car: [ 61.5, 181 ],
+  cash: 200,
+  owner: 1,
+  mapOwned: false
+}
+police-recording.json 15.741666666666667 s {
+  shots: 1,
+  mode: 'foot',
+  player: [ 1000, 1008 ],
+  car: [ 78.3, 130 ],
+  cash: 120,
+  owner: 1,
+  mapOwned: false
+}

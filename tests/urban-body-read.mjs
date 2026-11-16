@@ -5,11 +5,13 @@ import {readFileSync} from 'node:fs';
 import {execFileSync} from 'node:child_process';
 import {createHash} from 'node:crypto';
 const baseline=process.env.EMPRISE_BASELINE||'22a330f',hash=value=>createHash('sha256').update(JSON.stringify(value)).digest('hex');
-function implementation(old){const source=file=>old?execFileSync('git',['show',baseline+':src/'+file+'.js'],{encoding:'utf8'}):readFileSync(new URL('../src/'+file+'.js',import.meta.url),'utf8'),context=vm.createContext({RADE:{...RADE},FDestruction,BITUME,console});vm.runInContext(source('metal/physics'),context);vm.runInContext(source('urban').split('/* Condition modifies')[0],context);return context.RADE.urban;}
+function implementation(old){const source=file=>old?execFileSync('git',['show',baseline+':src/'+file+'.js'],{encoding:'utf8'}):readFileSync(new URL('../src/'+file+'.js',import.meta.url),'utf8'),context=vm.createContext({RADE:{...RADE},FDestruction,BITUME,console});vm.runInContext(source(old?'metal/physics':'ferro/physics'),context);vm.runInContext(source('urban').split('/* Condition modifies')[0],context);return context.RADE.urban;}
 vm.runInThisContext(readFileSync(new URL('./explosion-heavy-scenes.js',import.meta.url),'utf8'));
 const mesh=m=>({shape:m.shape,p:m.p,s:m.s,r:m.r,mat:m.mat,color:m.color,material:m.material,emissive:m.emissive,alpha:m.alpha,fx:m.fx,collision:m.collision,breachShell:m.breachShell,breachInterior:m.breachInterior,sourceRoom:m.sourceRoom,destructibleId:m.destructibleId,renderRevision:m.renderRevision});
 function colliders(list,geometry){const indices=new Map(geometry.map((m,i)=>[m,i]));return list.map(q=>({x:q.x,z:q.z,a:q.a,b:q.b,c:q.c,s:q.s,cap:q.cap,minY:q.minY,maxY:q.maxY,minX:q.minX,maxX:q.maxX,minZ:q.minZ,maxZ:q.maxZ,kind:q.kind,breachInterior:q.breachInterior,destroyed:q.destroyed,mesh:indices.get(q.mesh)??null}));}
 function snapshot(s){const u=s.urban,w=s.world;return Object.fromEntries(Object.entries({destruction:u.controller.snapshot(),worldMeshes:w.scenery.map(mesh),worldColliders:colliders(w.boxes,w.scenery),urbanReport:{...u.report},bodies:u.bodies.map(q=>({scene:q.scene,mass:q.mass,material:q.material,mesh:mesh(q.mesh),body:q.engine.body(q.handle)})),projections:u.breachProjections.map(b=>({id:b.id,buildingId:b.buildingId,floor:b.floor,sceneId:b.room.sceneId,scale:b.scale,face:b.face,void:b.void,meshes:b.scenery.map(mesh),colliders:colliders(b.colliders,b.scenery),lights:b.lights})),save:u.save(),revision:u.revision}).map(([name,value])=>[name,hash(value)]));}
+// Contact-event counters and optional joint diagnostics are new observability.
+// Solver hashes, all other counters and published world state remain compared exactly.
 const colliderValues=boxes=>boxes.map(q=>({x:q.x,z:q.z,a:q.a,b:q.b,c:q.c,s:q.s,minY:q.minY,maxY:q.maxY,mesh:mesh(q.mesh)}));
 function run(api){
  RADE.urban=api;const s=RADE.session.create({pedestrians:0,now:1794700000000}),w=s.world;s.urban.prepare();s.urban.prewarmPhysics?.();s.weather.force('soleil');s.weather.setHour(14);s.weather.tick(0);s.sim.relocate(61.5,211,0);
@@ -24,7 +26,7 @@ function run(api){
   if(heldColliders)assert.equal(hash(colliderValues(heldColliders.value)),heldColliders.hash,'Published collision poses remain independent of later scratch reads');
   if(heldSave)assert.equal(hash(heldSave.value),heldSave.hash,'Saved body poses remain independent of later scratch reads');
   const geometry=s.urban.geometry(),boxes=w.dynamicBodies;renderStream.update(JSON.stringify([geometry,colliderValues(boxes)]));
-  const engines=[...new Set(s.urban.bodies.map(q=>q.engine))];stateStream.update(JSON.stringify(engines.map(e=>[e.hash(),e.staticsHash,e.stats])));
+  const engines=[...new Set(s.urban.bodies.map(q=>q.engine))];stateStream.update(JSON.stringify(engines.map(e=>[e.hash(),e.staticsHash,Object.fromEntries(Object.entries(e.stats).filter(([key])=>key!=='events'&&key!=='joints'))])));
   heldGeometry={value:geometry,hash:hash(geometry)};heldColliders={value:boxes,hash:hash(colliderValues(boxes))};
   if(tick===421){const value=s.urban.save().bodies;heldSave={value,hash:hash(value)};}
  }

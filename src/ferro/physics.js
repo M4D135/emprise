@@ -14,7 +14,6 @@
    Inside step(): no new object, array literal, closure or string; floats never cross a call (SCR scratch). */
 (function(G){
   'use strict';
-  // Material id = index (the host game keeps the same order).
   const MATERIALS=Object.freeze([
     Object.freeze({name:'metal',friction:.45,restitution:.24,density:65}),
     Object.freeze({name:'stone',friction:.7,restitution:.16,density:28}),
@@ -23,10 +22,6 @@
     Object.freeze({name:'dirt',friction:.8,restitution:.05,density:12})
   ]);
   const I32=2147483647;
-  // Settings after bounds, in fingerprint order: [name, default, kind, low, high].
-  // Kinds: f finite, p > 0, z >= 0, g null or finite, i integer in [low, high].
-  // Integer limits keep encodings exact: body handle gen*4096+index, joint handle gen*4096+slot,
-  // pair key lo*(capacity+maxStatics+2)+hi below 2^31.
   const SETTINGS=[
     ['cell',2,'p'],['gravity',-12,'f'],['ground',null,'g'],['floorThickness',.5,'p'],['minY',-60,'f'],['tick',1/120,'p'],
     ['maxSubsteps',8,'i',1,I32],['capacity',384,'i',1,4095],['maxStatics',4096,'i',1,65535],['maxContacts',16384,'i',1,1048576],
@@ -39,20 +34,16 @@
     ['supportSpeed',.08,'z'],['massMin',3,'p'],['massMax',120,'p'],['maxAwake',160,'i',0,I32],['spawnBudget',24,'i',1,I32],
     ['eventSpeed',1.2,'z'],['maxEvents',16,'i',0,I32]
   ];
-  // Grid cells allowed by bounds and cell (4 MB of cell heads per grid at most).
   const MAX_CELLS=1048576;
   const fail=text=>{throw new TypeError('FPhysics.create: '+text);};
   const wrong=(where,text)=>{throw new TypeError('FPhysics.'+where+': '+text);};
   const finite=v=>typeof v==='number'&&Number.isFinite(v);
-  // FNV-1a 32 bits: one step over a 32-bit word.
   const fnv=(h,u)=>Math.imul(h^u,16777619);
-  // FNV-1a 32 bits over character codes, as 8 hex digits.
   function textHash(text){
     let h=2166136261;
     for(let i=0;i<text.length;i++)h=fnv(h,text.charCodeAt(i));
     return (h>>>0).toString(16).padStart(8,'0');
   }
-  // Validated settings (-0 normalised), plus durations converted to whole sub-steps.
   function settings(o){
     if(!o||typeof o!=='object')fail('options object with bounds required');
     const b=o.bounds;
@@ -74,21 +65,16 @@
     if(!(cells<=MAX_CELLS))fail('bounds and cell give '+cells+' grid cells (at most '+MAX_CELLS+')');
     const t=c.tick,steps=d=>Math.floor(d/t+.5);
     c.sleepSteps=steps(c.sleepTime);c.splitSteps=steps(c.splitTime);c.fallbackSteps=steps(c.fallbackTime);c.windowSteps=steps(1);
-    // clock (bench only, never part of the state) is checked here and kept out of config.
     if(o.clock!==undefined&&o.clock!==null&&typeof o.clock!=='function')fail('clock must be a function or null');
     return Object.freeze(c);
   }
-  // Fingerprint: FNV-1a of 'FPhysics2|' + settings in table order, bounds flat, ground 'none' when null.
   function fingerprintOf(c){
     const b=c.bounds,values=[b.minX,b.maxX,b.minZ,b.maxZ];
     for(const s of SETTINGS)values.push(c[s[0]]===null?'none':c[s[0]]);
     return textHash('FPhysics2|'+values.join('|'));
   }
-  // Body flags (FL) and shapes (SH).
   const ALIVE=1,ASLEEP=2,KINEMATIC=4,PENDING=8,LOST=16,HARD=32,MOVING=64,SHAPES=['box','sphere','capsule'];
-  // Generations wrap at 2^19, so that a handle gen*4096 + index stays below 2^31.
   const GENS=524288;
-  // Description checks (outside step). A vector of n finite numbers, copied with -0 normalised.
   function vec(where,name,v,n){
     if(!(Array.isArray(v)||ArrayBuffer.isView(v))||v.length!==n)wrong(where,name+' must be an array of '+n+' numbers');
     const out=new Array(n);
@@ -100,7 +86,6 @@
     if(!finite(v)||v<low||v>high)wrong(where,name+' must be a number from '+low+' to '+high);
     return v+0;
   }
-  // Material: index or name in MATERIALS; -1 (or absent) for none.
   function materialOf(where,m){
     if(m===undefined||m===-1)return -1;
     if(Number.isInteger(m)&&m>=0&&m<MATERIALS.length)return m;
@@ -108,75 +93,44 @@
     return wrong(where,'material must be a name or an index of MATERIALS');
   }
   function create(o){
-    const C=settings(o),fp=fingerprintOf(C),clock=typeof o.clock==='function'?o.clock:null;
+    const C=settings(o),bounded=o.bounded===true,geometry=o.geometry===true,fp=fingerprintOf(C)+(bounded?'/B1':'')+(geometry?'/G1':''),clock=typeof o.clock==='function'?o.clock:null;
+    if(o.bounded!==undefined&&typeof o.bounded!=='boolean')fail('bounded must be a boolean');
+    if(geometry&&!G.FPhysicsGeometry)fail('geometry module required');
+    let geometryApi=null;
     const NB=C.capacity+1,MS=C.maxStatics,MC=C.maxContacts,KM=NB+MS+1;
     const minX=C.bounds.minX,maxX=C.bounds.maxX,minZ=C.bounds.minZ,maxZ=C.bounds.maxZ,cell=C.cell;
     const GW=Math.floor((maxX-minX)/cell)+1,GD=Math.floor((maxZ-minZ)/cell)+1,CELLS=GW*GD;
     // ---- Bodies: columns of NB = capacity + 1 rows; row 0 is the world (immovable: zero inverse mass and inertia).
-    // Saved, in snapshot order: SH shape (0 box, 1 sphere, 2 capsule), FL flags, GEN generation, GRP group, MSK mask,
-    // MAT material (-1 none), P position, Q quaternion [x, y, z, w], V velocity (linear then angular, world frame),
-    // H collision half-size, HR real half-size, IM inverse physical mass, MO original mass, FR friction,
-    // RE restitution, ST sub-steps under the sleep thresholds, AT sub-steps awake, FN fallback window,
-    // RP fallback reference position, KT kinematic target (position, quaternion), KN target pending.
     const SH=new Uint8Array(NB),FL=new Uint8Array(NB),GEN=new Int32Array(NB),GRP=new Int32Array(NB),MSK=new Int32Array(NB),MAT=new Int32Array(NB).fill(-1);
     const P=new Float64Array(NB*3),Q=new Float64Array(NB*4),V=new Float64Array(NB*6),H=new Float64Array(NB*3),HR=new Float64Array(NB*3);
     const IM=new Float64Array(NB),MO=new Float64Array(NB),FR=new Float64Array(NB),RE=new Float64Array(NB);
     const ST=new Int32Array(NB),AT=new Int32Array(NB),FN=new Int32Array(NB),RP=new Float64Array(NB*3),KT=new Float64Array(NB*7),KN=new Uint8Array(NB);
-    // Derived, from saved values only (same functions at creation, end of sub-step and restore): R rotation
-    // (row-major, column k = local axis k in the world), IL local inverse inertia, IW world inverse inertia
-    // (xx xy xz yy yz zz), BB bounds and FB swept bounds (min x y z, max x y z), SL contact tolerance,
-    // PP and PQ pose at the start of the last step() call (render interpolation).
     const R=new Float64Array(NB*9),IL=new Float64Array(NB*3),IW=new Float64Array(NB*6),BB=new Float64Array(NB*6),FB=new Float64Array(NB*6);
     const SL=new Float64Array(NB),PP=new Float64Array(NB*3),PQ=new Float64Array(NB*4);
-    // Sub-step scratch: AL active list (increasing index), ACT active mark (1 awake dynamic body, 2 moving kinematic body),
-    // WK deferred wake mark, UF union-find, IMIN smallest ST of an island (at its root), TOUCH contact in this sub-step (or woken at its end).
     const AL=new Int32Array(NB),ACT=new Uint8Array(NB),WK=new Uint8Array(NB),UF=new Int32Array(NB),IMIN=new Int32Array(NB),TOUCH=new Uint8Array(NB);
     Q[3]=1;R[0]=R[4]=R[8]=1;SL[0]=C.slop;
-    // Saved arrays in snapshot and hash order: [name, array, width, integer low, integer high].
     const FIELDS=[['SH',SH,1,0,2],['FL',FL,1,0,127],['GEN',GEN,1,0,GENS-1],['GRP',GRP,1,0,65535],['MSK',MSK,1,0,65535],['MAT',MAT,1,-1,MATERIALS.length-1],
       ['P',P,3],['Q',Q,4],['V',V,6],['H',H,3],['HR',HR,3],['IM',IM,1],['MO',MO,1],['FR',FR,1],['RE',RE,1],
       ['ST',ST,1,0,I32],['AT',AT,1,0,I32],['FN',FN,1,0,I32],['RP',RP,3],['KT',KT,7],['KN',KN,1,0,1]];
-    // Hash views (floats are hashed by their 32-bit words) and the values of row 0, the world.
     const VIEWS=FIELDS.map(f=>f[1] instanceof Float64Array?new Uint32Array(f[1].buffer):null),WORLD=FIELDS.map(f=>Array.from(f[1].subarray(0,f[2])));
     // ---- Statics (setStatics): centre sP, half-size sH, rotation sR (identity for a box), OBB flag sO, bounds sA
-    // (min x y z, max x y z), friction sF, restitution sE, material sM, query stamp sT. Grid in compressed rows:
-    // cell c lists sItems[sStart[c] .. sStart[c+1]-1], by increasing index.
     let NS=0,sP=new Float64Array(0),sH=sP,sR=sP,sA=sP,sF=sP,sE=sP,sO=new Uint8Array(0),sM=new Int32Array(0),sT=sM,sItems=sM,stamp=0,decor=false;
     const sStart=new Int32Array(CELLS+1);
     // ---- Contacts of the sub-step (prototype columns): bodies cA cB (cB = 0, the world, for a static), pair key cK,
-    // point id cI, normal cN (A to B), tangents cT1 cT2, arms cRA cRB, angular responses cAN cA1 cA2 (A then B),
-    // separation cS, effective masses cMn cM1 cM2, impulses cJn cJ1 cJ2, friction cFr, restitution cRe,
-    // approach speed cV0, peak normal impulse cMax, participating inverse masses cIa cIb (0: immovable side),
-    // tolerance cSl, separation after the position update cSR (relaxation). Pairs: first point prF, points prN.
     const cA=new Int32Array(MC),cB=new Int32Array(MC),cK=new Int32Array(MC),cI=new Int32Array(MC),prF=new Int32Array(MC),prN=new Int32Array(MC);
     const cN=new Float64Array(MC*3),cT1=new Float64Array(MC*3),cT2=new Float64Array(MC*3),cRA=new Float64Array(MC*3),cRB=new Float64Array(MC*3);
     const cAN=new Float64Array(MC*6),cA1=new Float64Array(MC*6),cA2=new Float64Array(MC*6);
     const cS=new Float64Array(MC),cMn=new Float64Array(MC),cM1=new Float64Array(MC),cM2=new Float64Array(MC),cJn=new Float64Array(MC),cJ1=new Float64Array(MC),cJ2=new Float64Array(MC);
     const cFr=new Float64Array(MC),cRe=new Float64Array(MC),cV0=new Float64Array(MC),cMax=new Float64Array(MC),cIa=new Float64Array(MC),cIb=new Float64Array(MC),cSl=new Float64Array(MC),cSR=new Float64Array(MC);
     // ---- Impulse cache (warm start of the next sub-step): pn entries of key pK, point id pI, impulses pJn pJ1 pJ2,
-    // the entries of one key contiguous. Open addressing over TS slots (power of 2 >= 2*maxContacts): TB = first
-    // entry + 1 (0 empty), TC = entry count; TU lists the used slots, so that clearing touches only them.
     let TS=1;while(TS<2*MC)TS*=2;
     const pK=new Int32Array(MC),pI=new Int32Array(MC),pJn=new Float64Array(MC),pJ1=new Float64Array(MC),pJ2=new Float64Array(MC);
     const TB=new Int32Array(TS),TC=new Int32Array(TS),TU=new Int32Array(MC),CU=[pJn,pJ1,pJ2].map(a=>new Uint32Array(a.buffer));
     // ---- Narrow-phase scratch (prototype): box-box axes tt cc qq; point k: normal mN[3k..] (A to B), point mP[3k..],
-    // separation mS[k], id mI[k]; face clipping polygons clipA clipB with ids idA idB; kept points pick.
     const tt=new Float64Array(3),cc=new Float64Array(9),qq=new Float64Array(9),mN=new Float64Array(24),mP=new Float64Array(24),mS=new Float64Array(8),mI=new Int32Array(8);
     const clipA=new Float64Array(48),clipB=new Float64Array(48),idA=new Int32Array(16),idB=new Int32Array(16),pick=new Int32Array(4);
-    // Float scratch: [0] narrow-phase margin of the pair; [1] [2] clip limits; [3] [4] friction and restitution
-    // of the pair; [5] 1/h; [6] bias rate; [7] mass scale; [8] impulse scale (soft contact); [9] h = tick;
-    // [10] linear and [11] angular damping factors; [12] gravity*h; [13] last clock mark (bench only).
-    // Settings read inside the step, copied once (config is a plain object: a number read from it is a boxed
-    // value, and a boxed input can make the optimiser box the floats it meets): [14] margin; [15] maxLinear;
-    // [16] maxAngular; [17] pushout; [18] restitutionThreshold; [19] sleepLinear^2; [20] sleepAngular^2;
-    // [21] sleepSteps (a float: NOSLEEP gives 1.2e11 sub-steps). Actions (outside the step): [22] [23] [24] world point
-    // and [25] [26] [27] impulse of push(). [28] rolling damping factor. Round shapes: [29..31] centre and [32] radius of
-    // ball A, [33..35] and [36] of ball B.
     const SCR=new Float64Array(37),ITER=C.iterations,RELAX=C.relaxIterations,MAXSUB=C.maxSubsteps;
-    // Integer scratch: [0] [1] [2] [3] cells x0, x1, z0, z1 of the last cellRange; [4] [5] used cells and
-    // [6] [7] entries of the body grids 0 and 1.
     const ISCR=new Int32Array(8);
-    // World floats kept across steps: [0] time accumulator (s), hashed by its two words.
     const WS=new Float64Array(1),WSU=new Uint32Array(WS.buffer);
     {
       const h=C.tick,hz=Math.min(C.contactHertz,.25*(1/h)),om=6.283185307179586*hz,a1=2*C.dampingRatio+h*om,a2=h*om*a1,a3=1/(1+a2);
@@ -184,32 +138,87 @@
       SCR[14]=C.margin;SCR[15]=C.maxLinear;SCR[16]=C.maxAngular;SCR[17]=C.pushout;SCR[18]=C.restitutionThreshold;
       SCR[19]=C.sleepLinear*C.sleepLinear;SCR[20]=C.sleepAngular*C.sleepAngular;SCR[21]=C.sleepSteps;SCR[28]=1/(1+h*C.rollingDamping);
     }
+    // Joint columns: endpoints, anchors, axes, rest tangents, limits, break impulse, last impulse.
+    const NJ=C.maxJoints+1,JT=new Uint8Array(NJ),JG=new Int32Array(NJ),JA=new Int32Array(NJ),JB=new Int32Array(NJ),JD=new Float64Array(NJ*26),JU=new Uint32Array(JD.buffer),JX=new Float64Array(24);
+    let jtop=1;
+    const joints={count:0,broken:new Int32Array(C.maxJoints),brokenCount:0};
+    function jointSlot(h){const i=h&4095;return Number.isInteger(h)&&i>0&&i<jtop&&JT[i]&&JG[i]*4096+i===h?i:0;}
+    function removeJoint(h){const j=jointSlot(h);if(!j)return false;JT[j]=0;JG[j]=(JG[j]+1)%GENS;joints.count--;stats.joints=joints.count;return true;}
+    function jointWorld(i,d,k){const r=i*9,x=JD[d+k],y=JD[d+k+1],z=JD[d+k+2];JX[k]=R[r]*x+R[r+1]*y+R[r+2]*z;JX[k+1]=R[r+3]*x+R[r+4]*y+R[r+5]*z;JX[k+2]=R[r+6]*x+R[r+7]*y+R[r+8]*z;}
+    function addJoint(o){
+      const type=['','ball','hinge','cable','weld'].indexOf(o?.type||'ball'),a=o?.a===0?0:slot(o?.a),b=o?.b===0?0:slot(o?.b);
+      if(type<1||a===b||o.a!==0&&!a||o.b!==0&&!b||!(IM[a]+IM[b]>0))wrong('addJoint','type and live endpoints required');
+      const aa=vec('addJoint','anchorA',o.anchorA||[0,0,0],3),bb=vec('addJoint','anchorB',o.anchorB||[0,0,0],3),ax=vec('addJoint','axisA',o.axisA||[0,1,0],3),bx=vec('addJoint','axisB',o.axisB||[0,1,0],3);
+      if(o.worldAnchor){const point=vec('addJoint','worldAnchor',o.worldAnchor,3);for(const [i,v] of [[a,aa],[b,bb]]){const r=i*9,x=point[0]-P[i*3],y=point[1]-P[i*3+1],z=point[2]-P[i*3+2];for(let k=0;k<3;k++)v[k]=R[r+k]*x+R[r+3+k]*y+R[r+6+k]*z;}}
+      for(const v of [ax,bx]){const l=Math.sqrt(v[0]*v[0]+v[1]*v[1]+v[2]*v[2]);if(l<1e-8)wrong('addJoint','axis must be nonzero');for(let k=0;k<3;k++)v[k]/=l;}
+      const low=inRange('addJoint','min',o.min,0,0,100),high=inRange('addJoint','max',o.max,2,low,100),limit=inRange('addJoint','limit',o.limit,95*Math.PI/180,0,Math.PI),br=inRange('addJoint','breakImpulse',o.breakImpulse,1e12,0,1e12);
+      let j=1;while(j<jtop&&JT[j])j++;if(j>=NJ)return -1;if(j===jtop)jtop++;const d=j*26;JD.fill(0,d,d+26);JT[j]=type;JA[j]=a;JB[j]=b;JD.set(aa,d);JD.set(bb,d+3);JD.set(ax,d+6);JD.set(bx,d+9);
+      // Orthogonal reference in A, expressed in B at creation: a zero-angle reference.
+      let x=0,y=0,z=0;if(Math.abs(ax[0])<.7){y=-ax[2];z=ax[1];}else{x=-ax[1];y=ax[0];}const l=Math.sqrt(x*x+y*y+z*z);JD[d+12]=x/l;JD[d+13]=y/l;JD[d+14]=z/l;jointWorld(a,d,12);
+      const r=b*9;for(let k=0;k<3;k++)JD[d+15+k]=R[r+k]*JX[12]+R[r+3+k]*JX[13]+R[r+6+k]*JX[14];
+      JD[d+18]=low;JD[d+19]=high;JD[d+20]=jointCos(limit);JD[d+21]=br;for(let k=0;k<26;k++)JD[d+k]+=0;joints.count++;stats.joints=joints.count;if(a)rouse(a);if(b)rouse(b);return JG[j]*4096+j;
+    }
+    function wakeJoints(){for(let pass=0;pass<6;pass++)for(let j=1;j<jtop;j++)if(JT[j]){const a=JA[j],b=JB[j];if((a&&!(FL[a]&(ASLEEP|PENDING))||b&&!(FL[b]&(ASLEEP|PENDING)))&&((FL[a]|FL[b])&ASLEEP)){if(a&&(FL[a]&ASLEEP))wake(a);if(b&&(FL[b]&ASLEEP))wake(b);}}}
+    function jointAnchors(j){const d=j*26,a=JA[j],b=JB[j];jointWorld(a,d,0);jointWorld(b,d,3);for(let k=0;k<3;k++)JX[18+k]=P[b*3+k]+JX[3+k]-P[a*3+k]-JX[k];}
+    // JX[21..23]: row axis, JX[20]: error. Rows apply equal opposite impulses.
+    function jointRow(j,angular,limit=0){
+      const a=JA[j],b=JB[j],av=a*6,bv=b*6,ima=IM[a],imb=IM[b],nx=JX[21],ny=JX[22],nz=JX[23],rax=JX[0],ray=JX[1],raz=JX[2],rbx=JX[3],rby=JX[4],rbz=JX[5];
+      const ux=angular?nx:ray*nz-raz*ny,uy=angular?ny:raz*nx-rax*nz,uz=angular?nz:rax*ny-ray*nx,wx=angular?nx:rby*nz-rbz*ny,wy=angular?ny:rbz*nx-rbx*nz,wz=angular?nz:rbx*ny-rby*nx;
+      const ax=IW[av]*ux+IW[av+1]*uy+IW[av+2]*uz,ay=IW[av+1]*ux+IW[av+3]*uy+IW[av+4]*uz,az=IW[av+2]*ux+IW[av+4]*uy+IW[av+5]*uz,bx=IW[bv]*wx+IW[bv+1]*wy+IW[bv+2]*wz,by=IW[bv+1]*wx+IW[bv+3]*wy+IW[bv+4]*wz,bz=IW[bv+2]*wx+IW[bv+4]*wy+IW[bv+5]*wz;
+      const mass=(angular?0:ima+imb)+ux*ax+uy*ay+uz*az+wx*bx+wy*by+wz*bz;if(mass<1e-12)return;
+      const rel=(angular?0:(V[bv]-V[av])*nx+(V[bv+1]-V[av+1])*ny+(V[bv+2]-V[av+2])*nz)+V[bv+3]*wx+V[bv+4]*wy+V[bv+5]*wz-V[av+3]*ux-V[av+4]*uy-V[av+5]*uz;
+      let impulse=-(rel+Math.max(-3,Math.min(3,JX[20]*24)))/mass;const d=j*26;if(limit>0)impulse=Math.min(0,impulse);else if(limit<0)impulse=Math.max(0,impulse);JD[d+22]+=Math.abs(impulse);
+      if(JD[d+22]>JD[d+21]){if(joints.brokenCount<joints.broken.length)joints.broken[joints.brokenCount++]=JG[j]*4096+j;removeJoint(JG[j]*4096+j);stats.broken++;return;}
+      if(!angular){V[av]-=nx*impulse*ima;V[av+1]-=ny*impulse*ima;V[av+2]-=nz*impulse*ima;V[bv]+=nx*impulse*imb;V[bv+1]+=ny*impulse*imb;V[bv+2]+=nz*impulse*imb;}
+      V[av+3]-=ax*impulse;V[av+4]-=ay*impulse;V[av+5]-=az*impulse;V[bv+3]+=bx*impulse;V[bv+4]+=by*impulse;V[bv+5]+=bz*impulse;
+    }
+    function solveJoints(){
+      for(let j=1;j<jtop;j++)if(JT[j]){
+        const a=JA[j],b=JB[j],d=j*26;if(!(ACT[a]||ACT[b])||(FL[a]|FL[b])&PENDING)continue;jointAnchors(j);
+        const dx=JX[18],dy=JX[19],dz=JX[20];
+        if(JT[j]===3){const length=Math.sqrt(dx*dx+dy*dy+dz*dz),target=length>=JD[d+19]-1e-7?JD[d+19]:length<=JD[d+18]+1e-7?JD[d+18]:-1;if(length<1e-10||target<0)continue;JX[21]=dx/length;JX[22]=dy/length;JX[23]=dz/length;JX[20]=length-target;jointRow(j,false,target===JD[d+19]?1:-1);continue;}
+        for(let k=0;k<3&&JT[j];k++){JX[21]=k===0?1:0;JX[22]=k===1?1:0;JX[23]=k===2?1:0;JX[20]=k===0?dx:k===1?dy:dz;jointRow(j,false);}
+        if(JT[j]!==2&&JT[j]!==4)continue;jointWorld(a,d,6);jointWorld(b,d,9);jointWorld(a,d,12);jointWorld(b,d,15);
+        const ax=JX[6],ay=JX[7],az=JX[8],bx=JX[9],by=JX[10],bz=JX[11],ex=by*az-bz*ay,ey=bz*ax-bx*az,ez=bx*ay-by*ax;
+        // Axis alignment is constrained perpendicular to the hinge; weld adds twist.
+        for(let k=0;k<2&&JT[j];k++){const nx=k===0?JX[12]:ay*JX[14]-az*JX[13],ny=k===0?JX[13]:az*JX[12]-ax*JX[14],nz=k===0?JX[14]:ax*JX[13]-ay*JX[12];JX[21]=nx;JX[22]=ny;JX[23]=nz;JX[20]=-(ex*nx+ey*ny+ez*nz);jointRow(j,true);}
+        const dot=JX[12]*JX[15]+JX[13]*JX[16]+JX[14]*JX[17],sin=ax*(JX[13]*JX[17]-JX[14]*JX[16])+ay*(JX[14]*JX[15]-JX[12]*JX[17])+az*(JX[12]*JX[16]-JX[13]*JX[15]);
+        if(JT[j]===4||JT[j]===2&&dot<JD[d+20]){JX[21]=ax;JX[22]=ay;JX[23]=az;JX[20]=JT[j]===4?sin:(sin<0?-1:1)*(JD[d+20]-dot);jointRow(j,true);}
+      }
+    }
+    function projectJoints(){
+      // Projection removes accumulated stretch without injecting velocity or energy.
+      for(let it=0;it<6;it++)for(let j=1;j<jtop;j++)if(JT[j]){const a=JA[j],b=JB[j],d=j*26,m=IM[a]+IM[b];if(!(ACT[a]||ACT[b])||(FL[a]|FL[b])&PENDING||m<=0)continue;jointAnchors(j);let dx=JX[18],dy=JX[19],dz=JX[20];if(JT[j]===3){const len=Math.sqrt(dx*dx+dy*dy+dz*dz),target=Math.max(JD[d+18],Math.min(JD[d+19],len));if(len<1e-10||target===len)continue;const f=(len-target)/len;dx*=f;dy*=f;dz*=f;}const cap=Math.max(1,Math.sqrt(dx*dx+dy*dy+dz*dz)/.1),f=1/(m*cap);P[a*3]+=dx*IM[a]*f;P[a*3+1]+=dy*IM[a]*f;P[a*3+2]+=dz*IM[a]*f;P[b*3]-=dx*IM[b]*f;P[b*3+1]-=dy*IM[b]*f;P[b*3+2]-=dz*IM[b]*f;}
+    }
     // ---- Body grids, one linked list per cell: 0 = active bodies with FB, rebuilt each sub-step; 1 = resting bodies
-    // (sleepers) with FB = BB, rebuilt when restDirty. GH head per cell (-1 empty), GN next and GI item per entry,
-    // GU used cells (clearing touches only them). Bodies are inserted by decreasing index at the head, so a cell is
-    // walked by increasing index. Entries are sized in addBody (cellsOf): a sub-step never overflows nor allocates.
     const GH=[new Int32Array(CELLS).fill(-1),new Int32Array(CELLS).fill(-1)],GU=[new Int32Array(CELLS),new Int32Array(CELLS)],GN=[null,null],GI=[null,null];
-    let GE=0,need=0,restDirty=true,nc=0,nm=0,pn=0,tu=0,top=1,nwake=0;
+    let GE=0,need=0,restDirty=true,nc=0,nm=0,pn=0,tu=0,top=1,nwake=0,birthLeft=0;
     function entries(n){GE=n;for(let g=0;g<2;g++){GN[g]=new Int32Array(n);GI[g]=new Int32Array(n);}restDirty=true;}
     entries(64);
     const stats={bodies:0,awake:0,sleeping:0,pending:0,kinematic:0,lost:0,statics:0,joints:0,contacts:0,manifolds:0,tests:0,
       substeps:0,events:0,refused:0,dropContacts:0,forcedSleep:0,fallbackSleep:0,wakes:0,droppedSteps:0,broken:0};
     const PH=new Float64Array(4);
+    const EV=C.maxEvents,events={count:0,a:new Int32Array(EV),b:new Int32Array(EV),point:new Float64Array(EV*3),normal:new Float64Array(EV*3),energy:new Float64Array(EV),impulse:new Float64Array(EV),materialA:new Int32Array(EV),materialB:new Int32Array(EV)};
+    function contactEvents(){
+      for(let c=0;c<nc;c++){
+        const speed=-cV0[c];if(speed<C.eventSpeed||cMax[c]<=0||cSR[c]>cSl[c]*2+1e-6)continue;
+        const a=cA[c],b=cB[c],mass=IM[a]+IM[b];if(mass<=0)continue;const energy=.5*speed*speed/mass,ha=GEN[a]*4096+a,hb=b?GEN[b]*4096+b:0;
+        let at=-1,low=-1;for(let j=0;j<events.count;j++){if(events.a[j]===ha&&events.b[j]===hb){at=j;break;}if(low<0||events.energy[j]<events.energy[low])low=j;}
+        if(at>=0&&events.energy[at]>=energy)continue;
+        if(at<0){if(events.count<EV)at=events.count++;else if(low>=0&&energy>events.energy[low])at=low;else continue;}
+        events.a[at]=ha;events.b[at]=hb;events.energy[at]=energy;events.impulse[at]=cMax[c];events.materialA[at]=MAT[a];events.materialB[at]=b?MAT[b]:sM[cK[c]%KM-NB];
+        for(let k=0;k<3;k++){events.point[at*3+k]=P[a*3+k]+cRA[c*3+k];events.normal[at*3+k]=cN[c*3+k];}
+      }
+    }
 
     // ---- Canonical derived values. Sizes: a box has H = max(size/2, minHalf) and HR = size/2; a sphere H = (rc, rc, rc)
-    // and HR = (r, r, r); a capsule (axis = local Y) H = (rc, hh + rc, rc) and HR = (r, height/2, r), with the collision
-    // radius rc = max(r, minHalf) and the half-segment hh = height/2 - r = HR_y - HR_x (0 for a sphere).
-    // Inertia from the saved inverse mass and collision sizes: box; sphere 2.5 im/r^2; capsule as a cylinder of radius r
-    // and length L = 2 H_y on Y: ILy = 2 im/r^2, ILx = ILz = 12 im/(3 r^2 + L^2).
     function inertia(i){
       const p=i*3,im=IM[i],hx=H[p],hy=H[p+1],hz=H[p+2];
       if(SH[i]===0){IL[p]=3*im/(hy*hy+hz*hz);IL[p+1]=3*im/(hx*hx+hz*hz);IL[p+2]=3*im/(hx*hx+hy*hy);}
       else if(SH[i]===1)IL[p]=IL[p+1]=IL[p+2]=2.5*im/(hx*hx);
       else{const L=2*hy;IL[p]=IL[p+2]=12*im/(3*hx*hx+L*L);IL[p+1]=2*im/(hx*hx);}
     }
-    // Contact tolerance SL = min(slop, slopRatio * m): m = smallest collision half-size of a box, radius of a round body.
     function tolerance(i){const p=i*3;SL[i]=Math.min(C.slop,C.slopRatio*(SH[i]?H[p]:Math.min(H[p],H[p+1],H[p+2])));}
-    // Rotation, bounds and world inverse inertia from Q, P, H and IL (prototype derive); tight bounds for a round body.
     function derive(i){
       const q=i*4,x=Q[q],y=Q[q+1],z=Q[q+2],w=Q[q+3],xx=x*x,yy=y*y,zz=z*z,xy=x*y,xz=x*z,yz=y*z,wx=w*x,wy=w*y,wz=w*z,r=i*9;
       const r0=1-2*(yy+zz),r1=2*(xy-wz),r2=2*(xz+wy),r3=2*(xy+wz),r4=1-2*(xx+zz),r5=2*(yz-wx),r6=2*(xz-wy),r7=2*(yz+wx),r8=1-2*(xx+yy);
@@ -223,7 +232,6 @@
       IW[b]=r0*r0*ix+r1*r1*iy+r2*r2*iz;IW[b+1]=r0*r3*ix+r1*r4*iy+r2*r5*iz;IW[b+2]=r0*r6*ix+r1*r7*iy+r2*r8*iz;
       IW[b+3]=r3*r3*ix+r4*r4*iy+r5*r5*iz;IW[b+4]=r3*r6*ix+r4*r7*iy+r5*r8*iz;IW[b+5]=r6*r6*ix+r7*r7*iy+r8*r8*iz;
     }
-    // Upper bound of the grid cells a body can cover: bounds swept by maxLinear*tick plus margin on each side.
     function cellsOf(i){
       const p=i*3,e=Math.sqrt(H[p]*H[p]+H[p+1]*H[p+1]+H[p+2]*H[p+2]),n=Math.floor(2*(e+C.maxLinear*C.tick+C.margin)/cell)+3;
       return Math.min(GW,n)*Math.min(GD,n);
@@ -232,7 +240,6 @@
     // ---- Grids.
     const cx=(A,k)=>{const c=Math.floor((A[k]-minX)/cell);return c<0?0:c>=GW?GW-1:c;};
     const cz=(A,k)=>{const c=Math.floor((A[k]-minZ)/cell);return c<0?0:c>=GD?GD-1:c;};
-    // ISCR[0..3] = cells x0, x1, z0, z1 covered by the bounds A[b .. b+5].
     function cellRange(A,b){ISCR[0]=cx(A,b);ISCR[1]=cx(A,b+3);ISCR[2]=cz(A,b+2);ISCR[3]=cz(A,b+5);}
     function gridClear(g){const head=GH[g],used=GU[g];for(let k=ISCR[4+g]-1;k>=0;k--)head[used[k]]=-1;ISCR[4+g]=0;ISCR[6+g]=0;}
     function gridAdd(g,i){
@@ -250,31 +257,24 @@
     }
 
     // ---- Static decor. Outside the step, may allocate. Boxes {minX, maxX, minY, maxY, minZ, maxZ} and floors {x, z, w, d,
-    // y?, slopeX?, slopeZ?} ((x, z) the centre, height y + (px - x) slopeX + (pz - z) slopeZ, one slope axis at most), each
-    // with material?, friction?, restitution?. Order: the ground slab (index 0), the boxes, the flat floors as boxes
-    // [x - w/2, y - T, z - d/2]-[x + w/2, y, z + d/2] (T = floorThickness), then the sloped floors as oriented boxes of
-    // thickness T under their surface (axes from the slope, no trigonometry). No merging nor face masks yet (module
-    // step 4); a changed decor wakes every sleeper and drops the body-static cache entries (exact difference: step 10).
-    function setStatics(boxes,floors){
+    function setStatics(boxes,floors,changedBounds){
       const where='setStatics';
       if(boxes===undefined||boxes===null)boxes=[];
       if(floors===undefined||floors===null)floors=[];
       if(!Array.isArray(boxes))wrong(where,'boxes must be an array');
       if(!Array.isArray(floors))wrong(where,'floors must be an array');
-      const n=(C.ground===null?0:1)+boxes.length+floors.length;
+      let n=(C.ground===null?0:1)+boxes.length+floors.length,merged=0;
       if(n>MS)wrong(where,n+' statics exceed maxStatics ('+MS+')');
-      const nP=new Float64Array(n*3),nH=new Float64Array(n*3),nR=new Float64Array(n*9),nA=new Float64Array(n*6),nF=new Float64Array(n),nE=new Float64Array(n),nO=new Uint8Array(n),nM=new Int32Array(n);
+      let nP=new Float64Array(n*3),nH=new Float64Array(n*3),nR=new Float64Array(n*9),nA=new Float64Array(n*6),nF=new Float64Array(n),nE=new Float64Array(n),nO=new Uint8Array(n),nM=new Int32Array(n);
       const put=(s,x0,y0,z0,x1,y1,z1,f,e,m)=>{
         const p=s*3,b=s*6;nP[p]=(x0+x1)/2;nP[p+1]=(y0+y1)/2;nP[p+2]=(z0+z1)/2;nH[p]=(x1-x0)/2;nH[p+1]=(y1-y0)/2;nH[p+2]=(z1-z0)/2;
         nR[s*9]=nR[s*9+4]=nR[s*9+8]=1;for(let k=0;k<3;k++){nA[b+k]=nP[p+k]-nH[p+k];nA[b+3+k]=nP[p+k]+nH[p+k];}nF[s]=f;nE[s]=e;nM[s]=m;
       };
-      // Oriented box: centre, half-sizes, rotation r (row-major, columns = local axes), bounds from |r| times the half-sizes.
       const obb=(s,c,hs,r,f,e,m)=>{
         const p=s*3,b=s*6;nO[s]=1;nF[s]=f;nE[s]=e;nM[s]=m;
         for(let k=0;k<9;k++)nR[s*9+k]=r[k]+0;
         for(let k=0;k<3;k++){nP[p+k]=c[k]+0;nH[p+k]=hs[k];const x=Math.abs(r[3*k])*hs[0]+Math.abs(r[3*k+1])*hs[1]+Math.abs(r[3*k+2])*hs[2];nA[b+k]=c[k]-x;nA[b+3+k]=c[k]+x;}
       };
-      // Friction, restitution and material of a box or a floor: explicit values, then the material, then 0.7 and 0.05.
       const surface=(o,name)=>{const m=materialOf(where,o.material);return [inRange(where,name+'.friction',o.friction,m<0?.7:MATERIALS[m].friction,0,2),
         inRange(where,name+'.restitution',o.restitution,m<0?.05:MATERIALS[m].restitution,0,1),m];};
       let s=0;
@@ -305,13 +305,12 @@
         const [x,z,fw,fd,y]=v.map(u=>u+0),sf=surface(f,name);
         if(v[5]===0&&v[6]===0)put(s++,x-fw/2,y-T,z-fd/2,x+fw/2,y,z+fd/2,...sf);else slopes.push([x,z,fw,fd,y,v[5]+0,v[6]+0,sf]);
       }
-      // Slope a on X, L = sqrt(1 + a^2): axes X = (1, a, 0)/L, Y = (-a, 1, 0)/L, Z = (0, 0, 1), half-sizes (w L/2, T/2, d/2);
-      // slope c on Z: X = (1, 0, 0), Y = (0, 1, -c)/L, Z = (0, c, 1)/L, half-sizes (w/2, T/2, d L/2); centre (x, y, z) - Y T/2.
       for(const [x,z,fw,fd,y,a,c,sf] of slopes){
         const t=a||c,L=Math.sqrt(1+t*t),u=1/L,g=T/2*u;
         if(a)obb(s++,[x+a*g,y-g,z],[fw/2*L,T/2,fd/2],[u,-a*u,0,a*u,u,0,0,0,1],...sf);
         else obb(s++,[x,y-g,z+c*g],[fw/2,T/2,fd/2*L],[1,0,0,0,u,c*u,0,-c*u,u],...sf);
       }
+      if(geometry){const a={P:nP,H:nH,R:nR,A:nA,F:nF,E:nE,O:nO,M:nM},count=G.FPhysicsGeometry.merge(a,n);merged=n-count;n=count;nP=nP.subarray(0,n*3);nH=nH.subarray(0,n*3);nR=nR.subarray(0,n*9);nA=nA.subarray(0,n*6);nF=nF.subarray(0,n);nE=nE.subarray(0,n);nO=nO.subarray(0,n);nM=nM.subarray(0,n);}
       const same=(a,b)=>{for(let k=0;k<a.length;k++)if(!Object.is(a[k],b[k]))return false;return true;};
       if(decor&&n===NS&&same(nP,sP)&&same(nH,sH)&&same(nR,sR)&&same(nO,sO)&&same(nF,sF)&&same(nE,sE)&&same(nM,sM))return {statics:NS,merged:0,masked:0,woken:0};
       decor=true;NS=n;sP=nP;sH=nH;sR=nR;sA=nA;sF=nF;sE=nE;sO=nO;sM=nM;sT=new Int32Array(n);stamp=0;
@@ -325,22 +324,23 @@
       for(let c=0;c<pn;c++){if(pK[c]-Math.floor(pK[c]/KM)*KM>=NB)continue;pK[kept]=pK[c];pI[kept]=pI[c];pJn[kept]=pJn[c];pJ1[kept]=pJ1[c];pJ2[kept]=pJ2[c];kept++;}
       pn=kept;tableBuild();
       let woken=0;
-      for(let i=1;i<top;i++)if((FL[i]&(ALIVE|ASLEEP|PENDING))===(ALIVE|ASLEEP)){wake(i);woken++;}
+      const local=changedBounds&&['minX','maxX','minY','maxY','minZ','maxZ'].every(k=>finite(changedBounds[k]))?changedBounds:null;
+      for(let i=1;i<top;i++)if((FL[i]&(ALIVE|ASLEEP|PENDING))===(ALIVE|ASLEEP)){
+        const b=i*6;if(local&&(BB[b]>local.maxX+.12||BB[b+3]<local.minX-.12||BB[b+1]>local.maxY+.12||BB[b+4]<local.minY-.12||BB[b+2]>local.maxZ+.12||BB[b+5]<local.minZ-.12))continue;wake(i);woken++;
+      }
       let h=fnv(2166136261,n);
-      const words=a=>{const u=new Uint32Array(a.buffer);for(let k=0;k<u.length;k++)h=fnv(h,u[k]);};
+      const words=a=>{const u=new Uint32Array(a.buffer,a.byteOffset,a.byteLength/4);for(let k=0;k<u.length;k++)h=fnv(h,u[k]);};
       words(sP);words(sH);words(sR);for(let k=0;k<n;k++)h=fnv(h,sO[k]);words(sF);words(sE);for(let k=0;k<n;k++)h=fnv(h,sM[k]>>>0);
-      w.staticsHash=(h>>>0).toString(16).padStart(8,'0');stats.statics=n;
-      return {statics:n,merged:0,masked:0,woken};
+      w.staticsHash=(h>>>0).toString(16).padStart(8,'0');stats.statics=n;geometryApi?.setStatics({count:n,P:sP,H:sH,R:sR,A:sA,O:sO});
+      return {statics:n,merged,masked:geometry?stats.internalFaces:0,woken};
     }
 
     // ---- Bodies (outside the step; may allocate): boxes, spheres and capsules, dynamic (awake, asleep or pending) or
-    // kinematic (infinite mass, moved by setKinematic only, never pending nor asleep; vel and ang are not used).
     function addBody(d){
       const where='addBody';
       if(!d||typeof d!=='object')wrong(where,'description object required');
       const shape=d.shape===undefined?'box':d.shape,sh=SHAPES.indexOf(shape);
       if(sh<0)wrong(where,'shape must be box, sphere or capsule');
-      // Real half-sizes and, for a round shape, its volume (capsule: pi r^2 (height - 2r) + 4/3 pi r^3).
       let size=null,hr,vol=0;
       if(sh===0){
         size=vec(where,'size',d.size,3);
@@ -386,7 +386,6 @@
       stats.bodies++;if(i+1>top)top=i+1;
       return GEN[i]*4096+i;
     }
-    // Row of a live body handle gen*4096 + index, or 0 (stale, invalid or the world).
     function slot(h){
       if(typeof h!=='number'||!(h>=1&&h<=I32)||h!==Math.floor(h))return 0;
       const i=h&4095;
@@ -395,6 +394,50 @@
     const valid=h=>slot(h)>0;
     const isAsleep=h=>{const i=slot(h);return i>0&&(FL[i]&ASLEEP)!==0;};
     const isLost=h=>{const i=slot(h);return i>0&&(FL[i]&LOST)!==0;};
+    function removeBody(h){
+      const i=slot(h);if(!i)return false;
+      if(FL[i]&ASLEEP)stats.sleeping--;if(FL[i]&PENDING)stats.pending--;if(FL[i]&KINEMATIC)stats.kinematic--;
+      for(let j=1;j<jtop;j++)if(JT[j]&&(JA[j]===i||JB[j]===i))removeJoint(JG[j]*4096+j);
+      need-=cellsOf(i);FL[i]=0;GEN[i]=(GEN[i]+1)%GENS;stats.bodies--;restDirty=true;
+      let n=0;for(let k=0;k<pn;k++){const a=Math.floor(pK[k]/KM),b=pK[k]-a*KM;if(a===i||b===i)continue;pK[n]=pK[k];pI[n]=pI[k];pJn[n]=pJn[k];pJ1[n]=pJ1[k];pJ2[n++]=pJ2[k];}pn=n;tableBuild();return true;
+    }
+    function teleport(h,x,y,z){
+      const i=slot(h);if(!i||!finite(x)||!finite(y)||!finite(z))return false;
+      const p=i*3,q=i*4,v=i*6;P[p]=PP[p]=RP[p]=x;P[p+1]=PP[p+1]=RP[p+1]=y;P[p+2]=PP[p+2]=RP[p+2]=z;for(let k=0;k<4;k++)PQ[q+k]=Q[q+k];V.fill(0,v,v+6);KN[i]=0;ST[i]=AT[i]=FN[i]=0;derive(i);restDirty=true;
+      let n=0;for(let k=0;k<pn;k++){const a=Math.floor(pK[k]/KM),b=pK[k]-a*KM;if(a===i||b===i)continue;pK[n]=pK[k];pI[n]=pI[k];pJn[n]=pJn[k];pJ1[n]=pJ1[k];pJ2[n++]=pJ2[k];}pn=n;tableBuild();return true;
+    }
+    function queryBox(box,out,mask=65535){
+      let n=0;for(let i=1;i<top;i++){if(!(FL[i]&ALIVE)||!(GRP[i]&mask)||FL[i]&LOST)continue;const b=i*6;
+        if(BB[b]>box.maxX||BB[b+3]<box.minX||BB[b+1]>box.maxY||BB[b+4]<box.minY||BB[b+2]>box.maxZ||BB[b+5]<box.minZ)continue;
+        if(n<out.length)out[n++]=GEN[i]*4096+i;
+      }return n;
+    }
+    function wakeBox(box){let n=0;for(let i=1;i<top;i++){if((FL[i]&(ALIVE|ASLEEP))!==(ALIVE|ASLEEP))continue;const b=i*6;if(BB[b]>box.maxX||BB[b+3]<box.minX||BB[b+1]>box.maxY||BB[b+4]<box.minY||BB[b+2]>box.maxZ||BB[b+5]<box.minZ)continue;wake(i);n++;}return n;}
+    function ray(origin,direction,limit=Infinity,out={},mask=65535){
+      const ox=origin[0],oy=origin[1],oz=origin[2],length=Math.sqrt(direction[0]*direction[0]+direction[1]*direction[1]+direction[2]*direction[2]);
+      if(!(length>0)||!(limit>=0)){out.handle=0;out.distance=limit;return out;}
+      const dx=direction[0]/length,dy=direction[1]/length,dz=direction[2]/length;let hit=0,near=limit,nx=0,ny=0,nz=0;
+      for(let i=1;i<top;i++){
+        if(!(FL[i]&ALIVE)||FL[i]&LOST||!(GRP[i]&mask))continue;
+        const p=i*3,r=i*9,x=ox-P[p],y=oy-P[p+1],z=oz-P[p+2];
+        const lx=x*R[r]+y*R[r+3]+z*R[r+6],ly=x*R[r+1]+y*R[r+4]+z*R[r+7],lz=x*R[r+2]+y*R[r+5]+z*R[r+8];
+        const vx=dx*R[r]+dy*R[r+3]+dz*R[r+6],vy=dx*R[r+1]+dy*R[r+4]+dz*R[r+7],vz=dx*R[r+2]+dy*R[r+5]+dz*R[r+8];
+        let t=Infinity,ax=0,ay=0,az=0;
+        if(SH[i]===0){
+          let lo=0,hi=near,axis=-1,sign=0,ok=true;
+          for(let k=0;k<3;k++){const o=k===0?lx:k===1?ly:lz,d=k===0?vx:k===1?vy:vz,h=H[p+k];if(Math.abs(d)<1e-12){if(o<-h||o>h){ok=false;break;}continue;}let a=(-h-o)/d,b=(h-o)/d,sg=-1;if(a>b){const q=a;a=b;b=q;sg=1;}if(a>lo){lo=a;axis=k;sign=sg;}if(b<hi)hi=b;if(lo>hi){ok=false;break;}}
+          if(ok){t=lo;if(axis===0)ax=sign;else if(axis===1)ay=sign;else if(axis===2)az=sign;}
+        }else{
+          const radius=H[p],half=HR[p+1]-HR[p],a=vx*vx+vz*vz,b=lx*vx+lz*vz,c=lx*lx+lz*lz-radius*radius;
+          if(half>0&&Math.abs(ly)<=half&&c<=0)t=0;
+          else if(half>0&&a>1e-12){const h=b*b-a*c;if(h>=0){const q=(-b-Math.sqrt(h))/a,at=ly+q*vy;if(q>=0&&at>=-half&&at<=half){t=q;ax=(lx+vx*t)/radius;az=(lz+vz*t)/radius;}}}
+          for(let side=-1;side<=1;side+=2){const cy=ly-half*side,b=lx*vx+cy*vy+lz*vz,c=lx*lx+cy*cy+lz*lz-radius*radius,h=b*b-c;if(h<0)continue;const q=c<=0?0:-b-Math.sqrt(h);if(q>=0&&q<t){const at=ly+q*vy;if(half>0&&at*side<half)continue;t=q;ax=(lx+vx*t)/radius;ay=(cy+vy*t)/radius;az=(lz+vz*t)/radius;}}
+        }
+        if(t<near){near=t;hit=GEN[i]*4096+i;nx=R[r]*ax+R[r+1]*ay+R[r+2]*az;ny=R[r+3]*ax+R[r+4]*ay+R[r+5]*az;nz=R[r+6]*ax+R[r+7]*ay+R[r+8]*az;}
+      }
+      out.handle=hit;out.distance=near;out.x=hit?ox+dx*near:ox;out.y=hit?oy+dy*near:oy;out.z=hit?oz+dz*near:oz;out.nx=nx;out.ny=ny;out.nz=nz;return out;
+    }
+    function sample(h,out){const i=slot(h);if(!i)return false;const b=i*6,p=i*3;for(let k=0;k<6;k++){out[k]=BB[b+k];out[6+k]=V[b+k];}out[12]=P[p];out[13]=P[p+1];out[14]=P[p+2];out[15]=IM[i]>0?1/IM[i]:Infinity;out[16]=FL[i];out[17]=MAT[i];return true;}
     // Plain description of a body (tests, debugging; allocates). size = collision size (bounding box of a round body in
     // its frame), realSize = given size; radius and height as given (null for a box, height null for a sphere).
     function body(h){return bodyInto(h);}
@@ -419,8 +462,6 @@
       out.friction=FR[i];out.restitution=RE[i];out.group=GRP[i];out.mask=MSK[i];out.kinematic=(f&KINEMATIC)!==0;out.asleep=(f&ASLEEP)!==0;out.pending=(f&PENDING)!==0;
       out.lost=(f&LOST)!==0;out.hard=(f&HARD)!==0;return out;
     }
-    // Render pose [x, y, z, qx, qy, qz, qw]: PP..P and PQ..Q blended by alpha in [0, 1] (normalised, short arc),
-    // raised by SL/2; for a box, the real shape sits on the bottom of its collision box (axis k: H_k > HR_k).
     function pose(h,alpha,out){
       const i=slot(h);if(!i)return null;
       if(!out)out=new Array(7);
@@ -431,7 +472,6 @@
       const l=1/Math.sqrt(qx*qx+qy*qy+qz*qz+qw*qw);qx*=l;qy*=l;qz*=l;qw*=l;
       y+=SL[i]/2;
       if(SH[i]===0){
-        // Columns of the blended rotation (local axes in the world) and their Y components.
         const c0x=1-2*(qy*qy+qz*qz),c0y=2*(qx*qy+qw*qz),c0z=2*(qx*qz-qw*qy),c1x=2*(qx*qy-qw*qz),c1y=1-2*(qx*qx+qz*qz),c1z=2*(qy*qz+qw*qx);
         const c2x=2*(qx*qz+qw*qy),c2y=2*(qy*qz-qw*qx),c2z=1-2*(qx*qx+qy*qy),d0=(H[p]-HR[p])*c0y,d1=(H[p+1]-HR[p+1])*c1y,d2=(H[p+2]-HR[p+2])*c2y;
         x-=c0x*d0+c1x*d1+c2x*d2;y-=c0y*d0+c1y*d1+c2y*d2;z-=c0z*d0+c1z*d1+c2z*d2;
@@ -439,25 +479,20 @@
       out[0]=x;out[1]=y;out[2]=z;out[3]=qx;out[4]=qy;out[5]=qz;out[6]=qw;
       return out;
     }
-    // Rotation of the current pose, row-major (column k = local axis k).
     function matrix(h,out){
       const i=slot(h);if(!i)return null;
       if(!out)out=new Array(9);
       for(let k=0;k<9;k++)out[k]=R[i*9+k];
       return out;
     }
-    // Wake one body (never a whole island).
     function wake(i){FL[i]&=~ASLEEP;ST[i]=0;AT[i]=0;FN[i]=0;const p=i*3;RP[p]=P[p];RP[p+1]=P[p+1];RP[p+2]=P[p+2];stats.wakes++;stats.sleeping--;restDirty=true;}
 
     // ---- Actions (outside the step, no allocation). A pending body only has its kept velocity changed.
-    // Speed caps: |v| <= maxLinear and |w| <= maxAngular (end of each sub-step, and after every action, so that a
-    // snapshot taken between two steps always restores).
     function cap(i){
       const v=i*6,ml=SCR[15],ma=SCR[16],l2=V[v]*V[v]+V[v+1]*V[v+1]+V[v+2]*V[v+2],w2=V[v+3]*V[v+3]+V[v+4]*V[v+4]+V[v+5]*V[v+5];
       if(l2>ml*ml){const k=ml/Math.sqrt(l2);V[v]*=k;V[v+1]*=k;V[v+2]*=k;}
       if(w2>ma*ma){const k=ma/Math.sqrt(w2);V[v+3]*=k;V[v+4]*=k;V[v+5]*=k;}
     }
-    // Impulse SCR[25..27] at the world point SCR[22..24] (prototype impulseAt): V += J*IM, W += IW*((p - P) x J), caps.
     function push(i){
       const p=i*3,v=i*6,im=IM[i],jx=SCR[25],jy=SCR[26],jz=SCR[27],rx=SCR[22]-P[p],ry=SCR[23]-P[p+1],rz=SCR[24]-P[p+2];
       const tx=ry*jz-rz*jy,ty=rz*jx-rx*jz,tz=rx*jy-ry*jx;
@@ -465,26 +500,20 @@
       V[v+3]+=IW[v]*tx+IW[v+1]*ty+IW[v+2]*tz;V[v+4]+=IW[v+1]*tx+IW[v+3]*ty+IW[v+4]*tz;V[v+5]+=IW[v+2]*tx+IW[v+4]*ty+IW[v+5]*tz;
       cap(i);
     }
-    // Explicit wake of an action: a sleeper wakes alone; an awake body restarts its sleep count (prototype wake).
     function rouse(i){if(FL[i]&ASLEEP)wake(i);else ST[i]=0;}
     const finite6=(a,b,c,d,e,f)=>finite(a)&&finite(b)&&finite(c)&&finite(d)&&finite(e)&&finite(f);
-    // Row of the target of impulse or setVelocity (live, dynamic, not lost), or 0; non-finite numbers throw.
     function target(where,h,a,b,c,d,e,f){
       if(!finite6(a,b,c,d,e,f))wrong(where,'the six numbers after the handle must be finite');
       const i=slot(h);return i&&!(FL[i]&(KINEMATIC|LOST))?i:0;
     }
-    // Impulse (jx, jy, jz) at the world point (px, py, pz); the body wakes. false: invalid handle, kinematic or lost.
     function impulse(h,px,py,pz,jx,jy,jz){
       const i=target('impulse',h,px,py,pz,jx,jy,jz);if(!i)return false;
       SCR[22]=px;SCR[23]=py;SCR[24]=pz;SCR[25]=jx;SCR[26]=jy;SCR[27]=jz;push(i);rouse(i);return true;
     }
-    // Linear and angular velocities (world frame, capped); the body wakes. false as for impulse.
     function setVelocity(h,vx,vy,vz,wx,wy,wz){
       const i=target('setVelocity',h,vx,vy,vz,wx,wy,wz);if(!i)return false;
       const v=i*6;V[v]=vx+0;V[v+1]=vy+0;V[v+2]=vz+0;V[v+3]=wx+0;V[v+4]=wy+0;V[v+5]=wz+0;cap(i);rouse(i);return true;
     }
-    // Target pose of a kinematic body (position, quaternion normalised) for the next step() call that runs sub-steps.
-    // false: invalid handle or dynamic body; non-finite numbers or a null quaternion throw.
     function setKinematic(h,x,y,z,qx,qy,qz,qw){
       if(!finite6(x,y,z,qx,qy,qz)||!finite(qw))wrong('setKinematic','the seven numbers after the handle must be finite');
       const l=Math.sqrt(qx*qx+qy*qy+qz*qz+qw*qw);
@@ -493,10 +522,6 @@
       const k=i*7;KT[k]=x+0;KT[k+1]=y+0;KT[k+2]=z+0;KT[k+3]=qx/l+0;KT[k+4]=qy/l+0;KT[k+5]=qz/l+0;KT[k+6]=qw/l+0;KN[i]=1;
       return true;
     }
-    // Radial blast (prototype explode), for each live, active, dynamic body that is not lost, by increasing index: at the
-    // body point nearest to the centre (distance d < radius), the impulse strength*(1 - d/radius), capped at maxDv times
-    // the physical mass, along (body centre - centre + (0, 0.35, 0)) normalised; the body wakes alone. Returns the bodies
-    // pushed. occlude (static boxes that shelter a body) comes with module step 7: until then every body in range is pushed.
     function blast(x,y,z,radius,strength,maxDv=14,occlude=true){
       if(!finite6(x,y,z,radius,strength,maxDv)||radius<0||strength<0||maxDv<0)wrong('blast','centre, radius, strength and maxDv must be finite, the last three >= 0');
       if(typeof occlude!=='boolean')wrong('blast','occlude must be a boolean');
@@ -506,12 +531,10 @@
         const p=i*3,r=i*9,hx=H[p],hy=H[p+1],hz=H[p+2],dx=x-P[p],dy=y-P[p+1],dz=z-P[p+2];
         let ax,ay,az;
         if(SH[i]===0){
-          // Nearest point of the box: the centre in the local frame, clamped to the collision half-sizes.
           let lx=dx*R[r]+dy*R[r+3]+dz*R[r+6],ly=dx*R[r+1]+dy*R[r+4]+dz*R[r+7],lz=dx*R[r+2]+dy*R[r+5]+dz*R[r+8];
           lx=lx>hx?hx:lx<-hx?-hx:lx;ly=ly>hy?hy:ly<-hy?-hy:ly;lz=lz>hz?hz:lz<-hz?-hz:lz;
           ax=P[p]+R[r]*lx+R[r+1]*ly+R[r+2]*lz;ay=P[p+1]+R[r+3]*lx+R[r+4]*ly+R[r+5]*lz;az=P[p+2]+R[r+6]*lx+R[r+7]*ly+R[r+8]*lz;
         }else{
-          // Round body: the segment point nearest to the centre, moved by the radius towards it (not when inside).
           const e=HR[p+1]-HR[p],t0=dx*R[r+1]+dy*R[r+4]+dz*R[r+7],t=t0>e?e:t0<-e?-e:t0,sx=P[p]+R[r+1]*t,sy=P[p+1]+R[r+4]*t,sz=P[p+2]+R[r+7]*t;
           const ux=x-sx,uy=y-sy,uz=z-sz,l=Math.sqrt(ux*ux+uy*uy+uz*uz),f=l>hx?hx/l:0;
           ax=sx+ux*f;ay=sy+uy*f;az=sz+uz*f;
@@ -528,6 +551,8 @@
     // ---- Step: whole sub-steps of tick seconds through an accumulator.
     function step(dt){
       if(typeof dt!=='number'||!(dt>=0)||dt===Infinity)wrong('step','dt must be a finite number >= 0');
+      events.count=0;joints.brokenCount=0;
+      birthLeft=bounded?C.spawnBudget:I32;
       for(let i=1;i<top;i++)if(FL[i]&ALIVE){const p=i*3,q=i*4;PP[p]=P[p];PP[p+1]=P[p+1];PP[p+2]=P[p+2];PQ[q]=Q[q];PQ[q+1]=Q[q+1];PQ[q+2]=Q[q+2];PQ[q+3]=Q[q+3];}
       const t=SCR[9],e=t*1e-9;let a=WS[0]+dt,n=0;
       while(a>=t-e&&n<MAXSUB){a-=t;n++;}
@@ -536,11 +561,9 @@
       WS[0]=a;stats.substeps=n;
       if(n>0&&stats.kinematic>0)for(let i=1;i<top;i++)if((FL[i]&(ALIVE|KINEMATIC))===(ALIVE|KINEMATIC))steer(i,n);
       for(let s=0;s<n;s++)substep(s===n-1);
+      stats.events=events.count;
       return n;
     }
-    // Kinematic body i for a call of n sub-steps (T = n tick): towards its pending target, v = (target - P)/T and
-    // w = 2 dq.xyz/T with dq = target (x) conj(Q) on the short arc, both capped; without a target it stops (V = 0) and
-    // joins the resting grid.
     function steer(i,n){
       const v=i*6,moving=FL[i]&MOVING;
       if(!KN[i]){if(moving){FL[i]&=~MOVING;V.fill(0,v,v+6);restDirty=true;}return;}
@@ -551,16 +574,16 @@
       V[v+3]=(tx*qw-tw*qx-ty*qz+tz*qy)*g;V[v+4]=(ty*qw-tw*qy+tx*qz-tz*qx)*g;V[v+5]=(tz*qw-tw*qz-tx*qy+ty*qx)*g;
       cap(i);
     }
-    // Adds the time since the last clock mark to phase k (bench only, never read by the simulation).
     function phase(k){const t=clock();PH[k]+=t-SCR[13];SCR[13]=t;}
     function substep(last){
       if(clock)SCR[13]=clock();
-      // 1. Activation of the pending bodies (module step 2a: all of them), by increasing index.
-      if(stats.pending>0)for(let i=1;i<top;i++)if(FL[i]&PENDING){
+      let available=I32;
+      if(bounded){available=C.maxAwake;for(let i=1;i<top;i++)if((FL[i]&(ALIVE|ASLEEP|PENDING|KINEMATIC|LOST))===ALIVE)available--;}
+      if(stats.pending>0)for(let i=1;i<top&&birthLeft>0&&available>0;i++)if(FL[i]&PENDING){
+        birthLeft--;available--;
         FL[i]&=~PENDING;ST[i]=0;AT[i]=0;FN[i]=0;const p=i*3;RP[p]=P[p];RP[p+1]=P[p+1];RP[p+2]=P[p+2];stats.pending--;if(FL[i]&ASLEEP)restDirty=true;
       }
-      // 2. Active list: awake dynamic bodies (ACT 1) and moving kinematic bodies (ACT 2), by increasing index; nothing
-      // active: leave (the cache is kept).
+      if(joints.count){wakeJoints();for(let j=1;j<jtop;j++)JD[j*26+22]=0;}
       let na=0,nk=0;
       for(let i=1;i<top;i++){
         const f=FL[i];
@@ -572,7 +595,6 @@
       collide(na);                                        // 3. broad and narrow phases
       if(clock)phase(0);
       prepare();                                          // 4.
-      // 5. Velocities of the dynamic bodies: gravity and damping, plus rolling damping for a round body in contact.
       const ld=SCR[10],ad=SCR[11],gh=SCR[12],rd=SCR[28];
       for(let n=0;n<na;n++){
         const i=AL[n],v=i*6;if(ACT[i]!==1)continue;
@@ -580,13 +602,16 @@
         if(SH[i]&&TOUCH[i]){V[v+3]*=rd;V[v+4]*=rd;V[v+5]*=rd;}
       }
       warm();                                             // 6.
-      for(let it=0;it<ITER;it++)solve(true);      // 7.
-      integrate(na,last);                                 // 8.
+      for(let it=0;it<ITER;it++){solve(true);if(joints.count)solveJoints();}if(joints.count)for(let it=ITER;it<C.hardIterations;it++)solveJoints();      // 7.
+      integrate(na,last);
+      if(joints.count){for(let n=0;n<na;n++)derive(AL[n]);projectJoints();}                                 // 8.
       relaxSeparation();
       for(let it=0;it<RELAX;it++)solve(false);// 9.
       restitution();                                      // 10.
+      if(EV)contactEvents();
       clamp(na);
       if(clock)phase(1);
+      if(geometry)for(let c=0;c<nc;c++){const a=cA[c],b=cB[c];if(FL[a]&ASLEEP&&!WK[a]&&cMax[c]*IM[a]>C.wakeSpeed){WK[a]=1;nwake++;}if(FL[b]&ASLEEP&&!WK[b]&&cMax[c]*IM[b]>C.wakeSpeed){WK[b]=1;nwake++;}}
       cacheStore();                                       // 14.
       if(nwake>0){for(let i=1;i<top;i++)if(WK[i]){WK[i]=0;if(FL[i]&ASLEEP){wake(i);TOUCH[i]=1;}}nwake=0;}   // 15. deferred wakes
       const slept=islands(na);                            // 17.
@@ -596,14 +621,11 @@
         P[p]+=0;P[p+1]+=0;P[p+2]+=0;Q[q]+=0;Q[q+1]+=0;Q[q+2]+=0;Q[q+3]+=0;V[v]+=0;V[v+1]+=0;V[v+2]+=0;V[v+3]+=0;V[v+4]+=0;V[v+5]+=0;
         derive(i);ACT[i]=0;
       }
-      stats.awake=na-nk-slept;stats.contacts=nc;stats.manifolds=nm;
+      stats.awake=na-nk-slept;if(geometry){stats.awake=0;for(let i=1;i<top;i++)if((FL[i]&31)===ALIVE)stats.awake++;}stats.contacts=nc;stats.manifolds=nm;
       if(clock)phase(3);
     }
 
     // ---- Broad phase: for each active body a, by increasing index, the cells of FB_a, z then x: statics (stamped; a
-    // dynamic a only), active bodies b > a (never two kinematic ones), resting bodies (sleepers and stopped kinematic
-    // bodies: immovable for the contact, a sleeper woken at the end of the sub-step; a moving kinematic a only marks the
-    // sleepers it touches). A pair seen in several cells is tested in the cell of the low corner of the overlap only.
     function collide(na){
       nc=0;nm=0;let tests=0;
       const h=SCR[9],mg=SCR[14],lim=SCR[15];
@@ -632,8 +654,8 @@
             for(let q=sStart[c],e=sStart[c+1];q<e;q++){
               const s=sItems[q];if(sT[s]===stamp)continue;sT[s]=stamp;const s6=s*6;
               if(FB[a6]>sA[s6+3]||FB[a6+3]<sA[s6]||FB[a6+1]>sA[s6+4]||FB[a6+4]<sA[s6+1]||FB[a6+2]>sA[s6+5]||FB[a6+5]<sA[s6+2])continue;
-              // A round body against a static: the static is the box A, then the normals are turned (body to static).
-              tests++;SCR[0]=marginA;const k=SH[a]?turn(boxRound(sP,sH,s*3,sR,s*9,a)):boxBox(P,H,a3,R,a9,sP,sH,s*3,sR,s*9);
+              tests++;SCR[0]=marginA;let k=SH[a]?turn(boxRound(sP,sH,s*3,sR,s*9,a)):boxBox(P,H,a3,R,a9,sP,sH,s*3,sR,s*9);
+              if(k&&geometryApi)k=geometryApi.filter(s,k,mN,mP,mS,mI);
               if(k){SCR[3]=Math.sqrt(FR[a]*sF[s]);SCR[4]=RE[a]>sE[s]?RE[a]:sE[s];emit(a,0,a*KM+NB+s,k);}
             }
           }
@@ -648,7 +670,7 @@
             if(kin&&(g||FL[b]&KINEMATIC)){if(g&&!(FL[b]&KINEMATIC)&&!WK[b]){WK[b]=1;nwake++;}continue;}
             tests++;const lo=a<b?a:b,hi=a<b?b:a,sb=Math.sqrt(V[b6]*V[b6]+V[b6+1]*V[b6+1]+V[b6+2]*V[b6+2]);
             SCR[0]=marginA+sb*h;const k=SH[lo]|SH[hi]?bodies(lo,hi):boxBox(P,H,lo*3,R,lo*9,P,H,hi*3,R,hi*9);
-            if(k){SCR[3]=Math.sqrt(FR[a]*FR[b]);SCR[4]=RE[a]>RE[b]?RE[a]:RE[b];emit(lo,hi,lo*KM+hi,k);if(g===1&&!WK[b]&&!(FL[b]&KINEMATIC)){WK[b]=1;nwake++;}}
+            if(k){SCR[3]=Math.sqrt(FR[a]*FR[b]);SCR[4]=RE[a]>RE[b]?RE[a]:RE[b];emit(lo,hi,lo*KM+hi,k);if(!geometry&&g===1&&!WK[b]&&!(FL[b]&KINEMATIC)){WK[b]=1;nwake++;}}
           }
         }
       }
@@ -656,8 +678,6 @@
     }
 
     // ---- Narrow phase (prototype boxBox, face and clip, unchanged but for one normal per point): writes, for point k,
-    // mN[3k..] (A to B), mP[3k..] (midpoint between the surfaces), mS[k] (separation), mI[k] (stable id); returns the
-    // point count. Statics pass their own rotation.
     function clip(src,sid,n,dst,did,co,sg,li,plane){
       if(n===0)return 0;const lim=SCR[li];let m=0,pi=n-1,pd=sg*src[pi*3+co]-lim;
       for(let i=0;i<n;i++){
@@ -670,7 +690,6 @@
       }
       return m;
     }
-    // Reference box (PR, HF, r3, RR, r9) face `axis`; incident box (PI, HI, i3, RI, i9).
     function face(PR,HF,r3,RR,r9,PI,HI,i3,RI,i9,axis,flip){
       const margin=SCR[0];
       let nx=RR[r9+axis],ny=RR[r9+3+axis],nz=RR[r9+6+axis];
@@ -697,8 +716,6 @@
       for(let k=0;k<outCount;k++){const i=pick[k],u=clipB[i*3],w=clipB[i*3+1],d=clipB[i*3+2],hgt=hn+d/2;mP[k*3]=px+u*t1x+w*t2x+hgt*nx;mP[k*3+1]=py+u*t1y+w*t2y+hgt*ny;mP[k*3+2]=pz+u*t1z+w*t2z+hgt*nz;mN[k*3]=gx;mN[k*3+1]=gy;mN[k*3+2]=gz;mS[k]=d;mI[k]=code+idB[i];}
       return outCount;
     }
-    // Separating axes (3 + 3 faces, 9 edges): early out beyond the margin, faces preferred (0.95 x + 0.002 for B,
-    // edges 0.95 x + 0.01), then face clipping or the closest points of the two supporting edges.
     function boxBox(PA,HA,a3,RA,a9,PB,HB,b3,RB,b9){
       const margin=SCR[0];
       const dx=PB[b3]-PA[a3],dy=PB[b3+1]-PA[a3+1],dz=PB[b3+2]-PA[a3+2];
@@ -719,7 +736,6 @@
       if(axisE>=0&&bestE>0.95*bestF+0.01){
         const i=(axisE/3)|0,j=axisE-i*3,aix=RA[a9+i],aiy=RA[a9+3+i],aiz=RA[a9+6+i],bjx=RB[b9+j],bjy=RB[b9+3+j],bjz=RB[b9+6+j];
         let lx=aiy*bjz-aiz*bjy,ly=aiz*bjx-aix*bjz,lz=aix*bjy-aiy*bjx;const inv=1/Math.sqrt(lx*lx+ly*ly+lz*lz),sg=lx*dx+ly*dy+lz*dz<0?-inv:inv;lx*=sg;ly*=sg;lz*=sg;
-        // Supporting edges: centre of the A edge farthest along +l, of the B edge farthest along -l.
         let ax=PA[a3],ay=PA[a3+1],az=PA[a3+2],bx=PB[b3],by=PB[b3+1],bz=PB[b3+2],bits=0;
         for(let k=0;k<3;k++){if(k!==i){const kx=RA[a9+k],ky=RA[a9+3+k],kz=RA[a9+6+k],s=lx*kx+ly*ky+lz*kz>0?HA[a3+k]:-HA[a3+k];ax+=kx*s;ay+=ky*s;az+=kz*s;bits=bits*2+(s>0?1:0);}}
         for(let k=0;k<3;k++){if(k!==j){const kx=RB[b9+k],ky=RB[b9+3+k],kz=RB[b9+6+k],s=lx*kx+ly*ky+lz*kz>0?-HB[b3+k]:HB[b3+k];bx+=kx*s;by+=ky*s;bz+=kz*s;bits=bits*2+(s>0?1:0);}}
@@ -730,10 +746,6 @@
       }
       return useB?face(PB,HB,b3,RB,b9,PA,HA,a3,RA,a9,axisB,true):face(PA,HA,a3,RA,a9,PB,HB,b3,RB,b9,axisA,false);
     }
-    // Round shapes: a segment (local Y, half-length e = HR_y - HR_x, 0 for a sphere) swept by the collision radius H_x.
-    // Ball SCR[33..35] of radius SCR[36] against box A: l = R^T (c - P), q = l clamped to [-H, H]; a centre inside leaves
-    // by the face of least penetration H_k - |l_k| (x, then y, then z on ties). Point k (id) when s <= margin; returns 1
-    // or 0. mP = midpoint between the box point P + R q and c - n r.
     function ball(PA,HA,a3,RA,a9,k,id){
       const r=SCR[36],cx=SCR[33],cy=SCR[34],cz=SCR[35],dx=cx-PA[a3],dy=cy-PA[a3+1],dz=cz-PA[a3+2],hx=HA[a3],hy=HA[a3+1],hz=HA[a3+2];
       const lx=dx*RA[a9]+dy*RA[a9+3]+dz*RA[a9+6],ly=dx*RA[a9+1]+dy*RA[a9+4]+dz*RA[a9+7],lz=dx*RA[a9+2]+dy*RA[a9+5]+dz*RA[a9+8];
@@ -751,9 +763,6 @@
       mP[m+2]=(PA[a3+2]+RA[a9+6]*qx+RA[a9+7]*qy+RA[a9+8]*qz+cz-wz*r)/2;
       return 1;
     }
-    // Box A against the round body b: a sphere is one ball (id 1); a capsule tests its ends c + u e (id 1) and c - u e
-    // (id 2), then, when fewer than two touch, the segment point nearest to the box (id 3; from the middle, three times:
-    // clamp to the box, project on the segment; skipped when it is an end).
     function boxRound(PA,HA,a3,RA,a9,b){
       const p=b*3,r9=b*9,e=HR[p+1]-HR[p],ux=R[r9+1],uy=R[r9+4],uz=R[r9+7];SCR[36]=H[p];
       let n=0;
@@ -773,18 +782,12 @@
       if(t===e||t===-e)return n;
       SCR[33]=P[p]+ux*t;SCR[34]=P[p+1]+uy*t;SCR[35]=P[p+2]+uz*t;return n+ball(PA,HA,a3,RA,a9,n,3);
     }
-    // Ball SCR[29..31] (radius SCR[32]) against ball SCR[33..35] (radius SCR[36]): n = (cB - cA)/d, or (0, 1, 0) when
-    // d < 1e-9; s = d - rA - rB; point cA + n (rA + s/2). Point k (id) when s <= margin; returns 1 or 0.
     function ballBall(k,id){
       const ax=SCR[29],ay=SCR[30],az=SCR[31],ra=SCR[32];let nx=SCR[33]-ax,ny=SCR[34]-ay,nz=SCR[35]-az;
       const d=Math.sqrt(nx*nx+ny*ny+nz*nz),s=d-ra-SCR[36];if(s>SCR[0])return 0;
       if(d<1e-9){nx=0;ny=1;nz=0;}else{nx/=d;ny/=d;nz/=d;}
       const m=k*3,g=ra+s/2;mN[m]=nx;mN[m+1]=ny;mN[m+2]=nz;mP[m]=ax+nx*g;mP[m+1]=ay+ny*g;mP[m+2]=az+nz*g;mS[k]=s;mI[k]=id;return 1;
     }
-    // Round a against round b, shapes in order (a sphere is a segment of length 0): parameter s on A by the classical
-    // clamped formula, B's point nearest to A(s), then ballBall (id 1). Nearly parallel segments (1 - (u.v)^2 < 1e-3):
-    // the two ends of the part of A facing B (the ends of A when B covers them), each against its nearest point on B
-    // (ids 1 and 2; one point when that part is a single end).
     function roundRound(a,b){
       const p=a*3,q=b*3,ea=HR[p+1]-HR[p],eb=HR[q+1]-HR[q],ux=R[a*9+1],uy=R[a*9+4],uz=R[a*9+7],vx=R[b*9+1],vy=R[b*9+4],vz=R[b*9+7];
       const wx=P[p]-P[q],wy=P[p+1]-P[q+1],wz=P[p+2]-P[q+2],k=ux*vx+uy*vy+uz*vz,c=ux*wx+uy*wy+uz*wz,f=vx*wx+vy*wy+vz*wz,den=1-k*k;
@@ -801,8 +804,6 @@
       }
       return n;
     }
-    // Body pair (lo, hi) with a round side, in shape order (box < sphere < capsule): a reversed pair is called as (hi, lo)
-    // and its normals turned.
     function bodies(lo,hi){
       const a=SH[lo],b=SH[hi];
       if(a===0)return boxRound(P,H,lo*3,R,lo*9,hi);
@@ -810,9 +811,6 @@
       return a<=b?roundRound(lo,hi):turn(roundRound(hi,lo));
     }
     function turn(n){for(let k=0;k<3*n;k++)mN[k]=-mN[k];return n;}
-    // Contacts of a pair (n points in mN, mP, mS, mI), warm-started from the cache by point id; TOUCH marks both sides.
-    // Friction SCR[3] and restitution SCR[4]; a side that does not take part (world, sleeper, kinematic body) gets a zero
-    // inverse mass.
     function emit(a,b,key,n){
       TOUCH[a]=1;TOUCH[b]=1;
       if(nc+n>MC){stats.dropContacts+=n;return;}
@@ -828,12 +826,10 @@
     }
 
     // ---- Solver (prototype, soft contact). An immovable side has zero inverse mass and zero angular response
-    // (row 0 of IW is zero); its velocity is read, and the writes to it add exact zeros.
     function prepare(){
       for(let c=0;c<nc;c++){
         const a6=cA[c]*6,b6=cB[c]*6,c3=c*3,c6=c*6,ima=cIa[c],imb=cIb[c],ia=ima>0?a6:0,ib=imb>0?b6:0;
         const nx=cN[c3],ny=cN[c3+1],nz=cN[c3+2];
-        // Tangent basis from the normal (sqrt only).
         let t1x,t1y,t1z;if(Math.abs(nx)<0.57735){const l=1/Math.sqrt(ny*ny+nz*nz);t1x=0;t1y=-nz*l;t1z=ny*l;}else{const l=1/Math.sqrt(nx*nx+nz*nz);t1x=nz*l;t1y=0;t1z=-nx*l;}
         const t2x=ny*t1z-nz*t1y,t2y=nz*t1x-nx*t1z,t2z=nx*t1y-ny*t1x;
         cT1[c3]=t1x;cT1[c3+1]=t1y;cT1[c3+2]=t1z;cT2[c3]=t2x;cT2[c3+1]=t2y;cT2[c3+2]=t2z;
@@ -848,6 +844,7 @@
         }
         const dvx=V[b6]+V[b6+4]*rbz-V[b6+5]*rby-V[a6]-(V[a6+4]*raz-V[a6+5]*ray),dvy=V[b6+1]+V[b6+5]*rbx-V[b6+3]*rbz-V[a6+1]-(V[a6+5]*rax-V[a6+3]*raz),dvz=V[b6+2]+V[b6+3]*rby-V[b6+4]*rbx-V[a6+2]-(V[a6+3]*ray-V[a6+4]*rax);
         cV0[c]=dvx*nx+dvy*ny+dvz*nz;cMax[c]=0;
+        if(geometry&&cV0[c]<-C.wakeSpeed){const a=cA[c],b=cB[c];if(FL[a]&ASLEEP&&!WK[a]){WK[a]=1;nwake++;}if(FL[b]&ASLEEP&&!WK[b]){WK[b]=1;nwake++;}}
       }
     }
     function warm(){
@@ -859,8 +856,6 @@
         V[b6+3]+=cAN[c6+3]*jn+cA1[c6+3]*j1+cA2[c6+3]*j2;V[b6+4]+=cAN[c6+4]*jn+cA1[c6+4]*j1+cA2[c6+4]*j2;V[b6+5]+=cAN[c6+5]*jn+cA1[c6+5]*j1+cA2[c6+5]*j2;
       }
     }
-    // One pass: friction on the two tangents, then the normal. Separation: cS + cSl in the biased passes, cSR (after
-    // the position update) in the relaxation; speculative (s > 0) bias s/h, otherwise the soft bias, capped by pushout.
     function solve(useBias){
       const invH=SCR[5],biasRate=SCR[6],massScale=SCR[7],impulseScale=SCR[8],pushout=SCR[17];
       for(let c=0;c<nc;c++){
@@ -881,8 +876,6 @@
         V[b6]=vbx+nx*j*imb;V[b6+1]=vby+ny*j*imb;V[b6+2]=vbz+nz*j*imb;V[b6+3]=wbx+cAN[c6+3]*j;V[b6+4]=wby+cAN[c6+4]*j;V[b6+5]=wbz+cAN[c6+5]*j;
       }
     }
-    // Velocities capped (maxLinear, maxAngular), then positions and quaternions integrated (prototype); a moving
-    // kinematic body ends the last sub-step of the call exactly on its target.
     function integrate(na,last){
       const h=SCR[9],ml=SCR[15],ma=SCR[16],ml2=ml*ml,ma2=ma*ma;
       for(let n=0;n<na;n++){
@@ -897,8 +890,6 @@
         Q[q]=nx*inv;Q[q+1]=ny*inv;Q[q+2]=nz*inv;Q[q+3]=nw*inv;
       }
     }
-    // Separation after the position update, for the relaxation: cS + (dB - dA).n + cSl, with d = v*h + (w*h) x r for a
-    // body moved in this sub-step and 0 otherwise (the prototype's displacement D, computed once per point).
     function relaxSeparation(){
       const h=SCR[9];
       for(let c=0;c<nc;c++){
@@ -909,7 +900,6 @@
         cSR[c]=cS[c]+(dbx-dax)*cN[c3]+(dby-day)*cN[c3+1]+(dbz-daz)*cN[c3+2]+cSl[c];
       }
     }
-    // Bounce for the points that pushed and approached faster than restitutionThreshold (prototype).
     function restitution(){
       const threshold=SCR[18];
       for(let c=0;c<nc;c++){
@@ -920,43 +910,40 @@
         V[a6]-=nx*j*ima;V[a6+1]-=ny*j*ima;V[a6+2]-=nz*j*ima;V[a6+3]-=cAN[c6]*j;V[a6+4]-=cAN[c6+1]*j;V[a6+5]-=cAN[c6+2]*j;V[b6]+=nx*j*imb;V[b6+1]+=ny*j*imb;V[b6+2]+=nz*j*imb;V[b6+3]+=cAN[c6+3]*j;V[b6+4]+=cAN[c6+4]*j;V[b6+5]+=cAN[c6+5]*j;
       }
     }
-    // Velocity caps again after the bounce: |v| <= maxLinear and |w| <= maxAngular at the end of each sub-step.
     function clamp(na){for(let n=0;n<na;n++)cap(AL[n]);}
-    // The points of this sub-step become the cache of the next one (-0 normalised); emptied only by setStatics and
-    // restore, never when nothing is active.
     function cacheStore(){
       pn=nc;
       for(let c=0;c<nc;c++){pK[c]=cK[c];pI[c]=cI[c];pJn[c]=cJn[c]+0;pJ1[c]=cJ1[c]+0;pJ2[c]=cJ2[c]+0;}
       tableBuild();
     }
-    // Islands of the dynamic participants (union-find over the pairs whose two sides take part; larger root under the
-    // smaller), timers in whole sub-steps, and sleep of the islands whose smallest ST reached sleepSteps. Returns the
-    // bodies put to sleep. Kinematic bodies (ACT 2) have neither island nor timers.
     function find(i){while(UF[i]!==i){UF[i]=UF[UF[i]];i=UF[i];}return i;}
     function islands(na){
       for(let n=0;n<na;n++){const i=AL[n];UF[i]=i;}
       for(let m=0;m<nm;m++){const c=prF[m],a=cA[c],b=cB[c];if(ACT[a]!==1||ACT[b]!==1)continue;const ra=find(a),rb=find(b);if(ra!==rb){if(ra<rb)UF[rb]=ra;else UF[ra]=rb;}}
+      for(let j=1;j<jtop;j++)if(JT[j]){const a=JA[j],b=JB[j];if(ACT[a]!==1||ACT[b]!==1)continue;const ra=find(a),rb=find(b);if(ra!==rb){if(ra<rb)UF[rb]=ra;else UF[ra]=rb;}}
       const l2=SCR[19],a2=SCR[20];
       for(let n=0;n<na;n++){
         const i=AL[n],v=i*6;if(ACT[i]!==1)continue;
         if(V[v]*V[v]+V[v+1]*V[v+1]+V[v+2]*V[v+2]<l2&&V[v+3]*V[v+3]+V[v+4]*V[v+4]+V[v+5]*V[v+5]<a2){if(ST[i]<I32)ST[i]++;}else ST[i]=0;
         if(AT[i]<I32)AT[i]++;IMIN[i]=I32;
+        if(bounded){const p=i*3,dx=P[p]-RP[p],dy=P[p+1]-RP[p+1],dz=P[p+2]-RP[p+2],quiet=dx*dx+dy*dy+dz*dz<C.fallbackDistance*C.fallbackDistance;
+          if(quiet&&TOUCH[i])FN[i]++;else{FN[i]=0;RP[p]=P[p];RP[p+1]=P[p+1];RP[p+2]=P[p+2];}
+        }
       }
       for(let n=0;n<na;n++){const i=AL[n];if(ACT[i]!==1)continue;const r=find(i);if(ST[i]<IMIN[r])IMIN[r]=ST[i];}
       let slept=0;
-      for(let n=0;n<na;n++){const i=AL[n];if(ACT[i]===1&&IMIN[find(i)]>=SCR[21]){FL[i]|=ASLEEP;const v=i*6;V[v]=V[v+1]=V[v+2]=V[v+3]=V[v+4]=V[v+5]=0;slept++;}}
+      for(let n=0;n<na;n++){const i=AL[n],fallback=bounded&&TOUCH[i]&&AT[i]>=C.fallbackSteps&&FN[i]>=C.windowSteps;if(ACT[i]===1&&(IMIN[find(i)]>=SCR[21]||fallback)){FL[i]|=ASLEEP;const v=i*6;V[v]=V[v+1]=V[v+2]=V[v+3]=V[v+4]=V[v+5]=0;slept++;if(fallback)stats.fallbackSleep++;}}
+      if(bounded&&geometryApi)slept+=geometryApi.govern(AL,ACT,UF,na,cA,cB,cN,cS,nc,C.maxAwake);
       if(slept>0){stats.sleeping+=slept;restDirty=true;}
       return slept;
     }
 
     // ---- Save, restore, hash.
-    // Plain JSON-safe object (no -0, finite numbers only); never changes the state.
     function snapshot(){
       const n=top,b={},copy=(a,m)=>{const out=new Array(m);for(let k=0;k<m;k++)out[k]=a[k]+0;return out;};
       for(let f=0;f<FIELDS.length;f++)b[FIELDS[f][0]]=copy(FIELDS[f][1],n*FIELDS[f][2]);
-      return {v:2,fp,statics:w.staticsHash,acc:WS[0]+0,n,b,c:{n:pn,K:copy(pK,pn),I:copy(pI,pn),Jn:copy(pJn,pn),J1:copy(pJ1,pn),J2:copy(pJ2,pn)}};
+      return {v:2,fp,statics:w.staticsHash,acc:WS[0]+0,n,b,...(jtop>1?{j:{n:jtop,T:copy(JT,jtop),G:copy(JG,jtop),A:copy(JA,jtop),B:copy(JB,jtop),D:copy(JD,jtop*26)}}:{}),c:{n:pn,K:copy(pK,pn),I:copy(pI,pn),Jn:copy(pJn,pn),J1:copy(pJ1,pn),J2:copy(pJ2,pn)}};
     }
-    // Validates everything first; at the first defect throws Error('FPhysics.restore: ...') and changes nothing.
     function restore(snap,opts){
       const no=text=>{throw new Error('FPhysics.restore: '+text);};
       if(!snap||typeof snap!=='object')no('snapshot object required');
@@ -985,7 +972,6 @@
         if(fl&(LOST|HARD))no('body '+i+' flags '+fl+' are not available yet');
         if(kin?fl&(ASLEEP|PENDING):fl&MOVING||b.KN[i])no('body '+i+' flags '+fl+' or target do not fit a '+(kin?'kinematic':'dynamic')+' body');
         for(let k=0;k<3;k++)if(!(b.H[p+k]>0&&b.H[p+k]>=C.minHalf-1e-12&&hr[p+k]>0))no('body '+i+' half-sizes out of range');
-        // Round body: HR = (r, height/2, r), H = (rc, ., rc), a sphere with height/2 = r.
         if(b.SH[i]&&!(hr[p]===hr[p+2]&&hr[p+1]>=hr[p]&&b.H[p]===b.H[p+2]&&(b.SH[i]===2||hr[p+1]===hr[p])))no('body '+i+' sizes do not fit its shape');
         if(kin?b.IM[i]!==0:!(b.IM[i]>=1/C.massMax-1e-12&&b.IM[i]<=1/C.massMin+1e-12))no('body '+i+' inverse mass out of range');
         if(!((kin?b.MO[i]>=0:b.MO[i]>0)&&b.FR[i]>=0&&b.FR[i]<=2&&b.RE[i]>=0&&b.RE[i]<=1))no('body '+i+' mass, friction or restitution out of range');
@@ -1017,7 +1003,13 @@
         if(!Number.isInteger(c.I[k])||c.I[k]<0||c.I[k]>I32)no('cache point id '+c.I[k]+' out of range');
         if(!(c.Jn[k]>=0))no('cache normal impulse '+c.Jn[k]+' is negative');
       }
-      // Valid: copy (-0 normalised), reset the rows above n, recompute the derived values.
+      const jj=snap.j;
+      if(jj){if(!Number.isInteger(jj.n)||jj.n<1||jj.n>NJ)no('joint count');for(const key of ['T','G','A','B','D']){const arr=jj[key],width=key==='D'?26:1;if(!Array.isArray(arr)||arr.length!==jj.n*width||!arr.every(finite))no('joint columns');}
+        for(let i=0;i<jj.n;i++){const d=i*26,t=jj.T[i];if(!Number.isInteger(t)||t<0||t>4||!Number.isInteger(jj.G[i])||jj.G[i]<0||jj.G[i]>=GENS)no('joint type/generation');if(!t)continue;
+          if(!Number.isInteger(jj.A[i])||!Number.isInteger(jj.B[i])||jj.A[i]===jj.B[i]||jj.A[i]!==0&&!live(jj.A[i])||jj.B[i]!==0&&!live(jj.B[i])||!(b.IM[jj.A[i]]+b.IM[jj.B[i]]>0))no('joint endpoints');
+          if(jj.D[d+18]<0||jj.D[d+19]<jj.D[d+18]||jj.D[d+19]>100||Math.abs(jj.D[d+20])>1||jj.D[d+21]<0||jj.D[d+22]<0)no('joint limits');for(let k=6;k<18;k+=3){const len=jj.D[d+k]*jj.D[d+k]+jj.D[d+k+1]*jj.D[d+k+1]+jj.D[d+k+2]*jj.D[d+k+2];if(Math.abs(len-1)>1e-6)no('joint axis');}}
+        if(jj.T[0]!==0)no('joint world row');
+      }
       for(let f=0;f<FIELDS.length;f++){const a=FIELDS[f][1],src=b[FIELDS[f][0]];a.fill(a===MAT?-1:0);for(let k=0;k<src.length;k++)a[k]=src[k]+0;}
       for(const a of [R,IL,IW,BB,FB,SL,PP,PQ])a.fill(0);
       R[0]=R[4]=R[8]=1;SL[0]=C.slop;PQ[3]=1;
@@ -1030,10 +1022,9 @@
       if(need>GE)entries(Math.max(need,2*GE));
       pn=m;for(let k=0;k<m;k++){pK[k]=c.K[k];pI[k]=c.I[k];pJn[k]=c.Jn[k]+0;pJ1[k]=c.J1[k]+0;pJ2[k]=c.J2[k]+0;}
       tableBuild();
+      for(const a of [JT,JG,JA,JB,JD])a.fill(0);jtop=jj?jj.n:1;joints.count=0;joints.brokenCount=0;if(jj){JT.set(jj.T);JG.set(jj.G);JA.set(jj.A);JB.set(jj.B);JD.set(jj.D);for(let j=1;j<jtop;j++)if(JT[j])joints.count++;}stats.joints=joints.count;
       WS[0]=snap.acc+0;restDirty=true;
     }
-    // FNV-1a over n, acc, the body arrays of rows 0 .. n-1 (snapshot order; floats by 32-bit words, integers as
-    // v >>> 0), then the cache (n, K, I, Jn, J1, J2). 8 hex digits.
     function hash(){
       let h=fnv(2166136261,top);h=fnv(h,WSU[0]);h=fnv(h,WSU[1]);
       for(let f=0;f<FIELDS.length;f++){
@@ -1044,16 +1035,18 @@
       for(let k=0;k<pn;k++)h=fnv(h,pK[k]>>>0);
       for(let k=0;k<pn;k++)h=fnv(h,pI[k]>>>0);
       for(let j=0;j<3;j++){const u=CU[j];for(let k=0;k<2*pn;k++)h=fnv(h,u[k]);}
+      if(jtop>1){h=fnv(h,jtop);for(let j=0;j<jtop;j++){h=fnv(h,JT[j]);h=fnv(h,JG[j]);h=fnv(h,JA[j]);h=fnv(h,JB[j]);}for(let k=0;k<jtop*52;k++)h=fnv(h,JU[k]);}
       return (h>>>0).toString(16).padStart(8,'0');
     }
 
-    const w={config:C,fingerprint:fp,staticsHash:'',stats,phaseMs:PH,setStatics,updateStatics:setStatics,addBody,valid,isAsleep,isLost,body,bodyInto,
+    const w={config:C,fingerprint:fp,staticsHash:'',stats,events,joints,addJoint,removeJoint,validJoint:h=>jointSlot(h)>0,phaseMs:PH,setStatics,updateStatics:setStatics,addBody,removeBody,teleport,queryBox,wakeBox,ray,sample,valid,isAsleep,isLost,body,bodyInto,
       impulse,setVelocity,setKinematic,blast,pose,matrix,step,snapshot,restore,hash};
+    if(geometry)geometryApi=G.FPhysicsGeometry.attach(w,{P,H,HR,R,BB,SH,FL,GRP,GEN,V,count:()=>top});
     setStatics([],[]);
     return w;
   }
   // TRIG-BEGIN
-  // Angle conversions, game convention: rotation [rx, ry, rz] with M = Rz*Ry*Rx (outside step only).
+  function jointCos(angle){return Math.cos(angle);}
   function eulerToQuat(rx,ry,rz,out=[0,0,0,0]){
     const cx=Math.cos(rx/2),sx=Math.sin(rx/2),cy=Math.cos(ry/2),sy=Math.sin(ry/2),cz=Math.cos(rz/2),sz=Math.sin(rz/2);
     out[0]=cz*cy*sx-sz*sy*cx;out[1]=cz*sy*cx+sz*cy*sx;out[2]=sz*cy*cx-cz*sy*sx;out[3]=cz*cy*cx+sz*sy*sx;

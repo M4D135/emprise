@@ -1,0 +1,11 @@
+{
+  compared: 120,
+  baseline: '509b2ec',
+  checks: [
+    'Exact float buffer bytes and shape groups',
+    'Empty batches, default shapes, unknown shapes, missing transforms/color',
+    'Overlay/architecture/outdoor flags',
+    'Transparent sort, windows, rings, smoke, fire, sparks and clamped alpha'
+  ],
+  claim: 'Removes one temporary JS array per packed instance. No FPS gain inferred from this equivalence check.'
+}

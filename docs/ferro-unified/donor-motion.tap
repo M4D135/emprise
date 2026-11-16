@@ -1,0 +1,94 @@
+TAP version 13
+# Subtest: Presentation damping and recoil have the same result at 20, 60 and 120 FPS
+ok 1 - Presentation damping and recoil have the same result at 20, 60 and 120 FPS
+  ---
+  duration_ms: 2.209625
+  type: 'test'
+  ...
+# Subtest: Walking animation settles after actual movement stops, even with a retained stride phase
+ok 2 - Walking animation settles after actual movement stops, even with a retained stride phase
+  ---
+  duration_ms: 0.708666
+  type: 'test'
+  ...
+# Subtest: Reduced motion fixes camera height, horizon and field of view immediately
+ok 3 - Reduced motion fixes camera height, horizon and field of view immediately
+  ---
+  duration_ms: 0.227083
+  type: 'test'
+  ...
+# Subtest: Recoil moves the weapon, stays bounded and returns to rest without moving the aim
+ok 4 - Recoil moves the weapon, stays bounded and returns to rest without moving the aim
+  ---
+  duration_ms: 0.645834
+  type: 'test'
+  ...
+# Subtest: Run and dash field-of-view transitions are progressive and bounded
+ok 5 - Run and dash field-of-view transitions are progressive and bounded
+  ---
+  duration_ms: 0.714667
+  type: 'test'
+  ...
+# Subtest: Weapon mount follows the rolled camera and preserves local assembly distances
+ok 6 - Weapon mount follows the rolled camera and preserves local assembly distances
+  ---
+  duration_ms: 0.177875
+  type: 'test'
+  ...
+# Subtest: Arbitrary yaw/pitch/roll mounts remain orthonormal, including the Euler singularity
+ok 7 - Arbitrary yaw/pitch/roll mounts remain orthonormal, including the Euler singularity
+  ---
+  duration_ms: 0.133375
+  type: 'test'
+  ...
+# Subtest: Rocket recoil and nearby blast settle, with all camera shake disabled by reduced motion
+ok 8 - Rocket recoil and nearby blast settle, with all camera shake disabled by reduced motion
+  ---
+  duration_ms: 0.805083
+  type: 'test'
+  ...
+# Subtest: campaign pistol recoil is gentler than the rifle, cadence independent and never moves the camera aim
+ok 9 - campaign pistol recoil is gentler than the rifle, cadence independent and never moves the camera aim
+  ---
+  duration_ms: 1.332917
+  type: 'test'
+  ...
+# Subtest: Configured weapon recoil reaches its pitch and returns below ten percent on schedule
+ok 10 - Configured weapon recoil reaches its pitch and returns below ten percent on schedule
+  ---
+  duration_ms: 17.574542
+  type: 'test'
+  ...
+# Subtest: Configured recoil is cadence independent, reduced to thirty percent and resettable
+ok 11 - Configured recoil is cadence independent, reduced to thirty percent and resettable
+  ---
+  duration_ms: 0.611958
+  type: 'test'
+  ...
+# Subtest: Recoil tuning is copied and the rifle alternates its roll without changing default behavior
+ok 12 - Recoil tuning is copied and the rifle alternates its roll without changing default behavior
+  ---
+  duration_ms: 0.332833
+  type: 'test'
+  ...
+# Subtest: Optional ground steps smooth a forty centimetre rise without affecting simulation or default hosts
+ok 13 - Optional ground steps smooth a forty centimetre rise without affecting simulation or default hosts
+  ---
+  duration_ms: 0.277
+  type: 'test'
+  ...
+# Subtest: Landing dips are bounded and reduced motion attenuates the impulse without changing the trajectory
+ok 14 - Landing dips are bounded and reduced motion attenuates the impulse without changing the trajectory
+  ---
+  duration_ms: 1.213834
+  type: 'test'
+  ...
+1..14
+# tests 14
+# suites 0
+# pass 14
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 59.862

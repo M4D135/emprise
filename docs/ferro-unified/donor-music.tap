@@ -1,0 +1,166 @@
+TAP version 13
+# Subtest: three deterministic, complete ProTracker MODs contain original PCM and evolving scores
+ok 1 - three deterministic, complete ProTracker MODs contain original PCM and evolving scores
+  ---
+  duration_ms: 74.675292
+  type: 'test'
+  ...
+# Subtest: playback reads the exported note periods and the exact signed eight-bit sample data
+ok 2 - playback reads the exported note periods and the exact signed eight-bit sample data
+  ---
+  duration_ms: 1.250625
+  type: 'test'
+  ...
+# Subtest: tracker advances at encoded tempo through multiple patterns and keeps a bounded voice budget
+ok 3 - tracker advances at encoded tempo through multiple patterns and keeps a bounded voice budget
+  ---
+  duration_ms: 3.215666
+  type: 'test'
+  ...
+# Subtest: pause cancels already scheduled notes, resumes on a bar, and does not touch shared context or SFX
+ok 4 - pause cancels already scheduled notes, resumes on a bar, and does not touch shared context or SFX
+  ---
+  duration_ms: 0.427375
+  type: 'test'
+  ...
+# Subtest: late frames resynchronize without an unbounded catch-up burst
+ok 5 - late frames resynchronize without an unbounded catch-up burst
+  ---
+  duration_ms: 1.090125
+  type: 'test'
+  ...
+# Subtest: volume, threat, stage changes and unavailable audio respect lifecycle ownership
+ok 6 - volume, threat, stage changes and unavailable audio respect lifecycle ownership
+  ---
+  duration_ms: 0.560083
+  type: 'test'
+  ...
+# Subtest: public track metadata matches the playable MOD, without loading audio or exposing mutable settings
+ok 7 - public track metadata matches the playable MOD, without loading audio or exposing mutable settings
+  ---
+  duration_ms: 0.306459
+  type: 'test'
+  ...
+# Subtest: arrangements contain genuine stop/drop sections and substantial rhythm guitar sustain
+ok 8 - arrangements contain genuine stop/drop sections and substantial rhythm guitar sustain
+  ---
+  duration_ms: 2.98375
+  type: 'test'
+  ...
+# Subtest: warmup yields between instruments, shares pending work and opens no audio device
+ok 9 - warmup yields between instruments, shares pending work and opens no audio device
+  ---
+  duration_ms: 39.378667
+  type: 'test'
+  ...
+# Subtest: preparing future AudioBuffers never switches the score and avoids first-use buffer work in combat
+ok 10 - preparing future AudioBuffers never switches the score and avoids first-use buffer work in combat
+  ---
+  duration_ms: 2.121042
+  type: 'test'
+  ...
+# Subtest: melodic harmony uses thirds belonging to its dark mode, not arbitrary parallel intervals
+ok 11 - melodic harmony uses thirds belonging to its dark mode, not arbitrary parallel intervals
+  ---
+  duration_ms: 0.380083
+  type: 'test'
+  ...
+# Subtest: the original title thrash starts immediately, evolves for a full loop and leaves the three world scores unchanged
+ok 12 - the original title thrash starts immediately, evolves for a full loop and leaves the three world scores unchanged
+  ---
+  duration_ms: 51.561042
+  type: 'test'
+  ...
+# Subtest: title preparation and playback reuse a separate bank, loop and switch cleanly back to every world
+ok 13 - title preparation and playback reuse a separate bank, loop and switch cleanly back to every world
+  ---
+  duration_ms: 4.227458
+  type: 'test'
+  ...
+# Subtest: title warmup is shared, yields its instrument work and needs no audio device
+ok 14 - title warmup is shared, yields its instrument work and needs no audio device
+  ---
+  duration_ms: 45.815792
+  type: 'test'
+  ...
+# Subtest: sixty seconds of music fade every note cut before its natural end to silence (no click)
+ok 15 - sixty seconds of music fade every note cut before its natural end to silence (no click)
+  ---
+  duration_ms: 1.044083
+  type: 'test'
+  ...
+# Subtest: une graine allonge la boucle au-dela de 240 s sans repeter une fenetre de 4 positions, et le module sans graine reste octet pour octet l arrangement ecrit (MIX-10, MIX-V3)
+ok 16 - une graine allonge la boucle au-dela de 240 s sans repeter une fenetre de 4 positions, et le module sans graine reste octet pour octet l arrangement ecrit (MIX-10, MIX-V3)
+  ---
+  duration_ms: 25.431292
+  type: 'test'
+  ...
+# Subtest: eight adaptive cues join the three worlds and the welcome theme without touching them
+ok 17 - eight adaptive cues join the three worlds and the welcome theme without touching them
+  ---
+  duration_ms: 470.539083
+  type: 'test'
+  ...
+# Subtest: adaptive scores write real played parts on all five tracks
+ok 18 - adaptive scores write real played parts on all five tracks
+  ---
+  duration_ms: 1.862208
+  type: 'test'
+  ...
+# Subtest: announcement percussion and cue guitars are fresh bipolar waves without a dc offset
+ok 19 - announcement percussion and cue guitars are fresh bipolar waves without a dc offset
+  ---
+  duration_ms: 48.540125
+  type: 'test'
+  ...
+# Subtest: vertical layers enter and leave on the bar as intensity moves (plain director)
+ok 20 - vertical layers enter and leave on the bar as intensity moves (plain director)
+  ---
+  duration_ms: 50.516125
+  type: 'test'
+  ...
+# Subtest: vertical layers enter and leave on the bar as intensity moves (adaptive director)
+ok 21 - vertical layers enter and leave on the bar as intensity moves (adaptive director)
+  ---
+  duration_ms: 5.379834
+  type: 'test'
+  ...
+# Subtest: an event never interrupts the running bar and never restarts the same cue (plain director)
+ok 22 - an event never interrupts the running bar and never restarts the same cue (plain director)
+  ---
+  duration_ms: 12.552958
+  type: 'test'
+  ...
+# Subtest: an event never interrupts the running bar and never restarts the same cue (adaptive director)
+ok 23 - an event never interrupts the running bar and never restarts the same cue (adaptive director)
+  ---
+  duration_ms: 12.789625
+  type: 'test'
+  ...
+# Subtest: warming a cue yields between synthesis phases and opens no audio device
+ok 24 - warming a cue yields between synthesis phases and opens no audio device
+  ---
+  duration_ms: 46.555834
+  type: 'test'
+  ...
+# Subtest: the adaptive director stays optional: music.js alone still walks the worlds
+ok 25 - the adaptive director stays optional: music.js alone still walks the worlds
+  ---
+  duration_ms: 3.664458
+  type: 'test'
+  ...
+# Subtest: seeded arrangements remain complete under the adaptive transport and have accurate durations
+ok 26 - seeded arrangements remain complete under the adaptive transport and have accurate durations
+  ---
+  duration_ms: 8.185708
+  type: 'test'
+  ...
+1..26
+# tests 26
+# suites 0
+# pass 26
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 956.032917

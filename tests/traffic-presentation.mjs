@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
 import {execFileSync} from 'node:child_process';
-for(const name of ['ferro/renderer','bitume/carene','bitume/main','bitume/voiture','bitume/conduite','vehicles','mobility','pdr/ville-reelle','traffic','session'])await import('../src/'+name+'.js');
+for(const name of ['ferro/renderer','ferro/geometry','bitume/main','bitume/voiture','bitume/conduite','vehicles','mobility','pdr/ville-reelle','traffic','session'])await import('../src/'+name+'.js');
 const create=RADE.session.trafficPresentation,near=(a,b,msg)=>assert(Math.abs(a-b)<1e-10,msg+' '+a+' != '+b);
 const car=()=>({id:1,model:'gti',color:'#bb2729',ai:true,x:0,y:.08,z:0,cap:0,tangage:0,roulis:0,distance:0,braquage:0,volant:0,v:6,u:6,w:0,omega:1,moteur:true,driver:{id:20,inside:true,hp:100}});
 let tested=0;

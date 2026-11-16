@@ -1,0 +1,352 @@
+TAP version 13
+# Subtest: E01 — Chargement : API statique complète, seul FInput s’ajoute au global
+ok 1 - E01 — Chargement : API statique complète, seul FInput s’ajoute au global
+  ---
+  duration_ms: 2.233834
+  type: 'test'
+  ...
+# Subtest: E02 — Source propre : ni hasard, ni horloge, ni réseau, aucun nom propre au jeu, 18 000 octets au plus
+ok 2 - E02 — Source propre : ni hasard, ni horloge, ni réseau, aucun nom propre au jeu, 18 000 octets au plus
+  ---
+  duration_ms: 0.473083
+  type: 'test'
+  ...
+# Subtest: E03 — Config invalide : create lève « FInput : … »
+ok 3 - E03 — Config invalide : create lève « FInput : … »
+  ---
+  duration_ms: 1.32275
+  type: 'test'
+  ...
+# Subtest: E03b — Toutes les règles de la déclaration, sans toucher à la config
+ok 4 - E03b — Toutes les règles de la déclaration, sans toucher à la config
+  ---
+  duration_ms: 1.943917
+  type: 'test'
+  ...
+# Subtest: E04 — Défauts METAL : Espace saute, R esquive, V frappe, aucun code en double
+ok 5 - E04 — Défauts METAL : Espace saute, R esquive, V frappe, aucun code en double
+  ---
+  duration_ms: 0.839042
+  type: 'test'
+  ...
+# Subtest: E04b — normalize à l’étape 2 : table des touches gardée entière ou par défaut, réglages bornés
+ok 6 - E04b — normalize à l’étape 2 : table des touches gardée entière ou par défaut, réglages bornés
+  ---
+  duration_ms: 2.917125
+  type: 'test'
+  ...
+# Subtest: E05 — AZERTY et QWERTY : chaque touche seule, puis frame et step
+ok 7 - E05 — AZERTY et QWERTY : chaque touche seule, puis frame et step
+  ---
+  duration_ms: 1.095584
+  type: 'test'
+  ...
+# Subtest: E06 — Parité avec game.js (annexe B) : 600 images, graine 7, égalité au bit près
+ok 8 - E06 — Parité avec game.js (annexe B) : 600 images, graine 7, égalité au bit près
+  ---
+  duration_ms: 12.062958
+  type: 'test'
+  ...
+# Subtest: E07 — Appui court (LOOP-06) : R appuyée et relâchée avant frame
+ok 9 - E07 — Appui court (LOOP-06) : R appuyée et relâchée avant frame
+  ---
+  duration_ms: 1.0455
+  type: 'test'
+  ...
+# Subtest: E08 — Répétition : la touche ajoutée par repeat est tenue, sans front ni impulsion
+ok 10 - E08 — Répétition : la touche ajoutée par repeat est tenue, sans front ni impulsion
+  ---
+  duration_ms: 0.674709
+  type: 'test'
+  ...
+# Subtest: E09 — Action tenue avec verrou : Entrée appuyée et relâchée dans l’image (LOOP-06)
+ok 11 - E09 — Action tenue avec verrou : Entrée appuyée et relâchée dans l’image (LOOP-06)
+  ---
+  duration_ms: 0.622833
+  type: 'test'
+  ...
+# Subtest: E10 — Deux pas dans une image : impulsion et regard au premier pas seulement
+ok 12 - E10 — Deux pas dans une image : impulsion et regard au premier pas seulement
+  ---
+  duration_ms: 0.5125
+  type: 'test'
+  ...
+# Subtest: E11 — Image sans pas : le regard attend dans pendingLook (STAB-06)
+ok 13 - E11 — Image sans pas : le regard attend dans pendingLook (STAB-06)
+  ---
+  duration_ms: 0.50925
+  type: 'test'
+  ...
+# Subtest: E12 — clear() : touches relâchées, verrous effacés, regard en attente à 0
+ok 14 - E12 — clear() : touches relâchées, verrous effacés, regard en attente à 0
+  ---
+  duration_ms: 0.712542
+  type: 'test'
+  ...
+# Subtest: E13 — Pas de -0 : aucune sortie numérique ne vaut -0 (sorties de E06 ; E50 à l’étape 7)
+ok 15 - E13 — Pas de -0 : aucune sortie numérique ne vaut -0 (sorties de E06 ; E50 à l’étape 7)
+  ---
+  duration_ms: 12.739208
+  type: 'test'
+  ...
+# Subtest: E14 — Sources virtuelles : boutons de souris et boutons tactiles
+ok 16 - E14 — Sources virtuelles : boutons de souris et boutons tactiles
+  ---
+  duration_ms: 0.853
+  type: 'test'
+  ...
+# Subtest: E14b — frame() et step() : objets neufs, ordre fixe des clés, fronts dans l’ordre d’arrivée, dt borné
+ok 17 - E14b — frame() et step() : objets neufs, ordre fixe des clés, fronts dans l’ordre d’arrivée, dt borné
+  ---
+  duration_ms: 1.122083
+  type: 'test'
+  ...
+# Subtest: E14c — Appareil actif sans manette : clavier, souris, tactile, filtre de 800 ms
+ok 18 - E14c — Appareil actif sans manette : clavier, souris, tactile, filtre de 800 ms
+  ---
+  duration_ms: 1.113666
+  type: 'test'
+  ...
+# Subtest: E14d — configure et settings : réglages appliqués, touches tenues recomptées sans front
+ok 19 - E14d — configure et settings : réglages appliqués, touches tenues recomptées sans front
+  ---
+  duration_ms: 2.050291
+  type: 'test'
+  ...
+# Subtest: E15 — Conflit clavier : la touche d’une autre action est refusée, réglages intacts
+ok 20 - E15 — Conflit clavier : la touche d’une autre action est refusée, réglages intacts
+  ---
+  duration_ms: 1.14375
+  type: 'test'
+  ...
+# Subtest: E16 — Affectation clavier : la liste de l’action vaut [code], toutes les autres sont inchangées
+ok 21 - E16 — Affectation clavier : la liste de l’action vaut [code], toutes les autres sont inchangées
+  ---
+  duration_ms: 1.423042
+  type: 'test'
+  ...
+# Subtest: E17 — Touches réservées : Échap, Méta, Ctrl, Alt et F5 sont refusées
+ok 22 - E17 — Touches réservées : Échap, Méta, Ctrl, Alt et F5 sont refusées
+  ---
+  duration_ms: 1.380583
+  type: 'test'
+  ...
+# Subtest: E18 — Manette : conflit, boutons réservés ou inconnus, unbind puis assign
+ok 23 - E18 — Manette : conflit, boutons réservés ou inconnus, unbind puis assign
+  ---
+  duration_ms: 4.3715
+  type: 'test'
+  ...
+# Subtest: E18b — assign et unbind : ordre des contrôles, appareil et action inconnus, déclaration validée
+ok 24 - E18b — assign et unbind : ordre des contrôles, appareil et action inconnus, déclaration validée
+  ---
+  duration_ms: 2.114125
+  type: 'test'
+  ...
+# Subtest: E19 — normalize stable : idempotent, stable après un aller-retour JSON, défauts pour une table invalide
+ok 25 - E19 — normalize stable : idempotent, stable après un aller-retour JSON, défauts pour une table invalide
+  ---
+  duration_ms: 3.551125
+  type: 'test'
+  ...
+# Subtest: E20 — Bornes de tune : nombres finis bornés, booléens gardés, le reste aux défauts
+ok 26 - E20 — Bornes de tune : nombres finis bornés, booléens gardés, le reste aux défauts
+  ---
+  duration_ms: 7.011208
+  type: 'test'
+  ...
+# Subtest: E21 — Action manquante : codes par défaut libres, sinon premier repli libre (clavier), sinon []
+ok 27 - E21 — Action manquante : codes par défaut libres, sinon premier repli libre (clavier), sinon []
+  ---
+  duration_ms: 0.979958
+  type: 'test'
+  ...
+# Subtest: E21b — Mêmes réponses que FOptions sur les profils de checks/options.test.mjs
+ok 28 - E21b — Mêmes réponses que FOptions sur les profils de checks/options.test.mjs
+  ---
+  duration_ms: 2.503125
+  type: 'test'
+  ...
+# Subtest: E22 — Migration v1 → v2 : Espace saute, R esquive ; migrate seulement pour un format plus ancien
+ok 29 - E22 — Migration v1 → v2 : Espace saute, R esquive ; migrate seulement pour un format plus ancien
+  ---
+  duration_ms: 3.563292
+  type: 'test'
+  ...
+# Subtest: E23 — Capture clavier : le prochain appui va à frame().captured, jamais au jeu
+ok 30 - E23 — Capture clavier : le prochain appui va à frame().captured, jamais au jeu
+  ---
+  duration_ms: 1.041125
+  type: 'test'
+  ...
+# Subtest: E24 — radial : zone morte radiale avec remise à l’échelle
+ok 31 - E24 — radial : zone morte radiale avec remise à l’échelle
+  ---
+  duration_ms: 0.292208
+  type: 'test'
+  ...
+# Subtest: E25 — Déplacement à la manette : zone morte .15, course au bout du stick (n ≥ .92)
+ok 32 - E25 — Déplacement à la manette : zone morte .15, course au bout du stick (n ≥ .92)
+  ---
+  duration_ms: 1.1435
+  type: 'test'
+  ...
+# Subtest: E26 — Lacet (FEEL-10) : 5,40, 76,34, 156,65 et 300 °/s à 20, 50, 70 et 100 %
+ok 33 - E26 — Lacet (FEEL-10) : 5,40, 76,34, 156,65 et 300 °/s à 20, 50, 70 et 100 %
+  ---
+  duration_ms: 1.979958
+  type: 'test'
+  ...
+# Subtest: E27 — Tangage : +190 °/s × dt vers le haut, opposé avec padInvertY
+ok 34 - E27 — Tangage : +190 °/s × dt vers le haut, opposé avec padInvertY
+  ---
+  duration_ms: 1.564083
+  type: 'test'
+  ...
+# Subtest: E28 — Demi-tour : 58 images de 1/120 s (0,483 s) et 29 de 1/60 s ; 600 ms sans surcroît
+ok 35 - E28 — Demi-tour : 58 images de 1/120 s (0,483 s) et 29 de 1/60 s ; 600 ms sans surcroît
+  ---
+  duration_ms: 9.3235
+  type: 'test'
+  ...
+# Subtest: E29 — Ralentissement sur cible : lookScale .55, sur la visée à la manette seulement
+ok 36 - E29 — Ralentissement sur cible : lookScale .55, sur la visée à la manette seulement
+  ---
+  duration_ms: 1.834042
+  type: 'test'
+  ...
+# Subtest: E30 — Gâchettes : hystérésis .30 / .18, fronts aux images 2 et 6
+ok 37 - E30 — Gâchettes : hystérésis .30 / .18, fronts aux images 2 et 6
+  ---
+  duration_ms: 1.143167
+  type: 'test'
+  ...
+# Subtest: E31 — Valeur analogique : RT .5 → 0,473684 ; .04 → 0 ; 1 → 1 ; sa touche → 1
+ok 38 - E31 — Valeur analogique : RT .5 → 0,473684 ; .04 → 0 ; 1 → 1 ; sa touche → 1
+  ---
+  duration_ms: 0.483958
+  type: 'test'
+  ...
+# Subtest: E32 — Fusion : déplacement le plus fort, visée sommée avec la souris, plusieurs manettes
+ok 39 - E32 — Fusion : déplacement le plus fort, visée sommée avec la souris, plusieurs manettes
+  ---
+  duration_ms: 0.741834
+  type: 'test'
+  ...
+# Subtest: E33 — Branchement à chaud : connected et disconnected une seule fois, null et mapping non standard acceptés
+ok 40 - E33 — Branchement à chaud : connected et disconnected une seule fois, null et mapping non standard acceptés
+  ---
+  duration_ms: 1.0485
+  type: 'test'
+  ...
+# Subtest: E33b — navigator.getGamepads est appelé comme une méthode (sinon « Illegal invocation » dans Chrome)
+ok 41 - E33b — navigator.getGamepads est appelé comme une méthode (sinon « Illegal invocation » dans Chrome)
+  ---
+  duration_ms: 1.8845
+  type: 'test'
+  ...
+# Subtest: E34 — Front de bouton : A tenu 10 images → un seul saut
+ok 42 - E34 — Front de bouton : A tenu 10 images → un seul saut
+  ---
+  duration_ms: 0.920875
+  type: 'test'
+  ...
+# Subtest: E34b — configure à la manette : la table pad des réglages, un bouton tenu qui change d’action la tient sans front
+ok 43 - E34b — configure à la manette : la table pad des réglages, un bouton tenu qui change d’action la tient sans front
+  ---
+  duration_ms: 0.950291
+  type: 'test'
+  ...
+# Subtest: E35 — Appareil actif : bouton ou axe au-delà de .3 → manette ; clavier, tactile, souris
+ok 44 - E35 — Appareil actif : bouton ou axe au-delà de .3 → manette ; clavier, tactile, souris
+  ---
+  duration_ms: 0.701625
+  type: 'test'
+  ...
+# Subtest: E36 — Capture manette et clear() : ni front ni impulsion pour l’appui capturé ; l’image après clear() sans front
+ok 45 - E36 — Capture manette et clear() : ni front ni impulsion pour l’appui capturé ; l’image après clear() sans front
+  ---
+  duration_ms: 0.936375
+  type: 'test'
+  ...
+# Subtest: E37 — Échange des sticks : le stick gauche tourne la vue, le droit déplace
+ok 46 - E37 — Échange des sticks : le stick gauche tourne la vue, le droit déplace
+  ---
+  duration_ms: 1.026708
+  type: 'test'
+  ...
+# Subtest: E38 — keyName : mêmes noms que FOptions.keyName
+ok 47 - E38 — keyName : mêmes noms que FOptions.keyName
+  ---
+  duration_ms: 0.429625
+  type: 'test'
+  ...
+# Subtest: E39 — Libellés appris : la touche vue par keyDown (AZERTY), la table de setLayout, sinon keyName ; les chiffres gardent leur nom
+ok 48 - E39 — Libellés appris : la touche vue par keyDown (AZERTY), la table de setLayout, sinon keyName ; les chiffres gardent leur nom
+  ---
+  duration_ms: 0.490708
+  type: 'test'
+  ...
+# Subtest: E39b — Libellés : un caractère visible, codes Key… seulement, appris avant la table, invite clavier jointe par « / » ou « — »
+ok 49 - E39b — Libellés : un caractère visible, codes Key… seulement, appris avant la table, invite clavier jointe par « / » ou « — »
+  ---
+  duration_ms: 2.405209
+  type: 'test'
+  ...
+# Subtest: E40 — Glyphes : Xbox, PlayStation, générique ; invites tactile et souris, action non affectée, action inconnue
+ok 50 - E40 — Glyphes : Xbox, PlayStation, générique ; invites tactile et souris, action non affectée, action inconnue
+  ---
+  duration_ms: 0.492125
+  type: 'test'
+  ...
+# Subtest: E40b — glyph et dernière manette active : tables complètes, nom ou style inconnus, index le plus bas, remise à null au débranchement
+ok 51 - E40b — glyph et dernière manette active : tables complètes, nom ou style inconnus, index le plus bas, remise à null au débranchement
+  ---
+  duration_ms: 1.148166
+  type: 'test'
+  ...
+# Subtest: E41 — guessDevice : règle de BITUME (TACT-08), matchMedia appelé comme une méthode, toute erreur → keyboard
+ok 52 - E41 — guessDevice : règle de BITUME (TACT-08), matchMedia appelé comme une méthode, toute erreur → keyboard
+  ---
+  duration_ms: 0.525042
+  type: 'test'
+  ...
+# Subtest: E42 — Vibrations : appel exact, limiteur de 40 ms, intensité .5, sans actionneur, exception, aucun rejet non traité
+ok 53 - E42 — Vibrations : appel exact, limiteur de 40 ms, intensité .5, sans actionneur, exception, aucun rejet non traité
+  ---
+  duration_ms: 5.855209
+  type: 'test'
+  ...
+# Subtest: E42b — rumble : bornes, manette visée, limiteur mis à jour au seul succès, rien avant frame()
+ok 54 - E42b — rumble : bornes, manette visée, limiteur mis à jour au seul succès, rien avant frame()
+  ---
+  duration_ms: 1.320125
+  type: 'test'
+  ...
+# Subtest: FInput.clear arrête les vibrations lancées, même après déconnexion, sans reset répété
+ok 55 - FInput.clear arrête les vibrations lancées, même après déconnexion, sans reset répété
+  ---
+  duration_ms: 0.502625
+  type: 'test'
+  ...
+# Subtest: FInput.clear utilise un effet nul quand reset est absent
+ok 56 - FInput.clear utilise un effet nul quand reset est absent
+  ---
+  duration_ms: 0.473375
+  type: 'test'
+  ...
+# Subtest: FInput.clear annule chaque actionneur utilisé et tolère refus asynchrones ou exceptions
+ok 57 - FInput.clear annule chaque actionneur utilisé et tolère refus asynchrones ou exceptions
+  ---
+  duration_ms: 0.990625
+  type: 'test'
+  ...
+1..57
+# tests 57
+# suites 0
+# pass 57
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 148.513542

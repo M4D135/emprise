@@ -1,0 +1,13 @@
+✔ distributed modules match the canonical source and the package manifest (2.547834ms)
+✔ a fresh non-browser host loads without EMPRISE and compiles deterministic recipes (10.70275ms)
+✔ merged physics exposes geometry, joints and reusable reads in the standalone bundle (19.553917ms)
+✔ the optional synthesized music transport can be loaded after the core (2.244584ms)
+✔ METAL capsule queries preserve EMPRISE oriented static geometry (1.525958ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 5
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 73.392584

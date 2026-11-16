@@ -1,0 +1,167 @@
+{
+  "version": "0.2.0-preview.1",
+  "status": "candidate; not propagated",
+  "primary": "common procedural engine; editor secondary",
+  "core": {
+    "tests": 263,
+    "pass": 262,
+    "fail": 0,
+    "todo": 1,
+    "physics": {
+      "tests": 61,
+      "pass": 60,
+      "todo": 1,
+      "log": "physics.tap"
+    },
+    "donorSuites": [
+      {
+        "name": "donor-audio",
+        "tests": 64,
+        "pass": 64,
+        "fail": 0,
+        "todo": 0,
+        "log": "donor-audio.tap"
+      },
+      {
+        "name": "donor-effects",
+        "tests": 16,
+        "pass": 16,
+        "fail": 0,
+        "todo": 0,
+        "log": "donor-effects.tap"
+      },
+      {
+        "name": "donor-finput",
+        "tests": 57,
+        "pass": 57,
+        "fail": 0,
+        "todo": 0,
+        "log": "donor-finput.tap"
+      },
+      {
+        "name": "donor-imuse",
+        "tests": 18,
+        "pass": 18,
+        "fail": 0,
+        "todo": 0,
+        "log": "donor-imuse.tap"
+      },
+      {
+        "name": "donor-motion",
+        "tests": 14,
+        "pass": 14,
+        "fail": 0,
+        "todo": 0,
+        "log": "donor-motion.tap"
+      },
+      {
+        "name": "donor-music-preparation",
+        "tests": 2,
+        "pass": 2,
+        "fail": 0,
+        "todo": 0,
+        "log": "donor-music-preparation.tap"
+      },
+      {
+        "name": "donor-music",
+        "tests": 26,
+        "pass": 26,
+        "fail": 0,
+        "todo": 0,
+        "log": "donor-music.tap"
+      }
+    ],
+    "standalone": {
+      "tests": 5,
+      "pass": 5,
+      "log": "standalone.tap"
+    }
+  },
+  "pilotScripts": [
+    {
+      "test": "urban-physics-prewarm",
+      "exit": 0,
+      "seconds": 0.49
+    },
+    {
+      "test": "urban-physics-warmup",
+      "exit": 0,
+      "seconds": 0.48
+    },
+    {
+      "test": "urban",
+      "exit": 0,
+      "seconds": 24.88
+    },
+    {
+      "test": "rubble-support",
+      "exit": 0,
+      "seconds": 8.41
+    },
+    {
+      "test": "sailing-physics",
+      "exit": 0,
+      "seconds": 3.56
+    },
+    {
+      "test": "replays",
+      "exit": 0,
+      "seconds": 15.53
+    },
+    {
+      "test": "combat",
+      "exit": 0,
+      "seconds": 0.39
+    },
+    {
+      "test": "mobile-controls",
+      "exit": 0,
+      "seconds": 0.02
+    },
+    {
+      "test": "renderer-pack",
+      "exit": 0,
+      "seconds": 0.06
+    },
+    {
+      "test": "primitive-indexing",
+      "exit": 0,
+      "seconds": 0.03
+    },
+    {
+      "name": "mobility-models",
+      "exit": 0,
+      "seconds": 0.21
+    },
+    {
+      "name": "crowd-webgpu",
+      "exit": 0,
+      "seconds": 0.2
+    },
+    {
+      "name": "save-recovery",
+      "exit": 0,
+      "seconds": 0.31
+    }
+  ],
+  "physicsCompatibility": {
+    "bodyReadSteps": 360,
+    "urbanSteps": 900
+  },
+  "browser": {
+    "neutral": "neutral-browser.json",
+    "finalPilotRecovery": "ferro-unified-final-recovery.json",
+    "scenarioBeforeFinalManifestOrder": "sandbox-browser.json"
+  },
+  "harnessAdjustments": [
+    "globalThis exports instead of an isolated window object",
+    "actual Uint32Array index width instead of hard-coded 16-bit indices"
+  ],
+  "delivery": {
+    "editorPublic": "0.1 unchanged",
+    "gamesPublic": "unchanged",
+    "pilot": "isolated EMPRISE"
+  },
+  "runtimeSha256": "752ed2ad0a4aa5aef4c6b3abd0361501118234af2b557e780b62ab8e22e5c823",
+  "pilotHtmlSha256": "5416b74d75290b9b5e9358d67c59da0769495bf96efd0f99d494201a8efeacb2"
+}

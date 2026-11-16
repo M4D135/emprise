@@ -1,0 +1,97 @@
+[
+  {
+    "label": "Tir et conduite · clavier / souris réels",
+    "source": "tests/inputs.py / événements Chromium clavier et souris",
+    "ticks": 1651,
+    "duration": 13.758333333333333,
+    "recordingSha256": "0287a6909df63cc69fb15d027ac0c9ff24c76be1049da59f359a4989560ad1ee",
+    "expected": {
+      "shots": 10,
+      "mode": "foot",
+      "player": [
+        75.88432423852335,
+        122.196871459515
+      ],
+      "car": [
+        77.32815376806953,
+        122.02101202812034
+      ],
+      "cash": 200
+    },
+    "validated": true
+  },
+  {
+    "label": "Commerce contesté · session de test validée",
+    "source": "tests/sandbox-browser.py / tests/sandbox-scenario.js",
+    "ticks": 1961,
+    "duration": 16.341666666666665,
+    "recordingSha256": "921c75f6858450a11dd4e501719968d3e2f18af20236576ec316c0cb27a50f62",
+    "expected": {
+      "shots": 8,
+      "mode": "foot",
+      "player": [
+        60.5771302176176,
+        107.18693402018762
+      ],
+      "car": [
+        78.3,
+        130
+      ],
+      "cash": 243.76874999999657,
+      "owner": 0,
+      "mapOwned": true
+    },
+    "validated": true
+  },
+  {
+    "label": "Véhicule sous le feu · test de destruction",
+    "source": "tests/explosion-browser.py (fixture préparée, puis tirs simulés réels)",
+    "ticks": 4120,
+    "duration": 34.333333333333336,
+    "recordingSha256": "e0348ce6b2c59328777babea9299ee8fb4d106b8e4fb5417c05abaa1dce3f6e9",
+    "expected": {
+      "shots": 73,
+      "mode": "foot",
+      "player": [
+        61.5,
+        189
+      ],
+      "car": [
+        61.5,
+        181
+      ],
+      "cash": 200,
+      "exploded": true,
+      "explosions": 1
+    },
+    "validated": true
+  },
+  {
+    "label": "Patrouille à pied · interpellation de nuit",
+    "source": "tests/police-demo.py / heure23h préparée, clic réel depuis le départ normal, poursuite et arrestation par la simulation",
+    "ticks": 1889,
+    "duration": 15.741666666666667,
+    "recordingSha256": "ca4cadb9601162d274c3ab112a0c111c42d5d25768b7cee202c331e03c0a2362",
+    "expected": {
+      "shots": 1,
+      "mode": "foot",
+      "player": [
+        1000,
+        1008
+      ],
+      "car": [
+        78.3,
+        130
+      ],
+      "cash": 120,
+      "arrested": true,
+      "policeStation": true,
+      "ammo": [
+        179,
+        36,
+        12
+      ]
+    },
+    "validated": true
+  }
+]

@@ -7,7 +7,7 @@
   const orient=d=>[Math.acos(clamp(d[1],-1,1)),Math.atan2(d[0],d[2]),0];
   const debrisShapes=['box','bevel','cylinder','sphere','octa','ring','foliage'];
   function rotate(p,r){let [x,y,z]=p;const c=r.map(Math.cos),s=r.map(Math.sin);[y,z]=[c[0]*y-s[0]*z,s[0]*y+c[0]*z];[x,z]=[c[1]*x+s[1]*z,-s[1]*x+c[1]*z];return [c[2]*x-s[2]*y,s[2]*x+c[2]*y,z];}
-  const mesh=(shape,p,s,mat=7,color,r=[0,0,0],part='')=>({shape,p,s,r,mat,...(color?{color}:{}),surface:'object',effectPart:part});
+  const mesh=(shape,p,s,mat=7,color,r=[0,0,0],part='')=>{const m=G.FRender.mesh(shape,p,s,mat,r,0);m.color=color;m.surface='object';m.effectPart=part;return m;};
   function build(state,world,camera,options={}){
     if(!state)return [];
     if(typeof options==='string')options={quality:options};
@@ -30,7 +30,7 @@
       const p=[a.x,a.y+.026,a.z],warning=!!a.warning,color=warning?[1,.58,.08]:[1,.17,.035];
       const band=(radius,inner,part)=>{if(!(radius>.005)||radius<=inner)return;const m=puff(p,[radius*2,.022,radius*2],color,warning?.76:.68,warning?1.3:1.8,part,'ring',[0,0,0],true);if(m)m.innerRatio=clamp(inner/radius,0,.998);};
       if(a.kind==='ring'){
-        const r=warning?num(a.radius):num(a.currentRadius),inner=warning?Math.max(0,r-.2):Math.max(0,num(a.innerRadius));band(r,inner,'boss-ring');
+        const r=warning?num(a.radius):num(a.currentRadius),inner=warning?Math.max(0,r-.2):Math.max(0,num(a.innerRadius));if(!a.gaps)band(r,inner,'boss-ring');else{const thick=Math.max(.12,r-inner),mid=(r+inner)/2;for(let i=0;i<48;i++){const angle=i*Math.PI/24;if(Math.abs(Math.sin(angle-(a.angle+a.age*.25)))<Math.sin(.26+Math.PI/48))continue;const d=[Math.sin(angle),0,-Math.cos(angle)],q=add(p,d,mid);puff(q,[Math.max(.01,mid*Math.PI/24),.025,thick],color,warning?.76:.68,1.5,'boss-ring-segment','box',[0,Math.atan2(d[0],d[2]),0],true);}}
       }else if(a.kind==='sweep'){
         const d=unit([num(a.dx),0,num(a.dz,1)]),length=Math.max(0,num(a.length)),width=Math.max(.01,num(a.width)),yaw=Math.atan2(d[0],d[2]),center=add(p,d,length*.5);
         puff(center,[width*2,.022,Math.max(.01,length)],color,warning?.16:.28,1.0,'boss-sweep','box',[0,yaw,0],true);
@@ -38,7 +38,10 @@
         for(const sign of [-1,1]){const side=[center[0]+d[2]*width*sign,center[1]+.002,center[2]-d[0]*width*sign];puff(side,[.045,.025,Math.max(.01,length)],color,.74,1.5,'boss-sweep-edge','box',[0,yaw,0],true);}
       }else if(a.kind==='slam'||a.kind==='rocketZone'){
         const radius=Math.max(0,num(a.radius));if(radius<=0)continue;
+        if(a.burn&&a.active&&a.age-a.tell>(a.kind==='rocketZone'?.35:.22)){puff(p,[radius*2,.06,radius*2],[1,.28,.025],.3,1.8,'boss-burning-floor','cylinder',[0,0,0],true);for(let i=0;i<5;i++){const angle=i*1.2566+num(a.id),r=radius*.6;puff([p[0]+Math.sin(angle)*r,p[1]+.25+Math.sin(time*9+i)*.1,p[2]+Math.cos(angle)*r],[.25,.6,.25],[1,.45,.06],.5,2,'boss-burning-flame','octa',[0,0,0],true);}continue;}
         puff(p,[radius*2,.018,radius*2],color,warning?.09:.22,1.1,'boss-zone','cylinder',[0,0,0],true);band(radius,Math.max(0,radius-.14),'boss-zone-edge');
+        if(warning){const remaining=clamp(1-num(a.age)/Math.max(.001,num(a.tell)),0,1);band(radius*remaining,Math.max(0,radius*remaining-.09),'boss-countdown');puff([p[0],p[1]+4,p[2]],[.4,8,.4],color,.35,1,'boss-column',a.kind==='slam'?'box':'cylinder',[0,0,0],true);}
+        else puff([p[0],p[1]+.25,p[2]],[radius*2,.45,radius*2],color,.35*clamp(1-(num(a.age)-num(a.tell))/.35,0,1),1.6,'boss-zone-flash','cylinder',[0,0,0],true);
       }
     }
 
@@ -170,31 +173,43 @@
     // particle. Simulation alone owns its pose, settlement and retirement.
     // Filter before budgeting so expired chips cannot hide intact wreckage.
     const wreckage=[],yaw=num(camera?.yaw),pitch=num(camera?.pitch),heading=Number.isFinite(camera?.yaw)||Number.isFinite(camera?.pitch)?[Math.sin(yaw)*Math.cos(pitch),Math.sin(pitch),-Math.cos(yaw)*Math.cos(pitch)]:null;
+    const reach=software?42:105,bandSize=software?12:24;
     for(const q of state.debris||[]){
-      if(![q.x,q.y,q.z].every(Number.isFinite))continue;
+      if(!(Number.isFinite(q.x)&&Number.isFinite(q.y)&&Number.isFinite(q.z)))continue;
       const structural=q.structural===true,age=Math.max(0,num(q.age)),life=Math.max(.01,num(q.life,1.5));if(!structural&&age>=life)continue;
       const raw=Array.isArray(q.size)?q.size:[num(q.size,.12),num(q.size,.12),num(q.size,.12)];
       if(structural&&(raw.length!==3||raw.some(v=>!Number.isFinite(v)||v<=0)))continue;
-      const s=structural?raw.slice():raw.map(v=>clamp(num(v,.1),.015,3)*clamp((life-age)/(life*.24),0,1));if(!structural&&s.some(v=>v<.005))continue;
-      const p=point(q),radius=Math.hypot(...s)*.5;if(fade(p,radius)<=0)continue;
-      const d=Math.max(0,distance(p)-radius),band=Math.floor(d/(software?12:24)),rear=heading&&p.reduce((n,v,k)=>n+(v-eye[k])*heading[k],0)<-radius?1:0;
-      wreckage.push({q,p,s,raw,structural,age,band,rear,score:d/(1+Math.min(radius,3)*.3),repeat:0});
+      const shrink=structural?1:clamp((life-age)/(life*.24),0,1);
+      const sx=structural?raw[0]:clamp(num(raw[0],.1),.015,3)*shrink,sy=structural?raw[1]:clamp(num(raw[1],.1),.015,3)*shrink,sz=structural?raw[2]:clamp(num(raw[2],.1),.015,3)*shrink;
+      if(!structural&&(sx<.005||sy<.005||sz<.005))continue;
+      const dx=q.x-eye[0],dy=q.y-eye[1],dz=q.z-eye[2],radius=Math.hypot(sx,sy,sz)*.5,d=Math.max(0,Math.hypot(dx,dy,dz)-radius);
+      if(d>=reach)continue;
+      const band=Math.floor(d/bandSize),rear=heading&&dx*heading[0]+dy*heading[1]+dz*heading[2]<-radius?1:0;
+      wreckage.push({q,px:q.x,py:q.y,pz:q.z,sx,sy,sz,raw,structural,age,band,rear,score:d/(1+Math.min(radius,3)*.3),id:num(q.id,num(q.seed))});
     }
-    const order=(a,b)=>Number(b.structural)-Number(a.structural)||a.rear-b.rear||a.band-b.band||a.repeat-b.repeat||a.score-b.score||num(a.q.id,num(a.q.seed))-num(b.q.id,num(b.q.seed));
+    // Un seul tri : structural décroissant, puis rear, band, score, id. La partition stable
+    // par groupe (rear, band) remplace le second tri et le jeu de clés en chaînes : le premier
+    // morceau de chaque sourceId garde sa place, les répétitions passent après, sans bouger.
+    const order=(a,b)=>Number(b.structural)-Number(a.structural)||a.rear-b.rear||a.band-b.band||a.score-b.score||a.id-b.id;
     wreckage.sort(order);
-    // Within the same nearby band, keep one recognizable piece of each source
-    // before filling the rest with one collapse's fragments. Rearward piles
-    // and tiny cosmetic chips cannot consume the visible structural slots.
-    const represented=new Set();
-    for(const item of wreckage)if(item.structural&&typeof item.q.sourceId==='string'){
-      const key=item.rear+'|'+item.band+'|'+item.q.sourceId;item.repeat=represented.has(key)?1:0;represented.add(key);
+    const kept=[];
+    for(let i=0;i<wreckage.length&&kept.length<debrisBudget;){
+      const head=wreckage[i];let j=i+1;
+      while(j<wreckage.length&&wreckage[j].structural===head.structural&&wreckage[j].rear===head.rear&&wreckage[j].band===head.band)j++;
+      const seen=head.structural?new Set():null,repeats=[];
+      for(let k=i;k<j&&kept.length<debrisBudget;k++){const item=wreckage[k];
+        if(seen&&typeof item.q.sourceId==='string'){if(seen.has(item.q.sourceId)){repeats.push(item);continue;}seen.add(item.q.sourceId);}
+        kept.push(item);}
+      for(let k=0;k<repeats.length&&kept.length<debrisBudget;k++)kept.push(repeats[k]);
+      i=j;
     }
-    wreckage.sort(order);
-    for(const {q,p,s,raw,structural,age} of wreckage.slice(0,debrisBudget)){
+    for(const item of kept){
+      const q=item.q,structural=item.structural;
       const supplied=Array.isArray(q.rotation)&&q.rotation.length===3&&q.rotation.every(Number.isFinite),seed=num(q.seed,1);
-      const r=supplied?q.rotation.slice():structural?[0,0,0]:q.resting?[0,hash(seed,2)*Math.PI*2,0]:[age*(hash(seed,1)*5-2.5),age*(hash(seed,2)*5-2.5),age*(hash(seed,3)*5-2.5)];
-      if(!structural&&q.resting)p[1]-=(clamp(num(raw[1],.1),.015,3)-s[1])*.5;
-      const shape=structural&&debrisShapes.includes(q.shape)?q.shape:'box',color=Array.isArray(q.color)?q.color.slice():undefined,m=solid(shape,p,s,clamp(num(q.mat,3),0,12),color,r,'debris');
+      const r=supplied?q.rotation.slice():structural?[0,0,0]:q.resting?[0,hash(seed,2)*Math.PI*2,0]:[item.age*(hash(seed,1)*5-2.5),item.age*(hash(seed,2)*5-2.5),item.age*(hash(seed,3)*5-2.5)];
+      const p=[item.px,item.py,item.pz];
+      if(!structural&&q.resting)p[1]-=(clamp(num(item.raw[1],.1),.015,3)-item.sy)*.5;
+      const shape=structural&&debrisShapes.includes(q.shape)?q.shape:'box',color=Array.isArray(q.color)?q.color.slice():undefined,m=solid(shape,p,[item.sx,item.sy,item.sz],clamp(num(q.mat,3),0,12),color,r,'debris');
       if(structural){m.structural=true;m.debrisId=q.id;m.sourceId=q.sourceId;m.material=q.material;}
     }
     return out;

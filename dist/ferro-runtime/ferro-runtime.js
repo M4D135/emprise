@@ -1,0 +1,7270 @@
+/* FERRO 0.2.0-preview.1 — procedural engine. */
+/* FERRO — FMath: sin, cos, atan, atan2 and hypot identical on every platform.
+ *
+ * A plain-JavaScript port of fdlibm 5.3 as adapted by V8 (src/base/ieee754.cc):
+ * __ieee754_rem_pio2 with the npio2_hw table, __kernel_rem_pio2 for huge
+ * arguments, __kernel_cos with qx, the 2^-27 atan threshold and "m &= 1" in
+ * atan2 when |y/x| > 2^60. Every operation is one IEEE-754 double operation, so
+ * no fused multiply-add can creep in: the results are those of V8 compiled
+ * without FMA contraction (x86-64), whatever the host. Host Math.sin/cos/atan/
+ * atan2 may differ in the last bit (V8 for arm64 is compiled with contraction).
+ * hypot, hypot2 and hypot3 port V8's MathHypot builtin (src/builtins/math.tq),
+ * which every V8 build computes alike; JavaScriptCore (Safari) does not.
+ *
+ * Standalone engine module: it knows nothing about the game. It reads the words
+ * of a double through one shared typed array (endianness detected at load), and
+ * never allocates per call (hypot with more than three arguments excepted).
+ * Only exact Math helpers are used: abs, floor and the correctly rounded sqrt.
+ *
+ * fdlibm: Copyright (C) 1993 by Sun Microsystems, Inc. All rights reserved.
+ * Developed at SunSoft, a Sun Microsystems, Inc. business. Permission to use,
+ * copy, modify, and distribute this software is freely granted, provided that
+ * this notice is preserved.
+ *
+ * V8 (src/base/ieee754.cc; MathHypot of src/builtins/math.tq for hypot): the
+ * original source code covered by the above license has been modified
+ * significantly by Google Inc.
+ * Copyright 2016 the V8 project authors. All rights reserved.
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ *   * Redistributions of source code must retain the above copyright notice,
+ *     this list of conditions and the following disclaimer.
+ *   * Redistributions in binary form must reproduce the above copyright
+ *     notice, this list of conditions and the following disclaimer in the
+ *     documentation and/or other materials provided with the distribution.
+ *   * Neither the name of Google Inc. nor the names of its contributors may be
+ *     used to endorse or promote products derived from this software without
+ *     specific prior written permission.
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ */
+(function(G){
+  'use strict';
+  const fabs=Math.abs,floor=Math.floor,sqrt=Math.sqrt;
+  const INF=1/0,NAN=0/0; // local constants: no global lookup in the hot paths
+
+  // Word access. HI/LO index the high and low 32-bit words of f64[0].
+  const f64=new Float64Array(1),u32=new Uint32Array(f64.buffer);
+  f64[0]=1;
+  const HI=u32[1]===0x3ff00000?1:0,LO=1-HI;
+  if(u32[HI]!==0x3ff00000||u32[LO]!==0)throw new Error('FMath: unsupported double layout');
+  function high(x){f64[0]=x;return u32[HI]|0;}
+  function low(x){f64[0]=x;return u32[LO];}
+  function words(hi,lo){u32[HI]=hi;u32[LO]=lo;return f64[0];}
+  // x*2^n, exact whenever the result is a normal double (always the case here).
+  function scalbn(x,n){
+    while(n>1023){x*=8.98846567431158e307;n-=1023;}
+    while(n<-1022){x*=2.2250738585072014e-308;n+=1022;}
+    return x*words((n+1023)<<20,0);
+  }
+
+  /* __kernel_sin(x, y, iy): sin on [-pi/4, pi/4]; y is the tail of x, iy=0 if y is 0. */
+  const S1=-1.66666666666666324348e-01, /* 0xBFC55555, 0x55555549 */
+    S2=8.33333333332248946124e-03, /* 0x3F811111, 0x1110F8A6 */
+    S3=-1.98412698298579493134e-04, /* 0xBF2A01A0, 0x19C161D5 */
+    S4=2.75573137070700676789e-06, /* 0x3EC71DE3, 0x57B1FE7D */
+    S5=-2.50507602534068634195e-08, /* 0xBE5AE5E6, 0x8A2B9CEB */
+    S6=1.58969099521155010221e-10; /* 0x3DE5D93A, 0x5ACFD57C */
+  function kernelSin(x,y,iy){
+    const ix=high(x)&0x7fffffff;
+    if(ix<0x3e400000)return x; /* |x| < 2^-27: (int)x == 0 */
+    const z=x*x,v=z*x,r=S2+z*(S3+z*(S4+z*(S5+z*S6)));
+    if(iy===0)return x+v*(S1+z*r);
+    return x-((z*(0.5*y-v*r)-y)-v*S1);
+  }
+
+  /* __kernel_cos(x, y): cos on [-pi/4, pi/4], fdlibm 5.3 version with qx. */
+  const C1=4.16666666666666019037e-02, /* 0x3FA55555, 0x5555554C */
+    C2=-1.38888888888741095749e-03, /* 0xBF56C16C, 0x16C15177 */
+    C3=2.48015872894767294178e-05, /* 0x3EFA01A0, 0x19CB1590 */
+    C4=-2.75573143513906633035e-07, /* 0xBE927E4F, 0x809C52AD */
+    C5=2.08757232129817482790e-09, /* 0x3E21EE9E, 0xBDB4B1C4 */
+    C6=-1.13596475577881948265e-11; /* 0xBDA8FAE9, 0xBE8838D4 */
+  function kernelCos(x,y){
+    const ix=high(x)&0x7fffffff;
+    if(ix<0x3e400000)return 1; /* |x| < 2^-27: (int)x == 0 */
+    const z=x*x,r=z*(C1+z*(C2+z*(C3+z*(C4+z*(C5+z*C6)))));
+    if(ix<0x3fd33333)return 1-(0.5*z-(z*r-x*y)); /* |x| < 0.3 */
+    const qx=ix>0x3fe90000?0.28125:words(ix-0x00200000,0); /* x/4 */
+    const iz=0.5*z-qx,a=1-qx;
+    return a-(iz-(z*r-x*y));
+  }
+
+  /* __kernel_rem_pio2, called with prec = 2 (53-bit result in y[0] + y[1]). */
+  const twoOverPi=new Int32Array([ /* 1584 bits of 2/pi in 24-bit chunks */
+    0xA2F983,0x6E4E44,0x1529FC,0x2757D1,0xF534DD,0xC0DB62,0x95993C,0x439041,0xFE5163,0xABDEBB,0xC561B7,
+    0x246E3A,0x424DD2,0xE00649,0x2EEA09,0xD1921C,0xFE1DEB,0x1CB129,0xA73EE8,0x8235F5,0x2EBB44,0x84E99C,
+    0x7026B4,0x5F7E41,0x3991D6,0x398353,0x39F49C,0x845F8B,0xBDF928,0x3B1FF8,0x97FFDE,0x05980F,0xEF2F11,
+    0x8B5A0A,0x6D1F6D,0x367ECF,0x27CB09,0xB74F46,0x3F669E,0x5FEA2D,0x7527BA,0xC7EBE5,0xF17B3D,0x0739F7,
+    0x8A5292,0xEA6BFB,0x5FB11F,0x8D5D08,0x560330,0x46FC7B,0x6BABF0,0xCFBC20,0x9AF436,0x1DA9E3,0x91615E,
+    0xE61B08,0x659985,0x5F14A0,0x68408D,0xFFD880,0x4D7327,0x310606,0x1556CA,0x73A8C9,0x60E27B,0xC08C6B]);
+  const PIo2=new Float64Array([ /* pi/2 in 24-bit chunks */
+    1.57079625129699707031e+00, /* 0x3FF921FB, 0x40000000 */
+    7.54978941586159635335e-08, /* 0x3E74442D, 0x00000000 */
+    5.39030252995776476554e-15, /* 0x3CF84698, 0x80000000 */
+    3.28200341580791294123e-22, /* 0x3B78CC51, 0x60000000 */
+    1.27065575308067607349e-29, /* 0x39F01B83, 0x80000000 */
+    1.22933308981111328932e-36, /* 0x387A2520, 0x40000000 */
+    2.73370053816464559624e-44, /* 0x36E38222, 0x80000000 */
+    2.16741683877804819444e-51]); /* 0x3569F31D, 0x00000000 */
+  const two24=1.67772160000000000000e+07, /* 0x41700000, 0x00000000 */
+    twon24=5.96046447753906250000e-08; /* 0x3E700000, 0x00000000 */
+  const iq=new Int32Array(20),fk=new Float64Array(20),fq=new Float64Array(20),qk=new Float64Array(20),tx=new Float64Array(3);
+  const yy=new Float64Array(2); // y[0], y[1] of the last reduction
+  function kernelRemPio2(x,e0,nx){
+    const jk=4,jp=jk,jx=nx-1; /* init_jk[2] */
+    let jv=((e0-3)/24)|0;if(jv<0)jv=0;
+    let q0=e0-24*(jv+1),jz,i,j,k,n,ih,z,fw;
+    j=jv-jx;
+    for(i=0;i<=jx+jk;i++,j++)fk[i]=j<0?0:twoOverPi[j];
+    for(i=0;i<=jk;i++){for(j=0,fw=0;j<=jx;j++)fw+=x[j]*fk[jx+i-j];qk[i]=fw;}
+    jz=jk;
+    for(;;){ /* recompute */
+      for(i=0,j=jz,z=qk[jz];j>0;i++,j--){ /* distill q[] into iq[] reversingly */
+        fw=(twon24*z)|0;
+        iq[i]=(z-two24*fw)|0;
+        z=qk[j-1]+fw;
+      }
+      z=scalbn(z,q0); /* actual value of z */
+      z-=8*floor(z*0.125); /* trim off integer >= 8 */
+      n=z|0;
+      z-=n;
+      ih=0;
+      if(q0>0){ /* need iq[jz-1] to determine n */
+        i=iq[jz-1]>>(24-q0);n+=i;iq[jz-1]-=i<<(24-q0);ih=iq[jz-1]>>(23-q0);
+      }else if(q0===0)ih=iq[jz-1]>>23;
+      else if(z>=0.5)ih=2;
+      if(ih>0){ /* q > 0.5 */
+        n+=1;let carry=0;
+        for(i=0;i<jz;i++){ /* compute 1-q */
+          j=iq[i];
+          if(carry===0){if(j!==0){carry=1;iq[i]=0x1000000-j;}}
+          else iq[i]=0xffffff-j;
+        }
+        if(q0===1)iq[jz-1]&=0x7fffff;else if(q0===2)iq[jz-1]&=0x3fffff; /* rare case: q0 > 0 */
+        if(ih===2){z=1-z;if(carry!==0)z-=scalbn(1,q0);}
+      }
+      if(z===0){ /* check if recomputation is needed */
+        for(j=0,i=jz-1;i>=jk;i--)j|=iq[i];
+        if(j===0){
+          for(k=1;jk>=k&&iq[jk-k]===0;k++); /* k = no. of terms needed */
+          for(i=jz+1;i<=jz+k;i++){ /* add q[jz+1] to q[jz+k] */
+            fk[jx+i]=twoOverPi[jv+i];
+            for(j=0,fw=0;j<=jx;j++)fw+=x[j]*fk[jx+i-j];
+            qk[i]=fw;
+          }
+          jz+=k;
+          continue;
+        }
+      }
+      break;
+    }
+    if(z===0){ /* chop off zero terms */
+      jz-=1;q0-=24;
+      while(iq[jz]===0){jz--;q0-=24;}
+    }else{ /* break z into 24-bit if necessary */
+      z=scalbn(z,-q0);
+      if(z>=two24){
+        fw=(twon24*z)|0;
+        iq[jz]=(z-two24*fw)|0;
+        jz+=1;q0+=24;iq[jz]=fw;
+      }else iq[jz]=z|0;
+    }
+    fw=scalbn(1,q0); /* convert integer "bit" chunk to floating-point value */
+    for(i=jz;i>=0;i--){qk[i]=fw*iq[i];fw*=twon24;}
+    for(i=jz;i>=0;i--){ /* compute PIo2[0,...,jp]*q[jz,...,0] */
+      for(fw=0,k=0;k<=jp&&k<=jz-i;k++)fw+=PIo2[k]*qk[i+k];
+      fq[jz-i]=fw;
+    }
+    fw=0; /* compress fq[] into y[] (prec 1 or 2) */
+    for(i=jz;i>=0;i--)fw+=fq[i];
+    yy[0]=ih===0?fw:-fw;
+    fw=fq[0]-fw;
+    for(i=1;i<=jz;i++)fw+=fq[i];
+    yy[1]=ih===0?fw:-fw;
+    return n&7;
+  }
+
+  /* __ieee754_rem_pio2(x): x - n*pi/2 in yy[0] + yy[1], returns n. */
+  const npio2hw=new Int32Array([
+    0x3FF921FB,0x400921FB,0x4012D97C,0x401921FB,0x401F6A7A,0x4022D97C,0x4025FDBB,0x402921FB,
+    0x402C463A,0x402F6A7A,0x4031475C,0x4032D97C,0x40346B9C,0x4035FDBB,0x40378FDB,0x403921FB,
+    0x403AB41B,0x403C463A,0x403DD85A,0x403F6A7A,0x40407E4C,0x4041475C,0x4042106C,0x4042D97C,
+    0x4043A28C,0x40446B9C,0x404534AC,0x4045FDBB,0x4046C6CB,0x40478FDB,0x404858EB,0x404921FB]);
+  const invpio2=6.36619772367581382433e-01, /* 0x3FE45F30, 0x6DC9C883 */
+    pio2_1=1.57079632673412561417e+00, /* 0x3FF921FB, 0x54400000 */
+    pio2_1t=6.07710050650619224932e-11, /* 0x3DD0B461, 0x1A626331 */
+    pio2_2=6.07710050630396597660e-11, /* 0x3DD0B461, 0x1A600000 */
+    pio2_2t=2.02226624879595063154e-21, /* 0x3BA3198A, 0x2E037073 */
+    pio2_3=2.02226624871116645580e-21, /* 0x3BA3198A, 0x2E000000 */
+    pio2_3t=8.47842766036889956997e-32; /* 0x397B839A, 0x252049C1 */
+  function remPio2(x){
+    const hx=high(x),ix=hx&0x7fffffff;
+    let z,y0,y1;
+    if(ix<=0x3fe921fb){yy[0]=x;yy[1]=0;return 0;} /* |x| ~<= pi/4 */
+    if(ix<0x4002d97c){ /* |x| < 3pi/4, special case with n=+-1 */
+      if(hx>0){
+        z=x-pio2_1;
+        if(ix!==0x3ff921fb){y0=z-pio2_1t;y1=(z-y0)-pio2_1t;} /* 33+53 bit pi is good enough */
+        else{z-=pio2_2;y0=z-pio2_2t;y1=(z-y0)-pio2_2t;} /* near pi/2, use 33+33+53 bit pi */
+        yy[0]=y0;yy[1]=y1;return 1;
+      }
+      z=x+pio2_1;
+      if(ix!==0x3ff921fb){y0=z+pio2_1t;y1=(z-y0)+pio2_1t;}
+      else{z+=pio2_2;y0=z+pio2_2t;y1=(z-y0)+pio2_2t;}
+      yy[0]=y0;yy[1]=y1;return -1;
+    }
+    if(ix<=0x413921fb){ /* |x| ~<= 2^19*(pi/2), medium size */
+      let t=fabs(x);
+      const n=(t*invpio2+0.5)|0,fn=n;
+      let r=t-fn*pio2_1,w=fn*pio2_1t; /* 1st round good to 85 bit */
+      if(n<32&&ix!==npio2hw[n-1])y0=r-w; /* quick check no cancellation */
+      else{
+        const j=ix>>20;
+        y0=r-w;
+        let i=j-((high(y0)>>20)&0x7ff);
+        if(i>16){ /* 2nd iteration needed, good to 118 */
+          t=r;w=fn*pio2_2;r=t-w;w=fn*pio2_2t-((t-r)-w);y0=r-w;
+          i=j-((high(y0)>>20)&0x7ff);
+          if(i>49){ /* 3rd iteration needed, 151 bits acc */
+            t=r;w=fn*pio2_3;r=t-w;w=fn*pio2_3t-((t-r)-w);y0=r-w;
+          }
+        }
+      }
+      y1=(r-y0)-w;
+      if(hx<0){yy[0]=-y0;yy[1]=-y1;return -n;}
+      yy[0]=y0;yy[1]=y1;return n;
+    }
+    if(ix>=0x7ff00000){yy[0]=yy[1]=x-x;return 0;} /* inf or NaN */
+    const e0=(ix>>20)-1046,lo=low(x); /* z = scalbn(|x|, ilogb(x)-23) */
+    z=words(ix-(e0<<20),lo);
+    for(let i=0;i<2;i++){tx[i]=z|0;z=(z-tx[i])*two24;}
+    tx[2]=z;
+    let nx=3;
+    while(tx[nx-1]===0)nx--; /* skip zero term */
+    const n=kernelRemPio2(tx,e0,nx);
+    if(hx<0){yy[0]=-yy[0];yy[1]=-yy[1];return -n;}
+    return n;
+  }
+
+  function sin(x){
+    x=+x;
+    const ix=high(x)&0x7fffffff;
+    if(ix<=0x3fe921fb)return kernelSin(x,0,0); /* |x| ~< pi/4 */
+    if(ix>=0x7ff00000)return x-x; /* sin(Inf or NaN) is NaN */
+    const n=remPio2(x);
+    switch(n&3){
+      case 0:return kernelSin(yy[0],yy[1],1);
+      case 1:return kernelCos(yy[0],yy[1]);
+      case 2:return -kernelSin(yy[0],yy[1],1);
+      default:return -kernelCos(yy[0],yy[1]);
+    }
+  }
+
+  function cos(x){
+    x=+x;
+    const ix=high(x)&0x7fffffff;
+    if(ix<=0x3fe921fb)return kernelCos(x,0); /* |x| ~< pi/4 */
+    if(ix>=0x7ff00000)return x-x; /* cos(Inf or NaN) is NaN */
+    const n=remPio2(x);
+    switch(n&3){
+      case 0:return kernelCos(yy[0],yy[1]);
+      case 1:return -kernelSin(yy[0],yy[1],1);
+      case 2:return -kernelCos(yy[0],yy[1]);
+      default:return kernelSin(yy[0],yy[1],1);
+    }
+  }
+
+  const atanhi=new Float64Array([
+    4.63647609000806093515e-01, /* atan(0.5)hi 0x3FDDAC67, 0x0561BB4F */
+    7.85398163397448278999e-01, /* atan(1.0)hi 0x3FE921FB, 0x54442D18 */
+    9.82793723247329054082e-01, /* atan(1.5)hi 0x3FEF730B, 0xD281F69B */
+    1.57079632679489655800e+00]); /* atan(inf)hi 0x3FF921FB, 0x54442D18 */
+  const atanlo=new Float64Array([
+    2.26987774529616870924e-17, /* atan(0.5)lo 0x3C7A2B7F, 0x222F65E2 */
+    3.06161699786838301793e-17, /* atan(1.0)lo 0x3C81A626, 0x33145C07 */
+    1.39033110312309984516e-17, /* atan(1.5)lo 0x3C700788, 0x7AF0CBBD */
+    6.12323399573676603587e-17]); /* atan(inf)lo 0x3C91A626, 0x33145C07 */
+  const aT0=3.33333333333329318027e-01, /* 0x3FD55555, 0x5555550D */
+    aT1=-1.99999999998764832476e-01, /* 0xBFC99999, 0x9998EBC4 */
+    aT2=1.42857142725034663711e-01, /* 0x3FC24924, 0x920083FF */
+    aT3=-1.11111104054623557880e-01, /* 0xBFBC71C6, 0xFE231671 */
+    aT4=9.09088713343650656196e-02, /* 0x3FB745CD, 0xC54C206E */
+    aT5=-7.69187620504482999495e-02, /* 0xBFB3B0F2, 0xAF749A6D */
+    aT6=6.66107313738753120669e-02, /* 0x3FB10D66, 0xA0D03D51 */
+    aT7=-5.83357013379057348645e-02, /* 0xBFADDE2D, 0x52DEFD9A */
+    aT8=4.97687799461593236017e-02, /* 0x3FA97B4B, 0x24760DEB */
+    aT9=-3.65315727442169155270e-02, /* 0xBFA2B444, 0x2C6A6C2F */
+    aT10=1.62858201153657823623e-02; /* 0x3F90AD3A, 0xE322DA11 */
+  function atan(x){
+    x=+x;
+    const hx=high(x),ix=hx&0x7fffffff;
+    let id;
+    if(ix>=0x44100000){ /* |x| >= 2^66 */
+      if(ix>0x7ff00000||(ix===0x7ff00000&&low(x)!==0))return x+x; /* NaN */
+      return hx>0?atanhi[3]+atanlo[3]:-atanhi[3]-atanlo[3];
+    }
+    if(ix<0x3fdc0000){ /* |x| < 0.4375 */
+      if(ix<0x3e400000)return x; /* |x| < 2^-27 */
+      id=-1;
+    }else{
+      x=fabs(x);
+      if(ix<0x3ff30000){ /* |x| < 1.1875 */
+        if(ix<0x3fe60000){id=0;x=(2*x-1)/(2+x);} /* 7/16 <= |x| < 11/16 */
+        else{id=1;x=(x-1)/(x+1);} /* 11/16 <= |x| < 19/16 */
+      }else if(ix<0x40038000){id=2;x=(x-1.5)/(1+1.5*x);} /* |x| < 2.4375 */
+      else{id=3;x=-1/x;} /* 2.4375 <= |x| < 2^66 */
+    }
+    const z=x*x,w=z*z; /* odd and even halves of the polynomial */
+    const s1=z*(aT0+w*(aT2+w*(aT4+w*(aT6+w*(aT8+w*aT10)))));
+    const s2=w*(aT1+w*(aT3+w*(aT5+w*(aT7+w*aT9))));
+    if(id<0)return x-x*(s1+s2);
+    const r=atanhi[id]-((x*(s1+s2)-atanlo[id])-x);
+    return hx<0?-r:r;
+  }
+
+  const tiny=1.0e-300,
+    pi_o_4=7.8539816339744827900e-01, /* 0x3FE921FB, 0x54442D18 */
+    pi_o_2=1.5707963267948965580e+00, /* 0x3FF921FB, 0x54442D18 */
+    pi=3.1415926535897931160e+00, /* 0x400921FB, 0x54442D18 */
+    pi_lo=1.2246467991473531772e-16; /* 0x3CA1A626, 0x33145C07 */
+  function atan2(y,x){
+    y=+y;x=+x;
+    if(x!==x||y!==y)return x+y; /* x or y is NaN */
+    const hx=high(x),lx=low(x),hy=high(y),ly=low(y),ix=hx&0x7fffffff,iy=hy&0x7fffffff;
+    if(((hx-0x3ff00000)|lx)===0)return atan(y); /* x = 1.0 */
+    let m=((hy>>31)&1)|((hx>>30)&2); /* 2*sign(x)+sign(y) */
+    if((iy|ly)===0){ /* y = 0 */
+      switch(m){
+        case 0:case 1:return y; /* atan(+-0,+anything)=+-0 */
+        case 2:return pi+tiny; /* atan(+0,-anything) = pi */
+        default:return -pi-tiny; /* atan(-0,-anything) =-pi */
+      }
+    }
+    if((ix|lx)===0)return hy<0?-pi_o_2-tiny:pi_o_2+tiny; /* x = 0 */
+    if(ix===0x7ff00000){ /* x is INF */
+      if(iy===0x7ff00000){
+        switch(m){
+          case 0:return pi_o_4+tiny;
+          case 1:return -pi_o_4-tiny;
+          case 2:return 3*pi_o_4+tiny;
+          default:return -3*pi_o_4-tiny;
+        }
+      }
+      switch(m){
+        case 0:return 0;
+        case 1:return -0;
+        case 2:return pi+tiny;
+        default:return -pi-tiny;
+      }
+    }
+    if(iy===0x7ff00000)return hy<0?-pi_o_2-tiny:pi_o_2+tiny; /* y is INF */
+    const k=(iy-ix)>>20; /* compute y/x */
+    let z;
+    if(k>60){z=pi_o_2+0.5*pi_lo;m&=1;} /* |y/x| > 2^60 */
+    else if(hx<0&&k< -60)z=0; /* 0 > |y|/x > -2^-60 */
+    else z=atan(fabs(y/x)); /* safe to do y/x */
+    switch(m){
+      case 0:return z; /* atan(+,+) */
+      case 1:return -z; /* atan(-,+) */
+      case 2:return pi-(z-pi_lo); /* atan(+,-) */
+      default:return (z-pi_lo)-pi; /* atan(-,-) */
+    }
+  }
+
+  /* hypot as V8's MathHypot builtin computes it on every platform: ToNumber in
+   * argument order; Infinity if one argument is infinite, even beside a NaN;
+   * then NaN; 0 if every argument is zero; otherwise, with max the largest
+   * magnitude, a Kahan-compensated sum of (|arg|/max)^2 in argument order, and
+   * sqrt(sum)*max. NaN results are only guaranteed to be NaN (any payload). */
+  /* hypot2(x, y) == Math.hypot(x, y) of V8, exactly two arguments, no allocation.
+   * The first Kahan step is exact and the largest term is exactly 1, so the sum
+   * is 1+r*r with r = min/max. A NaN in x lands in max, a NaN in y in min. */
+  function hypot2(x,y){
+    x=fabs(x);y=fabs(y);
+    const max=y>x?y:x,min=y>x?x:y;
+    if(max===INF||min===INF)return INF;
+    if(max===0)return min; /* +0, or NaN */
+    const r=min/max; /* NaN when an argument is NaN */
+    return sqrt(1+r*r)*max;
+  }
+  /* hypot3(x, y, z) == Math.hypot(x, y, z) of V8, exactly three arguments, no
+   * allocation. The compensation of the second step corrects the third. A NaN
+   * in x stays in max; any other NaN reaches the sum. */
+  function hypot3(x,y,z){
+    x=fabs(x);y=fabs(y);z=fabs(z);
+    if(x===INF||y===INF||z===INF)return INF;
+    let max=x;
+    if(y>max)max=y;
+    if(z>max)max=z;
+    if(max===0)return x+y+z; /* +0, or NaN */
+    const a=x/max,b=y/max,c=z/max,a2=a*a,b2=b*b,s=a2+b2;
+    return sqrt(s+(c*c-((s-a2)-b2)))*max;
+  }
+  /* hypot(...values) == Math.hypot(...values) of V8, any number of arguments.
+   * Two and three go to hypot2 and hypot3; more allocate one Float64Array. */
+  function hypot(){
+    const n=arguments.length;
+    if(n===2)return hypot2(arguments[0],arguments[1]);
+    if(n===3)return hypot3(arguments[0],arguments[1],arguments[2]);
+    if(n<2)return n===0?0:fabs(arguments[0]); /* sqrt(1)*|x| */
+    const v=new Float64Array(n);
+    let max=0,nan=false;
+    for(let i=0;i<n;i++){const a=fabs(arguments[i]);if(a!==a)nan=true;else{v[i]=a;if(a>max)max=a;}}
+    if(max===INF)return INF;
+    if(nan)return NAN;
+    if(max===0)return 0;
+    let sum=0,compensation=0;
+    for(let i=0;i<n;i++){
+      const q=v[i]/max,summand=q*q-compensation,preliminary=sum+summand;
+      compensation=(preliminary-sum)-summand;sum=preliminary;
+    }
+    return sqrt(sum)*max;
+  }
+
+  G.FMath=Object.freeze({sin,cos,atan,atan2,hypot,hypot2,hypot3});
+})(typeof window!=='undefined'?window:globalThis);
+
+/* RADE FERRO 0.1 — base PDR, formes libres BITUME; voir docs/INTEGRATION.md. */
+/* FERRO — original WebGL2 renderer. All surfaces and meshes are mathematical. */
+/* PDR (origine) : copie de FERRO 0.2 pour Point de rupture (github.com/M4D135/FERRO, étiquette v0.2, commit 248043a).
+   Chaque retouche du jeu commence par « PDR » et son nom entre parenthèses ; Jeu/src/moteur/PROVENANCE.md la décrit sous
+   ce nom. Tout le reste est le fichier de FERRO, y compris ses lignes « PDR : » ou « BITUME : », reprises des jeux. */
+(function () {
+  'use strict';
+  // BITUME : champ de vision admis de 10 à 110° (FERRO : 40 à 110°), pour la caméra de télévision au téléobjectif.
+  const FOV_MIN = 10;
+
+  // Same wave field as RADE.marine.seaHeight. Only the local navigation grid
+  // is displaced; a 16 m edge band meets the distant flat sea without a seam.
+  const SEA_GLSL = `
+  uniform vec4 uSeaOrigin;
+  uniform vec4 uSeaMotion;
+  vec3 seaField(vec2 p) {
+    float co=cos(uSeaMotion.y),si=sin(uSeaMotion.y),u=p.x*co+p.y*si,v=-p.x*si+p.y*co,t=uSeaMotion.x;
+    float a=.24*u-1.10*t,b=.41*u+.17*v-1.55*t+1.7,c=.63*v-.83*t+.4;
+    float amplitude=.035+.10*clamp(uSeaOrigin.w,0.,2.);
+    float h=amplitude*(.60*sin(a)+.27*sin(b)+.13*sin(c));
+    float du=amplitude*(.60*.24*cos(a)+.27*.41*cos(b));
+    float dv=amplitude*(.27*.17*cos(b)+.13*.63*cos(c));
+    vec2 grad=vec2(du*co-dv*si,du*si+dv*co),q=p-uSeaOrigin.xy;
+    float edge=max(abs(q.x),abs(q.y)),r=uSeaOrigin.z;
+    float f=clamp((r-edge)/16.,0.,1.),fade=f*f*(3.-2.*f);
+    float slope=f>0.&&f<1.?-6.*f*(1.-f)/16.:0.;
+    vec2 de=abs(q.x)>abs(q.y)?vec2(sign(q.x),0.):vec2(0.,sign(q.y));
+    return vec3(h*fade,grad*fade+h*slope*de);
+  }
+  `;
+
+  const VERT = `#version 300 es
+  precision highp float;
+  layout(location=0) in vec3 aPosition;
+  layout(location=1) in vec3 aNormal;
+  layout(location=2) in vec4 iPosition;
+  layout(location=3) in vec4 iScale;
+  layout(location=4) in vec4 iRotation;
+  layout(location=5) in vec4 iColor;
+  uniform mat4 uViewProjection;
+  uniform vec2 uWindTime;
+  ${SEA_GLSL}
+  out vec3 vWorld;
+  out vec3 vNormal;
+  out vec3 vSurface;
+  out vec3 vLocal;
+  out vec3 vFaceNormal;flat out vec3 vDimensions;
+  out vec3 vSurfaceNormal;
+  flat out vec3 vAnchor;
+  flat out float vMaterial;
+  flat out float vEmission;
+  flat out float vOverlay;
+  flat out float vOutdoor;
+  flat out float vObject;
+  flat out vec4 vColor;
+  void main() {
+    vec3 c=cos(iRotation.xyz), s=sin(iRotation.xyz);
+    mat3 rx=mat3(1.,0.,0., 0.,c.x,s.x, 0.,-s.x,c.x);
+    mat3 ry=mat3(c.y,0.,-s.y, 0.,1.,0., s.y,0.,c.y);
+    mat3 rz=mat3(c.z,s.z,0., -s.z,c.z,0., 0.,0.,1.);
+    mat3 rotation=rz*ry*rx;
+    vWorld=rotation*(aPosition*iScale.xyz)+iPosition.xyz;
+    if(iPosition.w>10.5&&iPosition.w<11.5){
+      float phase=uWindTime.y*.85+iPosition.x*.37+iPosition.z*.21;
+      float bend=(aPosition.y+.5)*uWindTime.x*.055;
+      vWorld.x+=sin(phase)*bend;vWorld.z+=cos(phase*.73)*bend*.6;
+    }
+    vNormal=normalize(rotation*(aNormal/max(abs(iScale.xyz),vec3(.0001))));
+    if(iPosition.w>11.5&&iPosition.w<12.5&&iPosition.y<0.) {
+      if(iPosition.w>12.1&&uSeaMotion.w>.5){vec3 w=seaField(vWorld.xz);vWorld.y=uSeaMotion.z+w.x;vNormal=normalize(vec3(-w.y,1.,-w.z));}
+      else vWorld.y=-1.25+(aPosition.y-.5)*abs(iScale.y);
+    }
+    vAnchor=iPosition.xyz;vMaterial=iPosition.w;
+    vEmission=iScale.w;
+    vOverlay=mod(iRotation.w,2.);
+    vOutdoor=mod(floor(iRotation.w*.5),2.);
+    vObject=floor(iRotation.w*.25);
+    vSurface=vObject>.5?aPosition*iScale.xyz:vWorld;
+    vLocal=aPosition;vFaceNormal=aNormal;vDimensions=abs(iScale.xyz);
+    vSurfaceNormal=vObject>.5?normalize(aNormal/max(abs(iScale.xyz),vec3(.0001))):vNormal;
+    vColor=iColor;
+    gl_Position=uViewProjection*vec4(vWorld,1.);
+  }`;
+
+  const FRAG = `#version 300 es
+  precision highp float;
+  in vec3 vWorld;
+  in vec3 vNormal;
+  in vec3 vSurface;
+  in vec3 vLocal;
+  in vec3 vFaceNormal;flat in vec3 vDimensions;
+  in vec3 vSurfaceNormal;
+  flat in vec3 vAnchor;
+  flat in float vMaterial;
+  flat in float vEmission;
+  flat in float vOverlay;
+  flat in float vOutdoor;
+  flat in float vObject;
+  flat in vec4 vColor;
+  uniform vec3 uEye;
+  uniform vec4 uWeather;uniform vec2 uCloudOffset;
+  uniform highp sampler2DArray uPbrAlbedo;uniform highp sampler2DArray uPbrNormal;uniform highp sampler2DArray uPbrRough;uniform float uPbrReady;
+  uniform vec3 uLightDirection[12];
+  uniform vec2 uLightCone[12];
+  uniform vec3 uForward;
+  uniform vec3 uLightPosition[12];
+  uniform vec3 uLightColor[12];
+  uniform float uLightRange[12];
+  uniform int uLightCount;
+  uniform vec2 uResolution;
+  uniform vec4 uEffects;
+  uniform vec2 uWindTime;
+  ${SEA_GLSL}
+  // Explicit sampler precision keeps 24-bit depth from being quantized into bands.
+  uniform highp sampler2D uShadowMap;
+  uniform mat4 uShadowMatrix[3];
+  uniform vec4 uShadowSettings;
+  uniform vec3 uTorchPosition;
+  uniform vec3 uSunDirection;
+  uniform vec3 uSunColor;
+  uniform vec3 uAmbient;
+  uniform vec3 uFogColor;
+  uniform vec3 uSkyTop;
+  uniform vec3 uSkyBottom;
+  uniform vec2 uEnvironment;uniform vec2 uNightHour;
+  // PDR (voile) : voile du brouillard de guerre (fx.voile) : visibilité R8, zone (x0, z0, 1/largeur, 1/profondeur) en mètres, force 0..1.
+  uniform sampler2D uVoile;
+  uniform vec4 uVoileZone;
+  uniform float uVoileForce;
+  out vec4 fragColor;
+  float hash(vec2 p) {
+    vec3 p3=fract(vec3(p.xyx)*.1031);
+    p3+=dot(p3,p3.yzx+33.33);
+    return fract((p3.x+p3.y)*p3.z);
+  }
+  float noise(vec2 p) {
+    vec2 a=floor(p), b=fract(p); b=b*b*(3.-2.*b);
+    return mix(mix(hash(a),hash(a+vec2(1,0)),b.x),
+      mix(hash(a+vec2(0,1)),hash(a+vec2(1,1)),b.x),b.y);
+  }
+  float grid(vec2 uv,float width) {
+    vec2 distanceToEdge=min(fract(uv),1.-fract(uv));
+    vec2 aa=max(fwidth(uv),vec2(.0001));
+    vec2 line=1.-smoothstep(vec2(width),vec2(width)+aa,distanceToEdge);
+    return max(line.x,line.y);
+  }
+  vec3 reliefNormal(vec3 n,float height) {
+    vec3 dpdx=dFdx(vWorld), dpdy=dFdy(vWorld);
+    vec3 r1=cross(dpdy,n),r2=cross(n,dpdx);
+    float determinant=dot(dpdx,r1);
+    vec3 gradient=sign(determinant)*(dFdx(height)*r1+dFdy(height)*r2);
+    float scale=max(abs(determinant),.000001);
+    gradient*=min(1.,scale*.35/max(length(gradient),.000001));
+    return normalize(scale*n-gradient);
+  }
+  vec3 fresnelSchlick(float cosine,vec3 f0){
+    float q=1.-clamp(cosine,0.,1.),q2=q*q;
+    return f0+(1.-f0)*q2*q2*q;
+  }
+  vec3 metalHighlight(vec3 n,vec3 view,vec3 l,float roughness,vec3 f0){
+    vec3 h=normalize(view+l);
+    float nv=max(dot(n,view),.001),nl=max(dot(n,l),0.),nh=max(dot(n,h),0.);
+    float a=max(.055,roughness*roughness),a2=a*a,d=nh*nh*(a2-1.)+1.;
+    float distribution=a2/max(3.141593*d*d,.00001);
+    float k=(roughness+1.)*(roughness+1.)*.125;
+    float visibility=1./max(4.*(nv*(1.-k)+k)*(nl*(1.-k)+k),.001);
+    return fresnelSchlick(max(dot(view,h),0.),f0)*min(distribution*visibility,12.)*nl;
+  }
+  float depthSample(vec2 uv,vec2 offset,float depth,vec2 slope) {
+    float texel=uShadowSettings.y;
+    vec2 tap=uv+offset*texel;
+    // The nearest depth texel represents a different point on a sloping surface.
+    // Compare against that point on the receiver plane, not the centre depth.
+    vec2 centre=(floor(tap/texel)+.5)*texel;
+    return step(depth+dot(slope,centre-uv),texture(uShadowMap,tap).r);
+  }
+  float shadow(vec3 n,vec3 l,int slot) {
+    if(vOverlay>.5||(slot==0&&uShadowSettings.x<.5)||(slot==1&&uShadowSettings.x<1.5&&uShadowSettings.w<.5)||(slot==2&&uShadowSettings.z<.5))return 1.;
+    vec4 projected=uShadowMatrix[slot]*vec4(vWorld+n*.014,1.);
+    vec3 p=projected.xyz/projected.w*.5+.5;
+    vec3 dx=dFdx(p),dy=dFdy(p);
+    float determinant=dx.x*dy.y-dx.y*dy.x;
+    vec2 slope=abs(determinant)>.00000000001?vec2(dx.z*dy.y-dy.z*dx.y,dy.z*dx.x-dx.z*dy.x)/determinant:vec2(0.);
+    // Derivatives above use projection UVs; PCF offsets use atlas UVs. A half-size
+    // tile needs twice the slope, while the full-atlas sun must keep it unchanged.
+    slope*=slot==1&&uShadowSettings.w>1.5?1.:2.;
+    if(projected.w<=0.||p.z<=0.||p.z>=1.||min(p.x,p.y)<=.001||max(p.x,p.y)>=.999)return 1.;
+    float bias=slot==1&&uShadowSettings.w>.5?.00014+.00024*(1.-max(dot(n,l),0.)):.00005+.00014*(1.-max(dot(n,l),0.));
+    vec2 tile=slot==1?vec2(.5,0.):slot==2?vec2(0.,.5):vec2(0.);
+    // PDR : en vue RTS, le soleil occupe tout l'atlas (réglage w = 2).
+    vec2 uv=slot==1&&uShadowSettings.w>1.5?p.xy:p.xy*.5+tile;
+    float visibility=0.;
+    if(slot==1&&uShadowSettings.w>.5){
+      // Quadratic B-spline PCF: nine comparisons, continuous sub-texel weights.
+      // Nearest PCF taps used to jump together when the light/camera moved.
+      // Compare at each sampled centre before filtering, retaining the receiver
+      // plane correction so oblique facades do not acquire self-shadow bands.
+      float texel=uShadowSettings.y;
+      vec2 cell=uv/texel,f=fract(cell)-.5,centre=(floor(cell)+.5)*texel;
+      vec3 wx=vec3(.5*(.5-f.x)*(.5-f.x),.75-f.x*f.x,.5*(.5+f.x)*(.5+f.x));
+      vec3 wy=vec3(.5*(.5-f.y)*(.5-f.y),.75-f.y*f.y,.5*(.5+f.y)*(.5+f.y));
+      for(int y=0;y<3;y++)for(int x=0;x<3;x++){
+        vec2 tap=centre+vec2(float(x-1),float(y-1))*texel;
+        visibility+=wx[x]*wy[y]*step(p.z-bias+dot(slope,tap-uv),texture(uShadowMap,tap).r);
+      }
+    }else{
+      visibility+=depthSample(uv,vec2(-.65,-.65),p.z-bias,slope);
+      visibility+=depthSample(uv,vec2(.65,-.65),p.z-bias,slope);
+      visibility+=depthSample(uv,vec2(-.65,.65),p.z-bias,slope);
+      visibility+=depthSample(uv,vec2(.65,.65),p.z-bias,slope);visibility*=.25;
+    }
+    float edge=min(min(p.x,p.y),min(1.-p.x,1.-p.y));
+    float blend=smoothstep(.012,.085,edge)*(slot==1&&uShadowSettings.w>.5?1.:1.-smoothstep(24.,31.,projected.w));
+    return mix(1.,mix(.055,1.,visibility),blend);
+  }
+  void main() {
+    vec3 geometricNormal=normalize(vNormal), n=geometricNormal, an=abs(normalize(vSurfaceNormal));
+    vec2 uv=an.y>.65?vSurface.xz:(an.x>an.z?vSurface.zy:vSurface.xy);
+    float m=vMaterial, emission=vEmission;
+    vec3 base=vec3(.105,.135,.15),windowGlow=vec3(0.);
+    float night=clamp(uNightHour.x,0.,1.)*vOutdoor;float lateHour=uNightHour.y<12.?uNightHour.y+24.:uNightHour.y;float evening=1.-smoothstep(23.,26.,lateHour);
+    float roughness=.47,metalness=.65,organicHeight=0.,urbanHeight=0.,pbrWeight=0.,pbrLayer=1.;
+    float pixelSpan=max(fwidth(uv).x,fwidth(uv).y);
+    float fineDetail=1.-smoothstep(.015,.10,pixelSpan);
+    float grain=noise(uv*23.)*.5+mix(.5,noise(uv*71.),fineDetail)*.2;
+    float broad=noise(uv*.7);
+    // Architectural joints belong to the building, not to moving armour or the weapon.
+    float architectural=1.-clamp(vObject,0.,1.);
+    float panel=m<7.5?grid(uv*.55,.007)*architectural:0.;
+    if (m<.5) {
+      base*=.82+grain*.27+broad*.17;
+      base*=1.-panel*.38;
+      vec2 panelUV=fract(uv*.55);
+      float screw=1.-smoothstep(.019,.031,length(panelUV-vec2(.065)));
+      screw+=1.-smoothstep(.019,.031,length(panelUV-vec2(.935,.065)));
+      base+=screw*.16*architectural;
+      float ribs=1.-smoothstep(.02,.03,abs(fract(uv.y*4.)-.5));
+      base*=1.-ribs*.085*architectural;
+      // Integrate the brushed finish once it becomes smaller than a pixel;
+      // distant armour must not turn into bands of bright parallel lines.
+      float brushPhase=uv.y*980.+broad*4.;
+      float brushFilter=1.-smoothstep(.65,2.8,fwidth(brushPhase));
+      float brushing=.5+.5*sin(brushPhase)*brushFilter*fineDetail;
+      roughness=.32+.12*brushing+.12*broad;
+      float scratch=(1.-smoothstep(.008,.025,abs(fract(uv.y*4.3+noise(vec2(uv.x*1.1,0.))*.4)-.5)))*step(.62,noise(uv*vec2(2.,.25)))*fineDetail;
+      base+=vec3(.035,.045,.05)*scratch;
+    } else if (m<1.5) {
+      base=mix(vec3(.19,.075,.025),vec3(.47,.235,.08),broad*.8+.15);
+      base*=.8+grain*.43;
+      base*=1.-panel*.43;
+      roughness=.37+.34*broad;
+      metalness=.82;
+    } else if (m<2.5) {
+      float tiles=grid(uv*.5,.007)*architectural;
+      float variation=mix(broad,hash(floor(uv*.5)),architectural);
+      base=mix(vec3(.095,.12,.135),vec3(.17,.19,.20),variation*.6);
+      base*=1.-tiles*.43;
+      base*=.9+grain*.3;
+      vec2 diamond=fract(mat2(.707,-.707,.707,.707)*uv*12.);
+      float tread=step(.68,diamond.x)*step(.65,diamond.y);
+      base+=tread*.016;
+      roughness=.26+.24*broad;
+      float oil=smoothstep(.57,.80,noise(uv*.47+19.));
+      base*=1.-oil*.24;roughness=mix(roughness,.19,oil);
+      float wornEdge=max(0.,grid(uv*.5,.04)*architectural-tiles);
+      base+=vec3(.025,.029,.03)*wornEdge*noise(uv*17.);
+      metalness=.55;
+    } else if (m<3.5) {
+      base=vec3(.57,.58,.54)*(.78+grain*.3+broad*.13);
+      base*=1.-panel*.22;
+      roughness=.85;
+      base*=.79+.21*noise(uv*vec2(6.,.19));
+      metalness=0.;
+    } else if (m<4.5) {
+      base=vec3(.025,.74,.77);
+      emission+=.72;
+      roughness=.2;
+      metalness=.3;
+    } else if (m<5.5) {
+      base=vec3(1.,.42,.06);
+      emission+=.68;
+      roughness=.28;
+      metalness=.3;
+    } else if (m<6.5) {
+      base=vec3(.68,.055,.025);
+      emission+=.18;
+      roughness=.4;
+      metalness=.4;
+    } else if(m<7.5) {
+      base=vec3(.065,.075,.085)*(.82+grain*.4);
+      roughness=.86;
+      metalness=0.;
+    } else if(m<8.5) {
+      float soil=noise(uv*.6)*.6+noise(uv*3.7)*.4;
+      base=mix(vec3(.13,.105,.057),vec3(.16,.24,.075),smoothstep(.3,.7,soil));
+      base*=.75+grain*.5;roughness=.95;metalness=0.;
+    } else if(m<9.5) {
+      float strata=.5+.5*sin(vWorld.y*4.+noise(uv*.9)*8.);
+      base=mix(vec3(.23,.24,.22),vec3(.42,.40,.33),broad)*(.8+strata*.17+grain*.15);
+      roughness=.91;metalness=0.;
+    } else if(m<10.5) {
+      vec2 barkUV=vec2(uv.x+sin(uv.y*.8)*.055,uv.y);
+      float bark=noise(barkUV*vec2(7.,.72));
+      float fibres=noise(barkUV*vec2(39.,1.5));
+      vec2 knotCell=floor(barkUV*vec2(1.2,.45)),knot=fract(barkUV*vec2(1.2,.45))-.5;
+      knot.x+=.17*sin(knot.y*3.+hash(knotCell)*6.);
+      float knotRadius=length(knot*vec2(2.5,1.3));
+      float knotMask=(1.-smoothstep(.12,.48,knotRadius))*step(.76,hash(knotCell+4.));
+      float knotRings=.5+.5*sin(knotRadius*48.);
+      float crevice=smoothstep(.28,.43,bark);
+      base=mix(vec3(.045,.025,.013),vec3(.25,.145,.06),bark)*(.60+.40*crevice);
+      base*=1.+(fibres-.5)*.30*fineDetail-knotMask*(.16+knotRings*.20)*fineDetail;
+      organicHeight=bark*.022+(fibres-.5)*.005*fineDetail-knotMask*.012;
+      roughness=.97;metalness=0.;
+    } else if(m<11.5) {
+      float clump=noise(uv*2.8),leaves=noise(uv*8.)*.7+noise(uv*19.)*.3;
+      vec2 leafUV=uv*13.+vec2(clump,noise(uv*2.8+7.))*1.3;
+      vec2 leaf=fract(leafUV)-.5;float angle=hash(floor(leafUV))*6.283185;
+      leaf=mat2(cos(angle),-sin(angle),sin(angle),cos(angle))*leaf;
+      float leafShape=1.-smoothstep(.20,.51,length(leaf*vec2(1.1,2.25)));
+      float vein=(1.-smoothstep(.012,.045,abs(leaf.y)))*leafShape;
+      base=mix(vec3(.025,.075,.022),vec3(.19,.31,.075),leaves)*(.78+clump*.32);
+      base*=1.+(leafShape-.4)*.32*fineDetail+vein*.10*fineDetail;
+      organicHeight=clump*.014+leafShape*.007*fineDetail;
+      roughness=.88;metalness=0.;
+    } else if(m<12.5) {
+      // The distant ocean and the original 8 km port plane share a datum.
+      // Keep exactly one surface where they overlap, including away from a boat.
+      if(m>12.04&&m<12.06&&max(abs(vWorld.x),abs(vWorld.z))<=4000.)discard;
+      if(vAnchor.y<0.&&uSeaMotion.w>.5){
+        vec2 seaOffset=abs(vWorld.xz-uSeaOrigin.xy);
+        if(m<12.1&&max(seaOffset.x,seaOffset.y)<uSeaOrigin.z)discard;
+        if(m>12.1){vec3 w=seaField(vWorld.xz);n=normalize(vec3(-w.y,1.,-w.z));}
+      }
+      base=vec3(.035,.12,.15)*(.9+sin(uv.x*9.+uEffects.x)*sin(uv.y*7.-uEffects.x*.7)*.1);
+      roughness=.13;metalness=.35;
+    } else if(m<13.5) {
+      // PDR : façade d'immeuble. Étages, fenêtres en retrait, vitrines du rez-de-chaussée et toit de gravier ;
+      // la fraction de la matière (12,55 à 13,45) choisit le rythme des baies.
+      float style=clamp((m-12.55)/.9,0.,1.);
+      vec3 enduit=vColor.w>.5?vColor.rgb:vec3(.72,.67,.6);
+      roughness=.86;metalness=0.;
+      if(an.y>.65){
+        base=mix(vec3(.15,.15,.155),enduit*.55,.3)*(.82+grain*.26+broad*.14)*(.93+noise(uv*3.1)*.12);
+        roughness=.95;
+      }else{
+        float etage=3.05+.55*fract(style*7.31),pas=2.25+1.35*fract(style*3.17);
+        float largeur=.34+.30*fract(style*5.73),hauteur=.42+.22*fract(style*9.11);
+        bool sideX=abs(vFaceNormal.x)>abs(vFaceNormal.z);float faceW=sideX?vDimensions.z:vDimensions.x;
+        float faceX=(sideX?vLocal.z:vLocal.x)*faceW+faceW*.5,margin=min(.8,faceW*.2),span=max(.01,faceW-2.*margin),columns=max(1.,floor(span/pas)),stepX=span/columns;
+        float edge=step(margin,faceX)*step(faceX,faceW-margin)*step(1.7,faceW);
+        vec2 g=vec2((faceX-margin)/stepX,uv.y/etage),cellule=floor(g),f=fract(g),aa=max(fwidth(g),vec2(.0001));
+        float haut=step(4.3,uv.y),rez=1.-haut;
+        float fenetre=(1.-smoothstep(largeur*.5-aa.x,largeur*.5+aa.x,abs(f.x-.5)))*(1.-smoothstep(hauteur*.5-aa.y,hauteur*.5+aa.y,abs(f.y-.56)))*haut;
+        float facadeTop=vWorld.y+(.5-vLocal.y)*vDimensions.y;
+        fenetre*=step((cellule.y+.56+hauteur*.5)*etage,facadeTop-.30);
+        float bays=max(1.,floor(span/5.4)),bayX=(faceX-margin)/span*bays,baie=fract(bayX),ab=max(fwidth(bayX),.0001);
+        float vitrine=(1.-smoothstep(.40-ab,.40+ab,abs(baie-.5)))*smoothstep(.5,.62,uv.y)*(1.-smoothstep(3.2,3.3,uv.y))*rez;
+        float bandeau=smoothstep(3.5,3.58,uv.y)*(1.-smoothstep(4.05,4.12,uv.y));
+        float corniche=(1.-smoothstep(0.,.06+aa.y,f.y))*haut;
+        float h=hash(cellule+floor(style*97.));
+        vec3 vitre=mix(vec3(.10,.13,.16),vec3(.33,.41,.49),h*.8+.1);
+        vitre=mix(vitre,vec3(.60,.49,.33),step(.94,h)*.55);
+        vec3 mur=enduit*(.84+grain*.2+broad*.10);
+        mur=mix(mur,mur*1.09,corniche);
+        mur=mix(mur,enduit*.5,bandeau);
+        float lointain=smoothstep(.3,.75,max(aa.x,aa.y));
+        float verre=mix(max(fenetre,vitrine),mix(largeur*hauteur,.32,rez),lointain);
+        verre*=edge;base=mix(mur,vitre,verre);
+        roughness=mix(.86,.12,verre);metalness=mix(0.,.45,verre);
+        urbanHeight=-verre*.035;pbrWeight=1.-verre;
+        // Fixed dwelling occupancy, smoothly fading at dusk and after midnight.
+        // Runs in the existing facade pass: no new triangles or per-window lights.
+        float home=hash(cellule+floor(vAnchor.xz*.31)+style*31.);
+        float occupied=smoothstep(home-.025,home+.025,mix(.16,.49,evening));
+        float shop=step(.18,hash(vec2(floor(bayX),floor(vAnchor.x+vAnchor.z))))*mix(.18,.84,evening);
+        float curtain=.78+.22*smoothstep(.12,.22,abs(f.x-.5));
+        vec3 lamp=mix(vec3(1.,.58,.25),vec3(.92,.87,.66),step(.78,home));
+        float frame=(1.-smoothstep(.010,.025+aa.x,abs(f.x-.5)))*fenetre;
+        frame=max(frame,(1.-smoothstep(.008,.021+aa.y,abs(f.y-.53)))*fenetre);
+        frame*=1.-lointain;
+        base=mix(base,enduit*.45,frame*.82);
+        float blinds=mix(1.,.58+.42*smoothstep(.10,.28,abs(f.x-.5)),step(.64,home));
+        windowGlow=lamp*night*edge*mix(fenetre*occupied*curtain*blinds*(.80+.65*home),vitrine*shop*1.10,rez)*(1.-lointain*.65)*(1.-frame*.92);
+
+      }
+    } else if(m<14.5) {
+      // PDR : asphalte, granulat fin, reprises et fissures.
+      vec3 teinte=vColor.w>.5?vColor.rgb:vec3(.2,.2,.21);
+      float granulat=mix(.5,noise(uv*95.),fineDetail);
+      float reprise=smoothstep(.55,.75,noise(uv*.18+3.));
+      float fissure=(1.-smoothstep(0.,.035,abs(noise(uv*.9)-.5)))*step(.55,noise(uv*.23+9.))*fineDetail;
+      base=teinte*(.82+granulat*.22+broad*.12)*(1.-reprise*.12)*(1.-fissure*.35);
+      roughness=.9;metalness=0.;
+      urbanHeight=granulat*.006-fissure*.01;
+    } else if(m<15.5) {
+      // PDR : dallage de pierre, appareil à joints décalés.
+      vec3 teinte=vColor.w>.5?vColor.rgb:vec3(.7,.67,.6);
+      vec2 d=uv*1.3,rang=vec2(d.x+.5*mod(floor(d.y),2.),d.y);
+      float joint=grid(rang,.035),pierre=hash(floor(rang));
+      base=teinte*(.86+pierre*.16+grain*.12)*(1.-joint*.3);
+      roughness=.82;metalness=0.;
+      urbanHeight=(1.-joint)*.006;
+    } else if(m<17.5) {
+      // PDR : peinture laquée des véhicules et des boucliers.
+      base=(vColor.w>.5?vColor.rgb:vec3(.5))*(.94+grain*.06);
+      roughness=.22;metalness=.35;
+    } else {
+      // PDR : tissu et peau des figurines.
+      base=(vColor.w>.5?vColor.rgb:vec3(.5))*(.9+grain*.14);
+      roughness=.92;metalness=0.;
+    }
+    if(m>19.05&&m<19.15){
+      // Individually modeled glass on the nearby Marseille facades.
+      float home=hash(floor(vAnchor.xz*7.)+floor(vAnchor.y*3.));
+      float occupied=smoothstep(home-.025,home+.025,mix(.16,.49,evening));
+      roughness=.13;metalness=.35;
+      windowGlow=mix(vec3(1.,.58,.25),vec3(.92,.87,.66),step(.78,home))*night*occupied*1.7;
+    }
+    if(vColor.w>.5&&m<12.5&&!(m>11.5&&vAnchor.y<0.)){
+      vec3 tint=vColor.rgb*(.88+grain*.2)*(1.-panel*.12)*(m<3.5?.65:1.);
+      base=m>7.5?base*.35+tint*.65:tint;
+    }
+    if(vObject>.5&&m<2.5){
+      // Local edge wear survives instance tinting and follows the moving plate.
+      // It cannot bring the architecture's world-space panel grid onto a gun.
+      vec2 localUV=an.y>.65?vLocal.xz:(an.x>an.z?vLocal.zy:vLocal.xy);
+      float edgeDistance=.5-max(abs(localUV.x),abs(localUV.y));
+      float wear=(1.-smoothstep(.008,.025+fwidth(edgeDistance),edgeDistance))*(.52+.48*broad);
+      float scuff=(1.-smoothstep(.015,.055,abs(sin(uv.y*173.+grain*11.))))*smoothstep(.52,.74,broad)*fineDetail;
+      base*=.82+.24*broad+.14*grain;
+      base=mix(base,base*1.28+vec3(.055,.065,.07),wear*.7);
+      base+=vec3(.04,.045,.048)*scuff;
+      roughness=mix(roughness,.21,wear*.82);
+    }
+    if(m>18.5&&m<19.5){base=vColor.rgb;roughness=.08;metalness=.48;}
+    float height=(1.-panel)*.012+grain*.003*fineDetail;
+    if(m>1.5&&m<2.5){
+      vec2 treadUV=mat2(.707,-.707,.707,.707)*uv*12.;
+      float tread=(1.-smoothstep(.26,.34,abs(fract(treadUV.x)-.5)))*(1.-smoothstep(.08,.16,abs(fract(treadUV.y)-.5)));
+      height=(1.-grid(uv*.5,.007)*architectural)*.006+tread*.0018*fineDetail;
+    }
+    if(m<3.5)n=reliefNormal(n,height);
+    if(m>7.5&&m<9.5)n=reliefNormal(n,(noise(uv*7.)-.5)*.009*fineDetail);
+    if(m>9.5&&m<11.5)n=reliefNormal(n,organicHeight*fineDetail);
+    if(m>12.5&&m<15.5)n=reliefNormal(n,urbanHeight*fineDetail);
+    if(m>2.5&&m<3.5)pbrWeight=1.;
+    if(m>13.5&&m<14.5){pbrWeight=1.;pbrLayer=0.;}
+    if(uPbrReady>.5&&pbrWeight>0.){
+      vec2 texUV=uv/(pbrLayer<.5?3.:2.);vec3 coord=vec3(texUV,pbrLayer);
+      vec3 albedo=texture(uPbrAlbedo,coord).rgb;
+      if(pbrLayer>.5)albedo*=vColor.w>.5?vColor.rgb*1.9:vec3(1.25);
+      base=mix(base,albedo,pbrWeight*.92);roughness=mix(roughness,clamp(texture(uPbrRough,coord).r,.35,.98),pbrWeight);
+      vec3 mapN=texture(uPbrNormal,coord).xyz*2.-1.;mapN.xy*=.50;
+      vec3 dp1=dFdx(vWorld),dp2=dFdy(vWorld);vec2 duv1=dFdx(texUV),duv2=dFdy(texUV);
+      vec3 t=cross(dp2,geometricNormal)*duv1.x+cross(geometricNormal,dp1)*duv2.x;
+      vec3 b=cross(dp2,geometricNormal)*duv1.y+cross(geometricNormal,dp1)*duv2.y;
+      float inv=inversesqrt(max(max(dot(t,t),dot(b,b)),1e-10));
+      vec3 mapped=normalize(mat3(t*inv,b*inv,geometricNormal)*mapN);n=normalize(mix(n,mapped,pbrWeight));metalness=0.;
+    }
+    if(m>19.5&&m<20.5){base=vColor.rgb*(.96+noise(uv*210.)*.04);roughness=.53;metalness=0.;}
+    // Pixel-scale normal variation broadens highlights instead of shimmering.
+    vec3 ndx=dFdx(n),ndy=dFdy(n);
+    roughness=min(.98,sqrt(roughness*roughness+min(.16,max(dot(ndx,ndx),dot(ndy,ndy))*.28)));
+    float wet=uWeather.x*clamp(n.y,0.,1.)*step(13.5,m)*step(m,15.5);
+    float puddle=smoothstep(.48,.72,noise(vWorld.xz*.29))*wet;
+    base*=1.-wet*.22;roughness=mix(roughness,.105,puddle);metalness=mix(metalness,.24,puddle);
+    vec3 view=normalize(uEye-vWorld);
+    float distanceToEye=length(uEye-vWorld);
+    vec3 light=vec3(.075,.10,.12)*(.72+.28*n.y);
+    light+=vec3(.075,.09,.09)*max(dot(n,normalize(vec3(-.45,.85,.35))),0.);
+    light*=1.-panel*.18;
+    float outdoors=clamp(vOutdoor,0.,1.)*uEnvironment.x;
+    light=mix(light,uAmbient*(.72+.28*max(n.y,0.)),outdoors);
+    vec3 f0=mix(vec3(.04),clamp(base,vec3(.025),vec3(.92)),metalness);
+    vec3 specular=vec3(0.);
+    for(int i=0;i<12;i++) {
+      if(i>=uLightCount) break;
+      vec3 toLight=uLightPosition[i]-vWorld;
+      float d=length(toLight);
+      vec3 l=toLight/max(d,.001);
+      float attenuation=(i<2?.27:.13)/(1.+d*d*.26);
+      if(uLightRange[i]>0.)attenuation*=1.-smoothstep(uLightRange[i]*.35,uLightRange[i],d);
+      if(uLightCone[i].x>0.)attenuation*=smoothstep(uLightCone[i].x,uLightCone[i].y,dot(-l,uLightDirection[i]));
+      float diffuse=max(dot(n,l),0.);
+      float visibility=i==0?shadow(geometricNormal,l,0):i==1&&uEnvironment.x<.5?shadow(geometricNormal,l,1):1.;
+      light+=uLightColor[i]*attenuation*(diffuse*visibility+.035);
+      specular+=uLightColor[i]*attenuation*visibility*metalHighlight(n,view,l,roughness,f0)*2.4;
+    }
+    float sunlight=outdoors>.5?shadow(geometricNormal,uSunDirection,1):0.;
+    float leafBack=m>10.5&&m<11.5?max(dot(-n,uSunDirection),0.)*.24:0.;
+    light+=uSunColor*(max(dot(n,uSunDirection),0.)+leafBack)*sunlight;
+    specular+=uSunColor*sunlight*metalHighlight(n,view,uSunDirection,roughness,f0);
+    vec3 torchVector=uTorchPosition-vWorld;
+    float torchDistance=length(torchVector);
+    vec3 torchDirection=normalize(torchVector);
+    float cone=smoothstep(.59,.96,dot(-torchDirection,uForward));
+    float torch=cone/(1.+torchDistance*torchDistance*.045)*shadow(geometricNormal,torchDirection,2);
+    light+=vec3(.44,.52,.56)*torch*max(dot(n,torchDirection),0.);
+    specular+=vec3(.44,.52,.56)*torch*metalHighlight(n,view,torchDirection,roughness,f0)*1.5;
+    vec3 muzzleVector=uTorchPosition+uForward*.8-vWorld;
+    float muzzleDistance=length(muzzleVector),muzzlePower=uEffects.y*2.2/(1.+muzzleDistance*muzzleDistance*.14);
+    vec3 muzzleDirection=muzzleVector/max(muzzleDistance,.001);
+    light+=vec3(1.,.48,.12)*muzzlePower*(.22+.78*max(dot(n,muzzleDirection),0.));
+    specular+=vec3(1.,.48,.12)*muzzlePower*metalHighlight(n,view,muzzleDirection,roughness,f0);
+    if(vOverlay>.5) light+=vec3(.18,.22,.25);
+    vec3 color=base*light+specular;
+    // Analytic environment reflection: the biome's sky/ground hemisphere and
+    // a soft indoor ceiling. This is intentionally not a scene-mirror pass.
+    vec3 reflected=reflect(-view,n);
+    vec3 sky=mix(uSkyBottom,uSkyTop,smoothstep(0.,1.,reflected.y));
+    if(outdoors>.5&&roughness<.65&&metalness>.25){
+      vec2 cloudUV=reflected.xz/max(.13,reflected.y+.18)*1.8+uCloudOffset;
+      // One broad procedural lobe, filtered by roughness; no cubemap pass.
+      float field=noise(cloudUV)*.8+.2;
+      float cloud=smoothstep(.49-roughness*.08,.73+roughness*.08,field)*smoothstep(-.01,.24,reflected.y);
+      float sun=max(0.,dot(reflected,uSunDirection));
+      float skyLight=clamp(max(max(uSkyBottom.r,uSkyBottom.g),uSkyBottom.b)*1.5,.025,1.);
+      vec3 cloudColor=mix(uSkyBottom,vec3(1.12,1.10,1.01)*skyLight,.62)+uSunColor*pow(sun,6.)*.12;
+      sky=mix(sky,cloudColor,cloud*.66);
+      sky+=uSunColor*pow(sun,mix(48.,10.,roughness))*.16;
+    }
+    vec3 outside=mix(uAmbient*.20,sky,smoothstep(-.16,.18,reflected.y));
+    vec3 inside=mix(vec3(.02,.03,.035),vec3(.18,.24,.27),smoothstep(-.45,.75,reflected.y));
+    vec3 environmentReflection=mix(inside,outside,outdoors);
+    environmentReflection=mix(environmentReflection,uAmbient*.85,roughness*roughness*.8);
+    float nv=max(dot(n,view),0.),grazing=pow(1.-nv,5.);
+    vec3 environmentFresnel=f0+(max(vec3(1.-roughness),f0)-f0)*grazing;
+    color+=environmentReflection*environmentFresnel*(.18+1.3*(1.-roughness)*(1.-roughness))*(.5+metalness*2.5);
+    float pulse=.94+.06*sin(uEffects.x*2.2+vWorld.y*3.);
+    color+=base*emission*pulse*1.55+windowGlow;
+    vec3 fogColor=mix(vec3(.009,.018,.024),uFogColor,outdoors);
+    float fog=1.-exp(-distanceToEye*mix(.014+.008*exp(-max(vWorld.y,0.)*.7),uEnvironment.y,outdoors));
+    if(vOverlay>.5) fog=0.;
+    color=mix(color,fogColor,min(fog,.86));
+    color=color/(color+vec3(.76));
+    color=pow(max(color,vec3(0.)),vec3(.4545));
+    // PDR (voile) : hors de la vue du joueur, le dehors s'assombrit et perd ses couleurs ; à force 0, rien ne change.
+    if(uVoileForce>0.&&outdoors>.5){
+      float seen=texture(uVoile,(vWorld.xz-uVoileZone.xy)*uVoileZone.zw).r;
+      vec3 dull=vec3(dot(color,vec3(.299,.587,.114)))*vec3(.93,.97,1.04);
+      color=mix(color,mix(color,dull,.6)*.42,uVoileForce*(1.-seen));
+    }
+    vec2 screen=gl_FragCoord.xy/uResolution;
+    float vignette=pow(max(0.,16.*screen.x*screen.y*(1.-screen.x)*(1.-screen.y)),.13);
+    color*=mix(.59,1.,vignette);
+    float hurt=uEffects.z*(1.-vignette*.65);
+    color=mix(color,vec3(.64,.035,.015),clamp(hurt*.68,0.,.6));
+    float waveRadius=(1.-clamp(uEffects.w,0.,1.))*.8;
+    float wave=exp(-abs(length((screen-.5)*vec2(uResolution.x/uResolution.y,1.))-waveRadius)*85.)*uEffects.w;
+    color+=vec3(.03,.27,.23)*wave;
+    float reflection=(vOverlay>.5||emission>.5)?0.:clamp((1.-roughness)*(.13+metalness*.6)+puddle*.30,0.,.75);
+    fragColor=vec4(color,reflection);
+  }`;
+
+  // A separate translucent pass keeps smoke/steam out of depth atlases and
+  // leaves the established opaque material shader unchanged.
+  const FX_VERT=VERT.replace('vWorld=rotation*(aPosition*iScale.xyz)+iPosition.xyz;',`
+    vec3 particlePosition=aPosition;
+    if(iPosition.w>=20.){
+      float radial=length(aPosition.xz);
+      float side=clamp((radial-.37)/.13,0.,1.);
+      float inner=clamp(iPosition.w-20.,0.,.999);
+      particlePosition.xz*=mix(inner*.5,.5,side)/max(radial,.0001);
+    }
+    vWorld=rotation*(particlePosition*iScale.xyz)+iPosition.xyz;`)
+    // PDR (grain) : le grain des fumées et des flammes est pris à l'échelle d'une particule de 2,6 m au plus ; au-delà
+    // (colonnes de fumée, nuages de gaz vus de 300 à 900 m), il ne tombe plus sous le pixel en semis de points.
+    .replace('vSurface=vObject>.5?aPosition*iScale.xyz:vWorld;','vSurface=(vObject>.5?aPosition*iScale.xyz:vWorld)*min(1.,2.6/max(max(abs(iScale.x),abs(iScale.y)),max(abs(iScale.z),.001)));');
+  const FX_FRAG=`#version 300 es
+  precision highp float;
+  in vec3 vWorld;
+  in vec3 vNormal;
+  in vec3 vSurface;
+  in vec3 vLocal;
+  in vec3 vFaceNormal;flat in vec3 vDimensions;
+  flat in float vMaterial;
+  flat in float vEmission;
+  flat in float vOutdoor;
+  flat in vec4 vColor;
+  uniform vec3 uEye;
+  uniform vec3 uAmbient;uniform vec3 uSkyTop;uniform vec3 uSkyBottom;
+  uniform vec3 uFogColor;
+  uniform vec2 uEnvironment;
+  uniform float uTime;
+  out vec4 fragColor;
+  float noise(vec3 p){
+    return .5+.18*sin(p.x*3.7+p.y*2.1+uTime*.65)+.16*sin(p.y*4.9-p.z*3.1-uTime*.41)+.12*sin(p.z*7.1+p.x*4.3);
+  }
+  void main(){
+    vec3 toEye=uEye-vWorld;
+    float distanceToEye=max(length(toEye),.001);
+    // Ground telegraphs must stay readable at grazing player-eye angles.
+    // Only cosmetic volumes soften toward their silhouette.
+    float edge=vMaterial>=15.5?1.:pow(max(dot(normalize(vNormal),toEye/distanceToEye),0.),.65);
+    float grain=clamp(noise(vSurface),.1,1.);
+    bool fire=vMaterial>13.5&&vMaterial<14.5,smoke=vMaterial>14.5&&vMaterial<15.5,spark=vMaterial>16.5&&vMaterial<17.5;
+    float heat=fire?smoothstep(.22,.83,noise(vSurface*vec3(1.65,.72,1.65)-vec3(0.,uTime*2.7,0.))):0.;
+    float alpha=clamp(vColor.a*edge*(.58+grain*.42)*(fire?mix(.28,1.,heat):1.),0.,.94);
+    if(smoke){
+      vec3 flow=vSurface*vec3(.91,.65,.91)-vec3(0.,uTime*.30,0.);
+      float billow=noise(flow)*.66+noise(flow*2.1+vec3(7.,3.,11.))*.34;
+      alpha*=smoothstep(.16,.76,billow);
+    }
+    if(spark)alpha*=.30+.70*smoothstep(-.5,.18,vLocal.y);
+    bool glass=vMaterial>17.5&&vMaterial<18.5;if(glass)alpha=mix(vColor.a,.70,pow(1.-abs(dot(normalize(vNormal),toEye/distanceToEye)),3.));
+    if(alpha<.004)discard;
+    vec3 color=vColor.rgb*(uAmbient*.65+vec3(.34)+max(vEmission,0.)*1.25);
+    if(glass){vec3 r=reflect(-toEye/distanceToEye,normalize(vNormal));color=mix(color,mix(uSkyBottom,uSkyTop,smoothstep(0.,1.,r.y)),.68);}
+    if(fire){
+      vec3 temperature=mix(vec3(.72,.025,.002),vec3(1.8,.23,.008),smoothstep(.10,.65,heat));
+      temperature=mix(temperature,vec3(2.7,1.45,.23),smoothstep(.60,1.,heat));
+      color=temperature*(.55+max(vEmission,0.)*.45)*(.7+grain*.3);
+    }
+    if(smoke)color*=.74+.40*grain;
+    if(spark)color=mix(vec3(1.3,.10,.005),vec3(2.6,1.7,.52),smoothstep(-.25,.42,vLocal.y))*(.5+vEmission*.45);
+    float fog=1.-exp(-distanceToEye*mix(.018,uEnvironment.y,clamp(vOutdoor,0.,1.)));
+    color=mix(color,uFogColor,min(.86,fog));
+    color=pow(max(color/(color+vec3(.76)),vec3(0.)),vec3(.4545));
+    fragColor=vec4(color,alpha);
+  }`;
+
+  const DEPTH_FRAG=`#version 300 es
+  precision highp float;
+  flat in float vMaterial;
+  void main() {if(vMaterial>12.1&&vMaterial<12.4)discard;}`;
+  const POST_VERT=`#version 300 es
+  precision highp float;
+  out vec2 vUV;
+  void main(){
+    vec2 p=vec2(float((gl_VertexID<<1)&2),float(gl_VertexID&2));
+    vUV=p;gl_Position=vec4(p*2.-1.,0.,1.);
+  }`;
+  const SKY_FRAG=`#version 300 es
+  precision highp float;
+  in vec2 vUV;
+  uniform vec3 uSkyRight;
+  uniform vec3 uSkyUp;
+  uniform vec3 uSkyForward;
+  uniform vec3 uSkyTop;
+  uniform vec3 uSkyBottom;
+  uniform vec3 uSkyFog;
+  uniform vec3 uSunDirection;
+  uniform vec3 uSunColor;
+  uniform vec2 uSkyFov;
+  uniform vec2 uSkyMotion;uniform vec4 uWeather;uniform vec2 uCloudOffset;
+  out vec4 fragColor;
+  float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
+  float noise(vec2 p){
+    vec2 a=floor(p),b=fract(p);b=b*b*(3.-2.*b);
+    return mix(mix(hash(a),hash(a+vec2(1.,0.)),b.x),mix(hash(a+vec2(0.,1.)),hash(a+vec2(1.)),b.x),b.y);
+  }
+  float cloud(vec2 p){return noise(p)*.52+noise(p*2.03+11.)*.28+noise(p*4.17)*.14+noise(p*8.1)*.06;}
+  void main(){
+    vec2 uv=vUV*2.-1.;
+    vec3 ray=normalize(uSkyForward+uSkyRight*uv.x*uSkyFov.x+uSkyUp*uv.y*uSkyFov.y);
+    float elevation=clamp(ray.y,0.,1.);
+    vec3 color=mix(uSkyBottom,uSkyTop,pow(elevation,.55));
+    float sun=max(0.,dot(ray,uSunDirection));
+    color+=uSunColor*(pow(sun,48.)*.20+pow(sun,650.)*.65+smoothstep(.99925,.99965,sun)*2.8);
+    vec2 cloudUV=ray.xz/max(.13,ray.y+.18)*1.8+uCloudOffset;
+    float clouds=smoothstep(.68-uWeather.y*.49,.88-uWeather.y*.41,cloud(cloudUV))*smoothstep(-.03,.16,ray.y);
+    float skyLight=clamp(max(max(uSkyBottom.r,uSkyBottom.g),uSkyBottom.b)*1.5,.025,1.);
+      vec3 cloudColor=mix(uSkyBottom,vec3(1.12,1.10,1.01)*skyLight,.62)+uSunColor*pow(sun,6.)*.12;
+    cloudColor=mix(cloudColor,vec3(.075,.09,.12)*skyLight,uWeather.z*.84);color=mix(color,cloudColor,clouds*.92);color+=vec3(.65,.72,.90)*uWeather.w;
+    // The geographic coastline supplies real silhouettes; keep the open sea horizon clear.
+    float night=1.-smoothstep(.025,.16,max(max(uSkyBottom.r,uSkyBottom.g),uSkyBottom.b));
+    vec2 stars=ray.xz/max(.08,ray.y)*310.;vec2 starCell=floor(stars);float starSeed=hash(starCell);
+    float sparkle=step(.997,starSeed)*exp(-dot(fract(stars)-.5,fract(stars)-.5)*90.);
+    color+=vec3(.35,.42,.55)*sparkle*night*(1.-clouds)*smoothstep(.08,.3,ray.y);
+    color=color/(color+vec3(.76));color=pow(max(color,vec3(0.)),vec3(.4545));
+    float vignette=pow(max(0.,16.*vUV.x*vUV.y*(1.-vUV.x)*(1.-vUV.y)),.13);
+    fragColor=vec4(color*mix(.76,1.,vignette),0.);
+  }`;
+  // Screen-space ray tracing of the current opaque scene; analytic sky remains the fallback.
+  const SSR_FRAG=`#version 300 es
+  precision highp float;
+  in vec2 vUV;uniform sampler2D uColor;uniform sampler2D uDepth;
+  uniform vec4 uProjection;uniform vec2 uPixel;out vec4 fragColor;
+  float distanceZ(float depth){return uProjection.w/(depth*2.-1.+uProjection.z);}
+  vec3 position(vec2 uv){float z=distanceZ(texture(uDepth,uv).r);return vec3((uv*2.-1.)*uProjection.xy*z,-z);}
+  vec2 project(vec3 p){return .5+.5*p.xy/(-p.z*uProjection.xy);}
+  void main(){
+    fragColor=vec4(0.);vec4 original=texture(uColor,vUV);float depth=texture(uDepth,vUV).r;
+    vec3 p=position(vUV),dx=dFdx(p),dy=dFdy(p),n=normalize(cross(dx,dy));
+    if(original.a<.06||depth>=.999999||-p.z>200.||-p.z<.12)return;
+    vec3 eye=normalize(-p);if(dot(n,eye)<0.)n=-n;vec3 r=reflect(-eye,n),origin=p+n*.055;
+    float prev=0.,travel=.16,weight=0.;vec2 hit=vec2(0.);
+    for(int i=0;i<48;i++){
+      float oldTravel=travel;travel+=.24+float(i)*.085;vec3 q=origin+r*travel;if(q.z>-.08)break;vec2 uv=project(q);
+      if(min(uv.x,uv.y)<.012||max(uv.x,uv.y)>.988)break;
+      float sceneZ=distanceZ(texture(uDepth,uv).r),delta=-q.z-sceneZ;
+      if(delta>0.&&prev<=0.&&delta<1.2+travel*.025){
+        float lo=oldTravel,hi=travel;for(int j=0;j<5;j++){float mid=(lo+hi)*.5;vec3 v=origin+r*mid;vec2 at=project(v);float d=-v.z-distanceZ(texture(uDepth,at).r);if(d>0.)hi=mid;else lo=mid;}
+        hit=project(origin+r*(lo+hi)*.5);float edge=min(min(hit.x,hit.y),min(1.-hit.x,1.-hit.y));
+        weight=smoothstep(.01,.12,edge)*(1.-smoothstep(70.,115.,travel));break;
+      }prev=delta;
+    }
+    if(weight>0.){float fresnel=.35+.65*pow(1.-max(dot(n,eye),0.),3.);fragColor=vec4(texture(uColor,hit).rgb,weight*original.a*fresnel);}
+  }`;
+  const POST_FRAG=`#version 300 es
+  precision highp float;
+  in vec2 vUV;
+  uniform sampler2D uScene;
+  uniform sampler2D uBloom;uniform sampler2D uReflection;uniform int uReflections;
+  uniform vec2 uTexel;
+  uniform int uPass;
+  out vec4 fragColor;
+  vec3 bright(vec2 uv){
+    vec3 c=texture(uScene,uv).rgb;
+    return c*smoothstep(.56,.86,max(max(c.r,c.g),c.b));
+  }
+  void main(){
+    if(uPass==0){
+      vec3 c=bright(vUV+uTexel*vec2(-1,-1))+bright(vUV+uTexel*vec2(1,-1));
+      c+=bright(vUV+uTexel*vec2(-1,1))+bright(vUV+uTexel*vec2(1,1));
+      fragColor=vec4(c*.25,1.);return;
+    }
+    vec2 axis=uPass==1?vec2(uTexel.x,0.):vec2(0.,uTexel.y);
+    vec3 c=texture(uBloom,vUV).rgb*.227027;
+    c+=texture(uBloom,vUV+axis*1.384615).rgb*.316216;
+    c+=texture(uBloom,vUV-axis*1.384615).rgb*.316216;
+    c+=texture(uBloom,vUV+axis*3.230769).rgb*.070270;
+    c+=texture(uBloom,vUV-axis*3.230769).rgb*.070270;
+    if(uPass==2){vec4 scene=texture(uScene,vUV),reflection=texture(uReflection,vUV);c=scene.rgb+c*.28;if(uReflections==1)c=mix(c,reflection.rgb,min(.70,reflection.a)*step(.025,scene.a));}
+    fragColor=vec4(c,1.);
+  }`;
+
+  // PDR (éclairage) : bibliothèque d'éclairage pour les shaders du jeu (la foule sur le GPU). Ce sont les formules du shader
+  // du monde, pour une surface du dehors : ambiance, soleil et son ombre (même atlas, même noyau, même biais), lampes de
+  // passage, reflet du ciel, émission, puis brouillard, tonemap, gamma et vignettage. Le shader du monde n'en dépend pas :
+  // son code reste celui de FERRO. À insérer après « precision highp float; ». Uniformes posées par renderer.pdr.lier.
+  // Deux apports de METAL 0.8 au shader du monde n'y sont pas, pour que la foule garde son image et son coût : la rugosité
+  // élargie là où la normale varie d'un pixel à l'autre, et le reflet des nuages sur les surfaces lisses. Le vignettage
+  // (0,59 ici, comme dans FRAG) suit le réglage de création : create le remplace comme worldFragment (pdrGlsl).
+  const PDR_GLSL=`
+  uniform highp sampler2D uPdrOmbre;
+  uniform mat4 uPdrMatriceOmbre;
+  uniform vec4 uPdrOmbreReglages;
+  uniform vec3 uPdrOeil;
+  uniform vec3 uPdrSoleil;
+  uniform vec3 uPdrCouleurSoleil;
+  uniform vec3 uPdrAmbiance;
+  uniform vec3 uPdrBrouillard;
+  uniform vec3 uPdrCielHaut;
+  uniform vec3 uPdrCielBas;
+  uniform vec4 uPdrEnvironnement;
+  uniform vec2 uPdrResolution;
+  uniform vec3 uPdrLumierePosition[12];
+  uniform vec3 uPdrLumiereCouleur[12];
+  uniform float uPdrLumierePortee[12];uniform vec3 uPdrLumiereDirection[12];uniform vec2 uPdrLumiereCone[12];
+  uniform int uPdrLumieres;
+  float pdrEchantillon(vec2 uv,vec2 decalage,float profondeur,vec2 pente){
+    float texel=uPdrOmbreReglages.y;
+    vec2 tap=uv+decalage*texel,centre=(floor(tap/texel)+.5)*texel;
+    return step(profondeur+dot(pente,centre-uv),texture(uPdrOmbre,tap).r);
+  }
+  float pdrOmbreSoleil(vec3 monde,vec3 n){
+    if(uPdrOmbreReglages.x<.5)return 1.;
+    vec4 projete=uPdrMatriceOmbre*vec4(monde+n*.014,1.);
+    vec3 p=projete.xyz/projete.w*.5+.5;
+    vec3 dx=dFdx(p),dy=dFdy(p);
+    float determinant=dx.x*dy.y-dx.y*dy.x;
+    vec2 pente=abs(determinant)>.00000000001?vec2(dx.z*dy.y-dy.z*dx.y,dy.z*dx.x-dx.z*dy.x)/determinant:vec2(0.);
+    if(projete.w<=0.||p.z<=0.||p.z>=1.||min(p.x,p.y)<=.001||max(p.x,p.y)>=.999)return 1.;
+    float biais=.00014+.00024*(1.-max(dot(n,uPdrSoleil),0.)),z=p.z-biais;
+    vec2 uv=uPdrOmbreReglages.z>.5?p.xy:p.xy*.5+vec2(.5,0.);
+    // Full-atlas sun uses projection UVs directly; a quarter-atlas tile has
+    // half-sized UVs, hence twice the receiver-plane gradient.
+    pente*=uPdrOmbreReglages.z>.5?1.:2.;
+    float texel=uPdrOmbreReglages.y;
+    vec2 cell=uv/texel,f=fract(cell)-.5,centre=(floor(cell)+.5)*texel;
+    vec3 wx=vec3(.5*(.5-f.x)*(.5-f.x),.75-f.x*f.x,.5*(.5+f.x)*(.5+f.x));
+    vec3 wy=vec3(.5*(.5-f.y)*(.5-f.y),.75-f.y*f.y,.5*(.5+f.y)*(.5+f.y));
+    float v=0.;
+    for(int y=0;y<3;y++)for(int x=0;x<3;x++){
+      vec2 tap=centre+vec2(float(x-1),float(y-1))*texel;
+      v+=wx[x]*wy[y]*step(z+dot(pente,tap-uv),texture(uPdrOmbre,tap).r);
+    }
+    float bord=min(min(p.x,p.y),min(1.-p.x,1.-p.y));
+    return mix(1.,mix(.055,1.,v),smoothstep(.012,.085,bord));
+  }
+  vec3 pdrFresnel(float c,vec3 f0){float q=1.-clamp(c,0.,1.),q2=q*q;return f0+(1.-f0)*q2*q2*q;}
+  vec3 pdrReflet(vec3 n,vec3 vue,vec3 l,float rugosite,vec3 f0){
+    vec3 h=normalize(vue+l);
+    float nv=max(dot(n,vue),.001),nl=max(dot(n,l),0.),nh=max(dot(n,h),0.);
+    float a=max(.055,rugosite*rugosite),a2=a*a,d=nh*nh*(a2-1.)+1.;
+    float k=(rugosite+1.)*(rugosite+1.)*.125;
+    return pdrFresnel(max(dot(vue,h),0.),f0)*min(a2/max(3.141593*d*d,.00001)/max(4.*(nv*(1.-k)+k)*(nl*(1.-k)+k),.001),12.)*nl;
+  }
+  /** Couleur linéaire, avant brouillard et tonemap, d'une surface du dehors ; ombre : visibilité du soleil (pdrOmbreSoleil). */
+  vec3 pdrEclairer(vec3 base,vec3 n,vec3 monde,float rugosite,float metal,float emission,float ombre){
+    vec3 vue=normalize(uPdrOeil-monde),f0=mix(vec3(.04),clamp(base,vec3(.025),vec3(.92)),metal);
+    vec3 lumiere=uPdrAmbiance*(.72+.28*max(n.y,0.)),reflet=vec3(0.);
+    for(int i=0;i<12;i++){
+      if(i>=uPdrLumieres)break;
+      vec3 versLumiere=uPdrLumierePosition[i]-monde;
+      float d=length(versLumiere);
+      vec3 l=versLumiere/max(d,.001);
+      float attenuation=(i<2?.27:.13)/(1.+d*d*.26);
+      if(uPdrLumierePortee[i]>0.)attenuation*=1.-smoothstep(uPdrLumierePortee[i]*.35,uPdrLumierePortee[i],d);
+      if(uPdrLumiereCone[i].x>0.)attenuation*=smoothstep(uPdrLumiereCone[i].x,uPdrLumiereCone[i].y,dot(-l,uPdrLumiereDirection[i]));
+      lumiere+=uPdrLumiereCouleur[i]*attenuation*(max(dot(n,l),0.)+.035);
+      reflet+=uPdrLumiereCouleur[i]*attenuation*pdrReflet(n,vue,l,rugosite,f0)*2.4;
+    }
+    lumiere+=uPdrCouleurSoleil*max(dot(n,uPdrSoleil),0.)*ombre;
+    reflet+=uPdrCouleurSoleil*ombre*pdrReflet(n,vue,uPdrSoleil,rugosite,f0);
+    vec3 couleur=base*lumiere+reflet;
+    vec3 r=reflect(-vue,n),ciel=mix(uPdrCielBas,uPdrCielHaut,smoothstep(0.,1.,r.y));
+    vec3 milieu=mix(mix(uPdrAmbiance*.20,ciel,smoothstep(-.16,.18,r.y)),uPdrAmbiance*.85,rugosite*rugosite*.8);
+    float rasant=pow(1.-max(dot(n,vue),0.),5.);
+    couleur+=milieu*(f0+(max(vec3(1.-rugosite),f0)-f0)*rasant)*(.18+1.3*(1.-rugosite)*(1.-rugosite))*(.5+metal*2.5);
+    return couleur+base*emission*(.94+.06*sin(uPdrEnvironnement.z*2.2+monde.y*3.))*1.55;
+  }
+  /** Brouillard, tonemap, gamma et vignettage du monde : la sortie est celle de la cible de scène (RGBA8, avant le halo). */
+  vec3 pdrFinir(vec3 couleur,vec3 monde){
+    float brume=1.-exp(-length(uPdrOeil-monde)*uPdrEnvironnement.y);
+    couleur=mix(couleur,uPdrBrouillard,min(brume,.86));
+    couleur=pow(max(couleur/(couleur+vec3(.76)),vec3(0.)),vec3(.4545));
+    vec2 ecran=gl_FragCoord.xy/uPdrResolution;
+    return couleur*mix(.59,1.,pow(max(0.,16.*ecran.x*ecran.y*(1.-ecran.x)*(1.-ecran.y)),.13));
+  }`;
+  // Les valeurs que le shader du monde prend sans atmosphère (setWorld sans environnement).
+  const PDR_INDOOR=Object.freeze({sunDirection:[.4,.8,.3],sunColor:[0,0,0],ambient:[.075,.10,.12],fog:[.009,.018,.024],fogDensity:.014,skyTop:[.05,.08,.10],skyBottom:[.16,.20,.22]});
+  // Uniformes de la bibliothèque, dans l'ordre où renderer.pdr.lier les pose. uPdrEnvironnement : x dehors (toujours 1),
+  // y densité du brouillard, z temps (s), w inutilisé.
+  const PDR_UNIFORMS=['uPdrOmbre','uPdrMatriceOmbre','uPdrOmbreReglages','uPdrOeil','uPdrSoleil','uPdrCouleurSoleil','uPdrAmbiance',
+    'uPdrBrouillard','uPdrCielHaut','uPdrCielBas','uPdrEnvironnement','uPdrResolution','uPdrLumierePosition','uPdrLumiereCouleur',
+    'uPdrLumierePortee','uPdrLumiereDirection','uPdrLumiereCone','uPdrLumieres'];
+
+  // A closed, asymmetric crown shared with collision raycasts. Its canonical
+  // 72 triangles are smaller than the old GPU sphere and remain identical in
+  // every quality mode: a visual hollow never turns into a hidden solid box.
+  const FOLIAGE=(()=>{
+    const points=[[.018,.5,-.012]],faces=[],sides=12;
+    for(let j=1;j<4;j++)for(let i=0;i<sides;i++){
+      const u=i*Math.PI*2/sides,v=j*Math.PI/4;
+      const radius=.5*Math.pow(Math.sin(v),.88)*(.79+.16*Math.cos(u*3)+.055*Math.sin(u*5+.7));
+      const angle=u+.045*Math.sin(u*2+1);
+      // Parallel, irregular rings keep the connecting quadrilaterals planar.
+      // Canvas can merge each triangle pair without changing a single pixel
+      // of silhouette or the canonical geometry used by rays and GPU shadows.
+      points.push([Math.cos(angle)*radius+.024*Math.cos(v),.5*Math.cos(v),Math.sin(angle)*radius-.018*Math.cos(v)]);
+    }
+    points.push([-.025,-.5,.015]);
+    // Keep exactly the existing p/s/r envelope, without widening the trunk's
+    // physical footprint or the spatial index bounds of a replaced canopy.
+    for(let axis=0;axis<3;axis++){
+      const lo=Math.min(...points.map(p=>p[axis])),hi=Math.max(...points.map(p=>p[axis]));
+      for(const p of points)p[axis]=(p[axis]-lo)/(hi-lo)-.5;
+    }
+    const ring=(j,i)=>1+j*sides+(i+sides)%sides;
+    for(let i=0;i<sides;i++){
+      faces.push([0,ring(0,i+1),ring(0,i)]);
+      for(let j=0;j<2;j++)faces.push([ring(j,i),ring(j,i+1),ring(j+1,i+1)],[ring(j,i),ring(j+1,i+1),ring(j+1,i)]);
+      faces.push([points.length-1,ring(2,i),ring(2,i+1)]);
+    }
+    const normals=points.map(()=>[0,0,0]);
+    for(const face of faces){
+      const [a,b,c]=face.map(i=>points[i]),ab=b.map((v,k)=>v-a[k]),ac=c.map((v,k)=>v-a[k]);
+      let n=[ab[1]*ac[2]-ab[2]*ac[1],ab[2]*ac[0]-ab[0]*ac[2],ab[0]*ac[1]-ab[1]*ac[0]];
+      if(n.reduce((sum,v,k)=>sum+v*(a[k]+b[k]+c[k]),0)<0){[face[1],face[2]]=[face[2],face[1]];n=n.map(v=>-v);}
+      for(const i of face)for(let k=0;k<3;k++)normals[i][k]+=n[k];
+    }
+    for(const n of normals){const length=Math.hypot(...n)||1;for(let k=0;k<3;k++)n[k]/=length;Object.freeze(n);}
+    points.forEach(Object.freeze);faces.forEach(Object.freeze);
+    const triangles=Object.freeze(faces.map(face=>Object.freeze(face.map(i=>points[i]))));
+    return Object.freeze({points:Object.freeze(points),faces:Object.freeze(faces),normals:Object.freeze(normals),triangles});
+  })();
+  function foliageTriangles(){return FOLIAGE.triangles;}
+  const names = ['box','sphere','cylinder','octa','ring','bevel','foliage','wedge']; // BITUME : 'wedge'
+  const shapeIndices=new Map(names.map((name,i)=>[name,i]));
+  // BITUME : formes libres (carènes, mains). Une forme libre est une liste de triangles [p0, p1, p2, n0, n1, n2] tenue
+  // dans le cube unité (−0,5 à 0,5) ; l'instance porte sa vraie taille dans s. Les normales sont celles du cube : le
+  // nuanceur les divise par s, ce qui rend la normale du volume à sa vraie taille. Enregistrer avant FRender.create.
+  const FORMES_LIBRES=new Map();
+  function forme(nom,triangles){
+    if(typeof nom!=='string'||!Array.isArray(triangles))throw new TypeError('forme(nom, triangles)');
+    if(!FORMES_LIBRES.has(nom)&&shapeIndices.has(nom))throw new Error('forme déjà définie par le moteur : '+nom);
+    if(!shapeIndices.has(nom)){shapeIndices.set(nom,names.length);names.push(nom);}
+    FORMES_LIBRES.set(nom,triangles);
+  }
+  const INDEX_OCTETS=4; // BITUME : index sur 32 bits, les formes libres dépassent les 65 536 sommets
+  function geometry(low) {
+    const data=[], indices=[], ranges={};
+    function vertex(p,n) {const i=data.length/6;data.push(...p,...n);return i;}
+    function triangle(p0,p1,p2,n0,n1,n2) {
+      const a=[p1[0]-p0[0],p1[1]-p0[1],p1[2]-p0[2]],b=[p2[0]-p0[0],p2[1]-p0[1],p2[2]-p0[2]];
+      const cross=[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]];
+      const len=Math.hypot(...cross)||1;
+      n0=n0||cross.map(v=>v/len);n1=n1||n0;n2=n2||n0;
+      if(cross[0]*n0[0]+cross[1]*n0[1]+cross[2]*n0[2]<0) {const t=p1;p1=p2;p2=t;const n=n1;n1=n2;n2=n;}
+      indices.push(vertex(p0,n0),vertex(p1,n1),vertex(p2,n2));
+    }
+    function begin(name){ranges[name]={offset:indices.length*INDEX_OCTETS,count:0};}
+    function end(name){ranges[name].count=indices.length-ranges[name].offset/INDEX_OCTETS;}
+    begin('box');
+    for(let axis=0;axis<3;axis++) for(const sign of [-1,1]) {
+      const n=[0,0,0];n[axis]=sign;
+      const a=(axis+1)%3,b=(axis+2)%3;
+      const points=[[-1,-1],[1,-1],[1,1],[-1,1]].map(q=>{const p=[0,0,0];p[axis]=sign*.5;p[a]=q[0]*.5;p[b]=q[1]*.5;return p;});
+      triangle(points[0],points[1],points[2],n);triangle(points[0],points[2],points[3],n);
+    }
+    end('box');
+    begin('sphere');
+    const sphere=(u,v)=>[Math.sin(v)*Math.cos(u)*.5,Math.cos(v)*.5,Math.sin(v)*Math.sin(u)*.5];
+    const longitude=low===2?6:low?8:16,latitude=low===2?4:low?6:10;
+    for(let j=0;j<latitude;j++) for(let i=0;i<longitude;i++) {
+      const p=[sphere(i*Math.PI*2/longitude,j*Math.PI/latitude),sphere((i+1)*Math.PI*2/longitude,j*Math.PI/latitude),sphere((i+1)*Math.PI*2/longitude,(j+1)*Math.PI/latitude),sphere(i*Math.PI*2/longitude,(j+1)*Math.PI/latitude)];
+      if(j>0) triangle(p[0],p[1],p[2],p[0].map(v=>v*2),p[1].map(v=>v*2),p[2].map(v=>v*2));
+      if(j<latitude-1) triangle(p[0],p[2],p[3],p[0].map(v=>v*2),p[2].map(v=>v*2),p[3].map(v=>v*2));
+    }
+    end('sphere');
+    begin('foliage');
+    for(const [a,b,c] of FOLIAGE.faces)triangle(FOLIAGE.points[a],FOLIAGE.points[b],FOLIAGE.points[c],FOLIAGE.normals[a],FOLIAGE.normals[b],FOLIAGE.normals[c]);
+    end('foliage');
+    begin('cylinder');
+    const cylinderSides=low===2?6:low?8:16;
+    for(let i=0;i<cylinderSides;i++) {
+      const a=i*Math.PI*2/cylinderSides,b=(i+1)*Math.PI*2/cylinderSides;
+      const na=[Math.cos(a),0,Math.sin(a)],nb=[Math.cos(b),0,Math.sin(b)];
+      const p0=[na[0]*.5,-.5,na[2]*.5],p1=[nb[0]*.5,-.5,nb[2]*.5],p2=[nb[0]*.5,.5,nb[2]*.5],p3=[na[0]*.5,.5,na[2]*.5];
+      triangle(p0,p1,p2,na,nb,nb);triangle(p0,p2,p3,na,nb,na);
+      triangle([0,-.5,0],p1,p0,[0,-1,0]);triangle([0,.5,0],p3,p2,[0,1,0]);
+    }
+    end('cylinder');
+    begin('octa');
+    for(let i=0;i<4;i++) {
+      const a=i*Math.PI/2,b=(i+1)*Math.PI/2;
+      const p0=[Math.cos(a)*.5,0,Math.sin(a)*.5],p1=[Math.cos(b)*.5,0,Math.sin(b)*.5];
+      triangle([0,.5,0],p1,p0);triangle([0,-.5,0],p0,p1);
+    }
+    end('octa');
+    begin('ring');
+    const torus=(u,v)=>[(.435+.065*Math.cos(v))*Math.cos(u),.065*Math.sin(v),(.435+.065*Math.cos(v))*Math.sin(u)];
+    const torusNormal=(u,v)=>[Math.cos(v)*Math.cos(u),Math.sin(v),Math.cos(v)*Math.sin(u)];
+    const ringSides=low===2?8:low?12:24,ringTube=low?4:6;
+    for(let i=0;i<ringSides;i++) for(let j=0;j<ringTube;j++) {
+      const a=i*Math.PI*2/ringSides,b=(i+1)*Math.PI*2/ringSides,c=j*Math.PI*2/ringTube,d=(j+1)*Math.PI*2/ringTube;
+      const p=[torus(a,c),torus(b,c),torus(b,d),torus(a,d)],n=[torusNormal(a,c),torusNormal(b,c),torusNormal(b,d),torusNormal(a,d)];
+      triangle(p[0],p[1],p[2],n[0],n[1],n[2]);triangle(p[0],p[2],p[3],n[0],n[2],n[3]);
+    }
+    end('ring');
+    // Close armour and weapon plates catch light on real, flat chamfers. The
+    // coarse Canvas primitive uses the existing box; silhouettes retain scale.
+    if(low===2)ranges.bevel=ranges.box;
+    else{
+      begin('bevel');const inner=.42,outer=.5;
+      for(let axis=0;axis<3;axis++)for(const sign of [-1,1]){
+        const n=[0,0,0];n[axis]=sign;const a=(axis+1)%3,b=(axis+2)%3;
+        const p=[[-1,-1],[1,-1],[1,1],[-1,1]].map(q=>{const v=[0,0,0];v[axis]=sign*outer;v[a]=q[0]*inner;v[b]=q[1]*inner;return v;});
+        triangle(p[0],p[1],p[2],n);triangle(p[0],p[2],p[3],n);
+      }
+      for(let a=0;a<3;a++)for(let b=a+1;b<3;b++)for(const sa of [-1,1])for(const sb of [-1,1]){
+        const c=3-a-b,n=[0,0,0];n[a]=sa/Math.SQRT2;n[b]=sb/Math.SQRT2;
+        const p=[[outer,inner,-inner],[inner,outer,-inner],[inner,outer,inner],[outer,inner,inner]].map(q=>{const v=[0,0,0];v[a]=q[0]*sa;v[b]=q[1]*sb;v[c]=q[2];return v;});
+        triangle(p[0],p[1],p[2],n);triangle(p[0],p[2],p[3],n);
+      }
+      for(const x of [-1,1])for(const y of [-1,1])for(const z of [-1,1]){
+        const n=[x,y,z].map(v=>v/Math.sqrt(3));
+        triangle([x*outer,y*inner,z*inner],[x*inner,y*outer,z*inner],[x*inner,y*inner,z*outer],n);
+      }
+      end('bevel');
+    }
+    // BITUME : coin (prisme droit à base triangulaire) pour les nez, pontons et capots en pente des monoplaces.
+    // Dessous en y=-.5, dos en x=-.5 sur toute la hauteur, pente du haut du dos (x=-.5, y=.5) au bas de l'avant.
+    begin('wedge');
+    {
+      const A=[-.5,-.5,-.5],B=[.5,-.5,-.5],C=[.5,-.5,.5],D=[-.5,-.5,.5],E=[-.5,.5,-.5],F=[-.5,.5,.5],n=[Math.SQRT1_2,Math.SQRT1_2,0];
+      triangle(A,B,C,[0,-1,0]);triangle(A,C,D,[0,-1,0]);
+      triangle(A,E,F,[-1,0,0]);triangle(A,F,D,[-1,0,0]);
+      triangle(B,E,F,n);triangle(B,F,C,n);
+      triangle(A,B,E,[0,0,-1]);triangle(D,F,C,[0,0,1]);
+    }
+    end('wedge');
+    // BITUME : formes libres, mêmes triangles aux trois niveaux de détail
+    for(const [nom,triangles] of FORMES_LIBRES){
+      begin(nom);
+      // BITUME : ordre du registre, déjà juste en vraie grandeur ; triangle() réorienterait à tort dans le cube
+      // (l'échelle de normaliser() ne conserve pas les angles : 90 faces fines étaient retournées puis éliminées par CULL_FACE)
+      for(const t of triangles)indices.push(vertex(t[0],t[3]),vertex(t[1],t[4]),vertex(t[2],t[5]));
+      end(nom);
+    }
+    // BITUME : index sur 32 bits (retouche 10, UNSIGNED_INT) — les formes libres dépassent 65 535 sommets
+    return {vertices:new Float32Array(data),indices:new Uint32Array(indices),ranges};
+  }
+
+  // Reuse only bit-identical primitive vertices. Keep expanded vertex storage,
+  // triangle order and public geometry snapshots intact: updateShape() can
+  // restore a primitive's original index range before editing any occurrence.
+  function indexPrimitiveVertices(source){
+    const indices=new Uint32Array(source.indices),words=new Uint32Array(source.vertices.buffer,source.vertices.byteOffset,source.vertices.length),ranges=new Map(),byName=new Map();
+    const stats={shapes:0,references:0,vertices:0,restored:0};
+    for(const name of ['box','sphere','foliage','cylinder','octa','ring','bevel','wedge']){
+      const range=source.ranges[name];if(!range||FORMES_LIBRES.has(name))continue;
+      const key=range.offset+':'+range.count;let record=ranges.get(key);
+      if(record){byName.set(name,record);continue;}
+      const first=range.offset/INDEX_OCTETS,original=source.indices.slice(first,first+range.count),seen=new Map();let changed=false;
+      for(let i=0;i<original.length;i++){
+        const vertex=original[i],at=vertex*6,key=words[at]+','+words[at+1]+','+words[at+2]+','+words[at+3]+','+words[at+4]+','+words[at+5];
+        let prior=seen.get(key);if(prior===undefined){prior=vertex;seen.set(key,vertex);}indices[first+i]=prior;if(prior!==vertex)changed=true;
+      }
+      record={offset:range.offset,indices:original,active:changed};ranges.set(key,record);byName.set(name,record);
+      stats.shapes+=changed?1:0;stats.references+=original.length;stats.vertices+=seen.size;
+    }
+    return {indices,stats,restore(name){const record=byName.get(name);if(!record?.active)return null;record.active=false;indices.set(record.indices,record.offset/INDEX_OCTETS);stats.restored++;return record;}};
+  }
+
+  function environmentInfo(value){
+    if(!value)return null;
+    const color=(v,fallback)=>Array.isArray(v)&&v.length>=3?v.slice(0,3).map((x,i)=>Number.isFinite(x)?Math.max(0,x):fallback[i]):fallback;
+    // A direction can contain negative horizontal coordinates; colours cannot.
+    const sun=Array.isArray(value.sunDirection)&&value.sunDirection.length>=3?value.sunDirection.slice(0,3).map((x,i)=>Number.isFinite(x)?x:[.4,.8,.3][i]):[.4,.8,.3];
+    sun[1]=Math.max(.12,sun[1]);const sunLength=Math.hypot(...sun)||1;
+    return {...value,skyTop:color(value.skyTop,[.22,.39,.51]),skyBottom:color(value.skyBottom,[.65,.72,.66]),fog:color(value.fog,[.35,.43,.42]),sunDirection:sun.map(x=>x/sunLength),sunColor:color(value.sunColor,[1,.86,.62]),ambient:color(value.ambient,[.24,.29,.27]),wind:Number.isFinite(value.wind)?Math.max(0,Math.min(2,value.wind)):.6,fogDensity:Number.isFinite(value.fogDensity)?Math.max(.0001,value.fogDensity):.011,outdoorZones:value.outdoorZones||[]};
+  }
+  function outdoorAt(p,environment){
+    return !!environment&&environment.outdoorZones.some(zone=>Math.abs(p[0]-zone.x)<=zone.w*.5+.08&&Math.abs(p[2]-zone.z)<=zone.d*.5+.08);
+  }
+  function transientLights(value,eye,limit){
+    if(!Array.isArray(value))return [];
+    const valid=[];
+    for(const source of value.slice(0,16)){
+      if(!source||!Array.isArray(source.p)||source.p.length!==3||!source.p.every(Number.isFinite)||!Number.isFinite(source.power)||source.power<=0||!Number.isFinite(source.range)||source.range<=0)continue;
+      const range=Math.min(48,source.range),power=Math.min(64,source.power),p=source.p;
+      const distance=(p[0]-eye[0])**2+(p[1]-eye[1])**2+(p[2]-eye[2])**2;
+      if(distance>(180+range)**2)continue;
+      const color=Array.isArray(source.color)&&source.color.length===3?source.color.map(v=>Number.isFinite(v)?Math.max(0,Math.min(3,v)):0):[1,.42,.09];
+      if(!color.some(v=>v>0))continue;
+      valid.push({p,color,power,range,dir:source.dir,cone:source.cone,score:power/(1+distance*.1)});
+    }
+    return valid.sort((a,b)=>b.score-a.score).slice(0,limit);
+  }
+  function outdoorMesh(mesh,environment){
+    return !!environment&&(mesh.outdoor===undefined?((mesh.mat||0)>=8||outdoorAt(mesh.p||[0,0,0],environment)):!!mesh.outdoor);
+  }
+  function surfaceFlags(mesh,environment,objects=false){
+    const object=mesh.overlay||mesh.surface==='object'||objects&&mesh.surface!=='architecture';
+    return (mesh.overlay?1:0)+(outdoorMesh(mesh,environment)?2:0)+(object?4:0);
+  }
+  function pack(meshes,environment,objects=false) {
+    const grouped=names.map(()=>[]);
+    for(const mesh of meshes||[]) {
+      const i=shapeIndices.get(mesh.shape||'box');
+      if(i!==undefined) grouped[i].push(mesh);
+    }
+    const count=grouped.reduce((n,g)=>n+g.length,0),values=new Float32Array(count*16),groups=[];
+    let offset=0;
+    for(let i=0;i<names.length;i++) {
+      const list=grouped[i];
+      if(list.length) groups.push({name:names[i],offset:offset*4,count:list.length});
+      for(const mesh of list) {
+        const p=mesh.p||[0,0,0],s=mesh.s||[1,1,1],r=mesh.r||[0,0,0],c=mesh.color||[0,0,0];
+        values[offset]=p[0];values[offset+1]=p[1];values[offset+2]=p[2];values[offset+3]=mesh.mat||0;values[offset+4]=s[0];values[offset+5]=s[1];values[offset+6]=s[2];values[offset+7]=mesh.emissive||0;values[offset+8]=r[0];values[offset+9]=r[1];values[offset+10]=r[2];values[offset+11]=surfaceFlags(mesh,environment,objects);values[offset+12]=c[0];values[offset+13]=c[1];values[offset+14]=c[2];values[offset+15]=mesh.color?1:0;
+        offset+=16;
+      }
+    }
+    return {values,groups};
+  }
+  // A renderer owns each workspace. Returned batches remain valid until its
+  // next call; the public pack() above still returns independent storage.
+  function instancePacker(){
+    let counts=new Uint32Array(0),next=new Uint32Array(0),storage=new Float32Array(0),active=new Float32Array(0);
+    const groups=[],records=[],batch={values:active,groups},zero=[0,0,0],one=[1,1,1];
+    return (meshes,environment,objects=false)=>{
+      if(counts.length<names.length){counts=new Uint32Array(names.length);next=new Uint32Array(names.length);}
+      else counts.fill(0);
+      let total=0;for(const mesh of meshes||[]){const i=shapeIndices.get(mesh.shape||'box');if(i!==undefined){counts[i]++;total++;}}
+      const required=total*16;if(storage.length<required)storage=new Float32Array(Math.max(required,storage.length*2,256));
+      if(active.buffer!==storage.buffer||active.length!==required)active=storage.subarray(0,required);batch.values=active;groups.length=0;
+      let offset=0;for(let i=0;i<names.length;i++){next[i]=offset;if(counts[i]){const group=records[i]||(records[i]={name:names[i],offset:0,count:0});group.offset=offset*4;group.count=counts[i];groups.push(group);offset+=counts[i]*16;}}
+      for(const mesh of meshes||[]){const i=shapeIndices.get(mesh.shape||'box');if(i===undefined)continue;const at=next[i];next[i]+=16;
+        const p=mesh.p||zero,s=mesh.s||one,r=mesh.r||zero,c=mesh.color||zero;
+        active[at]=p[0];active[at+1]=p[1];active[at+2]=p[2];active[at+3]=mesh.mat||0;active[at+4]=s[0];active[at+5]=s[1];active[at+6]=s[2];active[at+7]=mesh.emissive||0;active[at+8]=r[0];active[at+9]=r[1];active[at+10]=r[2];active[at+11]=surfaceFlags(mesh,environment,objects);active[at+12]=c[0];active[at+13]=c[1];active[at+14]=c[2];active[at+15]=mesh.color?1:0;
+      }return batch;
+    };
+  }
+  function packEffects(meshes,environment,eye){
+    const distance=m=>(m.p[0]-eye[0])**2+(m.p[1]-eye[1])**2+(m.p[2]-eye[2])**2;
+    const list=meshes.filter(m=>shapeIndices.has(m.shape||'sphere')&&m.alpha>.003).sort((a,b)=>distance(b)-distance(a));
+    const values=new Float32Array(list.length*16),groups=[];let offset=0;
+    for(const mesh of list){
+      const name=mesh.shape||'sphere',last=groups[groups.length-1];
+      if(last&&last.name===name)last.count++;else groups.push({name,offset:offset*4,count:1});
+      const p=mesh.p,s=mesh.s||[1,1,1],r=mesh.r||[0,0,0],c=mesh.color||[.5,.5,.5];
+      const material=mesh.window?18:mesh.shape==='ring'&&Number.isFinite(mesh.innerRatio)?20+Math.min(.999,Math.max(0,mesh.innerRatio)):mesh.fxPriority==='hazard'?16:mesh.fxFire?14:mesh.fxSmoke?15:mesh.fxSpark?17:7;
+      values[offset]=p[0];values[offset+1]=p[1];values[offset+2]=p[2];values[offset+3]=material;values[offset+4]=s[0];values[offset+5]=s[1];values[offset+6]=s[2];values[offset+7]=mesh.emissive||0;values[offset+8]=r[0];values[offset+9]=r[1];values[offset+10]=r[2];values[offset+11]=surfaceFlags(mesh,environment,true);values[offset+12]=c[0];values[offset+13]=c[1];values[offset+14]=c[2];values[offset+15]=Math.min(1,Math.max(0,mesh.alpha));offset+=16;
+    }
+    return {values,groups};
+  }
+  function effectsPacker(){
+    const order=[],records=[],groups=[],groupRecords=[],zero=[0,0,0],one=[1,1,1],gray=[.5,.5,.5];
+    let storage=new Float32Array(0),active=new Float32Array(0),previous=0;const batch={values:active,groups};
+    return (meshes,environment,eye)=>{
+      order.length=0;let count=0;
+      for(const mesh of meshes){if(!shapeIndices.has(mesh.shape||'sphere')||!(mesh.alpha>.003))continue;
+        const record=records[count]||(records[count]={mesh:null,distance:0,index:0});record.mesh=mesh;record.distance=(mesh.p[0]-eye[0])**2+(mesh.p[1]-eye[1])**2+(mesh.p[2]-eye[2])**2;record.index=count++;order.push(record);
+      }
+      for(let i=count;i<previous;i++)records[i].mesh=null;previous=count;
+      // The tie break preserves the input order of the original stable sort.
+      order.sort((a,b)=>(b.distance-a.distance)||a.index-b.index);
+      const required=count*16;if(storage.length<required)storage=new Float32Array(Math.max(required,storage.length*2,256));
+      if(active.buffer!==storage.buffer||active.length!==required)active=storage.subarray(0,required);batch.values=active;groups.length=0;let offset=0;
+      for(const record of order){const mesh=record.mesh,name=mesh.shape||'sphere',last=groups[groups.length-1];
+        if(last&&last.name===name)last.count++;else{const group=groupRecords[groups.length]||(groupRecords[groups.length]={name:'',offset:0,count:0});group.name=name;group.offset=offset*4;group.count=1;groups.push(group);}
+        const p=mesh.p,s=mesh.s||one,r=mesh.r||zero,c=mesh.color||gray,material=mesh.window?18:mesh.shape==='ring'&&Number.isFinite(mesh.innerRatio)?20+Math.min(.999,Math.max(0,mesh.innerRatio)):mesh.fxPriority==='hazard'?16:mesh.fxFire?14:mesh.fxSmoke?15:mesh.fxSpark?17:7;
+        active[offset]=p[0];active[offset+1]=p[1];active[offset+2]=p[2];active[offset+3]=material;active[offset+4]=s[0];active[offset+5]=s[1];active[offset+6]=s[2];active[offset+7]=mesh.emissive||0;active[offset+8]=r[0];active[offset+9]=r[1];active[offset+10]=r[2];active[offset+11]=surfaceFlags(mesh,environment,true);active[offset+12]=c[0];active[offset+13]=c[1];active[offset+14]=c[2];active[offset+15]=Math.min(1,Math.max(0,mesh.alpha));offset+=16;
+      }return batch;
+    };
+  }
+
+  function multiply(a,b,out) {
+    for(let c=0;c<4;c++) for(let r=0;r<4;r++) out[c*4+r]=a[r]*b[c*4]+a[4+r]*b[c*4+1]+a[8+r]*b[c*4+2]+a[12+r]*b[c*4+3];
+    return out;
+  }
+
+  function cameraAxes(camera){
+    const yaw=camera.yaw||0,pitch=camera.pitch||0,roll=camera.roll||0;
+    const cy=Math.cos(yaw),sy=Math.sin(yaw),cp=Math.cos(pitch),sp=Math.sin(pitch),cr=Math.cos(roll),sr=Math.sin(roll);
+    const r=[cy,0,sy],u=[-sy*sp,cp,cy*sp];
+    return {right:r.map((v,i)=>v*cr+u[i]*sr),up:u.map((v,i)=>v*cr-r[i]*sr),forward:[sy*cp,sp,-cy*cp]};
+  }
+  function detailRanges(quality,software=false){
+    return software?(quality==='low'?[26,16,0]:quality==='high'?[42,30,12]:[34,23,8]):(quality==='low'?[48,20,0]:quality==='high'?[82,42,19]:[64,32,13]);
+  }
+  function extendedDistance(range,environment,eye){
+    for(const zone of environment?.longViewZones||[]){
+      const dx=Math.max(0,Math.abs(eye[0]-zone.x)-zone.w*.5),dz=Math.max(0,Math.abs(eye[2]-zone.z)-zone.d*.5),distance=Math.hypot(dx,dz);
+      const t=Math.max(0,Math.min(1,(35-distance)/20)),blend=t*t*(3-2*t),target=Math.max(range,Math.min(140,Number(zone.range)||100));
+      range=Math.max(range,range+(target-range)*blend);
+    }
+    return range;
+  }
+  function softwareDistance(quality,environment,eye){
+    return extendedDistance(environment?(quality==='low'?30:quality==='high'?50:38):(quality==='low'?26:quality==='high'?42:34),environment,eye);
+  }
+  function horrorLights(director,lights){
+    if(director?.eventType!=='blackout'||!(director.eventAge>=0&&director.eventAge<1.2))return null;
+    const p=[director.eventX,director.eventY,director.eventZ];if(!p.every(Number.isFinite))return null;
+    const age=director.eventAge,smooth=x=>{x=Math.max(0,Math.min(1,x));return x*x*(3-2*x);};
+    const strength=.78*Math.max(0,Math.min(1,Number.isFinite(director.eventIntensity)?director.eventIntensity:1))*smooth(age/.08)*(1-smooth((age-.72)/.48));
+    if(strength<.0001)return null;
+    const local=lights.map(light=>({light,d:Math.hypot(...light.p.map((v,k)=>v-p[k]))})).filter(e=>e.d<10).sort((a,b)=>a.d-b.d).slice(0,3),plan=new Map();
+    for(const {light,d} of local)plan.set(light,1-strength*(1-smooth((d-4)/6)));
+    return plan.size?plan:null;
+  }
+  function resolutionGovernor(){
+    let scale=1,mean=0,slow=0,fast=0,cooldown=1;
+    return {
+      reset(){scale=1;mean=slow=fast=0;cooldown=1;},
+      update(fx,quality){
+        if(quality!=='auto'||fx.adaptive!==true){mean=slow=fast=0;return scale;}
+        const raw=Number(fx.frameMs);if(!(raw>0&&raw<500))return scale;
+        // One loading spike cannot lower quality; sustained slow frames still count.
+        const dt=Math.min(.25,raw/1000),sample=Math.min(150,raw);
+        mean=mean?mean+(sample-mean)*(1-Math.exp(-dt/.65)):sample;
+        cooldown=Math.max(0,cooldown-dt);
+        if(cooldown>0){slow=fast=0;return scale;}
+        slow=mean>25?slow+dt:0;fast=mean<18.5?fast+dt:0;
+        if(slow>1.3&&scale>.65){scale=Math.max(.65,Math.round((scale-.1)*100)/100);cooldown=2;slow=fast=0;}
+        else if(fast>5&&scale<1){scale=Math.min(1,Math.round((scale+.05)*100)/100);cooldown=2;slow=fast=0;}
+        return scale;
+      }
+    };
+  }
+  function metadata(mesh){
+    return {mesh,renderRevision:mesh.renderRevision||0,p:mesh.p||[0,0,0],radius:Math.hypot(...(mesh.s||[1,1,1]))*.5,detail:Math.max(0,Math.min(2,Math.floor(mesh.detail||0))),software:null,softwareCoarse:null};
+  }
+  function validatedMeshSplices(delta,before,after){
+    if(!delta||delta.full||!Array.isArray(before)||!Array.isArray(after)||delta.before!==before||delta.after!==after||!Array.isArray(delta.splices))return null;
+    let end=0,shift=0,changed=0;
+    for(const q of delta.splices){
+      if(!q||!Number.isInteger(q.start)||!Number.isInteger(q.deleteCount)||q.start<end||q.deleteCount<0||q.start+q.deleteCount>before.length||!Array.isArray(q.items))return null;
+      for(let i=0;i<q.items.length;i++)if(!q.items[i]||typeof q.items[i]!=='object'||after[q.start+shift+i]!==q.items[i])return null;
+      end=q.start+q.deleteCount;shift+=q.items.length-q.deleteCount;changed+=q.items.length+q.deleteCount;
+    }
+    return before.length+shift===after.length&&changed<=Math.max(64,after.length/4)?delta.splices:null;
+  }
+  function spliceReferences(before,splices,length){
+    // Preserve snapshot arrays, but let the native array copier move retained
+    // city ranges instead of visiting every object in JavaScript twice.
+    const ranges=[];let read=0;
+    for(const q of splices){if(read<q.start)ranges.push(before.slice(read,q.start));if(q.items.length)ranges.push(q.items[Symbol.isConcatSpreadable]===false?Array.from(q.items):q.items);read=q.start+q.deleteCount;}
+    if(read<before.length)ranges.push(before.slice(read));
+    if(ranges.length<4096)return [].concat(...ranges);
+    const after=new Array(length);let write=0;for(const range of ranges)for(const item of range)after[write++]=item;return after;
+  }
+  function partitionWorld(meshes,previous,options){
+    const source=meshes||[],splices=options?.revisionedMeshes===true&&previous?.dense&&validatedMeshSplices(options.meshDelta,previous.source,source);
+    if(splices){
+      const foreground=[],positions=previous.backgroundPositions;let bg=0,shift=0,valid=true;
+      for(const q of splices){
+        while(bg<positions.length&&positions[bg]<q.start)bg++;
+        if((bg<positions.length&&positions[bg]<q.start+q.deleteCount)||q.items.some(m=>m.backgroundWater)){valid=false;break;}
+        foreground.push({start:q.start-bg,deleteCount:q.deleteCount,items:q.items});shift+=q.items.length-q.deleteCount;
+      }
+      if(valid){
+        const world=foreground.length?spliceReferences(previous.world,foreground,previous.world.length+shift):previous.world,backgroundPositions=[];let at=0,offset=0;
+        for(const position of positions){while(at<splices.length&&splices[at].start<=position){offset+=splices[at].items.length-splices[at].deleteCount;at++;}backgroundPositions.push(position+offset);}
+        return {source,world,background:previous.background,backgroundPositions,dense:true,meshDelta:{before:previous.world,after:world,full:false,splices:foreground}};
+      }
+    }
+    const world=[],background=[],backgroundPositions=[];
+    for(let i=0;i<source.length;i++){const mesh=source[i];if(mesh===undefined&&!(i in source))continue;if(mesh.backgroundWater){background.push(mesh);backgroundPositions.push(i);}else world.push(mesh);}
+    return {source,world,background,backgroundPositions,dense:world.length+background.length===source.length,meshDelta:null};
+  }
+  function sameChunkCategory(c,e){const m=e.mesh,p=e.p,s=m.s;return s.length===3&&c.x===p[0]&&c.y===p[1]&&c.z===p[2]&&c.sx===s[0]&&c.sy===s[1]&&c.sz===s[2]&&c.detail===m.detail&&c.ground===(m.ground===true)&&c.radius===e.radius;}
+  function planChunks(index,chunks,categories,state){
+    const categoryFor=e=>{let c=categories.get(e);if(!c||!sameChunkCategory(c,e)){
+      const m=e.mesh,p=e.p,s=m.s,size=Math.max(...s),ground=m.ground===true||(s[1]<.15&&p[1]+s[1]/2<.24),range=m.detail===2?65:m.detail===1?130:ground||size>4?6000:size<.65?75:180,cell=range<6000?32:128;
+      c={key:Math.floor(p[0]/cell)+','+Math.floor(p[2]/cell)+','+range+','+(e.radius>40?'large':'small'),range,x:p[0],y:p[1],z:p[2],sx:s[0],sy:s[1],sz:s[2],detail:m.detail,ground:m.ground===true,radius:e.radius};categories.set(e,c);
+    }e.chunkCategory=c;return c;};
+    const delta=index.delta,incremental=chunks.size&&delta&&!delta.full&&state.index===index&&state.epoch===delta.fromEpoch;
+    state.index=index;state.epoch=delta?.epoch;state.incremental=!!incremental;state.entriesVisited=0;
+    if(incremental){
+      const erased=new Set([...delta.removed,...delta.changed]),keys=new Set(),additions=new Map();
+      for(const e of erased){const c=categories.get(e);if(c)keys.add(c.key);}
+      for(const e of [...delta.added,...delta.changed]){const c=categoryFor(e);keys.add(c.key);let list=additions.get(c.key);if(!list){list=[];additions.set(c.key,list);}list.push(e);}
+      const edited=[];
+      for(const key of keys){
+        const old=chunks.get(key),added=additions.get(key)||[],retained=(old?.entries||[]).filter(e=>!erased.has(e));
+        // Retained occurrences are already ordered. Sort only the few new
+        // entries and merge them without sorting an entire facade chunk.
+        added.sort((a,b)=>a.ordinal-b.ordinal);const entries=[];let ai=0;
+        for(const e of retained){while(ai<added.length&&added[ai].ordinal<e.ordinal)entries.push(added[ai++]);entries.push(e);}while(ai<added.length)entries.push(added[ai++]);
+        state.entriesVisited+=(old?.entries.length||0)+added.length;if(!entries.length)continue;
+        const c=old||{range:categoryFor(entries[0]).range,entries:[]};c.nextCount=entries.length;c.nextEntries=c.entries.length===entries.length&&entries.every((e,i)=>e===c.entries[i])?null:entries;edited.push([key,c,entries[0].ordinal]);
+      }
+      edited.sort((a,b)=>a[2]-b[2]);const next=new Map();let at=0;
+      // Unchanged chunks retain relative order. Merge only the affected chunks
+      // at their new first occurrence; even depth ties keep the original order.
+      for(const [key,c] of chunks){if(keys.has(key))continue;const ordinal=c.entries[0].ordinal;while(at<edited.length&&edited[at][2]<ordinal){next.set(edited[at][0],edited[at][1]);at++;}c.nextEntries=null;c.nextCount=c.entries.length;next.set(key,c);}
+      while(at<edited.length){next.set(edited[at][0],edited[at][1]);at++;}return next;
+    }
+    const next=new Map();for(const e of index.entries){state.entriesVisited++;const category=categoryFor(e);let c=next.get(category.key);
+      if(!c){c=chunks.get(category.key)||{range:category.range,entries:[]};c.nextEntries=null;c.nextCount=0;next.set(category.key,c);}
+      if(c.nextEntries)c.nextEntries.push(e);else if(c.entries[c.nextCount]!==e){c.nextEntries=c.entries.slice(0,c.nextCount);c.nextEntries.push(e);}c.nextCount++;
+    }return next;
+  }
+  function spatialIndex(meshes,environment,previous,options){
+    if(previous?.reconcile)return previous.reconcile(meshes,environment,options);
+    const levels=[new Map(),new Map(),new Map()],large=[0,1,2].map(level=>({entries:[],epoch:0,count:0,next:null,level,key:null})),maxRadius=[0,0,0],byMesh=new WeakMap();let epoch=0;
+    const index={entries:[],query,byMesh,reconcile};let sourceMeshes=null;
+    function append(bucket,e){
+      if(bucket.epoch!==epoch){bucket.epoch=epoch;bucket.count=0;bucket.next=null;}
+      if(bucket.next)bucket.next.push(e);
+      else if(bucket.entries[bucket.count]!==e){bucket.next=bucket.entries.slice(0,bucket.count);bucket.next.push(e);}
+      bucket.count++;
+    }
+    function finish(bucket){
+      if(bucket.epoch!==epoch){bucket.entries=[];return false;}
+      if(bucket.next)bucket.entries=bucket.next;
+      else if(bucket.count!==bucket.entries.length)bucket.entries=bucket.entries.slice(0,bucket.count);
+      bucket.next=null;return true;
+    }
+    function applyMeshDelta(list,env,options){
+      const splices=options?.revisionedMeshes===true&&!index.duplicates&&sourceMeshes?.length===index.entries.length&&validatedMeshSplices(options.meshDelta,sourceMeshes,list);
+      if(!splices)return false;
+      // Existing identities in insertions may be moves, revisions or duplicate
+      // occurrences. Preserve their general reconciliation semantics instead.
+      const unique=new Set();for(const q of splices)for(const mesh of q.items){if(byMesh.has(mesh)||unique.has(mesh))return false;unique.add(mesh);}
+      if(!splices.length){sourceMeshes=list;index.delta={fromEpoch:epoch,epoch,added:[],removed:[],changed:[],full:false,fast:true};return true;}
+      const priorEpoch=epoch++,removed=[],added=[],entrySplices=[],dirty=new Set(),insertions=new Map();
+      for(const q of splices){
+        for(let i=q.start;i<q.start+q.deleteCount;i++){const e=index.entries[i];removed.push(e);dirty.add(e.indexBucket);byMesh.delete(e.mesh);}
+        const items=[];for(const mesh of q.items){
+          const e=metadata(mesh),p=e.p,s=mesh.s||[1,1,1],r=mesh.r||[0,0,0],c=mesh.color||[0,0,0];
+          e.row=new Float32Array([p[0],p[1],p[2],mesh.mat||0,s[0],s[1],s[2],mesh.emissive||0,r[0],r[1],r[2],surfaceFlags(mesh,env),c[0],c[1],c[2],mesh.color?1:0]);
+          let bucket;if(e.radius>32)bucket=large[e.detail];else{const key=Math.floor(p[0]/8)+','+Math.floor(p[2]/8),map=levels[e.detail];bucket=map.get(key);if(!bucket){bucket={entries:[],epoch:0,count:0,next:null,level:e.detail,key};map.set(key,bucket);}maxRadius[e.detail]=Math.max(maxRadius[e.detail],e.radius);}
+          e.indexBucket=bucket;e.indexPX=p[0];e.indexPZ=p[2];e.indexRadius=e.radius;e.indexDetail=e.detail;dirty.add(bucket);let group=insertions.get(bucket);if(!group){group=[];insertions.set(bucket,group);}group.push(e);byMesh.set(mesh,e);items.push(e);added.push(e);
+        }entrySplices.push({start:q.start,deleteCount:q.deleteCount,items});
+      }
+      const entries=spliceReferences(index.entries,entrySplices,list.length);for(let i=0;i<entries.length;i++){const e=entries[i];e.indexEpoch=epoch;e.ordinal=i;}
+      for(const bucket of dirty){const next=bucket.entries.filter(e=>e.indexEpoch===epoch),add=insertions.get(bucket);if(add?.length){for(const e of add)next.push(e);next.sort((a,b)=>a.ordinal-b.ordinal);}bucket.entries=next;bucket.epoch=epoch;bucket.count=next.length;bucket.next=null;if(!next.length&&bucket.key!==null)levels[bucket.level].delete(bucket.key);}
+      sourceMeshes=list;index.entries=entries;index.duplicates=false;index.delta={fromEpoch:priorEpoch,epoch,added,removed,changed:[],full:false,fast:true};return true;
+    }
+    function reconcile(list,env,options){
+      if(applyMeshDelta(list,env,options))return index;
+      // Opt-in producer contract: retained identity + renderRevision guarantees
+      // every render/spatial property (including p/s/r/color array contents)
+      // is unchanged. A revised mesh always receives complete new metadata.
+      const revisionedMeshes=options?.revisionedMeshes===true;
+      const priorEpoch=epoch++,priorDuplicates=index.duplicates,priorEntries=index.entries,entries=[],added=[],removed=[],changed=[],removalCandidates=[],dirtyBuckets=new Set(),bucketInsertions=new Map();let lastOrdinal=-1,cursor=0,reordered=false,duplicates=false;
+      const considerRemoval=e=>{if(e.removalEpoch!==epoch){e.removalEpoch=epoch;removalCandidates.push(e);}};
+      for(const mesh of list||[]){
+        // Stable scene order permits a direct reference read. Gaps in that
+        // cursor identify the possible removals without rescanning every entry.
+        const candidate=priorDuplicates?null:priorEntries[cursor],prior=candidate?.mesh===mesh&&candidate.indexEpoch===priorEpoch?candidate:byMesh.get(mesh);
+        if(prior?.indexEpoch===priorEpoch&&prior.ordinal>=cursor){if(!priorDuplicates)for(let i=cursor;i<prior.ordinal;i++)considerRemoval(priorEntries[i]);cursor=prior.ordinal+1;}
+        const duplicate=prior?.indexEpoch===epoch,retained=prior&&(prior.indexEpoch===priorEpoch||prior.retainedEpoch===epoch)&&prior.renderRevision===(mesh.renderRevision||0)?prior:null,e=retained||metadata(mesh);
+        if(duplicate)duplicates=true;
+        if(retained){
+          if(!duplicate){if(e.ordinal<=lastOrdinal)reordered=true;lastOrdinal=e.ordinal;}
+          e.retainedEpoch=epoch;if(!revisionedMeshes&&e.chunkCategory&&!sameChunkCategory(e.chunkCategory,e))changed.push(e);
+        }
+        else{
+          if(!priorDuplicates&&prior?.indexEpoch===priorEpoch)considerRemoval(prior);
+          const p=e.p,s=mesh.s||[1,1,1],r=mesh.r||[0,0,0],c=mesh.color||[0,0,0];
+          e.row=new Float32Array([p[0],p[1],p[2],mesh.mat||0,s[0],s[1],s[2],mesh.emissive||0,r[0],r[1],r[2],surfaceFlags(mesh,env),c[0],c[1],c[2],mesh.color?1:0]);
+          byMesh.set(mesh,e);
+          if(priorEpoch)added.push(e);
+        }
+        const oldBucket=e.indexBucket;
+        if(!oldBucket||(!revisionedMeshes&&(e.indexPX!==e.p[0]||e.indexPZ!==e.p[2]||e.indexRadius!==e.radius||e.indexDetail!==e.detail))){
+          if(e.radius>32)e.indexBucket=large[e.detail];
+          else{const key=Math.floor(e.p[0]/8)+','+Math.floor(e.p[2]/8),map=levels[e.detail];let bucket=map.get(key);if(!bucket){bucket={entries:[],epoch:0,count:0,next:null,level:e.detail,key};map.set(key,bucket);}e.indexBucket=bucket;maxRadius[e.detail]=Math.max(maxRadius[e.detail],e.radius);}
+          e.indexPX=e.p[0];e.indexPZ=e.p[2];e.indexRadius=e.radius;e.indexDetail=e.detail;
+        }
+        if(priorEpoch&&!priorDuplicates&&e.indexBucket!==oldBucket){if(oldBucket)dirtyBuckets.add(oldBucket);dirtyBuckets.add(e.indexBucket);let list=bucketInsertions.get(e.indexBucket);if(!list){list=[];bucketInsertions.set(e.indexBucket,list);}list.push(e);}
+        e.indexEpoch=epoch;e.ordinal=entries.length;entries.push(e);
+      }
+      const threshold=Math.max(64,entries.length/4),scanAll=!priorEpoch||priorDuplicates||duplicates||reordered||added.length>threshold||removalCandidates.length+priorEntries.length-cursor>threshold;
+      if(!scanAll)for(let i=cursor;i<priorEntries.length;i++)considerRemoval(priorEntries[i]);
+      for(const e of scanAll?priorEntries:removalCandidates)if(e.indexEpoch!==epoch){removed.push(e);dirtyBuckets.add(e.indexBucket);if(byMesh.get(e.mesh)===e)byMesh.delete(e.mesh);}
+      const full=!priorEpoch||reordered||duplicates||priorDuplicates||added.length+removed.length>threshold;
+      if(full){
+        // Duplicates and order changes require the exact original traversal.
+        for(const e of entries)append(e.indexBucket,e);
+        for(let level=0;level<3;level++){finish(large[level]);for(const [key,bucket] of levels[level])if(!finish(bucket))levels[level].delete(key);}
+      }else for(const bucket of dirtyBuckets){
+        const next=bucket.entries.filter(e=>e.indexEpoch===epoch&&e.indexBucket===bucket),insertions=bucketInsertions.get(bucket);
+        if(insertions?.length){for(const e of insertions)next.push(e);next.sort((a,b)=>a.ordinal-b.ordinal);}
+        bucket.entries=next;bucket.epoch=epoch;bucket.count=next.length;bucket.next=null;
+        if(!next.length&&bucket.key!==null)levels[bucket.level].delete(bucket.key);
+      }
+      sourceMeshes=list;index.entries=entries;index.duplicates=duplicates;index.delta={fromEpoch:priorEpoch,epoch,added,removed,changed,full,fast:false};return index;
+    }
+    function query(eye,ranges){
+      const result=[];
+      for(let level=0;level<3;level++){
+        const range=ranges[level];if(!(range>0))continue;
+        for(const e of large[level].entries){const d=(e.p[0]-eye[0])**2+(e.p[1]-eye[1])**2+(e.p[2]-eye[2])**2;if(d<=(range+e.radius)**2)result.push(e);}
+        // Keeping the largest previous radius is conservative: the exact same
+        // distance test below rejects any extra buckets visited after removals.
+        const radius=range+maxRadius[level];
+        for(let x=Math.floor((eye[0]-radius)/8);x<=Math.floor((eye[0]+radius)/8);x++)for(let z=Math.floor((eye[2]-radius)/8);z<=Math.floor((eye[2]+radius)/8);z++){
+          const bucket=levels[level].get(x+','+z);if(!bucket)continue;
+          for(const e of bucket.entries){const d=(e.p[0]-eye[0])**2+(e.p[1]-eye[1])**2+(e.p[2]-eye[2])**2;if(d<=(range+e.radius)**2)result.push(e);}
+        }
+      }
+      return result;
+    }
+    return reconcile(meshes,environment,options);
+  }
+  function visible(e,eye,axes,horizontal,vertical,far){
+    const x=e.p[0]-eye[0],y=e.p[1]-eye[1],d=e.p[2]-eye[2],f=axes.forward,right=axes.right,up=axes.up;
+    const z=x*f[0]+y*f[1]+d*f[2],r=e.radius;
+    return z+r>.04&&z-r<far&&Math.abs(x*right[0]+y*right[1]+d*right[2])<=z*horizontal+r*Math.sqrt(1+horizontal*horizontal)&&Math.abs(x*up[0]+y*up[1]+d*up[2])<=z*vertical+r*Math.sqrt(1+vertical*vertical);
+  }
+  function packIndexed(entries){
+    const buckets=names.map(()=>[]);for(const e of entries){const i=shapeIndices.get(e.mesh.shape||'box');if(i!==undefined)buckets[i].push(e);}
+    const values=new Float32Array(entries.length*16),groups=[];let offset=0;
+    for(let i=0;i<names.length;i++)if(buckets[i].length){groups.push({name:names[i],offset:offset*4,count:buckets[i].length});for(const e of buckets[i]){values.set(e.row,offset);offset+=16;}}
+    return {values,groups};
+  }
+
+  function skyColor(values,scale=1){return 'rgb('+values.map(v=>Math.round(Math.pow(Math.max(0,v*scale)/(Math.max(0,v*scale)+.76),.4545)*255)).join(',')+')';}
+  function softwareSky(ctx,width,height,axes,tan,environment,time){
+    const {right,up,forward}=axes,focal=height/(2*tan),span=Math.hypot(right[1],up[1])||1;
+    const ux=right[1]/span,uy=-up[1]/span,offset=-forward[1]*focal/span;
+    const hx=width*.5+ux*offset,hy=height*.5+uy*offset;
+    const gradient=ctx.createLinearGradient(hx+ux*height,hy+uy*height,hx-ux*height*.15,hy-uy*height*.15);
+    gradient.addColorStop(0,skyColor(environment.skyTop));gradient.addColorStop(.84,skyColor(environment.skyBottom));gradient.addColorStop(1,skyColor(environment.fog,.85));
+    ctx.fillStyle=gradient;ctx.fillRect(0,0,width,height);
+    const projectDirection=d=>{const z=d[0]*forward[0]+d[1]*forward[1]+d[2]*forward[2];return z>.03?[width*.5+(d[0]*right[0]+d[1]*right[1]+d[2]*right[2])*focal/z,height*.5-(d[0]*up[0]+d[1]*up[1]+d[2]*up[2])*focal/z,z]:null;};
+    const sun=projectDirection(environment.sunDirection);
+    if(sun){
+      const radius=Math.max(4,focal*.022/sun[2]),glow=ctx.createRadialGradient(sun[0],sun[1],radius*.2,sun[0],sun[1],radius*7);
+      glow.addColorStop(0,'rgba(255,233,179,.70)');glow.addColorStop(1,'rgba(255,232,182,0)');
+      ctx.fillStyle=glow;ctx.fillRect(sun[0]-radius*7,sun[1]-radius*7,radius*14,radius*14);
+      ctx.beginPath();ctx.arc(sun[0],sun[1],radius,0,Math.PI*2);ctx.fillStyle=skyColor(environment.sunColor,5);ctx.fill();
+    }
+    // Clouds occupy stable directions in the sky; walking never drags them with the camera.
+    for(let i=0;i<20;i++){
+      const angle=i*2.399963+time*.0008*environment.wind,elevation=.16+(.5+.5*Math.sin(i*5.17))*.52;
+      const d=[Math.sin(angle),elevation,-Math.cos(angle)],cloud=projectDirection(d);if(!cloud)continue;
+      const size=focal*(.075+(.5+.5*Math.sin(i*3.1))*.08)/cloud[2];
+      if(cloud[0]<-size*3||cloud[0]>width+size*3||cloud[1]<-size||cloud[1]>height+size)continue;
+      ctx.save();ctx.translate(cloud[0],cloud[1]);ctx.rotate(Math.atan2(right[1],up[1]));ctx.scale(2.6,1);
+      const haze=ctx.createRadialGradient(0,0,0,0,0,size);haze.addColorStop(0,'rgba(247,249,234,.27)');haze.addColorStop(.5,'rgba(247,249,234,.19)');haze.addColorStop(1,'rgba(247,249,234,0)');
+      ctx.fillStyle=haze;ctx.fillRect(-size,-size,size*2,size*2);ctx.restore();
+    }
+    // A yaw-stable panorama continues behind the actual trees, cliffs and buildings.
+    for(let layer=0;layer<2;layer++){
+      const points=[];
+      for(let x=-width*.25;x<=width*1.25;x+=width/48){
+        const lateral=(x-width*.5)/focal,dx=forward[0]+right[0]*lateral,dz=forward[2]+right[2]*lateral,angle=Math.atan2(dx,-dz);
+        const ridge=(layer?-.018:.026)+(.5+.5*Math.sin(angle*7.3+layer*5))*.035+(.5+.5*Math.sin(angle*17.1+2))*.022;
+        const point=projectDirection([Math.sin(angle),ridge,-Math.cos(angle)]);if(point)points.push(point);
+      }
+      if(points.length>1){ctx.beginPath();ctx.moveTo(points[0][0],height*3);for(const p of points)ctx.lineTo(p[0],p[1]);ctx.lineTo(points[points.length-1][0],height*3);ctx.closePath();ctx.fillStyle=skyColor(environment.fog,layer?.8:1.12);ctx.fill();}
+    }
+  }
+
+  // CPU fallback: actual transformed polygons, perspective projection and near clipping.
+  // It intentionally has fewer facets and a shorter draw distance than the GPU renderer.
+  function createSoftware(canvas) {
+    const ctx=canvas.getContext('2d',{alpha:false});
+    if(!ctx) throw new Error('Le rendu graphique est indisponible dans ce navigateur.');
+    const base={},coarseBase={},palette=[[.105,.135,.15],[.36,.18,.065],[.13,.16,.17],[.57,.58,.54],[.025,.74,.77],[1,.42,.06],[.68,.055,.025],[.065,.075,.085],[.16,.21,.075],[.32,.31,.27],[.18,.10,.04],[.105,.255,.055],[.035,.12,.15]];
+    const stats={backend:'canvas2d',webglVersion:0,drawCalls:0,triangles:0,instances:0,contextLost:false,bloom:false,shadows:false};
+    let world=spatialIndex([]),lights=[],environment=null,quality='auto',disposed=false,vignette=null,shadowGeometry=new WeakMap(),explicitGround=false,staticCasterPlan=null,worldRevision=0;
+    const dot=(a,b)=>a[0]*b[0]+a[1]*b[1]+a[2]*b[2];
+    const subtract=(a,b)=>[a[0]-b[0],a[1]-b[1],a[2]-b[2]];
+    const same=(a,b)=>Math.abs(a[0]-b[0])+Math.abs(a[1]-b[1])+Math.abs(a[2]-b[2])<.00001;
+    function normal(v) {
+      const a=subtract(v[1],v[0]),b=subtract(v[2],v[0]);
+      const n=[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]],length=Math.hypot(...n)||1;
+      return n.map(x=>x/length);
+    }
+    function merge(a,b) {
+      if(dot(normal(a),normal(b))<.99999) return null;
+      const edges=[];
+      for(const v of [a,b]) for(let j=0;j<3;j++) edges.push([v[j],v[(j+1)%3]]);
+      const boundary=edges.filter(e=>!edges.some(f=>e!==f&&same(e[0],f[1])&&same(e[1],f[0])));
+      if(boundary.length!==4)return null;
+      const v=[boundary[0][0]];let tip=boundary[0][1];
+      for(let j=0;j<3;j++){v.push(tip);const next=boundary.find(e=>same(e[0],tip));if(!next)return null;tip=next[1];}
+      return same(tip,v[0])?v:null;
+    }
+    for(const [source,shapes] of [[geometry(true),base],[geometry(2),coarseBase]]){
+      for(const shape of names) {
+        const range=source.ranges[shape],triangles=[];
+        for(let j=range.offset/2;j<range.offset/2+range.count;j+=3){
+          const v=[];for(let k=0;k<3;k++){const at=source.indices[j+k]*6;v.push(Array.from(source.vertices.subarray(at,at+3)));}triangles.push(v);
+        }
+        shapes[shape]=[];
+        for(let j=0;j<triangles.length;j++){
+          const quad=j+1<triangles.length?merge(triangles[j],triangles[j+1]):null;
+          shapes[shape].push(quad||triangles[j]);if(quad)j++;
+        }
+        if(shape==='cylinder'){
+          // A planar cap is one polygon, not a fan of separately shaded triangles.
+          for(const sign of [-1,1]){
+            const vertices=[];for(const face of shapes[shape])if(normal(face)[1]*sign>.999)for(const p of face)if(Math.hypot(p[0],p[2])>.49&&!vertices.some(v=>same(v,p)))vertices.push(p);
+            vertices.sort((a,b)=>Math.atan2(a[2],a[0])-Math.atan2(b[2],b[0]));if(normal(vertices)[1]*sign<0)vertices.reverse();
+            shapes[shape]=shapes[shape].filter(face=>normal(face)[1]*sign<.999);shapes[shape].push(vertices);
+          }
+        }
+        // Weld the mathematical primitive once. Moving actors reuse topology
+        // instead of rebuilding string-keyed vertex maps for every mesh/frame.
+        const faces=shapes[shape],vertices=[],keys=new Map(),indices=faces.map(face=>face.map(p=>{
+          const key=p.map(v=>Math.round(v*100000)).join(',');
+          if(!keys.has(key)){keys.set(key,vertices.length);vertices.push(p);}return keys.get(key);
+        }));
+        shapes[shape]={faces,vertices,indices};
+      }
+    }
+    function cache(mesh,staticLighting=false,coarse=false,objects=false) {
+      const p=mesh.p||[0,0,0],s=mesh.s||[1,1,1],r=mesh.r||[0,0,0],c=r.map(Math.cos),sn=r.map(Math.sin);
+      function transform(v){
+        let x=v[0]*s[0],y=v[1]*s[1],z=v[2]*s[2];
+        if(mesh.fx&&mesh.shape==='ring'&&Number.isFinite(mesh.innerRatio)){
+          const radial=Math.hypot(v[0],v[2]),side=Math.max(0,Math.min(1,(radial-.37)/.13)),inner=Math.max(0,Math.min(.999,mesh.innerRatio)),scale=(inner*.5+(.5-inner*.5)*side)/Math.max(radial,.0001);x*=scale;z*=scale;
+        }
+        [y,z]=[c[0]*y-sn[0]*z,sn[0]*y+c[0]*z];
+        [x,z]=[c[1]*x+sn[1]*z,-sn[1]*x+c[1]*z];
+        return [c[2]*x-sn[2]*y+p[0],sn[2]*x+c[2]*y+p[1],z+p[2]];
+      }
+      const mat=Math.max(0,Math.min(12,Math.floor(mesh.mat||0))),outdoor=outdoorMesh(mesh,environment),color=mesh.color?(mat<4?mesh.color.map(v=>v*.65):mat>=8?mesh.color.map((v,k)=>v*.65+palette[mat][k]*.35):mesh.color):palette[mat],shape=mesh.shape||'box';
+      const object=surfaceFlags(mesh,environment,objects)>=4;
+      const emission=(mesh.emissive||0)+(mat===4?.72:mat===5?.68:mat===6?.18:0);
+      const shapeSet=coarse?coarseBase:base,template=shapeSet[shape]||shapeSet.box,vertices=template.vertices.map(transform),faces=template.faces.map((v,index)=>{
+        const indices=template.indices[index],points=indices.map(i=>vertices[i]),n=normal(points),center=[0,0,0];
+        for(const q of points)for(let k=0;k<3;k++)center[k]+=q[k]/points.length;
+        const surface=object?[0,0,0]:center;
+        if(object)for(const q of v)for(let k=0;k<3;k++)surface[k]+=q[k]*s[k]/v.length;
+        const grain=.9+Math.abs(Math.sin(surface[0]*91.17+surface[1]*17.3+surface[2]*51.79))*.13;
+        // Explicit receivers include terraces, ramps and moving lift decks. Keep
+        // the original zero-level inference for older, unmarked scene fixtures.
+        const lines=[],ground=!object&&(mesh.ground===true?n[1]>.55:!explicitGround&&mesh.ground!==false&&n[1]>.98&&(mat===2||mat===8||mat===9||mat===12)&&Math.abs(center[1])<.08),plane=dot(n,center);
+        if(!object&&shape==='box'&&points.length===4&&mat<4){
+          if(ground){
+            // Intersect world-aligned seams with the face edges: interpolation
+            // keeps every endpoint on sloping and rotated floor polygons.
+            for(const axis of [0,2]){
+              const coords=points.map(v=>v[axis]),lo=Math.min(...coords),hi=Math.max(...coords);
+              for(let value=Math.ceil(lo/2)*2;value<hi;value+=2){
+                const hits=[];
+                for(let i=0;i<points.length;i++){
+                  const a=points[i],b=points[(i+1)%points.length];
+                  if((a[axis]<=value)!==(b[axis]<=value)){const t=(value-a[axis])/(b[axis]-a[axis]);hits.push(a.map((x,k)=>x+(b[k]-x)*t));}
+                }
+                if(hits.length===2)lines.push(hits);
+              }
+            }
+          }else{
+            const a=subtract(points[1],points[0]),b=subtract(points[3],points[0]);
+            const na=Math.min(12,Math.floor(Math.hypot(...a)/2)),nb=Math.min(12,Math.floor(Math.hypot(...b)/2));
+            for(let i=1;i<na;i++)lines.push([points[0].map((x,k)=>x+a[k]*i/na),points[3].map((x,k)=>x+a[k]*i/na)]);
+            for(let i=1;i<nb;i++)lines.push([points[0].map((x,k)=>x+b[k]*i/nb),points[1].map((x,k)=>x+b[k]*i/nb)]);
+          }
+        }
+        let fixedLight=null,fixedLampParts=null;
+        if(staticLighting){
+          fixedLampParts=[];
+          fixedLight=(outdoor?environment.ambient:[.10,.13,.15]).map(v=>v*(.72+.28*Math.max(outdoor?0:-1,n[1])));
+          const sun=outdoor?Math.max(0,dot(n,environment.sunDirection)):Math.max(0,(-.45*n[0]+.85*n[1]+.35*n[2])/1.022)*.13;
+          for(let k=0;k<3;k++)fixedLight[k]+=sun*(outdoor?environment.sunColor[k]:1);
+          const nearby=lights.map(light=>({light,d:(light.p[0]-center[0])**2+(light.p[1]-center[1])**2+(light.p[2]-center[2])**2})).sort((a,b)=>a.d-b.d).slice(0,4);
+          for(const {light,d} of nearby){const vector=subtract(light.p,center),power=(light.power===undefined?1:light.power)*.24/(1+d*.26)*(Math.max(0,dot(n,vector)/(Math.sqrt(d)||.001))+.035),c=light.color||[1,1,1];for(let k=0;k<3;k++)fixedLight[k]+=power*c[k];fixedLampParts.push(light,power);}
+        }
+        return {points,indices,n,center,plane,grain,lines,color,emission,mat,ground,fixedLight,fixedLampParts,outdoor,region:mesh.region,overlay:!!mesh.overlay,fx:!!mesh.fx,fxFire:!!mesh.fxFire,fxHazard:mesh.fxPriority==='hazard',alpha:mesh.fx?Math.min(1,Math.max(0,mesh.alpha||0)):1};
+      });
+      return {p,radius:Math.hypot(...s)*.5,faces,vertices,sway:mat===11,s};
+    }
+    function setWorld(meshes,points,atmosphere){
+      environment=environmentInfo(atmosphere);world=spatialIndex(meshes||[],environment);lights=points||[];
+      explicitGround=(meshes||[]).some(mesh=>mesh.ground===true);
+      shadowGeometry=new WeakMap();staticCasterPlan=null;for(const e of world.entries)shadowGeometry.set(e.mesh,null);
+      worldRevision=0;stats.worldRevision=0;stats.staticTotal=world.entries.length;stats.biome=environment?environment.biome:null;
+    }
+    function updateWorld(meshes,revision,points,updateOptions){
+      if(disposed||revision===worldRevision)return false;
+      const changedLights=Array.isArray(points)&&(points.length!==lights.length||points.some((light,i)=>light!==lights[i]));
+      if(changedLights)lights=points;
+      const next=meshes||[],ground=next.some(mesh=>mesh.ground===true);world=spatialIndex(next,environment,world,updateOptions);
+      // Legacy scenes infer the floor. Switching that rule invalidates their
+      // receiver classification, even for otherwise unchanged surfaces.
+      if(ground!==explicitGround||changedLights)for(const e of world.entries)e.software=e.softwareCoarse=null;
+      explicitGround=ground;staticCasterPlan=null;
+      for(const e of world.entries)if(!shadowGeometry.has(e.mesh))shadowGeometry.set(e.mesh,null);
+      worldRevision=revision===undefined?worldRevision+1:revision;stats.worldRevision=worldRevision;stats.staticTotal=world.entries.length;
+      return true;
+    }
+    function resize(next){
+      if(next!==undefined)quality=next;
+      const cssWidth=canvas.clientWidth||window.innerWidth||800,cssHeight=canvas.clientHeight||window.innerHeight||600;
+      const requested=typeof quality==='number'?Math.max(.5,Math.min(1.5,quality)):quality==='low'?.8:quality==='high'?1.25:1;
+      const limit=quality==='low'?[720,480]:quality==='high'?[1280,900]:[1024,720];
+      const ratio=Math.min(requested,limit[0]/cssWidth,limit[1]/cssHeight);
+      const width=Math.max(1,Math.round(cssWidth*ratio)),height=Math.max(1,Math.round(cssHeight*ratio));
+      if(canvas.width!==width||canvas.height!==height||!vignette){
+        canvas.width=width;canvas.height=height;
+        vignette=ctx.createRadialGradient(width*.5,height*.47,height*.15,width*.5,height*.5,Math.hypot(width,height)*.58);
+        vignette.addColorStop(0,'rgba(0,0,0,0)');vignette.addColorStop(1,'rgba(0,5,12,.47)');
+      }
+      stats.renderScale=1;stats.pixelRatio=ratio;stats.width=width;stats.height=height;
+      return {width,height,ratio};
+    }
+    function clip(points,depth,greater){
+      const result=[];let previous=points[points.length-1],prevInside=greater?previous[2]>=depth:previous[2]<=depth;
+      for(const p of points){
+        const inside=greater?p[2]>=depth:p[2]<=depth;
+        if(inside!==prevInside){const t=(depth-previous[2])/(p[2]-previous[2]);result.push([previous[0]+(p[0]-previous[0])*t,previous[1]+(p[1]-previous[1])*t,depth]);}
+        if(inside)result.push(p);previous=p;prevInside=inside;
+      }
+      return result;
+    }
+    function screenBounds(points){
+      const b=[Infinity,Infinity,-Infinity,-Infinity];for(const p of points){b[0]=Math.min(b[0],p[0]);b[1]=Math.min(b[1],p[1]);b[2]=Math.max(b[2],p[0]);b[3]=Math.max(b[3],p[1]);}return b;
+    }
+    const overlap=(a,b)=>a[0]<b[2]&&a[2]>b[0]&&a[1]<b[3]&&a[3]>b[1];
+    function clipScreenLine(points,a,b,c){
+      const side=p=>a*p[0]+b*p[1]+c,result=[];let previous=points[points.length-1],before=side(previous);
+      for(const p of points){const after=side(p);if((before>=0)!==(after>=0)){const t=before/(before-after);result.push([previous[0]+(p[0]-previous[0])*t,previous[1]+(p[1]-previous[1])*t]);}if(after>=0)result.push(p);previous=p;before=after;}
+      return result;
+    }
+    function draw(camera,dynamic,fx){
+      if(disposed)return;resize();fx=fx||{};
+      const width=canvas.width,height=canvas.height,t=fx.time||0,shake=fx.shake||0,p=camera.pos||[0,1.6,0];
+      const eye=[p[0]+Math.sin(t*57)*shake*.025,p[1]+Math.sin(t*71)*shake*.015,p[2]];
+      const axes=cameraAxes(camera),{right,up,forward}=axes;
+      const fov=Math.max(FOV_MIN,Math.min(110,camera.fov||75))*Math.PI/180,tan=Math.tan(fov*.5),focal=height/(2*tan),horizontal=tan*width/height;
+      const near=.065,far=softwareDistance(quality,environment,eye);stats.viewDistance=far;
+      const toCamera=v=>{const x=v[0]-eye[0],y=v[1]-eye[1],z=v[2]-eye[2];return [x*right[0]+y*right[1]+z*right[2],x*up[0]+y*up[1]+z*up[2],x*forward[0]+y*forward[1]+z*forward[2]];};
+      const project=v=>[width*.5+v[0]*focal/v[2],height*.5-v[1]*focal/v[2]];
+      function projectPolygon(points){
+        let transformed=points.map(toCamera);if(transformed.length<3||transformed.every(v=>v[2]<near)||transformed.every(v=>v[2]>far))return [];
+        if(transformed.some(v=>v[2]<near))transformed=clip(transformed,near,true);
+        if(transformed.length&&transformed.some(v=>v[2]>far))transformed=clip(transformed,far,false);
+        return transformed.length>2?transformed.map(project):[];
+      }
+      const nearest=lights.map(light=>({light,d:dot(subtract(light.p,eye),subtract(light.p,eye))})).sort((a,b)=>a.d-b.d).slice(0,quality==='low'?4:6).map(entry=>entry.light);
+      const transient=transientLights(fx.lights,eye,quality==='low'?1:2);stats.dynamicLights=transient.length;
+      const blackout=horrorLights(fx.horror,lights);stats.blackoutLights=blackout?.size||0;
+      const faces=[],overlays=[],grounds=[];
+      stats.drawCalls=0;stats.triangles=0;stats.instances=0;
+      function inView(position,r){
+        const center=toCamera(position);
+        return !(center[2]+r<near||center[2]-r>far||Math.abs(center[0])>center[2]*horizontal+r*(1+horizontal)||Math.abs(center[1])>center[2]*tan+r*(1+tan));
+      }
+      function collect(object){
+        if(!inView(object.p,object.radius))return;
+        stats.instances++;
+        const phase=t*.85+object.p[0]*.37+object.p[2]*.21,bend=object.sway&&environment?environment.wind*.055:0;
+        const vertices=object.vertices.map(v=>{if(!bend)return toCamera(v);const weight=Math.max(0,Math.min(1,(v[1]-object.p[1])/Math.max(.01,object.s[1])+.5));return toCamera([v[0]+Math.sin(phase)*bend*weight,v[1],v[2]+Math.cos(phase*.73)*bend*.6*weight]);});
+        const projected=vertices.map(v=>v[2]>=near&&v[2]<=far?project(v):null);
+        for(const face of object.faces){
+          if(dot(face.n,subtract(eye,face.center))<=.00001)continue;
+          let points=face.indices.map(i=>vertices[i]),clipped=false;
+          if(points.every(v=>v[2]<near)||points.every(v=>v[2]>far))continue;
+          if(points.some(v=>v[2]<near)){points=clip(points,near,true);clipped=true;}
+          if(points.length<3)continue;
+          if(points.some(v=>v[2]>far)){points=clip(points,far,false);clipped=true;}
+          if(points.length<3)continue;
+          const screen=clipped?points.map(project):face.indices.map(i=>projected[i]);
+          if(screen.every(v=>v[0]<-2)||screen.every(v=>v[0]>width+2)||screen.every(v=>v[1]<-2)||screen.every(v=>v[1]>height+2))continue;
+          const depth=points.reduce((sum,v)=>sum+v[2],0)/points.length;
+          (face.overlay?overlays:face.ground?grounds:faces).push({face,screen,depth,bounds:screenBounds(screen)});
+        }
+      }
+      const ranges=detailRanges(quality,true),tiers=[[],[],[]];if(environment)ranges[0]=far;let staticVisible=0;
+      for(const e of world.query(eye,ranges))if(visible(e,eye,axes,horizontal,tan,far)){
+        const delta=subtract(e.p,eye),distance=Math.hypot(...delta),pixelRadius=e.radius*focal/Math.max(.2,dot(delta,forward));
+        if(e.detail>0&&pixelRadius<(e.detail===2?2.1:1.0))continue;
+        tiers[e.detail].push({e,pixelRadius,score:distance/(1+Math.min(e.radius,3)*.32)});
+      }
+      const budget=quality==='low'?[Infinity,80,0]:quality==='high'?[Infinity,360,120]:[Infinity,170,45];
+      for(let level=0;level<3;level++){
+        if(level)tiers[level].sort((a,b)=>a.score-b.score);
+        for(const {e,pixelRadius} of tiers[level].slice(0,budget[level])){
+          const key=quality!=='high'&&(quality==='low'||pixelRadius<75)?'softwareCoarse':'software';
+          if(!e[key])e[key]=cache(e.mesh,true,key==='softwareCoarse');collect(e[key]);staticVisible++;
+        }
+      }
+      stats.staticVisible=staticVisible;stats.staticCulled=world.entries.length-staticVisible;
+      for(const mesh of dynamic||[]){
+        const p=mesh.p||[0,0,0],radius=Math.hypot(...(mesh.s||[1,1,1]))*.5;
+        if(inView(p,radius)){const pixelRadius=radius*focal/Math.max(.2,dot(subtract(p,eye),forward)),coarse=!mesh.overlay&&quality!=='high'&&(quality==='low'||pixelRadius<28);collect(cache(mesh,false,coarse,true));}
+      }
+      const receivers=new Map(),regionPlanes=new Map();
+      for(const item of grounds){
+        const {face,bounds}=item,key=face.n.map(v=>Math.round(v*10000)).join(',')+','+Math.round(face.plane*10000)+','+face.outdoor;
+        let receiver=receivers.get(key);
+        if(!receiver){receiver={n:face.n,plane:face.plane,outdoor:face.outdoor,items:[],shadows:[],bounds:bounds.slice(),regions:new Set()};receivers.set(key,receiver);}
+        receiver.items.push(item);item.receiver=receiver;
+        if(face.region){
+          receiver.regions.add(face.region);if(!regionPlanes.has(face.region))regionPlanes.set(face.region,new Set());
+          regionPlanes.get(face.region).add(face.n.map(v=>Math.round(v*1000)).join(',')+','+Math.round(face.plane*10));
+        }
+        for(let i=0;i<4;i++)receiver.bounds[i]=i<2?Math.min(receiver.bounds[i],bounds[i]):Math.max(receiver.bounds[i],bounds[i]);
+      }
+      if(receivers.size&&(nearest.length||environment)&&quality!=='low'&&fx.shadows!==false){
+        const candidates=staticCasters(eye).concat((dynamic||[]).filter(m=>!m.overlay&&shadowCaster(m)))
+          .sort((a,b)=>Math.hypot(a.p[0]-eye[0],a.p[2]-eye[2])-Math.hypot(b.p[0]-eye[0],b.p[2]-eye[2])).slice(0,environment?28:18);
+        const cross=(a,b,c)=>(b[0]-a[0])*(c[2]-a[2])-(b[2]-a[2])*(c[0]-a[0]);
+        const casters=[];
+        for(const m of candidates){
+          const outdoor=outdoorMesh(m,environment),vertices=[];
+          // Only setWorld geometry is immutable; reused dynamic meshes may have moved.
+          let object=shadowGeometry.get(m);if(!object){object=cache(m,false,true);if(shadowGeometry.has(m))shadowGeometry.set(m,object);}
+          const phase=t*.85+object.p[0]*.37+object.p[2]*.21,bend=object.sway&&environment?environment.wind*.055:0;
+          for(const [x,py,z] of object.vertices){
+            const weight=Math.max(0,Math.min(1,(py-object.p[1])/Math.max(.01,object.s[1])+.5)),px=x+Math.sin(phase)*bend*weight,pz=z+Math.cos(phase*.73)*bend*.6*weight;
+            vertices.push([px,py,pz]);
+          }
+          casters.push({outdoor,vertices,heightLimit:m.actorScale>1?44:16});
+        }
+        for(const receiver of receivers.values()){
+          const {n,plane,outdoor}=receiver,sun=environment&&environment.sunDirection,lamp=outdoor?null:nearest.find(light=>dot(n,light.p)-plane>1.2),sunHeight=sun?dot(n,sun):0;
+          if(outdoor?sunHeight<=.05:!lamp)continue;
+          const sourceHeight=lamp?dot(n,lamp.p)-plane:0;
+          for(const caster of casters){
+            if(caster.outdoor!==outdoor)continue;
+            const heights=caster.vertices.map(v=>dot(n,v)-plane),top=Math.max(...heights);
+            if(top<.025||(outdoor?top>caster.heightLimit:top>=sourceHeight-.15))continue;
+            const vertices=[];
+            for(let i=0;i<caster.vertices.length;i++){
+              if(heights[i]<-.025)continue;
+              const v=caster.vertices[i],height=heights[i];
+              if(outdoor){const amount=height/sunHeight;vertices.push(v.map((x,k)=>x-sun[k]*amount));}
+              else{const amount=sourceHeight/(sourceHeight-height);if(amount<=7)vertices.push(v.map((x,k)=>lamp.p[k]+(x-lamp.p[k])*amount));}
+            }
+            if(vertices.length<3)continue;
+            vertices.sort((a,b)=>a[0]-b[0]||a[2]-b[2]);const hull=[];
+            for(const v of vertices){while(hull.length>1&&cross(hull[hull.length-2],hull[hull.length-1],v)<=0)hull.pop();hull.push(v);}
+            const lower=hull.length;for(let i=vertices.length-2;i>=0;i--){const v=vertices[i];while(hull.length>lower&&cross(hull[hull.length-2],hull[hull.length-1],v)<=0)hull.pop();hull.push(v);}hull.pop();
+            const polygon=projectPolygon(hull);if(polygon.length>2){const bounds=screenBounds(polygon);if(overlap(bounds,receiver.bounds))receiver.shadows.push({polygon,bounds});}
+          }
+        }
+      }
+      stats.shadows=Array.from(receivers.values()).some(receiver=>receiver.shadows.length);stats.shadowMode='projected';
+      ctx.setTransform(1,0,0,1,0,0);ctx.globalAlpha=1;ctx.fillStyle='#14252e';ctx.fillRect(0,0,width,height);
+      if(environment)softwareSky(ctx,width,height,axes,tan,environment,t);
+      function shade(face){
+        const n=face.n,toEye=subtract(eye,face.center),distance=Math.hypot(...toEye)||.001;
+        const lit=face.fixedLight?face.fixedLight.slice():(face.outdoor?environment.ambient:[.10,.13,.15]).map(c=>c*(.72+.28*Math.max(face.outdoor?0:-1,n[1])));
+        // Dim real local lamp contributions, never a painted dark patch or the
+        // sky/torch/emergency emission. Cached light components stay reusable.
+        if(blackout&&face.fixedLampParts&&!face.overlay&&!face.fxHazard)for(let i=0;i<face.fixedLampParts.length;i+=2){
+          const light=face.fixedLampParts[i],drop=1-(blackout.get(light)??1),color=light.color||[1,1,1];
+          if(drop)for(let k=0;k<3;k++)lit[k]-=face.fixedLampParts[i+1]*color[k]*drop;
+        }
+        const sun=face.outdoor?Math.max(0,dot(n,environment.sunDirection)):Math.max(0,(-.45*n[0]+.85*n[1]+.35*n[2])/1.022)*.13;
+        const head=Math.max(0,dot(n,toEye)/distance)*.35/(1+distance*distance*.035);
+        for(let k=0;k<3;k++)lit[k]+=(face.fixedLight?0:sun*(face.outdoor?environment.sunColor[k]:1))+head*(k===0?.8:1)+(face.overlay?.2:0)+(fx.flash||0)*.65/(1+distance*distance*.14);
+        for(const light of face.fixedLight?[]:nearest){
+          const l=subtract(light.p,face.center),d2=dot(l,l),d=Math.sqrt(d2)||.001;
+          const factor=!face.overlay&&!face.fxHazard?blackout?.get(light)??1:1;
+          const power=(light.power===undefined?1:light.power)*factor*.24/(1+d2*.26)*(Math.max(0,dot(n,l)/d)+.065),color=light.color||[1,1,1];
+          for(let k=0;k<3;k++)lit[k]+=power*color[k];
+        }
+        for(const light of transient){
+          const dx=light.p[0]-face.center[0],dy=light.p[1]-face.center[1],dz=light.p[2]-face.center[2],d2=dx*dx+dy*dy+dz*dz;
+          if(d2>=light.range*light.range)continue;
+          const d=Math.sqrt(d2)||.001,q=Math.max(0,Math.min(1,(d/light.range-.35)/.65)),falloff=1-q*q*(3-2*q);
+          const power=light.power*.24*falloff/(1+d2*.26)*(Math.max(0,(n[0]*dx+n[1]*dy+n[2]*dz)/d)+.035);
+          for(let k=0;k<3;k++)lit[k]+=power*light.color[k];
+        }
+        let reflection=null;
+        if(face.mat<3||face.mat===12){
+          const nv=Math.max(0,dot(n,toEye)/distance),ry=-toEye[1]/distance+2*nv*n[1],roughness=[.48,.60,.35][face.mat]||.13;
+          const skyMix=Math.max(0,Math.min(1,ry)),hemisphere=Math.max(0,Math.min(1,(ry+.45)/1.2));
+          const strength=(.04+.35*(1-nv)**5)*(.45+.8*(1-roughness));
+          reflection=[0,1,2].map(k=>{
+            const sky=face.outdoor?environment.skyBottom[k]*(1-skyMix)+environment.skyTop[k]*skyMix:[.18,.24,.27][k];
+            const ground=face.outdoor?environment.ambient[k]*.2:[.02,.03,.035][k];
+            return (ground*(1-hemisphere)+sky*hemisphere)*strength;
+          });
+        }
+        const fog=face.overlay?0:Math.min(.9,1-Math.exp(-distance*(face.outdoor?environment.fogDensity:.027))),fogColor=face.outdoor?environment.fog:[.009,.018,.024];
+        const rgb=lit.map((value,k)=>{
+          let color=face.color[k]*(value*face.grain+face.emission*1.55*(.94+.06*Math.sin(t*2.2+face.center[1]*3)));
+          if(reflection)color+=reflection[k];
+          if(face.fxFire)color*=.72+.28*Math.sin(face.center[0]*5.3+face.center[1]*7.1-face.center[2]*3.7-t*11.);
+          color=color*(1-fog)+fogColor[k]*fog;
+          return Math.round(Math.pow(Math.max(0,color)/(Math.max(0,color)+.76),.4545)*255);
+        });
+        return 'rgb('+rgb.join(',')+')';
+      }
+      function line(a,b){
+        let va=toCamera(a),vb=toCamera(b);
+        if((va[2]<near&&vb[2]<near)||(va[2]>far&&vb[2]>far))return;
+        for(const depth of [near,far]){
+          const aInside=depth===near?va[2]>=depth:va[2]<=depth,bInside=depth===near?vb[2]>=depth:vb[2]<=depth;
+          if(aInside!==bInside){const fraction=(depth-va[2])/(vb[2]-va[2]),hit=va.map((x,k)=>x+(vb[k]-x)*fraction);if(!aInside)va=hit;else vb=hit;}
+        }
+        const a2=project(va),b2=project(vb);ctx.moveTo(...a2);ctx.lineTo(...b2);
+      }
+      function polygonPath(points){ctx.moveTo(...points[0]);for(let i=1;i<points.length;i++)ctx.lineTo(...points[i]);ctx.closePath();}
+      function maskGround(item){
+        let saved=false;
+        // Large ground polygons must still be painted first (their mean depth
+        // can lie in front of a nearby actor). Mask only the part of a later
+        // face behind a visible receiver plane, within that finite floor. This
+        // gives terraces/ramps real occlusion without inverting the base floor.
+        for(const receiver of receivers.values()){
+          if(receiver===item.receiver||!overlap(item.bounds,receiver.bounds))continue;
+          // Dressing built onto one floor already shares its elevation. Avoid
+          // hundreds of clips for embedded roots/stone and thin trail inlays.
+          // Multi-level regions (lift shafts) keep full plane occlusion.
+          if(item.face.fixedLight&&item.face.region&&regionPlanes.get(item.face.region)?.size===1&&receiver.regions.has(item.face.region))continue;
+          const distances=item.face.points.map(p=>dot(receiver.n,p)-receiver.plane);
+          if(Math.min(...distances)>=-.002)continue;
+          const crossing=Math.max(...distances)>-.002,eyeFloor=dot(receiver.n,eye)-receiver.plane,eyeFace=dot(item.face.n,eye)-item.face.plane;
+          // On this face, the intersection of the two 3D planes is a screen
+          // line. Extend that line across the receiver instead of clipping at
+          // actor edges, where antialiased clip boundaries would leave a halo.
+          const separator=crossing?item.face.n.map((v,k)=>v*eyeFloor-receiver.n[k]*eyeFace):null;
+          const a=crossing?dot(separator,right)/focal:0,b=crossing?-dot(separator,up)/focal:0,c=crossing?dot(separator,forward)-a*width*.5-b*height*.5:0;
+          for(const ground of receiver.items){
+            if(!overlap(item.bounds,ground.bounds))continue;
+            const hidden=crossing?clipScreenLine(ground.screen,a,b,c):ground.screen;if(hidden.length<3)continue;
+            if(!saved){ctx.save();saved=true;}
+            ctx.beginPath();ctx.rect(0,0,width,height);polygonPath(hidden);ctx.clip('evenodd');
+          }
+        }
+        return saved;
+      }
+      function paint(list){
+        list.sort((a,b)=>a.face.ground&&b.face.ground&&dot(a.face.n,b.face.n)>.99999&&Math.abs(a.face.plane-b.face.plane)<.05?a.face.plane-b.face.plane:b.depth-a.depth);
+        for(const item of list){
+          const {face,screen,depth}=item,masked=!face.overlay&&maskGround(item);ctx.beginPath();polygonPath(screen);
+          if(face.fx){const v=subtract(eye,face.center);ctx.globalAlpha=face.alpha*(face.fxHazard?1:Math.pow(Math.max(0,dot(face.n,v)/(Math.hypot(...v)||1)),.65));}
+          ctx.fillStyle=shade(face);ctx.fill();if(face.fx)ctx.globalAlpha=1;stats.drawCalls++;stats.triangles+=screen.length-2;
+          if(item.receiver&&item.receiver.shadows.length){
+            ctx.save();ctx.clip();ctx.fillStyle=face.outdoor?'rgba(5,18,23,.27)':'rgba(0,7,11,.24)';
+            for(const {polygon,bounds} of item.receiver.shadows)if(overlap(bounds,item.bounds)){ctx.beginPath();polygonPath(polygon);ctx.fill();}ctx.restore();
+          }
+          // The seams are projected from positions on the actual face, not screen-space stripes.
+          // Do not outline individual mesh faces: that reveals triangulation instead of material detail.
+          if(face.mat<4&&face.lines.length&&depth<18){
+            ctx.beginPath();for(const segment of face.lines)line(segment[0],segment[1]);ctx.strokeStyle=face.ground?'rgba(2,7,10,.22)':'rgba(2,7,10,.32)';ctx.lineWidth=face.ground?.65:1.0;ctx.stroke();
+            if(!face.ground&&quality!=='low'&&depth<10){ctx.strokeStyle='rgba(128,180,176,.14)';ctx.lineWidth=.35;ctx.stroke();}
+          }
+          if(masked)ctx.restore();
+        }
+      }
+      paint(grounds);paint(faces);paint(overlays);
+      ctx.fillStyle=vignette;ctx.fillRect(0,0,width,height);
+      if(fx.damage>0){ctx.fillStyle='rgba(190,12,2,'+Math.min(.3,fx.damage*.22)+')';ctx.fillRect(0,0,width,height);}
+      if(fx.pulse>0){
+        const strength=Math.min(1,fx.pulse),radius=(1-strength)*height*.8;
+        ctx.beginPath();ctx.arc(width*.5,height*.5,Math.max(1,radius),0,Math.PI*2);ctx.strokeStyle='rgba(82,248,216,'+(strength*.35)+')';ctx.lineWidth=height*.018;ctx.stroke();
+      }
+    }
+    function shadowCaster(m){
+      const s=m.s||[1,1,1],mat=m.mat||0,limit=m.actorPart&&m.actorScale>1?44:10;
+      // RADE / BITUME : les carènes libres et le coin projettent des ombres.
+      if(FORMES_LIBRES.has(m.shape)||m.shape==='wedge')return !m.fx&&Math.max(s[0],s[2])>.45&&s[1]>.2;
+      return !m.fx&&(m.shape==='box'||m.shape==='bevel'||m.shape==='cylinder'||m.shape==='sphere'||m.shape==='foliage'||m.shape==='octa')&&s[0]>.45&&s[2]>.45&&s[1]>.4&&s[0]<limit&&s[2]<limit&&(mat<4||mat>7);
+    }
+    function staticCasters(eye){
+      if(staticCasterPlan&&eye.every((v,k)=>v===staticCasterPlan.eye[k]))return staticCasterPlan.meshes;
+      const meshes=world.query(eye,[environment?25:13,13,0]).map(e=>e.mesh).filter(shadowCaster)
+        .sort((a,b)=>Math.hypot(a.p[0]-eye[0],a.p[2]-eye[2])-Math.hypot(b.p[0]-eye[0],b.p[2]-eye[2])).slice(0,environment?28:18);
+      staticCasterPlan={eye:eye.slice(),meshes};return meshes;
+    }
+    // Dynamic casters can only lower the last selected static caster's distance.
+    // Reject an offscreen actor only when its ENTIRE sphere is beyond that
+    // bound; the exact original 18/28-caster set and stable ordering survive.
+    // Sparse scenes retain every actor that might enter that shadow ranking.
+    function actorFilter(camera,fx={}){
+      stats.actorsConsidered=stats.actorsCulled=0;
+      if(disposed)return ()=>true;
+      const t=fx.time||0,shake=fx.shake||0,p=camera.pos||[0,1.6,0],axes=cameraAxes(camera);
+      const eye=[p[0]+Math.sin(t*57)*shake*.025,p[1]+Math.sin(t*71)*shake*.015,p[2]];
+      const cssWidth=canvas.clientWidth||window.innerWidth||800,cssHeight=canvas.clientHeight||window.innerHeight||600;
+      const aspect=Math.max(canvas.width/Math.max(1,canvas.height),cssWidth/cssHeight)+(1+cssWidth/cssHeight)/Math.max(1,cssHeight*.3);
+      const tangent=Math.tan(Math.max(FOV_MIN,Math.min(110,camera.fov||75))*Math.PI/360),horizontal=aspect*tangent;
+      const far=softwareDistance(quality,environment,eye);
+      const shadows=quality!=='low'&&fx.shadows!==false&&(lights.length||environment),casters=shadows?staticCasters(eye):[];
+      const cutoff=!shadows?-Infinity:casters.length<(environment?28:18)?Infinity:Math.hypot(casters[casters.length-1].p[0]-eye[0],casters[casters.length-1].p[2]-eye[2]);
+      stats.actorFilterMode=shadows?'camera-and-ranked-casters':'camera-frustum';stats.actorCasterDistance=cutoff;
+      return (x,y,z,radius)=>{
+        stats.actorsConsidered++;
+        if(![x,y,z,radius].every(Number.isFinite)||radius<0)return true;
+        const dx=x-eye[0],dy=y-eye[1],dz=z-eye[2],r=radius+.002,along=a=>dx*a[0]+dy*a[1]+dz*a[2],depth=along(axes.forward);
+        const inView=!(depth+r<.065||depth-r>far||Math.abs(along(axes.right))>depth*horizontal+r*(1+horizontal)||Math.abs(along(axes.up))>depth*tangent+r*(1+tangent));
+        if(inView||Math.hypot(dx,dz)-r<=cutoff+.002)return true;
+        stats.actorsCulled++;return false;
+      };
+    }
+    function dispose(){disposed=true;world=spatialIndex([]);lights=[];vignette=null;shadowGeometry=new WeakMap();staticCasterPlan=null;}
+    return {setEnvironment(value){environment=environmentInfo(value);},setWorld,updateWorld,draw,resize,dispose,stats,actorFilter};
+  }
+
+  // FERRO 0.2 : réglages de création, tous facultatifs. Sans eux, l'image et les commandes GPU sont celles de FERRO 0.1.
+  // msaa: 4 anticrénèle la scène avant le bloom (si le GPU l'offre) ; shadowMapScale: 2 double l'atlas d'ombre ;
+  // vignette (0 à 1, FERRO 0,59) éclaircit les bords quand elle monte ; bloomThreshold [début, fin] (FERRO [0,56, 0,86]).
+  // Le rendu logiciel (Canvas 2D) les ignore.
+  function settings(options){
+    const o=options||{},unit=(v,d)=>Number.isFinite(v)?Math.max(0,Math.min(1,v)):d;
+    const bloom=Array.isArray(o.bloomThreshold)?[unit(o.bloomThreshold[0],.56),unit(o.bloomThreshold[1],.86)]:[.56,.86];
+    return {msaa:o.msaa===4,shadowMapScale:o.shadowMapScale===2?2:1,vignette:unit(o.vignette,.59),bloom:bloom[1]>bloom[0]?bloom:[.56,.86]};
+  }
+  const glslFloat=v=>v.toFixed(4);
+  function worldFragment(config){
+    return config.vignette===.59?FRAG:FRAG.replace('color*=mix(.59,1.,vignette);',`color*=mix(${glslFloat(config.vignette)},1.,vignette);`);
+  }
+  function postFragment(config){
+    const [a,b]=config.bloom;
+    return a===.56&&b===.86?POST_FRAG:POST_FRAG.replace('smoothstep(.56,.86,max(max(c.r,c.g),c.b))',`smoothstep(${glslFloat(a)},${glslFloat(b)},max(max(c.r,c.g),c.b))`);
+  }
+  function create(canvas,options) {
+    const gl=canvas.getContext('webgl2',{alpha:false,antialias:false,depth:true,powerPreference:'high-performance'});
+    if(!gl) return createSoftware(canvas);
+    const config=settings(options),worldFrag=worldFragment(config),postFrag=postFragment(config);
+    const source=geometry(),view=new Float32Array(16),projection=new Float32Array(16),vp=new Float32Array(16),overlayProjection=new Float32Array(16),overlayVP=new Float32Array(16);
+    const shadowView=new Float32Array(16),shadowProjection=new Float32Array(16),shadowMatrix=new Float32Array(16),shadowMatrices=new Float32Array(48);
+    const lightPositions=new Float32Array(36),lightColors=new Float32Array(36),lightRanges=new Float32Array(12),lightDirections=new Float32Array(36),lightCones=new Float32Array(24);
+    const stats={drawCalls:0,triangles:0,instances:0,contextLost:false,webglVersion:2,backend:'webgl2',bloom:false,shadows:false};
+    let program,depthProgram,postProgram,skyProgram,fxProgram,vao,postVao,vbo,ibo,worldBuffer,dynamicBuffer,overlayBuffer,fxBuffer,crowdBuffer,uniforms,postUniforms,skyUniforms,fxUniforms,depthMatrix,depthWind,ssrProgram,ssrUniforms;
+    let post=null,shadowTarget=null,whiteTexture=null,pbrTextures=[],targetKey='',shadowKey='',shadowLight=null;
+    let world=[],worldIndex=spatialIndex([]),backgroundIndex=spatialIndex([]),lights=[],environment=null,worldBatch=pack([]),quality='auto',disposed=false,worldRevision=0,partitionState=null;
+    let staticCaches=[],lampCasters=[],actorLightPlan=null;
+    const packDynamic=instancePacker(),packOverlay=instancePacker(),packFx=effectsPacker();
+    const ordinary=[],overlay=[],particles=[],overlayParticles=[];
+    // BITUME : nappes (chaussée, accotements, terrain : triangles continus, matière et couleur par sommet) et lots
+    // de décor (instances statiques groupées par portion de circuit, chacune avec sa version lointaine allégée).
+    let nappes=[],nappeVao=null,nappeVbo=null,nappeIbo=null,lots=[];
+    const governor=resolutionGovernor();let autoScale=1;
+    // PDR (voile) : vrai tant que le voile du jeu occupe l'unité 4 ; draw le retire à la première image sans fx.voile.
+    let pdrVoilePose=false;
+    // PDR (lots) : décor du jeu déjà empaqueté (fx.lots). pdrSlots : un tampon GPU par lot, renvoyé seulement quand le lot
+    // change ; pdrLots : les lots de l'image en cours. FERRO a setLots pour le même besoin : à unifier (PROVENANCE.md).
+    let pdrSlots=[];const pdrLots=[];
+    // PDR (foule) : points d'accroche de la foule sur le GPU. pdrLumiere et pdrVue sont remplis à chaque image, sans
+    // allocation, et passés à fx.foule.ombre et fx.foule.couleur. pdrGeneration change à chaque (ré)initialisation du
+    // contexte. pdrGlsl : la bibliothèque d'éclairage, au vignettage du réglage de création, comme le shader du monde.
+    let pdrGeneration=0;
+    const pdrGlsl=config.vignette===.59?PDR_GLSL:PDR_GLSL.replace('couleur*mix(.59,1.,',`couleur*mix(${glslFloat(config.vignette)},1.,`);
+    const pdrMatriceSoleil=new Float32Array(16);
+    const pdrLumiere={matrice:pdrMatriceSoleil,direction:[.4,.8,.3],texel:1,plein:false,viewport:[0,0,1,1],centre:[0,0,0],etendue:1,profondeur:1};
+    const pdrVue={gl,glsl:pdrGlsl,vp,vue:view,projection,oeil:[0,0,0],avant:[0,0,-1],droite:[1,0,0],haut:[0,1,0],fov:1,tangente:1,focale:1,
+      largeur:1,hauteur:1,near:.045,far:180,temps:0,qualite:'auto',msaa:0,soleil:[.4,.8,.3],couleurSoleil:[0,0,0],ambiance:[.075,.10,.12],
+      brouillard:[.009,.018,.024],densiteBrouillard:.014,cielHaut:[.05,.08,.10],cielBas:[.16,.20,.22],
+      ombre:{texture:null,unite:2,matrice:pdrMatriceSoleil,texel:1,plein:false,active:false},
+      lumieres:{positions:lightPositions,couleurs:lightColors,portees:lightRanges,directions:lightDirections,cones:lightCones,nombre:0},
+      sortie:'Couleur finale de la cible de scène (RGBA8) : pdrFinir applique brouillard, tonemap c/(c+0,76), gamma 1/2,2 et vignettage, comme le monde.'};
+
+    function compile(type,code) {
+      const shader=gl.createShader(type);gl.shaderSource(shader,code);gl.compileShader(shader);
+      if(!gl.getShaderParameter(shader,gl.COMPILE_STATUS)) {const message=gl.getShaderInfoLog(shader);gl.deleteShader(shader);throw new Error('Compilation 3D : '+message);}
+      return shader;
+    }
+    function link(vertex,fragment){
+      const vs=compile(gl.VERTEX_SHADER,vertex),fs=compile(gl.FRAGMENT_SHADER,fragment),p=gl.createProgram();
+      gl.attachShader(p,vs);gl.attachShader(p,fs);gl.linkProgram(p);gl.deleteShader(vs);gl.deleteShader(fs);
+      if(!gl.getProgramParameter(p,gl.LINK_STATUS)){const message=gl.getProgramInfoLog(p);gl.deleteProgram(p);throw new Error('Initialisation 3D : '+message);}
+      return p;
+    }
+    function texture(width,height,depth=false){
+      const t=gl.createTexture();gl.bindTexture(gl.TEXTURE_2D,t);
+      gl.texImage2D(gl.TEXTURE_2D,0,depth?gl.DEPTH_COMPONENT24:gl.RGBA8,width,height,0,depth?gl.DEPTH_COMPONENT:gl.RGBA,depth?gl.UNSIGNED_INT:gl.UNSIGNED_BYTE,null);
+      gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,depth?gl.NEAREST:gl.LINEAR);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,depth?gl.NEAREST:gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
+      return t;
+    }
+    function deleteTarget(target){
+      if(!target)return;gl.deleteFramebuffer(target.framebuffer);gl.deleteTexture(target.texture);if(target.depth)gl.deleteRenderbuffer(target.depth);if(target.depthTexture)gl.deleteTexture(target.depthTexture);
+    }
+    function colorTarget(width,height,depth){
+      const target={framebuffer:gl.createFramebuffer(),texture:texture(width,height),width,height,depth:null};
+      gl.bindFramebuffer(gl.FRAMEBUFFER,target.framebuffer);gl.framebufferTexture2D(gl.FRAMEBUFFER,gl.COLOR_ATTACHMENT0,gl.TEXTURE_2D,target.texture,0);
+      if(depth==='texture'){target.depthTexture=texture(width,height,true);gl.framebufferTexture2D(gl.FRAMEBUFFER,gl.DEPTH_ATTACHMENT,gl.TEXTURE_2D,target.depthTexture,0);}
+      else if(depth){target.depth=gl.createRenderbuffer();gl.bindRenderbuffer(gl.RENDERBUFFER,target.depth);gl.renderbufferStorage(gl.RENDERBUFFER,gl.DEPTH_COMPONENT24,width,height);gl.framebufferRenderbuffer(gl.FRAMEBUFFER,gl.DEPTH_ATTACHMENT,gl.RENDERBUFFER,target.depth);}
+      gl.drawBuffers([gl.COLOR_ATTACHMENT0]);
+      if(gl.checkFramebufferStatus(gl.FRAMEBUFFER)!==gl.FRAMEBUFFER_COMPLETE){deleteTarget(target);return null;}
+      return target;
+    }
+    // PDR : anticrénelage MSAA de la scène avant le bloom ; les lignes fines d'une ville vue de haut l'exigent.
+    function deleteMsaa(target){if(!target)return;gl.deleteFramebuffer(target.framebuffer);gl.deleteRenderbuffer(target.color);gl.deleteRenderbuffer(target.depth);}
+    function msaaTarget(width,height){
+      const samples=Math.min(4,gl.getParameter(gl.MAX_SAMPLES)||0);if(samples<2)return null;
+      const target={framebuffer:gl.createFramebuffer(),color:gl.createRenderbuffer(),depth:gl.createRenderbuffer(),samples};
+      gl.bindRenderbuffer(gl.RENDERBUFFER,target.color);gl.renderbufferStorageMultisample(gl.RENDERBUFFER,samples,gl.RGBA8,width,height);
+      gl.bindRenderbuffer(gl.RENDERBUFFER,target.depth);gl.renderbufferStorageMultisample(gl.RENDERBUFFER,samples,gl.DEPTH_COMPONENT24,width,height);
+      gl.bindFramebuffer(gl.FRAMEBUFFER,target.framebuffer);
+      gl.framebufferRenderbuffer(gl.FRAMEBUFFER,gl.COLOR_ATTACHMENT0,gl.RENDERBUFFER,target.color);gl.framebufferRenderbuffer(gl.FRAMEBUFFER,gl.DEPTH_ATTACHMENT,gl.RENDERBUFFER,target.depth);
+      if(gl.checkFramebufferStatus(gl.FRAMEBUFFER)!==gl.FRAMEBUFFER_COMPLETE){deleteMsaa(target);return null;}
+      return target;
+    }
+    function freePost(){if(post){deleteTarget(post.scene);deleteTarget(post.a);deleteTarget(post.b);deleteTarget(post.reflectSource);deleteTarget(post.reflection);deleteMsaa(post.msaa);post=null;}}
+    function ensureTargets(){
+      const key=canvas.width+'x'+canvas.height+':'+quality;if(key===targetKey)return;targetKey=key;
+      freePost();
+      if(quality==='low'){deleteTarget(shadowTarget);shadowTarget=null;shadowKey='';stats.bloom=stats.shadows=false;return;}
+      const width=canvas.width,height=canvas.height,bw=Math.max(1,Math.ceil(width/4)),bh=Math.max(1,Math.ceil(height/4));
+      const scene=colorTarget(width,height,true),a=colorTarget(bw,bh,false),b=colorTarget(bw,bh,false);
+      if(scene&&a&&b)post={scene,a,b};else{deleteTarget(scene);deleteTarget(a);deleteTarget(b);}
+      if(post){post.reflectSource=colorTarget(width,height,'texture');post.reflection=colorTarget(Math.ceil(width/2),Math.ceil(height/2),false);}
+      if(post&&config.msaa)post.msaa=msaaTarget(width,height);stats.msaa=post&&post.msaa?post.msaa.samples:0;
+      // Tuile d'ombre de 512 en auto, 1 024 en haute qualité. Avec shadowMapScale: 2 (repris de Point de rupture, où un
+      // seul soleil couvre tout le sol visible), elle double, bornée par MAX_TEXTURE_SIZE.
+      const base=quality==='high'?1024:512,size=config.shadowMapScale>1?Math.min(base*config.shadowMapScale,Math.floor((gl.getParameter(gl.MAX_TEXTURE_SIZE)||2048)/2)):base;
+      // Pixel resolution may adapt; a depth atlas of the same size remains valid.
+      if(shadowKey!==String(size)){
+        deleteTarget(shadowTarget);shadowTarget=null;shadowKey=String(size);
+        const target={framebuffer:gl.createFramebuffer(),texture:texture(size*2,size*2,true),size};
+        gl.bindFramebuffer(gl.FRAMEBUFFER,target.framebuffer);gl.framebufferTexture2D(gl.FRAMEBUFFER,gl.DEPTH_ATTACHMENT,gl.TEXTURE_2D,target.texture,0);
+        gl.drawBuffers([gl.NONE]);gl.readBuffer(gl.NONE);
+        if(gl.checkFramebufferStatus(gl.FRAMEBUFFER)===gl.FRAMEBUFFER_COMPLETE)shadowTarget=target;else deleteTarget(target);
+      }
+      gl.bindFramebuffer(gl.FRAMEBUFFER,null);gl.bindRenderbuffer(gl.RENDERBUFFER,null);gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,null);
+      stats.bloom=!!post;stats.shadows=!!shadowTarget;
+    }
+    function initialize() {
+      ssrProgram=link(POST_VERT,SSR_FRAG);ssrUniforms={};for(const name of ['uColor','uDepth','uProjection','uPixel'])ssrUniforms[name]=gl.getUniformLocation(ssrProgram,name);
+      program=link(VERT,worldFrag);depthProgram=link(VERT,DEPTH_FRAG);postProgram=link(POST_VERT,postFrag);skyProgram=link(POST_VERT,SKY_FRAG);fxProgram=link(FX_VERT,FX_FRAG);
+      uniforms={};for(const name of ['uViewProjection','uWindTime','uSeaOrigin','uSeaMotion','uEye','uForward','uLightPosition','uLightColor','uLightRange','uLightDirection','uLightCone','uWeather','uCloudOffset','uPbrAlbedo','uPbrNormal','uPbrRough','uPbrReady','uLightCount','uResolution','uEffects','uShadowMap','uShadowMatrix','uShadowSettings','uTorchPosition','uSunDirection','uSunColor','uAmbient','uFogColor','uSkyTop','uSkyBottom','uEnvironment','uNightHour']) uniforms[name]=gl.getUniformLocation(program,name);
+      postUniforms={};for(const name of ['uScene','uBloom','uReflection','uReflections','uTexel','uPass'])postUniforms[name]=gl.getUniformLocation(postProgram,name);
+      skyUniforms={};for(const name of ['uSkyRight','uSkyUp','uSkyForward','uSkyTop','uSkyBottom','uSkyFog','uSunDirection','uSunColor','uSkyFov','uSkyMotion','uWeather','uCloudOffset'])skyUniforms[name]=gl.getUniformLocation(skyProgram,name);
+      fxUniforms={};for(const name of ['uViewProjection','uWindTime','uEye','uAmbient','uSkyTop','uSkyBottom','uFogColor','uEnvironment','uTime'])fxUniforms[name]=gl.getUniformLocation(fxProgram,name);
+      depthMatrix=gl.getUniformLocation(depthProgram,'uViewProjection');depthWind=gl.getUniformLocation(depthProgram,'uWindTime');
+      vao=gl.createVertexArray();gl.bindVertexArray(vao);
+      vbo=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,vbo);gl.bufferData(gl.ARRAY_BUFFER,source.vertices,gl.STATIC_DRAW);
+      gl.enableVertexAttribArray(0);gl.vertexAttribPointer(0,3,gl.FLOAT,false,24,0);
+      gl.enableVertexAttribArray(1);gl.vertexAttribPointer(1,3,gl.FLOAT,false,24,12);
+      ibo=gl.createBuffer();gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,ibo);gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,source.indices,gl.STATIC_DRAW);
+      for(let i=2;i<6;i++) {gl.enableVertexAttribArray(i);gl.vertexAttribDivisor(i,1);}
+      worldBuffer=gl.createBuffer();dynamicBuffer=gl.createBuffer();overlayBuffer=gl.createBuffer();fxBuffer=gl.createBuffer();
+      // PDR : foule déjà empaquetée par le jeu (fx.instances), partagée par l'ombre du soleil et la passe couleur.
+      // Son tampon naît au premier usage : un jeu sans foule ne crée rien de plus.
+      crowdBuffer=null;
+      // Main colour, three shadow views and distant water keep independent instance buffers.
+      staticCaches=[worldBuffer,gl.createBuffer(),gl.createBuffer(),gl.createBuffer(),gl.createBuffer()].map(buffer=>({buffer,entries:[],batch:pack([])}));
+      lampCasters=[];
+      gl.bindBuffer(gl.ARRAY_BUFFER,worldBuffer);gl.bufferData(gl.ARRAY_BUFFER,worldBatch.values,gl.STATIC_DRAW);
+      postVao=gl.createVertexArray();
+      whiteTexture=texture(1,1);gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA8,1,1,0,gl.RGBA,gl.UNSIGNED_BYTE,new Uint8Array([255,255,255,255]));
+      pbrTextures=[];const layers=options?.materials?.layers||globalThis.RADE?.materials?.layers||[],size=layers[0]?.diff.width||1;
+      for(const [k,kind] of ['diff','nor_gl','rough'].entries()){
+        const tex=gl.createTexture();pbrTextures.push(tex);gl.activeTexture(gl.TEXTURE5+k);gl.bindTexture(gl.TEXTURE_2D_ARRAY,tex);
+        gl.texStorage3D(gl.TEXTURE_2D_ARRAY,Math.floor(Math.log2(size))+1,k===0?gl.SRGB8_ALPHA8:gl.RGBA8,size,size,Math.max(1,layers.length));
+        for(let j=0;j<layers.length;j++)gl.texSubImage3D(gl.TEXTURE_2D_ARRAY,0,0,0,j,size,size,1,gl.RGBA,gl.UNSIGNED_BYTE,layers[j][kind]);
+        gl.texParameteri(gl.TEXTURE_2D_ARRAY,gl.TEXTURE_MIN_FILTER,gl.LINEAR_MIPMAP_LINEAR);gl.texParameteri(gl.TEXTURE_2D_ARRAY,gl.TEXTURE_MAG_FILTER,gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D_ARRAY,gl.TEXTURE_WRAP_S,gl.REPEAT);gl.texParameteri(gl.TEXTURE_2D_ARRAY,gl.TEXTURE_WRAP_T,gl.REPEAT);gl.generateMipmap(gl.TEXTURE_2D_ARRAY);
+        const aniso=gl.getExtension('EXT_texture_filter_anisotropic');if(aniso)gl.texParameterf(gl.TEXTURE_2D_ARRAY,aniso.TEXTURE_MAX_ANISOTROPY_EXT,Math.min(8,gl.getParameter(aniso.MAX_TEXTURE_MAX_ANISOTROPY_EXT)));
+      }gl.useProgram(program);gl.uniform1i(uniforms.uPbrAlbedo,5);gl.uniform1i(uniforms.uPbrNormal,6);gl.uniform1i(uniforms.uPbrRough,7);gl.uniform1f(uniforms.uPbrReady,layers.length?1:0);stats.pbrLayers=layers.length;
+      // PDR (voile) : ses uniformes. L'échantillonneur reste sur l'unité 4, que rien d'autre n'emploie (texture blanche,
+      // force nulle) : tant qu'aucun voile n'est passé à draw, le moteur n'ajoute aucune commande par image.
+      for(const name of ['uVoile','uVoileZone','uVoileForce'])uniforms[name]=gl.getUniformLocation(program,name);
+      gl.useProgram(program);gl.uniform1i(uniforms.uVoile,4);gl.activeTexture(gl.TEXTURE4);gl.bindTexture(gl.TEXTURE_2D,whiteTexture);gl.activeTexture(gl.TEXTURE0);pdrVoilePose=false;
+      // PDR (lots) : leurs tampons sont à recréer avec le contexte. PDR (foule) : la génération le dit au jeu.
+      pdrSlots=[];pdrLots.length=0;pdrGeneration++;
+      gl.enable(gl.DEPTH_TEST);gl.depthFunc(gl.LEQUAL);gl.enable(gl.CULL_FACE);gl.cullFace(gl.BACK);
+      gl.clearColor(.035,.06,.073,1);
+      post=null;shadowTarget=null;targetKey=shadowKey='';shadowLight=null;
+      governor.reset();autoScale=1;
+      stats.contextLost=false;
+    }
+    initialize();
+
+    // BITUME : un sommet de nappe = position (3), normale (3), [0, 0, 0, matière] (4), couleur (3), soit 52 octets.
+    // Les attributs d'instance 3 et 4 restent constants (échelle 1, surface extérieure en coordonnées du monde).
+    function chargerNappes(){
+      if(nappeVbo)gl.deleteBuffer(nappeVbo);if(nappeIbo)gl.deleteBuffer(nappeIbo);if(nappeVao)gl.deleteVertexArray(nappeVao);
+      nappeVao=nappeVbo=nappeIbo=null;
+      if(!nappes.length||stats.contextLost||disposed)return;
+      let sommets=0,indices=0;for(const n of nappes){sommets+=n.sommets.length/13;indices+=n.indices.length;}
+      const donnees=new Float32Array(sommets*13),index=new Uint32Array(indices);
+      let vs=0,is=0;
+      for(const n of nappes){
+        donnees.set(n.sommets,vs*13);
+        for(let k=0;k<n.indices.length;k++)index[is+k]=n.indices[k]+vs;
+        n.debut=is*4;n.compte=n.indices.length;vs+=n.sommets.length/13;is+=n.indices.length;
+      }
+      nappeVao=gl.createVertexArray();gl.bindVertexArray(nappeVao);
+      nappeVbo=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,nappeVbo);gl.bufferData(gl.ARRAY_BUFFER,donnees,gl.STATIC_DRAW);
+      gl.enableVertexAttribArray(0);gl.vertexAttribPointer(0,3,gl.FLOAT,false,52,0);
+      gl.enableVertexAttribArray(1);gl.vertexAttribPointer(1,3,gl.FLOAT,false,52,12);
+      gl.enableVertexAttribArray(2);gl.vertexAttribPointer(2,4,gl.FLOAT,false,52,24);gl.vertexAttribDivisor(2,0);
+      gl.disableVertexAttribArray(3);gl.disableVertexAttribArray(4);
+      gl.enableVertexAttribArray(5);gl.vertexAttribPointer(5,3,gl.FLOAT,false,52,40);gl.vertexAttribDivisor(5,0);
+      nappeIbo=gl.createBuffer();gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,nappeIbo);gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,index,gl.STATIC_DRAW);
+      gl.bindVertexArray(vao);stats.nappeTriangles=indices/3;
+    }
+    function setNappes(liste){nappes=(liste||[]).filter(n=>n&&n.sommets&&n.indices&&n.indices.length);chargerNappes();}
+    function dessinerNappes(eye,axes,horizontal,vertical,far){
+      if(!nappeVao)return;
+      gl.bindVertexArray(nappeVao);gl.vertexAttrib4f(3,1,1,1,0);gl.vertexAttrib4f(4,0,0,0,2);
+      for(const n of nappes){
+        if(!visible({p:n.centre,radius:n.rayon},eye,axes,horizontal,vertical,far))continue;
+        gl.drawElements(gl.TRIANGLES,n.compte,gl.UNSIGNED_INT,n.debut);stats.drawCalls++;stats.triangles+=n.compte/3;
+      }
+      gl.bindVertexArray(vao);
+    }
+    function chargerLots(){
+      for(const l of lots){
+        for(const cle of ['tampon','tamponLoin'])if(l[cle]){gl.deleteBuffer(l[cle]);l[cle]=null;}
+        if(stats.contextLost||disposed)continue;
+        l.paquet=pack(l.objets,environment);l.tampon=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,l.tampon);gl.bufferData(gl.ARRAY_BUFFER,l.paquet.values,gl.STATIC_DRAW);
+        if(l.loin&&l.loin.length){l.paquetLoin=pack(l.loin,environment);l.tamponLoin=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,l.tamponLoin);gl.bufferData(gl.ARRAY_BUFFER,l.paquetLoin.values,gl.STATIC_DRAW);}
+        else l.paquetLoin=null;
+      }
+    }
+    function setLots(liste){for(const l of lots)for(const cle of ['tampon','tamponLoin'])if(l[cle])gl.deleteBuffer(l[cle]);lots=(liste||[]).filter(l=>l&&l.objets);chargerLots();stats.lots=lots.length;}
+    function dessinerLots(eye,axes,horizontal,vertical,far,accepte){
+      let dessines=0;
+      for(const l of lots){
+        if(!l.tampon)continue;
+        const dx=l.centre[0]-eye[0],dy=l.centre[1]-eye[1],dz=l.centre[2]-eye[2],distance=Math.sqrt(dx*dx+dy*dy+dz*dz)-l.rayon;
+        if(accepte){if(!accepte(l))continue;}
+        else{if(distance>Math.min(far,l.portee||far))continue;if(!visible({p:l.centre,radius:l.rayon},eye,axes,horizontal,vertical,far))continue;}
+        const proche=!l.paquetLoin||distance<(l.bascule||240);
+        renderBatch(proche?l.paquet:l.paquetLoin,proche?l.tampon:l.tamponLoin,false,!!accepte);dessines++;
+      }
+      return dessines;
+    }
+
+    function updateShape(name,vertices){const range=source.ranges[name];if(!range||vertices.length!==range.count*6)throw new Error('Shape vertex count changed: '+name);const start=source.indices[range.offset/INDEX_OCTETS]*6;source.vertices.set(vertices,start);if(!stats.contextLost){gl.bindBuffer(gl.ARRAY_BUFFER,vbo);gl.bufferSubData(gl.ARRAY_BUFFER,start*4,vertices);}}
+    let chunks=new Map();const chunkCategories=new WeakMap(),chunkState={index:null,epoch:0};
+    function rebuildChunks(){
+      const next=planChunks(worldIndex,chunks,chunkCategories,chunkState);
+      let uploads=0;
+      for(const [key,group] of next){if(!group.nextEntries&&group.nextCount===group.entries.length)continue;
+        // Only changed chunks need fresh bounds and GPU data. The final object
+        // has no link to the previous chunk, so replaced generations can die.
+        const c={range:group.range,entries:group.nextEntries||group.entries.slice(0,group.nextCount),min:[Infinity,Infinity,Infinity],max:[-Infinity,-Infinity,-Infinity]};
+        for(const e of c.entries)for(let k=0;k<3;k++){c.min[k]=Math.min(c.min[k],e.p[k]-e.radius);c.max[k]=Math.max(c.max[k],e.p[k]+e.radius);}
+        c.p=c.min.map((v,k)=>(v+c.max[k])/2);c.radius=Math.hypot(...c.max.map((v,k)=>(v-c.min[k])/2));c.batch=packIndexed(c.entries);c.buffer=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,c.buffer);gl.bufferData(gl.ARRAY_BUFFER,c.batch.values,gl.STATIC_DRAW);uploads+=c.batch.values.byteLength;next.set(key,c);
+      }
+      for(const [key,c] of chunks)if(next.get(key)!==c)gl.deleteBuffer(c.buffer);chunks=next;stats.chunks=chunks.size;stats.chunkBuildBytes=uploads;stats.chunkUpdateIncremental=chunkState.incremental;stats.chunkEntriesVisited=chunkState.entriesVisited;
+    }
+    function drawChunks(accept,shadow=false){let objects=0,count=0;for(const c of chunks.values())if(accept(c)){renderBatch(c.batch,c.buffer,false,shadow);objects+=c.entries.length;count++;}if(shadow){stats.shadowChunks=count;stats.shadowStatic=objects;}else{stats.visibleChunks=count;stats.staticVisible=objects;stats.staticCulled=world.length-objects;}return count;}
+    function setWorld(meshes,points,atmosphere) {
+      const partition=partitionState=partitionWorld(meshes);environment=environmentInfo(atmosphere);world=partition.world;worldIndex=spatialIndex(world,environment);backgroundIndex=spatialIndex(partition.background,environment);lights=points||[];worldBatch=pack([]);shadowLight=null;actorLightPlan=null;stats.staticTotal=world.length+backgroundIndex.entries.length;stats.biome=environment?environment.biome:null;
+      worldRevision=0;stats.worldRevision=0;rebuildChunks();
+      lampCasters=[];for(const cache of staticCaches){cache.entries=[];cache.batch=pack([]);}
+      governor.reset();autoScale=1;
+      if(stats.contextLost||disposed) return;
+      gl.bindBuffer(gl.ARRAY_BUFFER,worldBuffer);gl.bufferData(gl.ARRAY_BUFFER,worldBatch.values,gl.STATIC_DRAW);
+    }
+    function updateWorld(meshes,revision,points,updateOptions){
+      if(disposed||revision===worldRevision)return false;
+      if(Array.isArray(points)&&(points.length!==lights.length||points.some((light,i)=>light!==lights[i]))){lights=points;if(!lights.includes(shadowLight))shadowLight=null;}
+      const partition=partitionState=partitionWorld(meshes,partitionState,updateOptions),indexOptions=partition.meshDelta?{...updateOptions,meshDelta:partition.meshDelta}:updateOptions;world=partition.world;worldIndex=spatialIndex(world,environment,worldIndex,indexOptions);if(!partition.meshDelta)backgroundIndex=spatialIndex(partition.background,environment,backgroundIndex,updateOptions);stats.meshDeltaApplied=!!worldIndex.delta.fast;worldBatch=pack([]);rebuildChunks();
+      // Every depth view must stop referencing removed walls immediately. GPU
+      // storage is reused; only the affected instance lists upload next draw.
+      lampCasters=[];actorLightPlan=null;for(const cache of staticCaches.slice(0,4)){cache.entries=[];cache.batch=pack([]);}
+      worldRevision=revision===undefined?worldRevision+1:revision;stats.worldRevision=worldRevision;stats.staticTotal=world.length+backgroundIndex.entries.length;
+      return true;
+    }
+    function resize(next) {
+      if(next!==undefined&&next!==quality){quality=next;governor.reset();autoScale=1;}
+      const pixelRatio=window.devicePixelRatio||1;
+      let ratio=typeof quality==='number'?quality:quality==='low'?.8:quality==='high'?Math.min(pixelRatio,2):Math.min(pixelRatio,1.5);
+      const cssWidth=canvas.clientWidth||window.innerWidth||800,cssHeight=canvas.clientHeight||window.innerHeight||600;
+      ratio=Math.max(.5,Math.min(2,ratio));
+      if(quality==='auto')ratio=Math.min(ratio,Math.sqrt(1800000/(cssWidth*cssHeight)))*autoScale;
+      const width=Math.max(1,Math.round(cssWidth*ratio)),height=Math.max(1,Math.round(cssHeight*ratio));
+      if(canvas.width!==width||canvas.height!==height) {canvas.width=width;canvas.height=height;}
+      stats.renderScale=autoScale;stats.pixelRatio=ratio;stats.width=width;stats.height=height;
+      ensureTargets();
+      gl.viewport(0,0,width,height);
+      return {width,height,ratio};
+    }
+    function renderBatch(batch,buffer,upload,shadowPass=false) {
+      if(!batch.groups.length) return;
+      gl.bindBuffer(gl.ARRAY_BUFFER,buffer);
+      if(upload){gl.bufferData(gl.ARRAY_BUFFER,batch.values,gl.DYNAMIC_DRAW);stats.uploadBytes+=batch.values.byteLength;}
+      for(const group of batch.groups) {
+        for(let i=2;i<6;i++) gl.vertexAttribPointer(i,4,gl.FLOAT,false,64,group.offset+(i-2)*16);
+        const shape=source.ranges[group.name];
+        gl.drawElementsInstanced(gl.TRIANGLES,shape.count,gl.UNSIGNED_INT,shape.offset,group.count);
+        stats.drawCalls++;stats.triangles+=shape.count/3*group.count;if(!shadowPass)stats.instances+=group.count;
+      }
+    }
+    function renderStatic(entries,slot,shadow=false){
+      const cache=staticCaches[slot];
+      const same=cache.entries.length===entries.length&&entries.every((entry,i)=>entry===cache.entries[i]);
+      if(!same){cache.entries=entries;cache.batch=packIndexed(entries);}
+      renderBatch(cache.batch,cache.buffer,!same,shadow);
+    }
+    function renderEffects(meshes,eye,time,clip=vp){
+      const batch=packFx(meshes,environment,eye);stats.fxInstances+=batch.values.length/16;if(!batch.groups.length)return;
+      gl.useProgram(fxProgram);gl.uniformMatrix4fv(fxUniforms.uViewProjection,false,clip);gl.uniform2f(fxUniforms.uWindTime,0,time);
+      gl.uniform3fv(fxUniforms.uSkyTop,environment?.skyTop||[.2,.3,.4]);gl.uniform3fv(fxUniforms.uSkyBottom,environment?.skyBottom||[.5,.6,.6]);gl.uniform3fv(fxUniforms.uEye,eye);gl.uniform3fv(fxUniforms.uAmbient,environment?environment.ambient:[.12,.15,.16]);
+      gl.uniform3fv(fxUniforms.uFogColor,environment?environment.fog:[.009,.018,.024]);gl.uniform2f(fxUniforms.uEnvironment,environment?1:0,environment?environment.fogDensity:.018);gl.uniform1f(fxUniforms.uTime,time);
+      gl.enable(gl.BLEND);gl.blendFunc(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA);gl.depthMask(false);
+      renderBatch(batch,fxBuffer,true);gl.depthMask(true);gl.disable(gl.BLEND);gl.useProgram(program);
+    }
+    function shadowPass(light,dynamicBatch,slot,torchAxes,time){
+      const p=light.p,shadowAxes=torchAxes||{right:[1,0,0],up:[0,0,-1],forward:[0,-1,0]};
+      const {right:r,up:u,forward:fw}=shadowAxes;
+      shadowView.set([r[0],u[0],-fw[0],0,r[1],u[1],-fw[1],0,r[2],u[2],-fw[2],0,-(r[0]*p[0]+r[1]*p[1]+r[2]*p[2]),-(u[0]*p[0]+u[1]*p[1]+u[2]*p[2]),fw[0]*p[0]+fw[1]*p[1]+fw[2]*p[2],1]);
+      const f=1/Math.tan((torchAxes?108:138)*Math.PI/360),near=torchAxes?.08:.15,far=32;
+      shadowProjection.fill(0);shadowProjection[0]=shadowProjection[5]=f;shadowProjection[10]=(far+near)/(near-far);shadowProjection[11]=-1;shadowProjection[14]=2*far*near/(near-far);
+      multiply(shadowProjection,shadowView,shadowMatrix);
+      shadowMatrices.set(shadowMatrix,slot*16);
+      gl.bindFramebuffer(gl.FRAMEBUFFER,shadowTarget.framebuffer);gl.viewport((slot%2)*shadowTarget.size,Math.floor(slot/2)*shadowTarget.size,shadowTarget.size,shadowTarget.size);
+      gl.useProgram(depthProgram);gl.bindVertexArray(vao);gl.enable(gl.DEPTH_TEST);gl.enable(gl.CULL_FACE);
+      gl.enable(gl.POLYGON_OFFSET_FILL);gl.polygonOffset(1.1,2.0);gl.uniformMatrix4fv(depthMatrix,false,shadowMatrix);gl.uniform2f(depthWind,environment?environment.wind:0,time);
+      const tangent=1/f;
+      const previous=lampCasters[slot];
+      const stable=!torchAxes&&previous&&previous.light===light&&previous.p.every((v,k)=>v===p[k]);
+      const casters=stable?previous.entries:worldIndex.query(p,[32,18,0]).filter(e=>visible(e,p,shadowAxes,tangent,tangent,32));
+      if(!torchAxes&&!stable)lampCasters[slot]={light,p:p.slice(),entries:casters};
+      renderStatic(casters,slot+1,true);renderBatch(dynamicBatch,dynamicBuffer,false,true);gl.disable(gl.POLYGON_OFFSET_FILL);
+    }
+    function sunShadowPass(eye,axes,dynamicBatch,time,camera={},fx={},crowd=null){
+      const sun=environment.sunDirection,fw=sun.map(v=>-v),length=Math.hypot(fw[0],fw[2]);
+      const r=length>.0001?[-fw[2]/length,0,fw[0]/length]:[1,0,0],u=[r[1]*fw[2]-r[2]*fw[1],r[2]*fw[0]-r[0]*fw[2],r[0]*fw[1]-r[1]*fw[0]];
+      // PDR : la vue RTS donne l'emprise visible au sol (camera.sun) ; avec fx.sunOnly, le soleil prend tout l'atlas.
+      const area=camera.sun,full=!!fx.sunOnly,tile=full?shadowTarget.size*2:shadowTarget.size;
+      const extent=area?area.extent:quality==='high'?36:28,texel=extent*2/tile;
+      const center=area?area.center.slice():[eye[0]+axes.forward[0]*8,eye[1]+1.4,eye[2]+axes.forward[2]*8],dot=a=>a[0]*center[0]+a[1]*center[1]+a[2]*center[2];
+      const xSnap=Math.round(dot(r)/texel)*texel-dot(r),ySnap=Math.round(dot(u)/texel)*texel-dot(u);
+      for(let k=0;k<3;k++)center[k]+=r[k]*xSnap+u[k]*ySnap;
+      const lift=area?area.depth*.5:55,p=center.map((v,k)=>v+sun[k]*lift);
+      shadowView.set([r[0],u[0],-fw[0],0,r[1],u[1],-fw[1],0,r[2],u[2],-fw[2],0,-(r[0]*p[0]+r[1]*p[1]+r[2]*p[2]),-(u[0]*p[0]+u[1]*p[1]+u[2]*p[2]),fw[0]*p[0]+fw[1]*p[1]+fw[2]*p[2],1]);
+      const near=1,far=area?area.depth:115;shadowProjection.fill(0);shadowProjection[0]=shadowProjection[5]=1/extent;shadowProjection[10]=-2/(far-near);shadowProjection[14]=-(far+near)/(far-near);shadowProjection[15]=1;
+      multiply(shadowProjection,shadowView,shadowMatrix);shadowMatrices.set(shadowMatrix,16);
+      gl.bindFramebuffer(gl.FRAMEBUFFER,shadowTarget.framebuffer);
+      if(full)gl.viewport(0,0,tile,tile);else gl.viewport(shadowTarget.size,0,shadowTarget.size,shadowTarget.size);
+      gl.useProgram(depthProgram);gl.bindVertexArray(vao);gl.enable(gl.DEPTH_TEST);gl.enable(gl.CULL_FACE);gl.enable(gl.POLYGON_OFFSET_FILL);gl.polygonOffset(1.1,2);
+      gl.uniformMatrix4fv(depthMatrix,false,shadowMatrix);gl.uniform2f(depthWind,environment.wind,time);
+      const inside=e=>{
+        const x=e.p[0]-p[0],y=e.p[1]-p[1],d=e.p[2]-p[2],z=x*fw[0]+y*fw[1]+d*fw[2];
+        return Math.abs(x*r[0]+y*r[1]+d*r[2])<extent+e.radius&&Math.abs(x*u[0]+y*u[1]+d*u[2])<extent+e.radius&&z+e.radius>near&&z-e.radius<far;
+      };
+      const casters=camera.chunked?[]:camera.allStatic?worldIndex.entries:worldIndex.query(center,[extent+24,26,0]).filter(inside);
+      renderStatic(casters,2,true);if(camera.chunked)drawChunks(inside,true);
+      // BITUME : les lots dont la sphère touche le volume du soleil projettent leur ombre (version proche ou lointaine).
+      dessinerLots(eye,axes,0,0,0,l=>inside({p:l.centre,radius:l.rayon}));
+      renderBatch(dynamicBatch,dynamicBuffer,false,true);if(crowd)renderBatch(crowd,crowdBuffer,false,true);gl.disable(gl.POLYGON_OFFSET_FILL);
+      // PDR (lots) : les lots du jeu (fx.lots) entrent dans la même vue du soleil, au même biais, rétabli pour eux.
+      // PDR (foule) : la foule sur le GPU aussi (fx.foule.ombre) ; au retour, le moteur reprend son état GL.
+      const pdrOmbre=fx.foule&&typeof fx.foule.ombre==='function';
+      if(pdrLots.length||pdrOmbre){
+        gl.enable(gl.POLYGON_OFFSET_FILL);
+        for(const entry of pdrLots)renderBatch(entry.lot,entry.buffer,false,true);
+        if(pdrOmbre){
+          pdrMatriceSoleil.set(shadowMatrix);pdrLumiere.direction=sun;pdrLumiere.texel=texel;pdrLumiere.plein=full;
+          pdrLumiere.viewport[0]=full?0:shadowTarget.size;pdrLumiere.viewport[1]=0;pdrLumiere.viewport[2]=pdrLumiere.viewport[3]=tile;
+          pdrLumiere.centre=center;pdrLumiere.etendue=extent;pdrLumiere.profondeur=far;
+          pdrCompter(fx.foule.ombre(gl,pdrLumiere),true);
+          gl.useProgram(depthProgram);gl.bindVertexArray(vao);gl.enable(gl.DEPTH_TEST);gl.enable(gl.CULL_FACE);gl.depthMask(true);gl.disable(gl.BLEND);
+        }
+        gl.disable(gl.POLYGON_OFFSET_FILL);
+      }
+    }
+    // PDR (foule) : ce que rend un point d'accroche ({ appels, triangles, instances }) entre dans les statistiques du moteur.
+    function pdrCompter(r,shadow){
+      if(!r)return;stats.drawCalls+=r.appels||0;stats.triangles+=r.triangles||0;if(!shadow)stats.instances+=r.instances||0;
+    }
+    function skyPass(axes,f,time,weather=[0,.4,0,0],cloudOffset=[0,0]){
+      gl.disable(gl.DEPTH_TEST);gl.disable(gl.CULL_FACE);gl.bindVertexArray(postVao);gl.useProgram(skyProgram);
+      gl.uniform3fv(skyUniforms.uSkyRight,axes.right);gl.uniform3fv(skyUniforms.uSkyUp,axes.up);gl.uniform3fv(skyUniforms.uSkyForward,axes.forward);
+      gl.uniform3fv(skyUniforms.uSkyTop,environment.skyTop);gl.uniform3fv(skyUniforms.uSkyBottom,environment.skyBottom);gl.uniform3fv(skyUniforms.uSkyFog,environment.fog);
+      gl.uniform3fv(skyUniforms.uSunDirection,environment.sunDirection);gl.uniform3fv(skyUniforms.uSunColor,environment.sunColor);
+      gl.uniform2f(skyUniforms.uSkyFov,canvas.width/canvas.height/f,1/f);gl.uniform4fv(skyUniforms.uWeather,weather);gl.uniform2f(skyUniforms.uSkyMotion,time,environment.wind);gl.uniform2fv(skyUniforms.uCloudOffset,cloudOffset);gl.drawArrays(gl.TRIANGLES,0,3);
+      stats.drawCalls++;gl.enable(gl.DEPTH_TEST);gl.enable(gl.CULL_FACE);
+    }
+    function reflectionsPass(){
+      gl.disable(gl.DEPTH_TEST);gl.disable(gl.CULL_FACE);gl.bindVertexArray(postVao);gl.useProgram(ssrProgram);gl.bindFramebuffer(gl.FRAMEBUFFER,post.reflection.framebuffer);gl.viewport(0,0,post.reflection.width,post.reflection.height);
+      gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,post.reflectSource.texture);gl.uniform1i(ssrUniforms.uColor,0);gl.activeTexture(gl.TEXTURE1);gl.bindTexture(gl.TEXTURE_2D,post.reflectSource.depthTexture);gl.uniform1i(ssrUniforms.uDepth,1);
+      gl.uniform4f(ssrUniforms.uProjection,1/projection[0],1/projection[5],projection[10],projection[14]);gl.uniform2f(ssrUniforms.uPixel,1/canvas.width,1/canvas.height);gl.drawArrays(gl.TRIANGLES,0,3);stats.drawCalls++;
+    }
+    function postPass(){
+      gl.disable(gl.DEPTH_TEST);gl.disable(gl.CULL_FACE);gl.bindVertexArray(postVao);gl.useProgram(postProgram);
+      gl.uniform1i(postUniforms.uScene,0);gl.uniform1i(postUniforms.uBloom,1);gl.uniform1i(postUniforms.uReflection,3);gl.uniform1i(postUniforms.uReflections,stats.reflections?1:0);gl.activeTexture(gl.TEXTURE3);gl.bindTexture(gl.TEXTURE_2D,post.reflection?.texture||whiteTexture);
+      gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,post.scene.texture);
+      gl.activeTexture(gl.TEXTURE1);gl.bindTexture(gl.TEXTURE_2D,post.b.texture);
+      gl.bindFramebuffer(gl.FRAMEBUFFER,post.a.framebuffer);gl.viewport(0,0,post.a.width,post.a.height);
+      gl.uniform1i(postUniforms.uPass,0);gl.uniform2f(postUniforms.uTexel,1/canvas.width,1/canvas.height);gl.drawArrays(gl.TRIANGLES,0,3);
+      gl.bindFramebuffer(gl.FRAMEBUFFER,post.b.framebuffer);gl.bindTexture(gl.TEXTURE_2D,post.a.texture);
+      gl.uniform1i(postUniforms.uPass,1);gl.uniform2f(postUniforms.uTexel,1/post.a.width,1/post.a.height);gl.drawArrays(gl.TRIANGLES,0,3);
+      gl.bindFramebuffer(gl.FRAMEBUFFER,null);gl.viewport(0,0,canvas.width,canvas.height);gl.bindTexture(gl.TEXTURE_2D,post.b.texture);
+      gl.uniform1i(postUniforms.uPass,2);gl.drawArrays(gl.TRIANGLES,0,3);stats.drawCalls+=3;
+      gl.enable(gl.DEPTH_TEST);gl.enable(gl.CULL_FACE);gl.activeTexture(gl.TEXTURE0);
+    }
+    function lightPlan(eye){
+      const distanceTo=light=>(light.p[0]-eye[0])**2+(light.p[1]-eye[1])**2+(light.p[2]-eye[2])**2;
+      const sorted=lights.map(light=>({light,d:distanceTo(light)})).sort((a,b)=>a.d-b.d);
+      const candidate=sorted.find(entry=>entry.light.p[1]>=2.5&&(entry.light.power||1)>=7)||sorted.find(entry=>entry.light.p[1]>=2.5);
+      let chosen=shadowLight;
+      if(candidate&&(!chosen||distanceTo(chosen)>candidate.d*1.35+5))chosen=candidate.light;
+      if(!candidate)chosen=null;
+      const second=sorted.find(entry=>entry.light!==chosen&&entry.light.p[1]>=2.5);
+      return {sorted,distanceTo,chosen,shadowLights:chosen?[chosen,...(second&&!environment?[second.light]:[])]:[]};
+    }
+    // Called once before model construction. A rejected enclosing sphere cannot
+    // reach the camera OR any GPU shadow pass, including offscreen sun casters.
+    // This changes neither geometry nor shadow resolution/order for kept actors.
+    function actorFilter(camera,fx={}){
+      stats.actorsConsidered=stats.actorsCulled=0;actorLightPlan=null;
+      if(disposed||stats.contextLost){stats.actorFilterMode='inactive';return ()=>true;}
+      const t=fx.time||0,shake=fx.shake||0,p=camera.pos||[0,1.6,0],axes=cameraAxes(camera);
+      const eye=[p[0]+Math.sin(t*57)*shake*.025,p[1]+Math.sin(t*71)*shake*.015,p[2]];
+      const cssWidth=canvas.clientWidth||window.innerWidth||800,cssHeight=canvas.clientHeight||window.innerHeight||600;
+      // resize may round/adapt resolution during draw. Enclose every allowed
+      // rounded aspect instead of relying on the previous backing-store size.
+      const aspect=Math.max(canvas.width/Math.max(1,canvas.height),cssWidth/cssHeight)+(1+cssWidth/cssHeight)/Math.max(1,cssHeight*.3);
+      const tangent=Math.tan(Math.max(FOV_MIN,Math.min(110,camera.fov||75))*Math.PI/360),views=[{eye,axes,h:aspect*tangent,v:tangent,far:camera.far||180}];
+      const shadows=quality!=='low'&&fx.shadows!==false;
+      let sunVolume=null;
+      if(shadows){
+        const plan=lightPlan(eye);actorLightPlan={eye:eye.slice(),previous:shadowLight,plan};
+        const {shadowLights}=plan,down={right:[1,0,0],up:[0,0,-1],forward:[0,-1,0]},lampTangent=Math.tan(138*Math.PI/360);
+        if(!fx.sunOnly){
+          for(const light of shadowLights)views.push({eye:light.p,axes:down,h:lampTangent,v:lampTangent,far:32});
+          const torch=eye.map((v,i)=>v+axes.right[i]*.16-axes.up[i]*.08),torchTangent=Math.tan(108*Math.PI/360);
+          views.push({eye:torch,axes,h:torchTangent,v:torchTangent,far:32});
+        }
+        if(environment){
+          const sun=environment.sunDirection,fw=sun.map(v=>-v),length=Math.hypot(fw[0],fw[2]);
+          const right=length>.0001?[-fw[2]/length,0,fw[0]/length]:[1,0,0],up=[right[1]*fw[2]-right[2]*fw[1],right[2]*fw[0]-right[0]*fw[2],right[0]*fw[1]-right[1]*fw[0]];
+          // The real pass snaps this centre by <=.071 m. A quarter metre guard
+          // includes the entire snap and PCF border at both atlas resolutions.
+          const area=camera.sun;
+          sunVolume=area?{center:area.center,right,up,forward:fw,extent:area.extent+1,lift:area.depth*.5,depth:area.depth}
+            :{center:[eye[0]+axes.forward[0]*8,eye[1]+1.4,eye[2]+axes.forward[2]*8],right,up,forward:fw,extent:(quality==='high'?36:28)+.25,lift:55,depth:115};
+        }
+      }
+      stats.actorFilterMode=shadows?'camera-and-shadow-frusta':'camera-frustum';stats.actorFilterVolumes=views.length+(sunVolume?1:0);
+      return (x,y,z,radius)=>{
+        stats.actorsConsidered++;
+        if(![x,y,z,radius].every(Number.isFinite)||radius<0)return true;
+        const e={p:[x,y,z],radius:radius+.002};
+        for(const v of views)if(visible(e,v.eye,v.axes,v.h,v.v,v.far))return true;
+        if(sunVolume){
+          const q=sunVolume,dx=x-q.center[0],dy=y-q.center[1],dz=z-q.center[2],dot=a=>dx*a[0]+dy*a[1]+dz*a[2],depth=q.lift+dot(q.forward);
+          if(Math.abs(dot(q.right))<=q.extent+e.radius&&Math.abs(dot(q.up))<=q.extent+e.radius&&depth+e.radius>=1&&depth-e.radius<=q.depth)return true;
+        }
+        stats.actorsCulled++;return false;
+      };
+    }
+    function draw(camera,dynamic,fx) {
+      if(disposed||stats.contextLost) return;
+      fx=fx||{};autoScale=governor.update(fx,quality);resize();
+      const t=fx.time||0,shake=fx.shake||0,p=camera.pos||[0,1.6,0];
+      const axes=cameraAxes(camera),{right,up,forward}=axes;
+      const eye=[p[0]+Math.sin(t*57.)*shake*.025,p[1]+Math.sin(t*71.)*shake*.015,p[2]];
+      view.set([right[0],up[0],-forward[0],0,right[1],up[1],-forward[1],0,right[2],up[2],-forward[2],0,
+        -(right[0]*eye[0]+right[1]*eye[1]+right[2]*eye[2]),-(up[0]*eye[0]+up[1]*eye[1]+up[2]*eye[2]),forward[0]*eye[0]+forward[1]*eye[1]+forward[2]*eye[2],1]);
+      const fov=Math.max(FOV_MIN,Math.min(110,camera.fov||75))*Math.PI/180,f=1/Math.tan(fov*.5),near=camera.near||.045,far=camera.far||180;
+      projection.fill(0);projection[0]=f/(canvas.width/canvas.height);projection[5]=f;projection[10]=(far+near)/(near-far);projection[11]=-1;projection[14]=2*far*near/(near-far);
+      multiply(projection,view,vp);
+      const ranges=detailRanges(quality);ranges[0]=extendedDistance(ranges[0],environment,eye);stats.viewDistance=ranges[0];
+      // PDR : vue de haut, tout le décor part au GPU en un seul lot stable : ni tri ni nouvel envoi quand la caméra bouge,
+      // le découpage au champ se fait au clip. Sans camera.allStatic, le tri par portée de FERRO reste inchangé.
+      const shown=camera.chunked?[]:camera.allStatic?worldIndex.entries:worldIndex.query(eye,ranges).filter(e=>visible(e,eye,axes,canvas.width/canvas.height/f,1/f,ranges[0]));
+      stats.staticVisible=shown.length;stats.staticCulled=world.length-shown.length;
+      const planned=actorLightPlan&&actorLightPlan.previous===shadowLight&&eye.every((v,k)=>v===actorLightPlan.eye[k])?actorLightPlan.plan:lightPlan(eye);actorLightPlan=null;
+      const {sorted,distanceTo,chosen}=planned,shadowLights=fx.headlight?[fx.headlight]:planned.shadowLights;shadowLight=chosen;
+      // PDR (lampes) : huit lampes passagères (quatre en qualité basse) au lieu de trois : les huit foyers les plus proches
+      // de la visée éclairent façades et foule (decor.js) ; la ville n'a pas de lampe fixe, les douze places restent assez.
+      const transient=transientLights(fx.lights,eye,quality==='low'?4:8);stats.dynamicLights=transient.length;
+      const selected=shadowLights.map(light=>({light,d:distanceTo(light)})).concat(transient.map(light=>({light,d:distanceTo(light)})),sorted.filter(entry=>!shadowLights.includes(entry.light)).slice(0,(quality==='low'?6:12)-shadowLights.length-transient.length));
+      const blackout=horrorLights(fx.horror,lights);stats.blackoutLights=blackout?.size||0;
+      lightPositions.fill(0);lightColors.fill(0);lightRanges.fill(0);lightDirections.fill(0);lightCones.fill(0);
+      selected.forEach(({light},i)=>{if(light.dir){lightDirections.set(light.dir,i*3);lightCones.set(light.cone||[.75,.94],i*2);}lightPositions.set(light.p,i*3);lightRanges[i]=light.range||0;const c=light.color||[1,1,1],power=(light.power===undefined?1:light.power)*(blackout?.get(light)??1);lightColors.set([c[0]*power,c[1]*power,c[2]*power],i*3);});
+      ordinary.length=overlay.length=particles.length=overlayParticles.length=0;for(const mesh of dynamic||[]) (mesh.overlay?(mesh.fx?overlayParticles:overlay):mesh.fx?particles:ordinary).push(mesh);
+      const dynamicBatch=packDynamic(ordinary,environment,true);
+      const torchPosition=eye.map((v,i)=>v+right[i]*.16-up[i]*.08);
+      stats.drawCalls=0;stats.triangles=0;stats.instances=0;stats.bloom=!!post&&fx.bloom!==false;stats.shadows=!!shadowTarget&&fx.shadows!==false;stats.shadowMaps=stats.shadows?shadowLights.length+1+(environment?1:0):0;stats.shadowMode=environment?'sun-atlas':'atlas';
+      stats.uploadBytes=0;stats.fxInstances=0;
+      // Animated instances are shared unchanged by every depth and colour pass.
+      if(dynamicBatch.values.length){gl.bindBuffer(gl.ARRAY_BUFFER,dynamicBuffer);gl.bufferData(gl.ARRAY_BUFFER,dynamicBatch.values,gl.DYNAMIC_DRAW);stats.uploadBytes+=dynamicBatch.values.byteLength;}
+      const crowd=fx.instances&&fx.instances.groups&&fx.instances.groups.length?fx.instances:null,sunOnly=!!fx.sunOnly;
+      stats.crowdInstances=crowd?crowd.values.length/16:0;stats.shadowMaps=stats.shadows?(sunOnly?0:shadowLights.length+(fx.torch!==false?1:0))+(environment?1:0):0;
+      if(crowd){if(!crowdBuffer)crowdBuffer=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,crowdBuffer);gl.bufferData(gl.ARRAY_BUFFER,crowd.values,gl.DYNAMIC_DRAW);stats.uploadBytes+=crowd.values.byteLength;}
+      // PDR (lots) : lots déjà empaquetés par le jeu (fx.lots : le décor), au format de pack. Un lot ne repart au GPU que si
+      // l'objet ou sa version (lot.version) change ; il sert ensuite à l'ombre du soleil et à la passe couleur.
+      pdrLots.length=0;stats.pdrLotInstances=0;
+      if(Array.isArray(fx.lots))for(let i=0;i<fx.lots.length;i++){
+        const lot=fx.lots[i];if(!lot||!lot.values||!lot.groups||!lot.groups.length)continue;
+        const slot=pdrSlots[i]||(pdrSlots[i]={buffer:gl.createBuffer(),lot:null,version:NaN});
+        if(slot.lot!==lot||slot.version!==lot.version){
+          gl.bindBuffer(gl.ARRAY_BUFFER,slot.buffer);gl.bufferData(gl.ARRAY_BUFFER,lot.values,gl.DYNAMIC_DRAW);stats.uploadBytes+=lot.values.byteLength;
+          slot.lot=lot;slot.version=lot.version;
+        }
+        pdrLots.push(slot);stats.pdrLotInstances+=lot.values.length/16;
+      }
+      if(stats.shadows){
+        gl.bindFramebuffer(gl.FRAMEBUFFER,shadowTarget.framebuffer);gl.clear(gl.DEPTH_BUFFER_BIT);
+        if(!sunOnly)shadowLights.forEach((light,i)=>{const fw=light.dir,axes=fw?{forward:fw,right:[-fw[2],0,fw[0]],up:[0,1,0]}:null;shadowPass(light,dynamicBatch,i,axes,t);});
+        if(environment)sunShadowPass(eye,axes,dynamicBatch,t,camera,fx,crowd);
+        if(!sunOnly&&fx.torch!==false)shadowPass({p:torchPosition},dynamicBatch,2,axes,t);
+      }
+      // PDR (msaa) : fx.msaa === false coupe l'anticrénelage à l'exécution, sans recréer les cibles (réglage du jeu).
+      const msaa=stats.bloom&&post.msaa&&fx.msaa!==false?post.msaa:null;
+      gl.bindFramebuffer(gl.FRAMEBUFFER,stats.bloom?(msaa?msaa.framebuffer:post.scene.framebuffer):null);gl.viewport(0,0,canvas.width,canvas.height);
+      gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);if(environment)skyPass(axes,f,t,fx.weather,fx.cloudOffset);gl.useProgram(program);gl.bindVertexArray(vao);
+      gl.uniformMatrix4fv(uniforms.uViewProjection,false,vp);gl.uniform3fv(uniforms.uEye,eye);gl.uniform3fv(uniforms.uForward,forward);
+      gl.uniform4fv(uniforms.uSeaOrigin,fx.sea?.origin||[0,0,0,0]);gl.uniform4fv(uniforms.uSeaMotion,fx.sea?.motion||[0,0,-1.25,0]);
+      gl.uniform2fv(uniforms.uCloudOffset,fx.cloudOffset||[t*.0018,0]);gl.uniform2f(uniforms.uWindTime,environment?environment.wind:0,t);gl.uniform3fv(uniforms.uSunDirection,environment?environment.sunDirection:[.4,.8,.3]);gl.uniform3fv(uniforms.uSunColor,environment?environment.sunColor:[0,0,0]);
+      gl.uniform3fv(uniforms.uAmbient,environment?environment.ambient:[.075,.10,.12]);gl.uniform3fv(uniforms.uFogColor,environment?environment.fog:[.009,.018,.024]);gl.uniform2f(uniforms.uEnvironment,environment?1:0,environment?environment.fogDensity:.014);
+      gl.uniform2f(uniforms.uNightHour,environment?.night||0,environment?.hour??14);
+      gl.uniform3fv(uniforms.uSkyTop,environment?environment.skyTop:[.05,.08,.10]);gl.uniform3fv(uniforms.uSkyBottom,environment?environment.skyBottom:[.16,.20,.22]);
+      for(let k=0;k<pbrTextures.length;k++){gl.activeTexture(gl.TEXTURE5+k);gl.bindTexture(gl.TEXTURE_2D_ARRAY,pbrTextures[k]);}
+      gl.uniform4fv(uniforms.uWeather,fx.weather||[0,.4,0,0]);gl.uniform3fv(uniforms.uLightDirection,lightDirections);gl.uniform2fv(uniforms.uLightCone,lightCones);gl.uniform3fv(uniforms.uLightPosition,lightPositions);gl.uniform3fv(uniforms.uLightColor,lightColors);gl.uniform1fv(uniforms.uLightRange,lightRanges);gl.uniform1i(uniforms.uLightCount,selected.length);
+      gl.uniform2f(uniforms.uResolution,canvas.width,canvas.height);gl.uniform4f(uniforms.uEffects,t,fx.flash||0,fx.damage||0,Math.max(0,Math.min(1,fx.pulse||0)));
+      gl.activeTexture(gl.TEXTURE2);gl.bindTexture(gl.TEXTURE_2D,stats.shadows?shadowTarget.texture:whiteTexture);gl.uniform1i(uniforms.uShadowMap,2);
+      gl.uniformMatrix4fv(uniforms.uShadowMatrix,false,shadowMatrices);gl.uniform4f(uniforms.uShadowSettings,stats.shadows&&!sunOnly?shadowLights.length:0,shadowTarget?1/(shadowTarget.size*2):1,stats.shadows&&!sunOnly&&fx.torch!==false?1:0,stats.shadows&&environment?(sunOnly?2:1):0);
+      // PDR : sans lampe torche (fx.torch === false), sa source est renvoyée assez loin pour ne plus rien éclairer.
+      gl.uniform3fv(uniforms.uTorchPosition,fx.torch===false?[0,-1e5,0]:torchPosition);
+      // PDR (voile) : fx.voile = { texture R8, origine [x0, z0], taille [largeur, profondeur], force } sur l'unité 4. Sans
+      // voile, rien n'est posé ; à la première image sans lui, la texture blanche reprend l'unité et la force revient à 0.
+      const voile=fx.voile&&fx.voile.texture&&fx.voile.force>0?fx.voile:null;
+      if(voile||pdrVoilePose){
+        gl.activeTexture(gl.TEXTURE4);gl.bindTexture(gl.TEXTURE_2D,voile?voile.texture:whiteTexture);
+        if(voile)gl.uniform4f(uniforms.uVoileZone,voile.origine[0],voile.origine[1],1/Math.max(.001,voile.taille[0]),1/Math.max(.001,voile.taille[1]));
+        gl.uniform1f(uniforms.uVoileForce,voile?Math.min(1,voile.force):0);gl.activeTexture(gl.TEXTURE2);pdrVoilePose=!!voile;
+      }
+      // The distant sea is a sky-like backdrop: it must not compete with land
+      // only centimetres above it at kilometre distances. Local water retains depth/SSR.
+      stats.backgroundWater=backgroundIndex.entries.length;stats.backgroundDrawCalls=0;
+      if(backgroundIndex.entries.length){const before=stats.drawCalls;gl.depthMask(false);renderStatic(backgroundIndex.entries,4);gl.depthMask(true);stats.backgroundDrawCalls=stats.drawCalls-before;}
+      renderStatic(shown,0);if(camera.chunked)drawChunks(c=>visible(c,eye,axes,canvas.width/canvas.height/f,1/f,Math.min(far,c.range)));
+      // BITUME : chaussée et terrain, puis décor par lots, découpés au champ et à la portée de chaque lot.
+      dessinerNappes(eye,axes,canvas.width/canvas.height/f,1/f,far);
+      stats.lotsVisibles=dessinerLots(eye,axes,canvas.width/canvas.height/f,1/f,far);
+      renderBatch(dynamicBatch,dynamicBuffer,false);
+      if(crowd)renderBatch(crowd,crowdBuffer,false);
+      // PDR (lots) : les lots du jeu, dans la cible de la scène (MSAA), avant les effets translucides.
+      for(const entry of pdrLots)renderBatch(entry.lot,entry.buffer,false);
+      // PDR (foule) : puis la foule sur le GPU (fx.foule.couleur), dans la même cible ; au retour, le moteur reprend son état GL.
+      if(fx.foule&&typeof fx.foule.couleur==='function'){
+        const v=pdrVue,ombre=v.ombre;
+        v.oeil=eye;v.avant=forward;v.droite=right;v.haut=up;v.fov=fov;v.tangente=1/f;v.focale=canvas.height*f*.5;v.largeur=canvas.width;v.hauteur=canvas.height;
+        v.near=near;v.far=far;v.temps=t;v.qualite=quality;v.msaa=msaa?msaa.samples:0;
+        const env=environment||PDR_INDOOR;
+        v.soleil=env.sunDirection;v.couleurSoleil=env.sunColor;v.ambiance=env.ambient;v.brouillard=env.fog;
+        v.densiteBrouillard=env.fogDensity;v.cielHaut=env.skyTop;v.cielBas=env.skyBottom;
+        ombre.texture=stats.shadows?shadowTarget.texture:whiteTexture;ombre.active=!!(stats.shadows&&environment);ombre.plein=sunOnly;
+        ombre.texel=shadowTarget?1/(shadowTarget.size*2):1;if(ombre.active)for(let k=0;k<16;k++)pdrMatriceSoleil[k]=shadowMatrices[16+k];
+        v.lumieres.nombre=selected.length;
+        pdrCompter(fx.foule.couleur(gl,v),false);
+        gl.useProgram(program);gl.bindVertexArray(vao);gl.enable(gl.DEPTH_TEST);gl.depthFunc(gl.LEQUAL);gl.enable(gl.CULL_FACE);gl.cullFace(gl.BACK);
+        gl.depthMask(true);gl.disable(gl.BLEND);gl.activeTexture(gl.TEXTURE2);gl.bindTexture(gl.TEXTURE_2D,ombre.texture);
+      }
+      if(particles.length)renderEffects(particles,eye,t);
+      stats.reflections=!!(stats.bloom&&post.reflectSource&&post.reflection&&fx.reflections!==false);stats.reflectionSteps=stats.reflections?48:0;
+      if(stats.reflections){const target=msaa?msaa.framebuffer:post.scene.framebuffer;gl.bindFramebuffer(gl.READ_FRAMEBUFFER,target);gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER,post.reflectSource.framebuffer);gl.blitFramebuffer(0,0,canvas.width,canvas.height,0,0,canvas.width,canvas.height,gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT,gl.NEAREST);gl.bindFramebuffer(gl.FRAMEBUFFER,target);}
+      if(overlay.length||overlayParticles.length) {
+        // EMPRISE: weapon/muzzle meshes already render after a depth clear.
+        // Keep their close clipping plane independent from world depth precision.
+        // World projection and its depth texture stay unchanged for SSR and crowds.
+        const overlayNear=Math.min(near,Math.max(.005,Number(camera.overlayNear)||near));
+        let overlayClip=vp;
+        if(overlayNear!==near){overlayProjection.set(projection);overlayProjection[10]=(far+overlayNear)/(overlayNear-far);overlayProjection[14]=2*far*overlayNear/(overlayNear-far);multiply(overlayProjection,view,overlayVP);overlayClip=overlayVP;gl.uniformMatrix4fv(uniforms.uViewProjection,false,overlayClip);}
+        if(blackout){selected.forEach(({light},i)=>{const c=light.color||[1,1,1],power=light.power===undefined?1:light.power;lightColors.set([c[0]*power,c[1]*power,c[2]*power],i*3);});gl.uniform3fv(uniforms.uLightColor,lightColors);}
+        gl.clear(gl.DEPTH_BUFFER_BIT);if(overlay.length)renderBatch(packOverlay(overlay,environment,true),overlayBuffer,true);
+        if(overlayParticles.length)renderEffects(overlayParticles,eye,t,overlayClip);
+        if(overlayClip!==vp)gl.uniformMatrix4fv(uniforms.uViewProjection,false,vp);
+      }
+      if(msaa){
+        gl.bindFramebuffer(gl.READ_FRAMEBUFFER,msaa.framebuffer);gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER,post.scene.framebuffer);
+        gl.blitFramebuffer(0,0,canvas.width,canvas.height,0,0,canvas.width,canvas.height,gl.COLOR_BUFFER_BIT,gl.NEAREST);
+        gl.bindFramebuffer(gl.FRAMEBUFFER,null);
+      }
+      if(stats.reflections)reflectionsPass();if(stats.bloom)postPass();
+    }
+    function lost(event){event.preventDefault();stats.contextLost=true;}
+    function restored(){if(!disposed){initialize();chargerNappes();chargerLots();chunks.clear();rebuildChunks();}} // BITUME : nappes et lots rechargés
+    canvas.addEventListener('webglcontextlost',lost);canvas.addEventListener('webglcontextrestored',restored);
+    function dispose() {
+      if(disposed) return;disposed=true;
+      canvas.removeEventListener('webglcontextlost',lost);canvas.removeEventListener('webglcontextrestored',restored);
+      for(const c of chunks.values())gl.deleteBuffer(c.buffer);chunks.clear();
+      for(const buffer of [vbo,ibo,worldBuffer,dynamicBuffer,overlayBuffer,fxBuffer]) gl.deleteBuffer(buffer);if(crowdBuffer)gl.deleteBuffer(crowdBuffer);
+      for(const cache of staticCaches.slice(1))gl.deleteBuffer(cache.buffer);
+      // BITUME : tampons des nappes et des lots.
+      if(nappeVbo)gl.deleteBuffer(nappeVbo);if(nappeIbo)gl.deleteBuffer(nappeIbo);if(nappeVao)gl.deleteVertexArray(nappeVao);
+      for(const l of lots)for(const cle of ['tampon','tamponLoin'])if(l[cle])gl.deleteBuffer(l[cle]);
+      // PDR (lots) : tampons des lots du jeu.
+      for(const slot of pdrSlots)if(slot)gl.deleteBuffer(slot.buffer);pdrSlots=[];pdrLots.length=0;
+      freePost();deleteTarget(shadowTarget);gl.deleteTexture(whiteTexture);for(const tex of pbrTextures)gl.deleteTexture(tex);pbrTextures=[];
+      gl.deleteVertexArray(vao);gl.deleteVertexArray(postVao);gl.deleteProgram(program);gl.deleteProgram(depthProgram);gl.deleteProgram(postProgram);gl.deleteProgram(skyProgram);gl.deleteProgram(fxProgram);gl.deleteProgram(ssrProgram);
+    }
+    // PDR (foule) : le jeu dessine la foule lui-même dans les passes du moteur. renderer.gl est le contexte WebGL 2 ;
+    // renderer.pdr donne la bibliothèque d'éclairage (glsl), lier(programme) qui rend la fonction posant ses uniformes à
+    // partir de la vue passée à fx.foule.couleur, la génération du contexte (elle change après une perte de contexte : tout
+    // est à recréer) et la compilation des shaders avec les messages du moteur.
+    const pdr={glsl:pdrGlsl,uniformes:PDR_UNIFORMS,
+      get generation(){return pdrGeneration;},
+      programme(vertex,fragment){return link(vertex,fragment);},
+      lier(programme){
+        const u={};for(const name of PDR_UNIFORMS)u[name]=gl.getUniformLocation(programme,name);
+        return v=>{
+          const o=v.ombre;
+          gl.uniform1i(u.uPdrOmbre,o.unite);gl.uniformMatrix4fv(u.uPdrMatriceOmbre,false,o.matrice);
+          gl.uniform4f(u.uPdrOmbreReglages,o.active?1:0,o.texel,o.plein?1:0,0);
+          gl.uniform3fv(u.uPdrOeil,v.oeil);gl.uniform3fv(u.uPdrSoleil,v.soleil);gl.uniform3fv(u.uPdrCouleurSoleil,v.couleurSoleil);
+          gl.uniform3fv(u.uPdrAmbiance,v.ambiance);gl.uniform3fv(u.uPdrBrouillard,v.brouillard);
+          gl.uniform3fv(u.uPdrCielHaut,v.cielHaut);gl.uniform3fv(u.uPdrCielBas,v.cielBas);
+          gl.uniform4f(u.uPdrEnvironnement,1,v.densiteBrouillard,v.temps,0);gl.uniform2f(u.uPdrResolution,v.largeur,v.hauteur);
+          const l=v.lumieres;gl.uniform3fv(u.uPdrLumierePosition,l.positions);gl.uniform3fv(u.uPdrLumiereCouleur,l.couleurs);
+          gl.uniform3fv(u.uPdrLumiereDirection,l.directions);gl.uniform2fv(u.uPdrLumiereCone,l.cones);gl.uniform1fv(u.uPdrLumierePortee,l.portees);gl.uniform1i(u.uPdrLumieres,l.nombre);
+        };
+      }};
+    return {setEnvironment(value){environment=environmentInfo(value);},setWorld,updateWorld,draw,resize,dispose,stats,actorFilter,setNappes,setLots,updateShape,gl,pdr};
+  }
+  // Both GPU backends share the procedural shapes, instance layout and visibility
+  // rules. No rendering calls or GPU state are shared between the APIs.
+  const shared={geometry,indexPrimitiveVertices,pack,packEffects,instancePacker,effectsPacker,packIndexed,spatialIndex,partitionWorld,planChunks,visible,metadata,environmentInfo,outdoorMesh,surfaceFlags,transientLights,horrorLights,cameraAxes,multiply,detailRanges,extendedDistance,resolutionGovernor,settings,indoor:PDR_INDOOR,shapes:FORMES_LIBRES};
+  function mesh(shape,p,s,mat,r=[0,0,0],emissive=0){
+    return {shape,p,s,mat,r,emissive,color:undefined,surface:undefined,overlay:false,fx:false,
+      alpha:undefined,additive:undefined,outdoor:undefined,actorPart:undefined,actorLod:0,
+      actorScale:undefined,structural:false,debrisId:undefined,sourceId:undefined,material:undefined,
+      effectPart:'',fxFire:false,fxSmoke:false,fxSpark:false,fxPriority:undefined,ground:undefined,
+      innerRatio:undefined,region:undefined};
+  }
+  globalThis.FRender={create,foliageTriangles,forme,shared,mesh};
+})();
+
+/* Generated offline from the original procedural FERRO shaders. Regenerate: python3 tools/webgpu-shaders.py */
+globalThis.FRenderWebGPUShaders={"generator":"FERRO GLSL→WGSL / Naga 30.0.1","programs":{"world":{"uniforms":{"byteLength":1600,"fields":[{"name":"uViewProjection","type":"mat4","offset":0,"count":1,"arrayStride":64,"matrixStride":16},{"name":"uWindTime","type":"vec2","offset":64,"count":1,"arrayStride":16,"matrixStride":0},{"name":"uSeaOrigin","type":"vec4","offset":80,"count":1,"arrayStride":16,"matrixStride":0},{"name":"uSeaMotion","type":"vec4","offset":96,"count":1,"arrayStride":16,"matrixStride":0},{"name":"uEye","type":"vec3","offset":112,"count":1,"arrayStride":16,"matrixStride":0},{"name":"uWeather","type":"vec4","offset":128,"count":1,"arrayStride":16,"matrixStride":0},{"name":"uCloudOffset","type":"vec2","offset":144,"count":1,"arrayStride":16,"matrixStride":0},{"name":"uPbrReady","type":"float","offset":160,"count":1,"arrayStride":16,"matrixStride":0},{"name":"uLightDirection","type":"vec3","offset":176,"count":12,"arrayStride":16,"matrixStride":0},{"name":"uLightCone","type":"vec2","offset":368,"count":12,"arrayStride":16,"matrixStride":0},{"name":"uForward","type":"vec3","offset":560,"count":1,"arrayStride":16,"matrixStride":0},{"name":"uLightPosition","type":"vec3","offset":576,"count":12,"arrayStride":16,"matrixStride":0},{"name":"uLightColor","type":"vec3","offset":768,"count":12,"arrayStride":16,"matrixStride":0},{"name":"uLightRange","type":"float","offset":960,"count":12,"arrayStride":16,"matrixStride":0},{"name":"uLightCount","type":"int","offset":1152,"count":1,"arrayStride":16,"matrixStride":0},{"name":"uResolution","type":"vec2","offset":1168,"count":1,"arrayStride":16,"matrixStride":0},{"name":"uEffects","type":"vec4","offset":1184,"count":1,"arrayStride":16,"matrixStride":0},{"name":"uShadowMatrix","type":"mat4","offset":1200,"count":3,"arrayStride":64,"matrixStride":16},{"name":"uShadowSettings","type":"vec4","offset":1392,"count":1,"arrayStride":16,"matrixStride":0},{"name":"uTorchPosition","type":"vec3","offset":1408,"count":1,"arrayStride":16,"matrixStride":0},{"name":"uSunDirection","type":"vec3","offset":1424,"count":1,"arrayStride":16,"matrixStride":0},{"name":"uSunColor","type":"vec3","offset":1440,"count":1,"arrayStride":16,"matrixStride":0},{"name":"uAmbient","type":"vec3","offset":1456,"count":1,"arrayStride":16,"matrixStride":0},{"name":"uFogColor","type":"vec3","offset":1472,"count":1,"arrayStride":16,"matrixStride":0},{"name":"uSkyTop","type":"vec3","offset":1488,"count":1,"arrayStride":16,"matrixStride":0},{"name":"uSkyBottom","type":"vec3","offset":1504,"count":1,"arrayStride":16,"matrixStride":0},{"name":"uEnvironment","type":"vec2","offset":1520,"count":1,"arrayStride":16,"matrixStride":0},{"name":"uNightHour","type":"vec2","offset":1536,"count":1,"arrayStride":16,"matrixStride":0},{"name":"uVoileZone","type":"vec4","offset":1552,"count":1,"arrayStride":16,"matrixStride":0},{"name":"uVoileForce","type":"float","offset":1568,"count":1,"arrayStride":16,"matrixStride":0},{"name":"uVignette","type":"float","offset":1584,"count":1,"arrayStride":16,"matrixStride":0}]},"textures":[{"name":"uPbrAlbedo","binding":1,"samplerBinding":2,"dimension":"2d-array","depth":false,"sampleType":"float","samplerType":"filtering","sourceType":"sampler2DArray","renderTarget":false},{"name":"uPbrNormal","binding":3,"samplerBinding":4,"dimension":"2d-array","depth":false,"sampleType":"float","samplerType":"filtering","sourceType":"sampler2DArray","renderTarget":false},{"name":"uPbrRough","binding":5,"samplerBinding":6,"dimension":"2d-array","depth":false,"sampleType":"float","samplerType":"filtering","sourceType":"sampler2DArray","renderTarget":false},{"name":"uShadowMap","binding":7,"samplerBinding":8,"dimension":"2d","depth":true,"sampleType":"depth","samplerType":"non-filtering","sourceType":"sampler2D","renderTarget":true},{"name":"uVoile","binding":9,"samplerBinding":10,"dimension":"2d","depth":false,"sampleType":"float","samplerType":"filtering","sourceType":"sampler2D","renderTarget":false}],"entryPoint":"main","sourceSha256":"c545445e51bfd499354caab98fc4c894b008980e269152bb73c1c515a2cc1e74","vertex":"diagnostic(off, derivative_uniformity);\nstruct FerroUniforms {\n    data: array<vec4<f32>, 100>,\n}\n\nstruct VertexOutput {\n    @location(0) vWorld: vec3<f32>,\n    @location(1) vNormal: vec3<f32>,\n    @location(2) vSurface: vec3<f32>,\n    @location(3) vLocal: vec3<f32>,\n    @location(4) vFaceNormal: vec3<f32>,\n    @location(5) @interpolate(flat) vDimensions: vec3<f32>,\n    @location(6) vSurfaceNormal: vec3<f32>,\n    @location(7) @interpolate(flat) vAnchor: vec3<f32>,\n    @location(8) @interpolate(flat) vMaterial: f32,\n    @location(9) @interpolate(flat) vEmission: f32,\n    @location(10) @interpolate(flat) vOverlay: f32,\n    @location(11) @interpolate(flat) vOutdoor: f32,\n    @location(12) @interpolate(flat) vObject: f32,\n    @location(13) @interpolate(flat) vColor: vec4<f32>,\n    @builtin(position) gl_Position: vec4<f32>,\n}\n\n@group(0) @binding(0) \nvar<uniform> ferroUniforms: FerroUniforms;\n@group(0) @binding(1) \nvar uPbrAlbedo_texture: texture_2d_array<f32>;\n@group(0) @binding(2) \nvar uPbrAlbedo_sampler: sampler;\n@group(0) @binding(3) \nvar uPbrNormal_texture: texture_2d_array<f32>;\n@group(0) @binding(4) \nvar uPbrNormal_sampler: sampler;\n@group(0) @binding(5) \nvar uPbrRough_texture: texture_2d_array<f32>;\n@group(0) @binding(6) \nvar uPbrRough_sampler: sampler;\n@group(0) @binding(7) \nvar uShadowMap_texture: texture_depth_2d;\n@group(0) @binding(8) \nvar uShadowMap_sampler: sampler;\n@group(0) @binding(9) \nvar uVoile_texture: texture_2d<f32>;\n@group(0) @binding(10) \nvar uVoile_sampler: sampler;\nvar<private> aPosition_1: vec3<f32>;\nvar<private> aNormal_1: vec3<f32>;\nvar<private> iPosition_1: vec4<f32>;\nvar<private> iScale_1: vec4<f32>;\nvar<private> iRotation_1: vec4<f32>;\nvar<private> iColor_1: vec4<f32>;\nvar<private> vWorld: vec3<f32>;\nvar<private> vNormal: vec3<f32>;\nvar<private> vSurface: vec3<f32>;\nvar<private> vLocal: vec3<f32>;\nvar<private> vFaceNormal: vec3<f32>;\nvar<private> vDimensions: vec3<f32>;\nvar<private> vSurfaceNormal: vec3<f32>;\nvar<private> vAnchor: vec3<f32>;\nvar<private> vMaterial: f32;\nvar<private> vEmission: f32;\nvar<private> vOverlay: f32;\nvar<private> vOutdoor: f32;\nvar<private> vObject: f32;\nvar<private> vColor: vec4<f32>;\nvar<private> gl_Position: vec4<f32>;\n\nfn ferro_uLightDirection(index: i32) -> vec3<f32> {\n    var index_1: i32;\n\n    index_1 = index;\n    let _e6: i32 = index_1;\n    let _e12: vec4<f32> = ferroUniforms.data[(11i + (_e6 * 1i))];\n    return _e12.xyz;\n}\n\nfn ferro_uLightCone(index_2: i32) -> vec2<f32> {\n    var index_3: i32;\n\n    index_3 = index_2;\n    let _e6: i32 = index_3;\n    let _e12: vec4<f32> = ferroUniforms.data[(23i + (_e6 * 1i))];\n    return _e12.xy;\n}\n\nfn ferro_uLightPosition(index_4: i32) -> vec3<f32> {\n    var index_5: i32;\n\n    index_5 = index_4;\n    let _e6: i32 = index_5;\n    let _e12: vec4<f32> = ferroUniforms.data[(36i + (_e6 * 1i))];\n    return _e12.xyz;\n}\n\nfn ferro_uLightColor(index_6: i32) -> vec3<f32> {\n    var index_7: i32;\n\n    index_7 = index_6;\n    let _e6: i32 = index_7;\n    let _e12: vec4<f32> = ferroUniforms.data[(48i + (_e6 * 1i))];\n    return _e12.xyz;\n}\n\nfn ferro_uLightRange(index_8: i32) -> f32 {\n    var index_9: i32;\n\n    index_9 = index_8;\n    let _e6: i32 = index_9;\n    let _e12: vec4<f32> = ferroUniforms.data[(60i + (_e6 * 1i))];\n    return _e12.x;\n}\n\nfn ferro_uShadowMatrix(index_10: i32) -> mat4x4<f32> {\n    var index_11: i32;\n\n    index_11 = index_10;\n    let _e6: i32 = index_11;\n    let _e12: vec4<f32> = ferroUniforms.data[(75i + (_e6 * 4i))];\n    let _e14: i32 = index_11;\n    let _e22: vec4<f32> = ferroUniforms.data[((75i + (_e14 * 4i)) + 1i)];\n    let _e24: i32 = index_11;\n    let _e32: vec4<f32> = ferroUniforms.data[((75i + (_e24 * 4i)) + 2i)];\n    let _e34: i32 = index_11;\n    let _e42: vec4<f32> = ferroUniforms.data[((75i + (_e34 * 4i)) + 3i)];\n    return mat4x4<f32>(vec4<f32>(_e12.x, _e12.y, _e12.z, _e12.w), vec4<f32>(_e22.x, _e22.y, _e22.z, _e22.w), vec4<f32>(_e32.x, _e32.y, _e32.z, _e32.w), vec4<f32>(_e42.x, _e42.y, _e42.z, _e42.w));\n}\n\nfn seaField(p: vec2<f32>) -> vec3<f32> {\n    var p_1: vec2<f32>;\n    var co: f32;\n    var si: f32;\n    var u: f32;\n    var v: f32;\n    var t: f32;\n    var a: f32;\n    var b: f32;\n    var c: f32;\n    var amplitude: f32;\n    var h: f32;\n    var du: f32;\n    var dv: f32;\n    var grad: vec2<f32>;\n    var q: vec2<f32>;\n    var edge: f32;\n    var r: f32;\n    var f: f32;\n    var fade: f32;\n    var local: f32;\n    var slope: f32;\n    var local_1: vec2<f32>;\n    var de: vec2<f32>;\n\n    p_1 = p;\n    let _e24: vec4<f32> = ferroUniforms.data[6];\n    co = cos(_e24.y);\n    let _e32: vec4<f32> = ferroUniforms.data[6];\n    si = sin(_e32.y);\n    let _e37: vec2<f32> = p_1;\n    let _e39: f32 = co;\n    let _e41: vec2<f32> = p_1;\n    let _e43: f32 = si;\n    u = ((_e37.x * _e39) + (_e41.y * _e43));\n    let _e47: vec2<f32> = p_1;\n    let _e50: f32 = si;\n    let _e52: vec2<f32> = p_1;\n    let _e54: f32 = co;\n    v = ((-(_e47.x) * _e50) + (_e52.y * _e54));\n    let _e61: vec4<f32> = ferroUniforms.data[6];\n    t = _e61.x;\n    let _e66: f32 = u;\n    let _e69: f32 = t;\n    a = ((0.24f * _e66) - (1.1f * _e69));\n    let _e74: f32 = u;\n    let _e77: f32 = v;\n    let _e81: f32 = t;\n    b = ((((0.41f * _e74) + (0.17f * _e77)) - (1.55f * _e81)) + 1.7f);\n    let _e88: f32 = v;\n    let _e91: f32 = t;\n    c = (((0.63f * _e88) - (0.83f * _e91)) + 0.4f);\n    let _e102: vec4<f32> = ferroUniforms.data[5];\n    amplitude = (0.035f + (0.1f * clamp(_e102.w, 0f, 2f)));\n    let _e111: f32 = amplitude;\n    let _e113: f32 = a;\n    let _e117: f32 = b;\n    let _e122: f32 = c;\n    h = (_e111 * (((0.6f * sin(_e113)) + (0.27f * sin(_e117))) + (0.13f * sin(_e122))));\n    let _e128: f32 = amplitude;\n    let _e132: f32 = a;\n    let _e138: f32 = b;\n    du = (_e128 * ((0.14400001f * cos(_e132)) + (0.110700004f * cos(_e138))));\n    let _e144: f32 = amplitude;\n    let _e148: f32 = b;\n    let _e154: f32 = c;\n    dv = (_e144 * ((0.045900002f * cos(_e148)) + (0.08189999f * cos(_e154))));\n    let _e160: f32 = du;\n    let _e161: f32 = co;\n    let _e163: f32 = dv;\n    let _e164: f32 = si;\n    let _e167: f32 = du;\n    let _e168: f32 = si;\n    let _e170: f32 = dv;\n    let _e171: f32 = co;\n    grad = vec2<f32>(((_e160 * _e161) - (_e163 * _e164)), ((_e167 * _e168) + (_e170 * _e171)));\n    let _e176: vec2<f32> = p_1;\n    let _e180: vec4<f32> = ferroUniforms.data[5];\n    q = (_e176 - _e180.xy);\n    let _e185: vec2<f32> = q;\n    let _e188: vec2<f32> = q;\n    edge = max(abs(_e185.x), abs(_e188.y));\n    let _e196: vec4<f32> = ferroUniforms.data[5];\n    r = _e196.z;\n    let _e200: f32 = r;\n    let _e201: f32 = edge;\n    f = clamp(((_e200 - _e201) / 16f), 0f, 1f);\n    let _e209: f32 = f;\n    let _e210: f32 = f;\n    let _e214: f32 = f;\n    fade = ((_e209 * _e210) * (3f - (2f * _e214)));\n    let _e219: f32 = f;\n    let _e222: f32 = f;\n    if ((_e219 > 0f) && (_e222 < 1f)) {\n        let _e228: f32 = f;\n        let _e231: f32 = f;\n        local = (((-6f * _e228) * (1f - _e231)) / 16f);\n    } else {\n        local = 0f;\n    }\n    let _e238: f32 = local;\n    slope = _e238;\n    let _e240: vec2<f32> = q;\n    let _e243: vec2<f32> = q;\n    if (abs(_e240.x) > abs(_e243.y)) {\n        let _e247: vec2<f32> = q;\n        local_1 = vec2<f32>(sign(_e247.x), 0f);\n    } else {\n        let _e253: vec2<f32> = q;\n        local_1 = vec2<f32>(0f, sign(_e253.y));\n    }\n    let _e258: vec2<f32> = local_1;\n    de = _e258;\n    let _e260: f32 = h;\n    let _e261: f32 = fade;\n    let _e263: vec2<f32> = grad;\n    let _e264: f32 = fade;\n    let _e266: f32 = h;\n    let _e267: f32 = slope;\n    let _e269: vec2<f32> = de;\n    let _e271: vec2<f32> = ((_e263 * _e264) + ((_e266 * _e267) * _e269));\n    return vec3<f32>((_e260 * _e261), _e271.x, _e271.y);\n}\n\nfn ferro_main() {\n    var c_1: vec3<f32>;\n    var s: vec3<f32>;\n    var rx: mat3x3<f32>;\n    var ry: mat3x3<f32>;\n    var rz: mat3x3<f32>;\n    var rotation: mat3x3<f32>;\n    var phase: f32;\n    var bend: f32;\n    var w: vec3<f32>;\n    var local_2: vec3<f32>;\n    var local_3: vec3<f32>;\n\n    let _e33: vec4<f32> = iRotation_1;\n    c_1 = cos(_e33.xyz);\n    let _e37: vec4<f32> = iRotation_1;\n    s = sin(_e37.xyz);\n    let _e45: vec3<f32> = c_1;\n    let _e47: vec3<f32> = s;\n    let _e50: vec3<f32> = s;\n    let _e53: vec3<f32> = c_1;\n    rx = mat3x3<f32>(vec3<f32>(1f, 0f, 0f), vec3<f32>(0f, _e45.x, _e47.x), vec3<f32>(0f, -(_e50.x), _e53.x));\n    let _e60: vec3<f32> = c_1;\n    let _e63: vec3<f32> = s;\n    let _e69: vec3<f32> = s;\n    let _e72: vec3<f32> = c_1;\n    ry = mat3x3<f32>(vec3<f32>(_e60.y, 0f, -(_e63.y)), vec3<f32>(0f, 1f, 0f), vec3<f32>(_e69.y, 0f, _e72.y));\n    let _e79: vec3<f32> = c_1;\n    let _e81: vec3<f32> = s;\n    let _e84: vec3<f32> = s;\n    let _e87: vec3<f32> = c_1;\n    rz = mat3x3<f32>(vec3<f32>(_e79.z, _e81.z, 0f), vec3<f32>(-(_e84.z), _e87.z, 0f), vec3<f32>(0f, 0f, 1f));\n    let _e98: mat3x3<f32> = rz;\n    let _e99: mat3x3<f32> = ry;\n    let _e101: mat3x3<f32> = rx;\n    rotation = ((_e98 * _e99) * _e101);\n    let _e104: mat3x3<f32> = rotation;\n    let _e105: vec3<f32> = aPosition_1;\n    let _e106: vec4<f32> = iScale_1;\n    let _e110: vec4<f32> = iPosition_1;\n    vWorld = ((_e104 * (_e105 * _e106.xyz)) + _e110.xyz);\n    let _e113: vec4<f32> = iPosition_1;\n    let _e117: vec4<f32> = iPosition_1;\n    if ((_e113.w > 10.5f) && (_e117.w < 11.5f)) {\n        {\n            let _e125: vec4<f32> = ferroUniforms.data[4];\n            let _e130: vec4<f32> = iPosition_1;\n            let _e135: vec4<f32> = iPosition_1;\n            phase = (((_e125.y * 0.85f) + (_e130.x * 0.37f)) + (_e135.z * 0.21f));\n            let _e141: vec3<f32> = aPosition_1;\n            let _e148: vec4<f32> = ferroUniforms.data[4];\n            bend = (((_e141.y + 0.5f) * _e148.x) * 0.055f);\n            let _e156: vec3<f32> = vWorld;\n            let _e158: f32 = phase;\n            let _e160: f32 = bend;\n            vWorld.x = (_e156.x + (sin(_e158) * _e160));\n            let _e164: vec3<f32> = vWorld;\n            let _e166: f32 = phase;\n            let _e170: f32 = bend;\n            vWorld.z = (_e164.z + ((cos((_e166 * 0.73f)) * _e170) * 0.6f));\n        }\n    }\n    let _e175: mat3x3<f32> = rotation;\n    let _e176: vec3<f32> = aNormal_1;\n    let _e177: vec4<f32> = iScale_1;\n    vNormal = normalize((_e175 * (_e176 / max(abs(_e177.xyz), vec3(0.0001f)))));\n    let _e186: vec4<f32> = iPosition_1;\n    let _e190: vec4<f32> = iPosition_1;\n    let _e195: vec4<f32> = iPosition_1;\n    if (((_e186.w > 11.5f) && (_e190.w < 12.5f)) && (_e195.y < 0f)) {\n        {\n            let _e200: vec4<f32> = iPosition_1;\n            let _e207: vec4<f32> = ferroUniforms.data[6];\n            if ((_e200.w > 12.1f) && (_e207.w > 0.5f)) {\n                {\n                    let _e213: vec3<f32> = vWorld;\n                    let _e215: vec3<f32> = seaField(_e213.xz);\n                    w = _e215;\n                    let _e221: vec4<f32> = ferroUniforms.data[6];\n                    let _e224: vec3<f32> = w;\n                    vWorld.y = (_e221.z + _e224.x);\n                    let _e227: vec3<f32> = w;\n                    let _e231: vec3<f32> = w;\n                    vNormal = normalize(vec3<f32>(-(_e227.y), 1f, -(_e231.z)));\n                }\n            } else {\n                let _e239: vec3<f32> = aPosition_1;\n                let _e243: vec4<f32> = iScale_1;\n                vWorld.y = (-1.25f + ((_e239.y - 0.5f) * abs(_e243.y)));\n            }\n        }\n    }\n    let _e248: vec4<f32> = iPosition_1;\n    vAnchor = _e248.xyz;\n    let _e250: vec4<f32> = iPosition_1;\n    vMaterial = _e250.w;\n    let _e252: vec4<f32> = iScale_1;\n    vEmission = _e252.w;\n    let _e254: vec4<f32> = iRotation_1;\n    vOverlay = (_e254.w - (floor((_e254.w / 2f)) * 2f));\n    let _e261: vec4<f32> = iRotation_1;\n    let _e265: f32 = floor((_e261.w * 0.5f));\n    vOutdoor = (_e265 - (floor((_e265 / 2f)) * 2f));\n    let _e271: vec4<f32> = iRotation_1;\n    vObject = floor((_e271.w * 0.25f));\n    let _e276: f32 = vObject;\n    if (_e276 > 0.5f) {\n        let _e279: vec3<f32> = aPosition_1;\n        let _e280: vec4<f32> = iScale_1;\n        local_2 = (_e279 * _e280.xyz);\n    } else {\n        let _e283: vec3<f32> = vWorld;\n        local_2 = _e283;\n    }\n    let _e285: vec3<f32> = local_2;\n    vSurface = _e285;\n    let _e286: vec3<f32> = aPosition_1;\n    vLocal = _e286;\n    let _e287: vec3<f32> = aNormal_1;\n    vFaceNormal = _e287;\n    let _e288: vec4<f32> = iScale_1;\n    vDimensions = abs(_e288.xyz);\n    let _e291: f32 = vObject;\n    if (_e291 > 0.5f) {\n        let _e294: vec3<f32> = aNormal_1;\n        let _e295: vec4<f32> = iScale_1;\n        local_3 = normalize((_e294 / max(abs(_e295.xyz), vec3(0.0001f))));\n    } else {\n        let _e303: vec3<f32> = vNormal;\n        local_3 = _e303;\n    }\n    let _e305: vec3<f32> = local_3;\n    vSurfaceNormal = _e305;\n    let _e306: vec4<f32> = iColor_1;\n    vColor = _e306;\n    let _e311: vec4<f32> = ferroUniforms.data[0];\n    let _e317: vec4<f32> = ferroUniforms.data[1];\n    let _e323: vec4<f32> = ferroUniforms.data[2];\n    let _e329: vec4<f32> = ferroUniforms.data[3];\n    let _e351: vec3<f32> = vWorld;\n    gl_Position = (mat4x4<f32>(vec4<f32>(_e311.x, _e311.y, _e311.z, _e311.w), vec4<f32>(_e317.x, _e317.y, _e317.z, _e317.w), vec4<f32>(_e323.x, _e323.y, _e323.z, _e323.w), vec4<f32>(_e329.x, _e329.y, _e329.z, _e329.w)) * vec4<f32>(_e351.x, _e351.y, _e351.z, 1f));\n    return;\n}\n\nfn main_1() {\n    ferro_main();\n    let _e35: vec4<f32> = gl_Position;\n    let _e37: vec4<f32> = gl_Position;\n    gl_Position.z = ((_e35.z + _e37.w) * 0.5f);\n    return;\n}\n\n@vertex \nfn main(@location(0) aPosition: vec3<f32>, @location(1) aNormal: vec3<f32>, @location(2) iPosition: vec4<f32>, @location(3) iScale: vec4<f32>, @location(4) iRotation: vec4<f32>, @location(5) iColor: vec4<f32>) -> VertexOutput {\n    aPosition_1 = aPosition;\n    aNormal_1 = aNormal;\n    iPosition_1 = iPosition;\n    iScale_1 = iScale;\n    iRotation_1 = iRotation;\n    iColor_1 = iColor;\n    main_1();\n    let _e76: vec3<f32> = vWorld;\n    let _e78: vec3<f32> = vNormal;\n    let _e80: vec3<f32> = vSurface;\n    let _e82: vec3<f32> = vLocal;\n    let _e84: vec3<f32> = vFaceNormal;\n    let _e86: vec3<f32> = vDimensions;\n    let _e88: vec3<f32> = vSurfaceNormal;\n    let _e90: vec3<f32> = vAnchor;\n    let _e92: f32 = vMaterial;\n    let _e94: f32 = vEmission;\n    let _e96: f32 = vOverlay;\n    let _e98: f32 = vOutdoor;\n    let _e100: f32 = vObject;\n    let _e102: vec4<f32> = vColor;\n    let _e104: vec4<f32> = gl_Position;\n    return VertexOutput(_e76, _e78, _e80, _e82, _e84, _e86, _e88, _e90, _e92, _e94, _e96, _e98, _e100, _e102, _e104);\n}\n","fragment":"diagnostic(off, derivative_uniformity);\nstruct FerroUniforms {\n    data: array<vec4<f32>, 100>,\n}\n\nstruct FragmentOutput {\n    @location(0) fragColor: vec4<f32>,\n}\n\n@group(0) @binding(0) \nvar<uniform> ferroUniforms: FerroUniforms;\n@group(0) @binding(1) \nvar uPbrAlbedo_texture: texture_2d_array<f32>;\n@group(0) @binding(2) \nvar uPbrAlbedo_sampler: sampler;\n@group(0) @binding(3) \nvar uPbrNormal_texture: texture_2d_array<f32>;\n@group(0) @binding(4) \nvar uPbrNormal_sampler: sampler;\n@group(0) @binding(5) \nvar uPbrRough_texture: texture_2d_array<f32>;\n@group(0) @binding(6) \nvar uPbrRough_sampler: sampler;\n@group(0) @binding(7) \nvar uShadowMap_texture: texture_depth_2d;\n@group(0) @binding(8) \nvar uShadowMap_sampler: sampler;\n@group(0) @binding(9) \nvar uVoile_texture: texture_2d<f32>;\n@group(0) @binding(10) \nvar uVoile_sampler: sampler;\nvar<private> vWorld_1: vec3<f32>;\nvar<private> vNormal_1: vec3<f32>;\nvar<private> vSurface_1: vec3<f32>;\nvar<private> vLocal_1: vec3<f32>;\nvar<private> vFaceNormal_1: vec3<f32>;\nvar<private> vDimensions_1: vec3<f32>;\nvar<private> vSurfaceNormal_1: vec3<f32>;\nvar<private> vAnchor_1: vec3<f32>;\nvar<private> vMaterial_1: f32;\nvar<private> vEmission_1: f32;\nvar<private> vOverlay_1: f32;\nvar<private> vOutdoor_1: f32;\nvar<private> vObject_1: f32;\nvar<private> vColor_1: vec4<f32>;\nvar<private> fragColor: vec4<f32>;\nvar<private> gl_FragCoord_1: vec4<f32>;\n\nfn ferro_uLightDirection(index: i32) -> vec3<f32> {\n    var index_1: i32;\n\n    index_1 = index;\n    let _e6: i32 = index_1;\n    let _e12: vec4<f32> = ferroUniforms.data[(11i + (_e6 * 1i))];\n    return _e12.xyz;\n}\n\nfn ferro_uLightCone(index_2: i32) -> vec2<f32> {\n    var index_3: i32;\n\n    index_3 = index_2;\n    let _e6: i32 = index_3;\n    let _e12: vec4<f32> = ferroUniforms.data[(23i + (_e6 * 1i))];\n    return _e12.xy;\n}\n\nfn ferro_uLightPosition(index_4: i32) -> vec3<f32> {\n    var index_5: i32;\n\n    index_5 = index_4;\n    let _e6: i32 = index_5;\n    let _e12: vec4<f32> = ferroUniforms.data[(36i + (_e6 * 1i))];\n    return _e12.xyz;\n}\n\nfn ferro_uLightColor(index_6: i32) -> vec3<f32> {\n    var index_7: i32;\n\n    index_7 = index_6;\n    let _e6: i32 = index_7;\n    let _e12: vec4<f32> = ferroUniforms.data[(48i + (_e6 * 1i))];\n    return _e12.xyz;\n}\n\nfn ferro_uLightRange(index_8: i32) -> f32 {\n    var index_9: i32;\n\n    index_9 = index_8;\n    let _e6: i32 = index_9;\n    let _e12: vec4<f32> = ferroUniforms.data[(60i + (_e6 * 1i))];\n    return _e12.x;\n}\n\nfn ferro_uShadowMatrix(index_10: i32) -> mat4x4<f32> {\n    var index_11: i32;\n\n    index_11 = index_10;\n    let _e6: i32 = index_11;\n    let _e12: vec4<f32> = ferroUniforms.data[(75i + (_e6 * 4i))];\n    let _e14: i32 = index_11;\n    let _e22: vec4<f32> = ferroUniforms.data[((75i + (_e14 * 4i)) + 1i)];\n    let _e24: i32 = index_11;\n    let _e32: vec4<f32> = ferroUniforms.data[((75i + (_e24 * 4i)) + 2i)];\n    let _e34: i32 = index_11;\n    let _e42: vec4<f32> = ferroUniforms.data[((75i + (_e34 * 4i)) + 3i)];\n    return mat4x4<f32>(vec4<f32>(_e12.x, _e12.y, _e12.z, _e12.w), vec4<f32>(_e22.x, _e22.y, _e22.z, _e22.w), vec4<f32>(_e32.x, _e32.y, _e32.z, _e32.w), vec4<f32>(_e42.x, _e42.y, _e42.z, _e42.w));\n}\n\nfn seaField(p: vec2<f32>) -> vec3<f32> {\n    var p_1: vec2<f32>;\n    var co: f32;\n    var si: f32;\n    var u: f32;\n    var v: f32;\n    var t: f32;\n    var a: f32;\n    var b: f32;\n    var c: f32;\n    var amplitude: f32;\n    var h: f32;\n    var du: f32;\n    var dv: f32;\n    var grad: vec2<f32>;\n    var q: vec2<f32>;\n    var edge: f32;\n    var r: f32;\n    var f: f32;\n    var fade: f32;\n    var local: f32;\n    var slope: f32;\n    var local_1: vec2<f32>;\n    var de: vec2<f32>;\n\n    p_1 = p;\n    let _e32: vec4<f32> = ferroUniforms.data[6];\n    co = cos(_e32.y);\n    let _e40: vec4<f32> = ferroUniforms.data[6];\n    si = sin(_e40.y);\n    let _e45: vec2<f32> = p_1;\n    let _e47: f32 = co;\n    let _e49: vec2<f32> = p_1;\n    let _e51: f32 = si;\n    u = ((_e45.x * _e47) + (_e49.y * _e51));\n    let _e55: vec2<f32> = p_1;\n    let _e58: f32 = si;\n    let _e60: vec2<f32> = p_1;\n    let _e62: f32 = co;\n    v = ((-(_e55.x) * _e58) + (_e60.y * _e62));\n    let _e69: vec4<f32> = ferroUniforms.data[6];\n    t = _e69.x;\n    let _e74: f32 = u;\n    let _e77: f32 = t;\n    a = ((0.24f * _e74) - (1.1f * _e77));\n    let _e82: f32 = u;\n    let _e85: f32 = v;\n    let _e89: f32 = t;\n    b = ((((0.41f * _e82) + (0.17f * _e85)) - (1.55f * _e89)) + 1.7f);\n    let _e96: f32 = v;\n    let _e99: f32 = t;\n    c = (((0.63f * _e96) - (0.83f * _e99)) + 0.4f);\n    let _e110: vec4<f32> = ferroUniforms.data[5];\n    amplitude = (0.035f + (0.1f * clamp(_e110.w, 0f, 2f)));\n    let _e119: f32 = amplitude;\n    let _e121: f32 = a;\n    let _e125: f32 = b;\n    let _e130: f32 = c;\n    h = (_e119 * (((0.6f * sin(_e121)) + (0.27f * sin(_e125))) + (0.13f * sin(_e130))));\n    let _e136: f32 = amplitude;\n    let _e140: f32 = a;\n    let _e146: f32 = b;\n    du = (_e136 * ((0.14400001f * cos(_e140)) + (0.110700004f * cos(_e146))));\n    let _e152: f32 = amplitude;\n    let _e156: f32 = b;\n    let _e162: f32 = c;\n    dv = (_e152 * ((0.045900002f * cos(_e156)) + (0.08189999f * cos(_e162))));\n    let _e168: f32 = du;\n    let _e169: f32 = co;\n    let _e171: f32 = dv;\n    let _e172: f32 = si;\n    let _e175: f32 = du;\n    let _e176: f32 = si;\n    let _e178: f32 = dv;\n    let _e179: f32 = co;\n    grad = vec2<f32>(((_e168 * _e169) - (_e171 * _e172)), ((_e175 * _e176) + (_e178 * _e179)));\n    let _e184: vec2<f32> = p_1;\n    let _e188: vec4<f32> = ferroUniforms.data[5];\n    q = (_e184 - _e188.xy);\n    let _e193: vec2<f32> = q;\n    let _e196: vec2<f32> = q;\n    edge = max(abs(_e193.x), abs(_e196.y));\n    let _e204: vec4<f32> = ferroUniforms.data[5];\n    r = _e204.z;\n    let _e208: f32 = r;\n    let _e209: f32 = edge;\n    f = clamp(((_e208 - _e209) / 16f), 0f, 1f);\n    let _e217: f32 = f;\n    let _e218: f32 = f;\n    let _e222: f32 = f;\n    fade = ((_e217 * _e218) * (3f - (2f * _e222)));\n    let _e227: f32 = f;\n    let _e230: f32 = f;\n    if ((_e227 > 0f) && (_e230 < 1f)) {\n        let _e236: f32 = f;\n        let _e239: f32 = f;\n        local = (((-6f * _e236) * (1f - _e239)) / 16f);\n    } else {\n        local = 0f;\n    }\n    let _e246: f32 = local;\n    slope = _e246;\n    let _e248: vec2<f32> = q;\n    let _e251: vec2<f32> = q;\n    if (abs(_e248.x) > abs(_e251.y)) {\n        let _e255: vec2<f32> = q;\n        local_1 = vec2<f32>(sign(_e255.x), 0f);\n    } else {\n        let _e261: vec2<f32> = q;\n        local_1 = vec2<f32>(0f, sign(_e261.y));\n    }\n    let _e266: vec2<f32> = local_1;\n    de = _e266;\n    let _e268: f32 = h;\n    let _e269: f32 = fade;\n    let _e271: vec2<f32> = grad;\n    let _e272: f32 = fade;\n    let _e274: f32 = h;\n    let _e275: f32 = slope;\n    let _e277: vec2<f32> = de;\n    let _e279: vec2<f32> = ((_e271 * _e272) + ((_e274 * _e275) * _e277));\n    return vec3<f32>((_e268 * _e269), _e279.x, _e279.y);\n}\n\nfn hash(p_2: vec2<f32>) -> f32 {\n    var p_3: vec2<f32>;\n    var p3_: vec3<f32>;\n\n    p_3 = p_2;\n    let _e30: vec2<f32> = p_3;\n    p3_ = fract((vec3<f32>(_e30.xyx) * 0.1031f));\n    let _e37: vec3<f32> = p3_;\n    let _e38: vec3<f32> = p3_;\n    let _e39: vec3<f32> = p3_;\n    p3_ = (_e37 + vec3(dot(_e38, (_e39.yzx + vec3(33.33f)))));\n    let _e47: vec3<f32> = p3_;\n    let _e49: vec3<f32> = p3_;\n    let _e52: vec3<f32> = p3_;\n    return fract(((_e47.x + _e49.y) * _e52.z));\n}\n\nfn noise(p_4: vec2<f32>) -> f32 {\n    var p_5: vec2<f32>;\n    var a_1: vec2<f32>;\n    var b_1: vec2<f32>;\n\n    p_5 = p_4;\n    let _e30: vec2<f32> = p_5;\n    a_1 = floor(_e30);\n    let _e33: vec2<f32> = p_5;\n    b_1 = fract(_e33);\n    let _e36: vec2<f32> = b_1;\n    let _e37: vec2<f32> = b_1;\n    let _e41: vec2<f32> = b_1;\n    b_1 = ((_e36 * _e37) * (vec2(3f) - (2f * _e41)));\n    let _e46: vec2<f32> = a_1;\n    let _e47: f32 = hash(_e46);\n    let _e48: vec2<f32> = a_1;\n    let _e55: f32 = hash((_e48 + vec2<f32>(1f, 0f)));\n    let _e56: vec2<f32> = b_1;\n    let _e59: vec2<f32> = a_1;\n    let _e66: f32 = hash((_e59 + vec2<f32>(0f, 1f)));\n    let _e67: vec2<f32> = a_1;\n    let _e74: f32 = hash((_e67 + vec2<f32>(1f, 1f)));\n    let _e75: vec2<f32> = b_1;\n    let _e78: vec2<f32> = b_1;\n    return mix(mix(_e47, _e55, _e56.x), mix(_e66, _e74, _e75.x), _e78.y);\n}\n\nfn grid(uv: vec2<f32>, width: f32) -> f32 {\n    var uv_1: vec2<f32>;\n    var width_1: f32;\n    var distanceToEdge: vec2<f32>;\n    var aa: vec2<f32>;\n    var line: vec2<f32>;\n\n    uv_1 = uv;\n    width_1 = width;\n    let _e32: vec2<f32> = uv_1;\n    let _e35: vec2<f32> = uv_1;\n    distanceToEdge = min(fract(_e32), (vec2(1f) - fract(_e35)));\n    let _e41: vec2<f32> = uv_1;\n    let _e42: vec2<f32> = fwidth(_e41);\n    aa = max(_e42, vec2(0.0001f));\n    let _e48: f32 = width_1;\n    let _e50: f32 = width_1;\n    let _e52: vec2<f32> = aa;\n    let _e54: vec2<f32> = distanceToEdge;\n    line = (vec2(1f) - smoothstep(vec2(_e48), (vec2(_e50) + _e52), _e54));\n    let _e59: vec2<f32> = line;\n    let _e61: vec2<f32> = line;\n    return max(_e59.x, _e61.y);\n}\n\nfn reliefNormal(n: vec3<f32>, height: f32) -> vec3<f32> {\n    var n_1: vec3<f32>;\n    var height_1: f32;\n    var dpdx_: vec3<f32>;\n    var dpdy_: vec3<f32>;\n    var r1_: vec3<f32>;\n    var r2_: vec3<f32>;\n    var determinant_: f32;\n    var gradient: vec3<f32>;\n    var scale: f32;\n\n    n_1 = n;\n    height_1 = height;\n    let _e32: vec3<f32> = vWorld_1;\n    let _e33: vec3<f32> = dpdx(_e32);\n    dpdx_ = _e33;\n    let _e35: vec3<f32> = vWorld_1;\n    let _e36: vec3<f32> = dpdy(_e35);\n    dpdy_ = -(_e36);\n    let _e39: vec3<f32> = dpdy_;\n    let _e40: vec3<f32> = n_1;\n    r1_ = cross(_e39, _e40);\n    let _e43: vec3<f32> = n_1;\n    let _e44: vec3<f32> = dpdx_;\n    r2_ = cross(_e43, _e44);\n    let _e47: vec3<f32> = dpdx_;\n    let _e48: vec3<f32> = r1_;\n    determinant_ = dot(_e47, _e48);\n    let _e51: f32 = determinant_;\n    let _e53: f32 = height_1;\n    let _e54: f32 = dpdx(_e53);\n    let _e55: vec3<f32> = r1_;\n    let _e57: f32 = height_1;\n    let _e58: f32 = dpdy(_e57);\n    let _e60: vec3<f32> = r2_;\n    gradient = (sign(_e51) * ((_e54 * _e55) + (-(_e58) * _e60)));\n    let _e65: f32 = determinant_;\n    scale = max(abs(_e65), 0.000001f);\n    let _e70: vec3<f32> = gradient;\n    let _e72: f32 = scale;\n    let _e75: vec3<f32> = gradient;\n    gradient = (_e70 * min(1f, ((_e72 * 0.35f) / max(length(_e75), 0.000001f))));\n    let _e82: f32 = scale;\n    let _e83: vec3<f32> = n_1;\n    let _e85: vec3<f32> = gradient;\n    return normalize(((_e82 * _e83) - _e85));\n}\n\nfn fresnelSchlick(cosine: f32, f0_: vec3<f32>) -> vec3<f32> {\n    var cosine_1: f32;\n    var f0_1: vec3<f32>;\n    var q_1: f32;\n    var q2_: f32;\n\n    cosine_1 = cosine;\n    f0_1 = f0_;\n    let _e33: f32 = cosine_1;\n    q_1 = (1f - clamp(_e33, 0f, 1f));\n    let _e39: f32 = q_1;\n    let _e40: f32 = q_1;\n    q2_ = (_e39 * _e40);\n    let _e43: vec3<f32> = f0_1;\n    let _e45: vec3<f32> = f0_1;\n    let _e48: f32 = q2_;\n    let _e50: f32 = q2_;\n    let _e52: f32 = q_1;\n    return (_e43 + ((((vec3(1f) - _e45) * _e48) * _e50) * _e52));\n}\n\nfn metalHighlight(n_2: vec3<f32>, view: vec3<f32>, l: vec3<f32>, roughness: f32, f0_2: vec3<f32>) -> vec3<f32> {\n    var n_3: vec3<f32>;\n    var view_1: vec3<f32>;\n    var l_1: vec3<f32>;\n    var roughness_1: f32;\n    var f0_3: vec3<f32>;\n    var h_1: vec3<f32>;\n    var nv: f32;\n    var nl: f32;\n    var nh: f32;\n    var a_2: f32;\n    var a2_: f32;\n    var d: f32;\n    var distribution: f32;\n    var k: f32;\n    var visibility: f32;\n\n    n_3 = n_2;\n    view_1 = view;\n    l_1 = l;\n    roughness_1 = roughness;\n    f0_3 = f0_2;\n    let _e38: vec3<f32> = view_1;\n    let _e39: vec3<f32> = l_1;\n    h_1 = normalize((_e38 + _e39));\n    let _e43: vec3<f32> = n_3;\n    let _e44: vec3<f32> = view_1;\n    nv = max(dot(_e43, _e44), 0.001f);\n    let _e49: vec3<f32> = n_3;\n    let _e50: vec3<f32> = l_1;\n    nl = max(dot(_e49, _e50), 0f);\n    let _e55: vec3<f32> = n_3;\n    let _e56: vec3<f32> = h_1;\n    nh = max(dot(_e55, _e56), 0f);\n    let _e62: f32 = roughness_1;\n    let _e63: f32 = roughness_1;\n    a_2 = max(0.055f, (_e62 * _e63));\n    let _e67: f32 = a_2;\n    let _e68: f32 = a_2;\n    a2_ = (_e67 * _e68);\n    let _e71: f32 = nh;\n    let _e72: f32 = nh;\n    let _e74: f32 = a2_;\n    d = (((_e71 * _e72) * (_e74 - 1f)) + 1f);\n    let _e81: f32 = a2_;\n    let _e83: f32 = d;\n    let _e85: f32 = d;\n    distribution = (_e81 / max(((3.141593f * _e83) * _e85), 0.00001f));\n    let _e91: f32 = roughness_1;\n    let _e94: f32 = roughness_1;\n    k = (((_e91 + 1f) * (_e94 + 1f)) * 0.125f);\n    let _e103: f32 = nv;\n    let _e105: f32 = k;\n    let _e108: f32 = k;\n    let _e111: f32 = nl;\n    let _e113: f32 = k;\n    let _e116: f32 = k;\n    visibility = (1f / max(((4f * ((_e103 * (1f - _e105)) + _e108)) * ((_e111 * (1f - _e113)) + _e116)), 0.001f));\n    let _e123: vec3<f32> = view_1;\n    let _e124: vec3<f32> = h_1;\n    let _e128: vec3<f32> = f0_3;\n    let _e129: vec3<f32> = fresnelSchlick(max(dot(_e123, _e124), 0f), _e128);\n    let _e130: f32 = distribution;\n    let _e131: f32 = visibility;\n    let _e136: f32 = nl;\n    return ((_e129 * min((_e130 * _e131), 12f)) * _e136);\n}\n\nfn depthSample(uv_2: vec2<f32>, offset: vec2<f32>, depth: f32, slope_1: vec2<f32>) -> f32 {\n    var uv_3: vec2<f32>;\n    var offset_1: vec2<f32>;\n    var depth_1: f32;\n    var slope_2: vec2<f32>;\n    var texel: f32;\n    var tap: vec2<f32>;\n    var centre: vec2<f32>;\n\n    uv_3 = uv_2;\n    offset_1 = offset;\n    depth_1 = depth;\n    slope_2 = slope_1;\n    let _e39: vec4<f32> = ferroUniforms.data[87];\n    texel = _e39.y;\n    let _e43: vec2<f32> = uv_3;\n    let _e44: vec2<f32> = offset_1;\n    let _e45: f32 = texel;\n    tap = (_e43 + (_e44 * _e45));\n    let _e49: vec2<f32> = tap;\n    let _e50: f32 = texel;\n    let _e57: f32 = texel;\n    centre = ((floor((_e49 / vec2(_e50))) + vec2(0.5f)) * _e57);\n    let _e60: f32 = depth_1;\n    let _e61: vec2<f32> = slope_2;\n    let _e62: vec2<f32> = centre;\n    let _e63: vec2<f32> = uv_3;\n    let _e67: vec2<f32> = tap;\n    let _e70: vec2<f32> = tap;\n    let _e75: vec4<f32> = vec4<f32>(textureSampleLevel(uShadowMap_texture, uShadowMap_sampler, vec2<f32>(_e67.x, (1f - _e70.y)),0),0.0,0.0,1.0);\n    return step((_e60 + dot(_e61, (_e62 - _e63))), _e75.x);\n}\n\nfn shadow(n_4: vec3<f32>, l_2: vec3<f32>, slot: i32) -> f32 {\n    var n_5: vec3<f32>;\n    var l_3: vec3<f32>;\n    var slot_1: i32;\n    var projected: vec4<f32>;\n    var p_6: vec3<f32>;\n    var dx: vec3<f32>;\n    var dy: vec3<f32>;\n    var determinant_1: f32;\n    var local_2: vec2<f32>;\n    var slope_3: vec2<f32>;\n    var local_3: f32;\n    var local_4: f32;\n    var bias: f32;\n    var local_5: vec2<f32>;\n    var local_6: vec2<f32>;\n    var tile: vec2<f32>;\n    var local_7: vec2<f32>;\n    var uv_4: vec2<f32>;\n    var visibility_1: f32 = 0f;\n    var texel_1: f32;\n    var cell: vec2<f32>;\n    var f_1: vec2<f32>;\n    var centre_1: vec2<f32>;\n    var wx: vec3<f32>;\n    var wy: vec3<f32>;\n    var y: i32 = 0i;\n    var x: i32;\n    var tap_1: vec2<f32>;\n    var edge_1: f32;\n    var local_8: f32;\n    var blend: f32;\n\n    n_5 = n_4;\n    l_3 = l_2;\n    slot_1 = slot;\n    let _e34: f32 = vOverlay_1;\n    let _e37: i32 = slot_1;\n    let _e43: vec4<f32> = ferroUniforms.data[87];\n    let _e50: i32 = slot_1;\n    let _e56: vec4<f32> = ferroUniforms.data[87];\n    let _e65: vec4<f32> = ferroUniforms.data[87];\n    let _e72: i32 = slot_1;\n    let _e78: vec4<f32> = ferroUniforms.data[87];\n    if ((((_e34 > 0.5f) || ((_e37 == 0i) && (_e43.x < 0.5f))) || (((_e50 == 1i) && (_e56.x < 1.5f)) && (_e65.w < 0.5f))) || ((_e72 == 2i) && (_e78.z < 0.5f))) {\n        return 1f;\n    }\n    let _e86: i32 = slot_1;\n    let _e88: mat4x4<f32> = ferro_uShadowMatrix(i32(_e86));\n    let _e89: vec3<f32> = vWorld_1;\n    let _e90: vec3<f32> = n_5;\n    let _e93: vec3<f32> = (_e89 + (_e90 * 0.014f));\n    projected = (_e88 * vec4<f32>(_e93.x, _e93.y, _e93.z, 1f));\n    let _e101: vec4<f32> = projected;\n    let _e103: vec4<f32> = projected;\n    p_6 = (((_e101.xyz / vec3(_e103.w)) * 0.5f) + vec3(0.5f));\n    let _e113: vec3<f32> = p_6;\n    let _e114: vec3<f32> = dpdx(_e113);\n    dx = _e114;\n    let _e116: vec3<f32> = p_6;\n    let _e117: vec3<f32> = dpdy(_e116);\n    dy = -(_e117);\n    let _e120: vec3<f32> = dx;\n    let _e122: vec3<f32> = dy;\n    let _e125: vec3<f32> = dx;\n    let _e127: vec3<f32> = dy;\n    determinant_1 = ((_e120.x * _e122.y) - (_e125.y * _e127.x));\n    let _e132: f32 = determinant_1;\n    if (abs(_e132) > 0.00000000001f) {\n        let _e136: vec3<f32> = dx;\n        let _e138: vec3<f32> = dy;\n        let _e141: vec3<f32> = dy;\n        let _e143: vec3<f32> = dx;\n        let _e147: vec3<f32> = dy;\n        let _e149: vec3<f32> = dx;\n        let _e152: vec3<f32> = dx;\n        let _e154: vec3<f32> = dy;\n        let _e159: f32 = determinant_1;\n        local_2 = (vec2<f32>(((_e136.z * _e138.y) - (_e141.z * _e143.y)), ((_e147.z * _e149.x) - (_e152.z * _e154.x))) / vec2(_e159));\n    } else {\n        local_2 = vec2(0f);\n    }\n    let _e165: vec2<f32> = local_2;\n    slope_3 = _e165;\n    let _e167: vec2<f32> = slope_3;\n    let _e168: i32 = slot_1;\n    let _e174: vec4<f32> = ferroUniforms.data[87];\n    if ((_e168 == 1i) && (_e174.w > 1.5f)) {\n        local_3 = 1f;\n    } else {\n        local_3 = 2f;\n    }\n    let _e183: f32 = local_3;\n    slope_3 = (_e167 * _e183);\n    let _e185: vec4<f32> = projected;\n    let _e189: vec3<f32> = p_6;\n    let _e194: vec3<f32> = p_6;\n    let _e199: vec3<f32> = p_6;\n    let _e201: vec3<f32> = p_6;\n    let _e207: vec3<f32> = p_6;\n    let _e209: vec3<f32> = p_6;\n    if (((((_e185.w <= 0f) || (_e189.z <= 0f)) || (_e194.z >= 1f)) || (min(_e199.x, _e201.y) <= 0.001f)) || (max(_e207.x, _e209.y) >= 0.999f)) {\n        return 1f;\n    }\n    let _e216: i32 = slot_1;\n    let _e222: vec4<f32> = ferroUniforms.data[87];\n    if ((_e216 == 1i) && (_e222.w > 0.5f)) {\n        let _e231: vec3<f32> = n_5;\n        let _e232: vec3<f32> = l_3;\n        local_4 = (0.00014f + (0.00024f * (1f - max(dot(_e231, _e232), 0f))));\n    } else {\n        let _e242: vec3<f32> = n_5;\n        let _e243: vec3<f32> = l_3;\n        local_4 = (0.00005f + (0.00014f * (1f - max(dot(_e242, _e243), 0f))));\n    }\n    let _e251: f32 = local_4;\n    bias = _e251;\n    let _e253: i32 = slot_1;\n    if (_e253 == 1i) {\n        local_6 = vec2<f32>(0.5f, 0f);\n    } else {\n        let _e259: i32 = slot_1;\n        if (_e259 == 2i) {\n            local_5 = vec2<f32>(0f, 0.5f);\n        } else {\n            local_5 = vec2(0f);\n        }\n        let _e268: vec2<f32> = local_5;\n        local_6 = _e268;\n    }\n    let _e270: vec2<f32> = local_6;\n    tile = _e270;\n    let _e272: i32 = slot_1;\n    let _e278: vec4<f32> = ferroUniforms.data[87];\n    if ((_e272 == 1i) && (_e278.w > 1.5f)) {\n        let _e284: vec3<f32> = p_6;\n        local_7 = _e284.xy;\n    } else {\n        let _e286: vec3<f32> = p_6;\n        let _e290: vec2<f32> = tile;\n        local_7 = ((_e286.xy * 0.5f) + _e290);\n    }\n    let _e293: vec2<f32> = local_7;\n    uv_4 = _e293;\n    let _e297: i32 = slot_1;\n    let _e303: vec4<f32> = ferroUniforms.data[87];\n    if ((_e297 == 1i) && (_e303.w > 0.5f)) {\n        {\n            let _e312: vec4<f32> = ferroUniforms.data[87];\n            texel_1 = _e312.y;\n            let _e316: vec2<f32> = uv_4;\n            let _e317: f32 = texel_1;\n            cell = (_e316 / vec2(_e317));\n            let _e321: vec2<f32> = cell;\n            f_1 = (fract(_e321) - vec2(0.5f));\n            let _e327: vec2<f32> = cell;\n            let _e332: f32 = texel_1;\n            centre_1 = ((floor(_e327) + vec2(0.5f)) * _e332);\n            let _e337: vec2<f32> = f_1;\n            let _e342: vec2<f32> = f_1;\n            let _e347: vec2<f32> = f_1;\n            let _e349: vec2<f32> = f_1;\n            let _e355: vec2<f32> = f_1;\n            let _e360: vec2<f32> = f_1;\n            wx = vec3<f32>(((0.5f * (0.5f - _e337.x)) * (0.5f - _e342.x)), (0.75f - (_e347.x * _e349.x)), ((0.5f * (0.5f + _e355.x)) * (0.5f + _e360.x)));\n            let _e368: vec2<f32> = f_1;\n            let _e373: vec2<f32> = f_1;\n            let _e378: vec2<f32> = f_1;\n            let _e380: vec2<f32> = f_1;\n            let _e386: vec2<f32> = f_1;\n            let _e391: vec2<f32> = f_1;\n            wy = vec3<f32>(((0.5f * (0.5f - _e368.y)) * (0.5f - _e373.y)), (0.75f - (_e378.y * _e380.y)), ((0.5f * (0.5f + _e386.y)) * (0.5f + _e391.y)));\n            loop {\n                let _e399: i32 = y;\n                if !((_e399 < 3i)) {\n                    break;\n                }\n                x = 0i;\n                loop {\n                    let _e408: i32 = x;\n                    if !((_e408 < 3i)) {\n                        break;\n                    }\n                    {\n                        let _e415: vec2<f32> = centre_1;\n                        let _e416: i32 = x;\n                        let _e420: i32 = y;\n                        let _e425: f32 = texel_1;\n                        tap_1 = (_e415 + (vec2<f32>(f32((_e416 - 1i)), f32((_e420 - 1i))) * _e425));\n                        let _e429: f32 = visibility_1;\n                        let _e430: i32 = x;\n                        let _e432: f32 = wx[_e430];\n                        let _e433: i32 = y;\n                        let _e435: f32 = wy[_e433];\n                        let _e437: vec3<f32> = p_6;\n                        let _e439: f32 = bias;\n                        let _e441: vec2<f32> = slope_3;\n                        let _e442: vec2<f32> = tap_1;\n                        let _e443: vec2<f32> = uv_4;\n                        let _e447: vec2<f32> = tap_1;\n                        let _e450: vec2<f32> = tap_1;\n                        let _e455: vec4<f32> = vec4<f32>(textureSampleLevel(uShadowMap_texture, uShadowMap_sampler, vec2<f32>(_e447.x, (1f - _e450.y)),0),0.0,0.0,1.0);\n                        visibility_1 = (_e429 + ((_e432 * _e435) * step(((_e437.z - _e439) + dot(_e441, (_e442 - _e443))), _e455.x)));\n                    }\n                    continuing {\n                        let _e412: i32 = x;\n                        x = (_e412 + 1i);\n                    }\n                }\n                continuing {\n                    let _e403: i32 = y;\n                    y = (_e403 + 1i);\n                }\n            }\n        }\n    } else {\n        {\n            let _e460: f32 = visibility_1;\n            let _e461: vec2<f32> = uv_4;\n            let _e467: vec3<f32> = p_6;\n            let _e469: f32 = bias;\n            let _e471: vec2<f32> = slope_3;\n            let _e472: f32 = depthSample(_e461, vec2<f32>(-0.65f, -0.65f), (_e467.z - _e469), _e471);\n            visibility_1 = (_e460 + _e472);\n            let _e474: f32 = visibility_1;\n            let _e475: vec2<f32> = uv_4;\n            let _e480: vec3<f32> = p_6;\n            let _e482: f32 = bias;\n            let _e484: vec2<f32> = slope_3;\n            let _e485: f32 = depthSample(_e475, vec2<f32>(0.65f, -0.65f), (_e480.z - _e482), _e484);\n            visibility_1 = (_e474 + _e485);\n            let _e487: f32 = visibility_1;\n            let _e488: vec2<f32> = uv_4;\n            let _e493: vec3<f32> = p_6;\n            let _e495: f32 = bias;\n            let _e497: vec2<f32> = slope_3;\n            let _e498: f32 = depthSample(_e488, vec2<f32>(-0.65f, 0.65f), (_e493.z - _e495), _e497);\n            visibility_1 = (_e487 + _e498);\n            let _e500: f32 = visibility_1;\n            let _e501: vec2<f32> = uv_4;\n            let _e505: vec3<f32> = p_6;\n            let _e507: f32 = bias;\n            let _e509: vec2<f32> = slope_3;\n            let _e510: f32 = depthSample(_e501, vec2<f32>(0.65f, 0.65f), (_e505.z - _e507), _e509);\n            visibility_1 = (_e500 + _e510);\n            let _e512: f32 = visibility_1;\n            visibility_1 = (_e512 * 0.25f);\n        }\n    }\n    let _e515: vec3<f32> = p_6;\n    let _e517: vec3<f32> = p_6;\n    let _e521: vec3<f32> = p_6;\n    let _e525: vec3<f32> = p_6;\n    edge_1 = min(min(_e515.x, _e517.y), min((1f - _e521.x), (1f - _e525.y)));\n    let _e533: f32 = edge_1;\n    let _e535: i32 = slot_1;\n    let _e541: vec4<f32> = ferroUniforms.data[87];\n    if ((_e535 == 1i) && (_e541.w > 0.5f)) {\n        local_8 = 1f;\n    } else {\n        let _e551: vec4<f32> = projected;\n        local_8 = (1f - smoothstep(24f, 31f, _e551.w));\n    }\n    let _e556: f32 = local_8;\n    blend = (smoothstep(0.012f, 0.085f, _e533) * _e556);\n    let _e562: f32 = visibility_1;\n    let _e564: f32 = blend;\n    return mix(1f, mix(0.055f, 1f, _e562), _e564);\n}\n\nfn main_1() {\n    var geometricNormal: vec3<f32>;\n    var n_6: vec3<f32>;\n    var an: vec3<f32>;\n    var local_9: vec2<f32>;\n    var local_10: vec2<f32>;\n    var uv_5: vec2<f32>;\n    var m: f32;\n    var emission: f32;\n    var base: vec3<f32> = vec3<f32>(0.105f, 0.135f, 0.15f);\n    var windowGlow: vec3<f32> = vec3(0f);\n    var night: f32;\n    var local_11: f32;\n    var lateHour: f32;\n    var evening: f32;\n    var roughness_2: f32 = 0.47f;\n    var metalness: f32 = 0.65f;\n    var organicHeight: f32 = 0f;\n    var urbanHeight: f32 = 0f;\n    var pbrWeight: f32 = 0f;\n    var pbrLayer: f32 = 1f;\n    var pixelSpan: f32;\n    var fineDetail: f32;\n    var grain: f32;\n    var broad: f32;\n    var architectural: f32;\n    var local_12: f32;\n    var panel: f32;\n    var panelUV: vec2<f32>;\n    var screw: f32;\n    var ribs: f32;\n    var brushPhase: f32;\n    var brushFilter: f32;\n    var brushing: f32;\n    var scratch: f32;\n    var tiles: f32;\n    var variation: f32;\n    var diamond: vec2<f32>;\n    var tread: f32;\n    var oil: f32;\n    var wornEdge: f32;\n    var soil: f32;\n    var strata: f32;\n    var barkUV: vec2<f32>;\n    var bark: f32;\n    var fibres: f32;\n    var knotCell: vec2<f32>;\n    var knot: vec2<f32>;\n    var knotRadius: f32;\n    var knotMask: f32;\n    var knotRings: f32;\n    var crevice: f32;\n    var clump: f32;\n    var leaves: f32;\n    var leafUV: vec2<f32>;\n    var leaf: vec2<f32>;\n    var angle: f32;\n    var leafShape: f32;\n    var vein: f32;\n    var seaOffset: vec2<f32>;\n    var w: vec3<f32>;\n    var style: f32;\n    var local_13: vec3<f32>;\n    var enduit: vec3<f32>;\n    var etage: f32;\n    var pas: f32;\n    var largeur: f32;\n    var hauteur: f32;\n    var sideX: bool;\n    var local_14: f32;\n    var faceW: f32;\n    var local_15: f32;\n    var faceX: f32;\n    var margin: f32;\n    var span: f32;\n    var columns: f32;\n    var stepX: f32;\n    var edge_2: f32;\n    var g: vec2<f32>;\n    var cellule: vec2<f32>;\n    var f_2: vec2<f32>;\n    var aa_1: vec2<f32>;\n    var haut: f32;\n    var rez: f32;\n    var fenetre: f32;\n    var facadeTop: f32;\n    var bays: f32;\n    var bayX: f32;\n    var baie: f32;\n    var ab: f32;\n    var vitrine: f32;\n    var bandeau: f32;\n    var corniche: f32;\n    var h_2: f32;\n    var vitre: vec3<f32>;\n    var mur: vec3<f32>;\n    var lointain: f32;\n    var verre: f32;\n    var home: f32;\n    var occupied: f32;\n    var shop: f32;\n    var curtain: f32;\n    var lamp: vec3<f32>;\n    var frame: f32;\n    var blinds: f32;\n    var local_16: vec3<f32>;\n    var teinte: vec3<f32>;\n    var granulat: f32;\n    var reprise: f32;\n    var fissure: f32;\n    var local_17: vec3<f32>;\n    var teinte_1: vec3<f32>;\n    var d_1: vec2<f32>;\n    var rang: vec2<f32>;\n    var joint: f32;\n    var pierre: f32;\n    var local_18: vec3<f32>;\n    var local_19: vec3<f32>;\n    var home_1: f32;\n    var occupied_1: f32;\n    var local_20: f32;\n    var tint: vec3<f32>;\n    var local_21: vec3<f32>;\n    var local_22: vec2<f32>;\n    var local_23: vec2<f32>;\n    var localUV: vec2<f32>;\n    var edgeDistance: f32;\n    var wear: f32;\n    var scuff: f32;\n    var height_2: f32;\n    var treadUV: vec2<f32>;\n    var tread_1: f32;\n    var local_24: f32;\n    var texUV: vec2<f32>;\n    var coord: vec3<f32>;\n    var albedo: vec3<f32>;\n    var local_25: vec3<f32>;\n    var mapN: vec3<f32>;\n    var dp1_: vec3<f32>;\n    var dp2_: vec3<f32>;\n    var duv1_: vec2<f32>;\n    var duv2_: vec2<f32>;\n    var t_1: vec3<f32>;\n    var b_2: vec3<f32>;\n    var inv: f32;\n    var mapped: vec3<f32>;\n    var ndx: vec3<f32>;\n    var ndy: vec3<f32>;\n    var wet: f32;\n    var puddle: f32;\n    var view_2: vec3<f32>;\n    var distanceToEye: f32;\n    var light: vec3<f32>;\n    var outdoors: f32;\n    var f0_4: vec3<f32>;\n    var specular: vec3<f32> = vec3(0f);\n    var i: i32 = 0i;\n    var toLight: vec3<f32>;\n    var d_2: f32;\n    var l_4: vec3<f32>;\n    var local_26: f32;\n    var attenuation: f32;\n    var diffuse: f32;\n    var local_27: f32;\n    var local_28: f32;\n    var visibility_2: f32;\n    var local_29: f32;\n    var sunlight: f32;\n    var local_30: f32;\n    var leafBack: f32;\n    var torchVector: vec3<f32>;\n    var torchDistance: f32;\n    var torchDirection: vec3<f32>;\n    var cone: f32;\n    var torch: f32;\n    var muzzleVector: vec3<f32>;\n    var muzzleDistance: f32;\n    var muzzlePower: f32;\n    var muzzleDirection: vec3<f32>;\n    var color: vec3<f32>;\n    var reflected: vec3<f32>;\n    var sky: vec3<f32>;\n    var cloudUV: vec2<f32>;\n    var field: f32;\n    var cloud: f32;\n    var sun: f32;\n    var skyLight: f32;\n    var cloudColor: vec3<f32>;\n    var outside: vec3<f32>;\n    var inside: vec3<f32>;\n    var environmentReflection: vec3<f32>;\n    var nv_1: f32;\n    var grazing: f32;\n    var environmentFresnel: vec3<f32>;\n    var pulse: f32;\n    var fogColor: vec3<f32>;\n    var fog: f32;\n    var seen: f32;\n    var dull: vec3<f32>;\n    var screen: vec2<f32>;\n    var vignette: f32;\n    var hurt: f32;\n    var waveRadius: f32;\n    var wave: f32;\n    var local_31: f32;\n    var reflection: f32;\n\n    let _e28: vec3<f32> = vNormal_1;\n    geometricNormal = normalize(_e28);\n    let _e31: vec3<f32> = geometricNormal;\n    n_6 = _e31;\n    let _e33: vec3<f32> = vSurfaceNormal_1;\n    an = abs(normalize(_e33));\n    let _e37: vec3<f32> = an;\n    if (_e37.y > 0.65f) {\n        let _e41: vec3<f32> = vSurface_1;\n        local_10 = _e41.xz;\n    } else {\n        let _e43: vec3<f32> = an;\n        let _e45: vec3<f32> = an;\n        if (_e43.x > _e45.z) {\n            let _e48: vec3<f32> = vSurface_1;\n            local_9 = _e48.zy;\n        } else {\n            let _e50: vec3<f32> = vSurface_1;\n            local_9 = _e50.xy;\n        }\n        let _e53: vec2<f32> = local_9;\n        local_10 = _e53;\n    }\n    let _e55: vec2<f32> = local_10;\n    uv_5 = _e55;\n    let _e57: f32 = vMaterial_1;\n    m = _e57;\n    let _e59: f32 = vEmission_1;\n    emission = _e59;\n    let _e72: vec4<f32> = ferroUniforms.data[96];\n    let _e78: f32 = vOutdoor_1;\n    night = (clamp(_e72.x, 0f, 1f) * _e78);\n    let _e84: vec4<f32> = ferroUniforms.data[96];\n    if (_e84.y < 12f) {\n        let _e92: vec4<f32> = ferroUniforms.data[96];\n        local_11 = (_e92.y + 24f);\n    } else {\n        let _e100: vec4<f32> = ferroUniforms.data[96];\n        local_11 = _e100.y;\n    }\n    let _e104: f32 = local_11;\n    lateHour = _e104;\n    let _e109: f32 = lateHour;\n    evening = (1f - smoothstep(23f, 26f, _e109));\n    let _e125: vec2<f32> = uv_5;\n    let _e126: vec2<f32> = fwidth(_e125);\n    let _e128: vec2<f32> = uv_5;\n    let _e129: vec2<f32> = fwidth(_e128);\n    pixelSpan = max(_e126.x, _e129.y);\n    let _e136: f32 = pixelSpan;\n    fineDetail = (1f - smoothstep(0.015f, 0.1f, _e136));\n    let _e140: vec2<f32> = uv_5;\n    let _e143: f32 = noise((_e140 * 23f));\n    let _e147: vec2<f32> = uv_5;\n    let _e150: f32 = noise((_e147 * 71f));\n    let _e151: f32 = fineDetail;\n    grain = ((_e143 * 0.5f) + (mix(0.5f, _e150, _e151) * 0.2f));\n    let _e157: vec2<f32> = uv_5;\n    let _e160: f32 = noise((_e157 * 0.7f));\n    broad = _e160;\n    let _e163: f32 = vObject_1;\n    architectural = (1f - clamp(_e163, 0f, 1f));\n    let _e169: f32 = m;\n    if (_e169 < 7.5f) {\n        let _e172: vec2<f32> = uv_5;\n        let _e176: f32 = grid((_e172 * 0.55f), 0.007f);\n        let _e177: f32 = architectural;\n        local_12 = (_e176 * _e177);\n    } else {\n        local_12 = 0f;\n    }\n    let _e181: f32 = local_12;\n    panel = _e181;\n    let _e183: f32 = m;\n    if (_e183 < 0.5f) {\n        {\n            let _e186: vec3<f32> = base;\n            let _e188: f32 = grain;\n            let _e192: f32 = broad;\n            base = (_e186 * ((0.82f + (_e188 * 0.27f)) + (_e192 * 0.17f)));\n            let _e197: vec3<f32> = base;\n            let _e199: f32 = panel;\n            base = (_e197 * (1f - (_e199 * 0.38f)));\n            let _e204: vec2<f32> = uv_5;\n            panelUV = fract((_e204 * 0.55f));\n            let _e212: vec2<f32> = panelUV;\n            screw = (1f - smoothstep(0.019f, 0.031f, length((_e212 - vec2(0.065f)))));\n            let _e220: f32 = screw;\n            let _e224: vec2<f32> = panelUV;\n            screw = (_e220 + (1f - smoothstep(0.019f, 0.031f, length((_e224 - vec2<f32>(0.935f, 0.065f))))));\n            let _e233: vec3<f32> = base;\n            let _e234: f32 = screw;\n            let _e237: f32 = architectural;\n            base = (_e233 + vec3(((_e234 * 0.16f) * _e237)));\n            let _e244: vec2<f32> = uv_5;\n            ribs = (1f - smoothstep(0.02f, 0.03f, abs((fract((_e244.y * 4f)) - 0.5f))));\n            let _e255: vec3<f32> = base;\n            let _e257: f32 = ribs;\n            let _e260: f32 = architectural;\n            base = (_e255 * (1f - ((_e257 * 0.085f) * _e260)));\n            let _e264: vec2<f32> = uv_5;\n            let _e268: f32 = broad;\n            brushPhase = ((_e264.y * 980f) + (_e268 * 4f));\n            let _e276: f32 = brushPhase;\n            let _e277: f32 = fwidth(_e276);\n            brushFilter = (1f - smoothstep(0.65f, 2.8f, _e277));\n            let _e283: f32 = brushPhase;\n            let _e286: f32 = brushFilter;\n            let _e288: f32 = fineDetail;\n            brushing = (0.5f + (((0.5f * sin(_e283)) * _e286) * _e288));\n            let _e294: f32 = brushing;\n            let _e298: f32 = broad;\n            roughness_2 = ((0.32f + (0.12f * _e294)) + (0.12f * _e298));\n            let _e304: vec2<f32> = uv_5;\n            let _e308: vec2<f32> = uv_5;\n            let _e314: f32 = noise(vec2<f32>((_e308.x * 1.1f), 0f));\n            let _e325: vec2<f32> = uv_5;\n            let _e330: f32 = noise((_e325 * vec2<f32>(2f, 0.25f)));\n            let _e333: f32 = fineDetail;\n            scratch = (((1f - smoothstep(0.008f, 0.025f, abs((fract(((_e304.y * 4.3f) + (_e314 * 0.4f))) - 0.5f)))) * step(0.62f, _e330)) * _e333);\n            let _e336: vec3<f32> = base;\n            let _e341: f32 = scratch;\n            base = (_e336 + (vec3<f32>(0.035f, 0.045f, 0.05f) * _e341));\n        }\n    } else {\n        let _e344: f32 = m;\n        if (_e344 < 1.5f) {\n            {\n                let _e355: f32 = broad;\n                base = mix(vec3<f32>(0.19f, 0.075f, 0.025f), vec3<f32>(0.47f, 0.235f, 0.08f), vec3(((_e355 * 0.8f) + 0.15f)));\n                let _e362: vec3<f32> = base;\n                let _e364: f32 = grain;\n                base = (_e362 * (0.8f + (_e364 * 0.43f)));\n                let _e369: vec3<f32> = base;\n                let _e371: f32 = panel;\n                base = (_e369 * (1f - (_e371 * 0.43f)));\n                let _e378: f32 = broad;\n                roughness_2 = (0.37f + (0.34f * _e378));\n                metalness = 0.82f;\n            }\n        } else {\n            let _e382: f32 = m;\n            if (_e382 < 2.5f) {\n                {\n                    let _e385: vec2<f32> = uv_5;\n                    let _e389: f32 = grid((_e385 * 0.5f), 0.007f);\n                    let _e390: f32 = architectural;\n                    tiles = (_e389 * _e390);\n                    let _e393: f32 = broad;\n                    let _e394: vec2<f32> = uv_5;\n                    let _e398: f32 = hash(floor((_e394 * 0.5f)));\n                    let _e399: f32 = architectural;\n                    variation = mix(_e393, _e398, _e399);\n                    let _e410: f32 = variation;\n                    base = mix(vec3<f32>(0.095f, 0.12f, 0.135f), vec3<f32>(0.17f, 0.19f, 0.2f), vec3((_e410 * 0.6f)));\n                    let _e415: vec3<f32> = base;\n                    let _e417: f32 = tiles;\n                    base = (_e415 * (1f - (_e417 * 0.43f)));\n                    let _e422: vec3<f32> = base;\n                    let _e424: f32 = grain;\n                    base = (_e422 * (0.9f + (_e424 * 0.3f)));\n                    let _e437: vec2<f32> = uv_5;\n                    diamond = fract(((mat2x2<f32>(vec2<f32>(0.707f, -0.707f), vec2<f32>(0.707f, 0.707f)) * _e437) * 12f));\n                    let _e444: vec2<f32> = diamond;\n                    let _e448: vec2<f32> = diamond;\n                    tread = (step(0.68f, _e444.x) * step(0.65f, _e448.y));\n                    let _e453: vec3<f32> = base;\n                    let _e454: f32 = tread;\n                    base = (_e453 + vec3((_e454 * 0.016f)));\n                    let _e461: f32 = broad;\n                    roughness_2 = (0.26f + (0.24f * _e461));\n                    let _e466: vec2<f32> = uv_5;\n                    let _e472: f32 = noise(((_e466 * 0.47f) + vec2(19f)));\n                    oil = smoothstep(0.57f, 0.8f, _e472);\n                    let _e475: vec3<f32> = base;\n                    let _e477: f32 = oil;\n                    base = (_e475 * (1f - (_e477 * 0.24f)));\n                    let _e482: f32 = roughness_2;\n                    let _e484: f32 = oil;\n                    roughness_2 = mix(_e482, 0.19f, _e484);\n                    let _e487: vec2<f32> = uv_5;\n                    let _e491: f32 = grid((_e487 * 0.5f), 0.04f);\n                    let _e492: f32 = architectural;\n                    let _e494: f32 = tiles;\n                    wornEdge = max(0f, ((_e491 * _e492) - _e494));\n                    let _e498: vec3<f32> = base;\n                    let _e503: f32 = wornEdge;\n                    let _e505: vec2<f32> = uv_5;\n                    let _e508: f32 = noise((_e505 * 17f));\n                    base = (_e498 + ((vec3<f32>(0.025f, 0.029f, 0.03f) * _e503) * _e508));\n                    metalness = 0.55f;\n                }\n            } else {\n                let _e512: f32 = m;\n                if (_e512 < 3.5f) {\n                    {\n                        let _e520: f32 = grain;\n                        let _e524: f32 = broad;\n                        base = (vec3<f32>(0.57f, 0.58f, 0.54f) * ((0.78f + (_e520 * 0.3f)) + (_e524 * 0.13f)));\n                        let _e529: vec3<f32> = base;\n                        let _e531: f32 = panel;\n                        base = (_e529 * (1f - (_e531 * 0.22f)));\n                        roughness_2 = 0.85f;\n                        let _e537: vec3<f32> = base;\n                        let _e540: vec2<f32> = uv_5;\n                        let _e545: f32 = noise((_e540 * vec2<f32>(6f, 0.19f)));\n                        base = (_e537 * (0.79f + (0.21f * _e545)));\n                        metalness = 0f;\n                    }\n                } else {\n                    let _e550: f32 = m;\n                    if (_e550 < 4.5f) {\n                        {\n                            base = vec3<f32>(0.025f, 0.74f, 0.77f);\n                            let _e557: f32 = emission;\n                            emission = (_e557 + 0.72f);\n                            roughness_2 = 0.2f;\n                            metalness = 0.3f;\n                        }\n                    } else {\n                        let _e562: f32 = m;\n                        if (_e562 < 5.5f) {\n                            {\n                                base = vec3<f32>(1f, 0.42f, 0.06f);\n                                let _e569: f32 = emission;\n                                emission = (_e569 + 0.68f);\n                                roughness_2 = 0.28f;\n                                metalness = 0.3f;\n                            }\n                        } else {\n                            let _e574: f32 = m;\n                            if (_e574 < 6.5f) {\n                                {\n                                    base = vec3<f32>(0.68f, 0.055f, 0.025f);\n                                    let _e581: f32 = emission;\n                                    emission = (_e581 + 0.18f);\n                                    roughness_2 = 0.4f;\n                                    metalness = 0.4f;\n                                }\n                            } else {\n                                let _e586: f32 = m;\n                                if (_e586 < 7.5f) {\n                                    {\n                                        let _e594: f32 = grain;\n                                        base = (vec3<f32>(0.065f, 0.075f, 0.085f) * (0.82f + (_e594 * 0.4f)));\n                                        roughness_2 = 0.86f;\n                                        metalness = 0f;\n                                    }\n                                } else {\n                                    let _e601: f32 = m;\n                                    if (_e601 < 8.5f) {\n                                        {\n                                            let _e604: vec2<f32> = uv_5;\n                                            let _e607: f32 = noise((_e604 * 0.6f));\n                                            let _e610: vec2<f32> = uv_5;\n                                            let _e613: f32 = noise((_e610 * 3.7f));\n                                            soil = ((_e607 * 0.6f) + (_e613 * 0.4f));\n                                            let _e628: f32 = soil;\n                                            base = mix(vec3<f32>(0.13f, 0.105f, 0.057f), vec3<f32>(0.16f, 0.24f, 0.075f), vec3(smoothstep(0.3f, 0.7f, _e628)));\n                                            let _e632: vec3<f32> = base;\n                                            let _e634: f32 = grain;\n                                            base = (_e632 * (0.75f + (_e634 * 0.5f)));\n                                            roughness_2 = 0.95f;\n                                            metalness = 0f;\n                                        }\n                                    } else {\n                                        let _e641: f32 = m;\n                                        if (_e641 < 9.5f) {\n                                            {\n                                                let _e646: vec3<f32> = vWorld_1;\n                                                let _e650: vec2<f32> = uv_5;\n                                                let _e653: f32 = noise((_e650 * 0.9f));\n                                                strata = (0.5f + (0.5f * sin(((_e646.y * 4f) + (_e653 * 8f)))));\n                                                let _e669: f32 = broad;\n                                                let _e673: f32 = strata;\n                                                let _e677: f32 = grain;\n                                                base = (mix(vec3<f32>(0.23f, 0.24f, 0.22f), vec3<f32>(0.42f, 0.4f, 0.33f), vec3(_e669)) * ((0.8f + (_e673 * 0.17f)) + (_e677 * 0.15f)));\n                                                roughness_2 = 0.91f;\n                                                metalness = 0f;\n                                            }\n                                        } else {\n                                            let _e684: f32 = m;\n                                            if (_e684 < 10.5f) {\n                                                {\n                                                    let _e687: vec2<f32> = uv_5;\n                                                    let _e689: vec2<f32> = uv_5;\n                                                    let _e697: vec2<f32> = uv_5;\n                                                    barkUV = vec2<f32>((_e687.x + (sin((_e689.y * 0.8f)) * 0.055f)), _e697.y);\n                                                    let _e701: vec2<f32> = barkUV;\n                                                    let _e706: f32 = noise((_e701 * vec2<f32>(7f, 0.72f)));\n                                                    bark = _e706;\n                                                    let _e708: vec2<f32> = barkUV;\n                                                    let _e713: f32 = noise((_e708 * vec2<f32>(39f, 1.5f)));\n                                                    fibres = _e713;\n                                                    let _e715: vec2<f32> = barkUV;\n                                                    knotCell = floor((_e715 * vec2<f32>(1.2f, 0.45f)));\n                                                    let _e722: vec2<f32> = barkUV;\n                                                    knot = (fract((_e722 * vec2<f32>(1.2f, 0.45f))) - vec2(0.5f));\n                                                    let _e733: vec2<f32> = knot;\n                                                    let _e736: vec2<f32> = knot;\n                                                    let _e740: vec2<f32> = knotCell;\n                                                    let _e741: f32 = hash(_e740);\n                                                    knot.x = (_e733.x + (0.17f * sin(((_e736.y * 3f) + (_e741 * 6f)))));\n                                                    let _e748: vec2<f32> = knot;\n                                                    knotRadius = length((_e748 * vec2<f32>(2.5f, 1.3f)));\n                                                    let _e758: f32 = knotRadius;\n                                                    let _e762: vec2<f32> = knotCell;\n                                                    let _e766: f32 = hash((_e762 + vec2(4f)));\n                                                    knotMask = ((1f - smoothstep(0.12f, 0.48f, _e758)) * step(0.76f, _e766));\n                                                    let _e772: f32 = knotRadius;\n                                                    knotRings = (0.5f + (0.5f * sin((_e772 * 48f))));\n                                                    let _e781: f32 = bark;\n                                                    crevice = smoothstep(0.28f, 0.43f, _e781);\n                                                    let _e792: f32 = bark;\n                                                    let _e797: f32 = crevice;\n                                                    base = (mix(vec3<f32>(0.045f, 0.025f, 0.013f), vec3<f32>(0.25f, 0.145f, 0.06f), vec3(_e792)) * (0.6f + (0.4f * _e797)));\n                                                    let _e801: vec3<f32> = base;\n                                                    let _e803: f32 = fibres;\n                                                    let _e808: f32 = fineDetail;\n                                                    let _e811: f32 = knotMask;\n                                                    let _e813: f32 = knotRings;\n                                                    let _e818: f32 = fineDetail;\n                                                    base = (_e801 * ((1f + (((_e803 - 0.5f) * 0.3f) * _e808)) - ((_e811 * (0.16f + (_e813 * 0.2f))) * _e818)));\n                                                    let _e822: f32 = bark;\n                                                    let _e825: f32 = fibres;\n                                                    let _e830: f32 = fineDetail;\n                                                    let _e833: f32 = knotMask;\n                                                    organicHeight = (((_e822 * 0.022f) + (((_e825 - 0.5f) * 0.005f) * _e830)) - (_e833 * 0.012f));\n                                                    roughness_2 = 0.97f;\n                                                    metalness = 0f;\n                                                }\n                                            } else {\n                                                let _e839: f32 = m;\n                                                if (_e839 < 11.5f) {\n                                                    {\n                                                        let _e842: vec2<f32> = uv_5;\n                                                        let _e845: f32 = noise((_e842 * 2.8f));\n                                                        clump = _e845;\n                                                        let _e847: vec2<f32> = uv_5;\n                                                        let _e850: f32 = noise((_e847 * 8f));\n                                                        let _e853: vec2<f32> = uv_5;\n                                                        let _e856: f32 = noise((_e853 * 19f));\n                                                        leaves = ((_e850 * 0.7f) + (_e856 * 0.3f));\n                                                        let _e861: vec2<f32> = uv_5;\n                                                        let _e864: f32 = clump;\n                                                        let _e865: vec2<f32> = uv_5;\n                                                        let _e871: f32 = noise(((_e865 * 2.8f) + vec2(7f)));\n                                                        leafUV = ((_e861 * 13f) + (vec2<f32>(_e864, _e871) * 1.3f));\n                                                        let _e877: vec2<f32> = leafUV;\n                                                        leaf = (fract(_e877) - vec2(0.5f));\n                                                        let _e883: vec2<f32> = leafUV;\n                                                        let _e885: f32 = hash(floor(_e883));\n                                                        angle = (_e885 * 6.283185f);\n                                                        let _e889: f32 = angle;\n                                                        let _e891: f32 = angle;\n                                                        let _e894: f32 = angle;\n                                                        let _e896: f32 = angle;\n                                                        let _e901: vec2<f32> = leaf;\n                                                        leaf = (mat2x2<f32>(vec2<f32>(cos(_e889), -(sin(_e891))), vec2<f32>(sin(_e894), cos(_e896))) * _e901);\n                                                        let _e906: vec2<f32> = leaf;\n                                                        leafShape = (1f - smoothstep(0.2f, 0.51f, length((_e906 * vec2<f32>(1.1f, 2.25f)))));\n                                                        let _e918: vec2<f32> = leaf;\n                                                        let _e923: f32 = leafShape;\n                                                        vein = ((1f - smoothstep(0.012f, 0.045f, abs(_e918.y))) * _e923);\n                                                        let _e934: f32 = leaves;\n                                                        let _e938: f32 = clump;\n                                                        base = (mix(vec3<f32>(0.025f, 0.075f, 0.022f), vec3<f32>(0.19f, 0.31f, 0.075f), vec3(_e934)) * (0.78f + (_e938 * 0.32f)));\n                                                        let _e943: vec3<f32> = base;\n                                                        let _e945: f32 = leafShape;\n                                                        let _e950: f32 = fineDetail;\n                                                        let _e953: f32 = vein;\n                                                        let _e956: f32 = fineDetail;\n                                                        base = (_e943 * ((1f + (((_e945 - 0.4f) * 0.32f) * _e950)) + ((_e953 * 0.1f) * _e956)));\n                                                        let _e960: f32 = clump;\n                                                        let _e963: f32 = leafShape;\n                                                        let _e966: f32 = fineDetail;\n                                                        organicHeight = ((_e960 * 0.014f) + ((_e963 * 0.007f) * _e966));\n                                                        roughness_2 = 0.88f;\n                                                        metalness = 0f;\n                                                    }\n                                                } else {\n                                                    let _e971: f32 = m;\n                                                    if (_e971 < 12.5f) {\n                                                        {\n                                                            let _e974: f32 = m;\n                                                            let _e977: f32 = m;\n                                                            let _e981: vec3<f32> = vWorld_1;\n                                                            let _e984: vec3<f32> = vWorld_1;\n                                                            if (((_e974 > 12.04f) && (_e977 < 12.06f)) && (max(abs(_e981.x), abs(_e984.z)) <= 4000f)) {\n                                                                discard;\n                                                            }\n                                                            let _e991: vec3<f32> = vAnchor_1;\n                                                            let _e998: vec4<f32> = ferroUniforms.data[6];\n                                                            if ((_e991.y < 0f) && (_e998.w > 0.5f)) {\n                                                                {\n                                                                    let _e1004: vec3<f32> = vWorld_1;\n                                                                    let _e1009: vec4<f32> = ferroUniforms.data[5];\n                                                                    seaOffset = abs((_e1004.xz - _e1009.xy));\n                                                                    let _e1015: f32 = m;\n                                                                    let _e1018: vec2<f32> = seaOffset;\n                                                                    let _e1020: vec2<f32> = seaOffset;\n                                                                    let _e1026: vec4<f32> = ferroUniforms.data[5];\n                                                                    if ((_e1015 < 12.1f) && (max(_e1018.x, _e1020.y) < _e1026.z)) {\n                                                                        discard;\n                                                                    }\n                                                                    let _e1031: f32 = m;\n                                                                    if (_e1031 > 12.1f) {\n                                                                        {\n                                                                            let _e1034: vec3<f32> = vWorld_1;\n                                                                            let _e1036: vec3<f32> = seaField(_e1034.xz);\n                                                                            w = _e1036;\n                                                                            let _e1038: vec3<f32> = w;\n                                                                            let _e1042: vec3<f32> = w;\n                                                                            n_6 = normalize(vec3<f32>(-(_e1038.y), 1f, -(_e1042.z)));\n                                                                        }\n                                                                    }\n                                                                }\n                                                            }\n                                                            let _e1052: vec2<f32> = uv_5;\n                                                            let _e1059: vec4<f32> = ferroUniforms.data[74];\n                                                            let _e1064: vec2<f32> = uv_5;\n                                                            let _e1071: vec4<f32> = ferroUniforms.data[74];\n                                                            base = (vec3<f32>(0.035f, 0.12f, 0.15f) * (0.9f + ((sin(((_e1052.x * 9f) + _e1059.x)) * sin(((_e1064.y * 7f) - (_e1071.x * 0.7f)))) * 0.1f)));\n                                                            roughness_2 = 0.13f;\n                                                            metalness = 0.35f;\n                                                        }\n                                                    } else {\n                                                        let _e1085: f32 = m;\n                                                        if (_e1085 < 13.5f) {\n                                                            {\n                                                                let _e1088: f32 = m;\n                                                                style = clamp(((_e1088 - 12.55f) / 0.9f), 0f, 1f);\n                                                                let _e1097: vec4<f32> = vColor_1;\n                                                                if (_e1097.w > 0.5f) {\n                                                                    let _e1101: vec4<f32> = vColor_1;\n                                                                    local_13 = _e1101.xyz;\n                                                                } else {\n                                                                    local_13 = vec3<f32>(0.72f, 0.67f, 0.6f);\n                                                                }\n                                                                let _e1108: vec3<f32> = local_13;\n                                                                enduit = _e1108;\n                                                                roughness_2 = 0.86f;\n                                                                metalness = 0f;\n                                                                let _e1112: vec3<f32> = an;\n                                                                if (_e1112.y > 0.65f) {\n                                                                    {\n                                                                        let _e1120: vec3<f32> = enduit;\n                                                                        let _e1127: f32 = grain;\n                                                                        let _e1131: f32 = broad;\n                                                                        let _e1137: vec2<f32> = uv_5;\n                                                                        let _e1140: f32 = noise((_e1137 * 3.1f));\n                                                                        base = ((mix(vec3<f32>(0.15f, 0.15f, 0.155f), (_e1120 * 0.55f), vec3(0.3f)) * ((0.82f + (_e1127 * 0.26f)) + (_e1131 * 0.14f))) * (0.93f + (_e1140 * 0.12f)));\n                                                                        roughness_2 = 0.95f;\n                                                                    }\n                                                                } else {\n                                                                    {\n                                                                        let _e1148: f32 = style;\n                                                                        etage = (3.05f + (0.55f * fract((_e1148 * 7.31f))));\n                                                                        let _e1157: f32 = style;\n                                                                        pas = (2.25f + (1.35f * fract((_e1157 * 3.17f))));\n                                                                        let _e1166: f32 = style;\n                                                                        largeur = (0.34f + (0.3f * fract((_e1166 * 5.73f))));\n                                                                        let _e1175: f32 = style;\n                                                                        hauteur = (0.42f + (0.22f * fract((_e1175 * 9.11f))));\n                                                                        let _e1182: vec3<f32> = vFaceNormal_1;\n                                                                        let _e1185: vec3<f32> = vFaceNormal_1;\n                                                                        sideX = (abs(_e1182.x) > abs(_e1185.z));\n                                                                        let _e1190: bool = sideX;\n                                                                        if _e1190 {\n                                                                            let _e1191: vec3<f32> = vDimensions_1;\n                                                                            local_14 = _e1191.z;\n                                                                        } else {\n                                                                            let _e1193: vec3<f32> = vDimensions_1;\n                                                                            local_14 = _e1193.x;\n                                                                        }\n                                                                        let _e1196: f32 = local_14;\n                                                                        faceW = _e1196;\n                                                                        let _e1198: bool = sideX;\n                                                                        if _e1198 {\n                                                                            let _e1199: vec3<f32> = vLocal_1;\n                                                                            local_15 = _e1199.z;\n                                                                        } else {\n                                                                            let _e1201: vec3<f32> = vLocal_1;\n                                                                            local_15 = _e1201.x;\n                                                                        }\n                                                                        let _e1204: f32 = local_15;\n                                                                        let _e1205: f32 = faceW;\n                                                                        let _e1207: f32 = faceW;\n                                                                        faceX = ((_e1204 * _e1205) + (_e1207 * 0.5f));\n                                                                        let _e1213: f32 = faceW;\n                                                                        margin = min(0.8f, (_e1213 * 0.2f));\n                                                                        let _e1219: f32 = faceW;\n                                                                        let _e1221: f32 = margin;\n                                                                        span = max(0.01f, (_e1219 - (2f * _e1221)));\n                                                                        let _e1227: f32 = span;\n                                                                        let _e1228: f32 = pas;\n                                                                        columns = max(1f, floor((_e1227 / _e1228)));\n                                                                        let _e1233: f32 = span;\n                                                                        let _e1234: f32 = columns;\n                                                                        stepX = (_e1233 / _e1234);\n                                                                        let _e1237: f32 = margin;\n                                                                        let _e1238: f32 = faceX;\n                                                                        let _e1240: f32 = faceX;\n                                                                        let _e1241: f32 = faceW;\n                                                                        let _e1242: f32 = margin;\n                                                                        let _e1247: f32 = faceW;\n                                                                        edge_2 = ((step(_e1237, _e1238) * step(_e1240, (_e1241 - _e1242))) * step(1.7f, _e1247));\n                                                                        let _e1251: f32 = faceX;\n                                                                        let _e1252: f32 = margin;\n                                                                        let _e1254: f32 = stepX;\n                                                                        let _e1256: vec2<f32> = uv_5;\n                                                                        let _e1258: f32 = etage;\n                                                                        g = vec2<f32>(((_e1251 - _e1252) / _e1254), (_e1256.y / _e1258));\n                                                                        let _e1262: vec2<f32> = g;\n                                                                        cellule = floor(_e1262);\n                                                                        let _e1265: vec2<f32> = g;\n                                                                        f_2 = fract(_e1265);\n                                                                        let _e1268: vec2<f32> = g;\n                                                                        let _e1269: vec2<f32> = fwidth(_e1268);\n                                                                        aa_1 = max(_e1269, vec2(0.0001f));\n                                                                        let _e1275: vec2<f32> = uv_5;\n                                                                        haut = step(4.3f, _e1275.y);\n                                                                        let _e1280: f32 = haut;\n                                                                        rez = (1f - _e1280);\n                                                                        let _e1284: f32 = largeur;\n                                                                        let _e1287: vec2<f32> = aa_1;\n                                                                        let _e1290: f32 = largeur;\n                                                                        let _e1293: vec2<f32> = aa_1;\n                                                                        let _e1296: vec2<f32> = f_2;\n                                                                        let _e1304: f32 = hauteur;\n                                                                        let _e1307: vec2<f32> = aa_1;\n                                                                        let _e1310: f32 = hauteur;\n                                                                        let _e1313: vec2<f32> = aa_1;\n                                                                        let _e1316: vec2<f32> = f_2;\n                                                                        let _e1324: f32 = haut;\n                                                                        fenetre = (((1f - smoothstep(((_e1284 * 0.5f) - _e1287.x), ((_e1290 * 0.5f) + _e1293.x), abs((_e1296.x - 0.5f)))) * (1f - smoothstep(((_e1304 * 0.5f) - _e1307.y), ((_e1310 * 0.5f) + _e1313.y), abs((_e1316.y - 0.56f))))) * _e1324);\n                                                                        let _e1327: vec3<f32> = vWorld_1;\n                                                                        let _e1330: vec3<f32> = vLocal_1;\n                                                                        let _e1333: vec3<f32> = vDimensions_1;\n                                                                        facadeTop = (_e1327.y + ((0.5f - _e1330.y) * _e1333.y));\n                                                                        let _e1338: f32 = fenetre;\n                                                                        let _e1339: vec2<f32> = cellule;\n                                                                        let _e1343: f32 = hauteur;\n                                                                        let _e1347: f32 = etage;\n                                                                        let _e1349: f32 = facadeTop;\n                                                                        fenetre = (_e1338 * step((((_e1339.y + 0.56f) + (_e1343 * 0.5f)) * _e1347), (_e1349 - 0.3f)));\n                                                                        let _e1355: f32 = span;\n                                                                        bays = max(1f, floor((_e1355 / 5.4f)));\n                                                                        let _e1361: f32 = faceX;\n                                                                        let _e1362: f32 = margin;\n                                                                        let _e1364: f32 = span;\n                                                                        let _e1366: f32 = bays;\n                                                                        bayX = (((_e1361 - _e1362) / _e1364) * _e1366);\n                                                                        let _e1369: f32 = bayX;\n                                                                        baie = fract(_e1369);\n                                                                        let _e1372: f32 = bayX;\n                                                                        let _e1373: f32 = fwidth(_e1372);\n                                                                        ab = max(_e1373, 0.0001f);\n                                                                        let _e1379: f32 = ab;\n                                                                        let _e1382: f32 = ab;\n                                                                        let _e1384: f32 = baie;\n                                                                        let _e1392: vec2<f32> = uv_5;\n                                                                        let _e1399: vec2<f32> = uv_5;\n                                                                        let _e1404: f32 = rez;\n                                                                        vitrine = ((((1f - smoothstep((0.4f - _e1379), (0.4f + _e1382), abs((_e1384 - 0.5f)))) * smoothstep(0.5f, 0.62f, _e1392.y)) * (1f - smoothstep(3.2f, 3.3f, _e1399.y))) * _e1404);\n                                                                        let _e1409: vec2<f32> = uv_5;\n                                                                        let _e1415: vec2<f32> = uv_5;\n                                                                        bandeau = (smoothstep(3.5f, 3.58f, _e1409.y) * (1f - smoothstep(4.05f, 4.12f, _e1415.y)));\n                                                                        let _e1424: vec2<f32> = aa_1;\n                                                                        let _e1427: vec2<f32> = f_2;\n                                                                        let _e1431: f32 = haut;\n                                                                        corniche = ((1f - smoothstep(0f, (0.06f + _e1424.y), _e1427.y)) * _e1431);\n                                                                        let _e1434: vec2<f32> = cellule;\n                                                                        let _e1435: f32 = style;\n                                                                        let _e1441: f32 = hash((_e1434 + vec2(floor((_e1435 * 97f)))));\n                                                                        h_2 = _e1441;\n                                                                        let _e1451: f32 = h_2;\n                                                                        vitre = mix(vec3<f32>(0.1f, 0.13f, 0.16f), vec3<f32>(0.33f, 0.41f, 0.49f), vec3(((_e1451 * 0.8f) + 0.1f)));\n                                                                        let _e1459: vec3<f32> = vitre;\n                                                                        let _e1465: f32 = h_2;\n                                                                        vitre = mix(_e1459, vec3<f32>(0.6f, 0.49f, 0.33f), vec3((step(0.94f, _e1465) * 0.55f)));\n                                                                        let _e1471: vec3<f32> = enduit;\n                                                                        let _e1473: f32 = grain;\n                                                                        let _e1477: f32 = broad;\n                                                                        mur = (_e1471 * ((0.84f + (_e1473 * 0.2f)) + (_e1477 * 0.1f)));\n                                                                        let _e1483: vec3<f32> = mur;\n                                                                        let _e1484: vec3<f32> = mur;\n                                                                        let _e1487: f32 = corniche;\n                                                                        mur = mix(_e1483, (_e1484 * 1.09f), vec3(_e1487));\n                                                                        let _e1490: vec3<f32> = mur;\n                                                                        let _e1491: vec3<f32> = enduit;\n                                                                        let _e1494: f32 = bandeau;\n                                                                        mur = mix(_e1490, (_e1491 * 0.5f), vec3(_e1494));\n                                                                        let _e1499: vec2<f32> = aa_1;\n                                                                        let _e1501: vec2<f32> = aa_1;\n                                                                        lointain = smoothstep(0.3f, 0.75f, max(_e1499.x, _e1501.y));\n                                                                        let _e1506: f32 = fenetre;\n                                                                        let _e1507: f32 = vitrine;\n                                                                        let _e1509: f32 = largeur;\n                                                                        let _e1510: f32 = hauteur;\n                                                                        let _e1513: f32 = rez;\n                                                                        let _e1515: f32 = lointain;\n                                                                        verre = mix(max(_e1506, _e1507), mix((_e1509 * _e1510), 0.32f, _e1513), _e1515);\n                                                                        let _e1518: f32 = verre;\n                                                                        let _e1519: f32 = edge_2;\n                                                                        verre = (_e1518 * _e1519);\n                                                                        let _e1521: vec3<f32> = mur;\n                                                                        let _e1522: vec3<f32> = vitre;\n                                                                        let _e1523: f32 = verre;\n                                                                        base = mix(_e1521, _e1522, vec3(_e1523));\n                                                                        let _e1528: f32 = verre;\n                                                                        roughness_2 = mix(0.86f, 0.12f, _e1528);\n                                                                        let _e1532: f32 = verre;\n                                                                        metalness = mix(0f, 0.45f, _e1532);\n                                                                        let _e1534: f32 = verre;\n                                                                        urbanHeight = (-(_e1534) * 0.035f);\n                                                                        let _e1539: f32 = verre;\n                                                                        pbrWeight = (1f - _e1539);\n                                                                        let _e1541: vec2<f32> = cellule;\n                                                                        let _e1542: vec3<f32> = vAnchor_1;\n                                                                        let _e1548: f32 = style;\n                                                                        let _e1553: f32 = hash(((_e1541 + floor((_e1542.xz * 0.31f))) + vec2((_e1548 * 31f))));\n                                                                        home = _e1553;\n                                                                        let _e1555: f32 = home;\n                                                                        let _e1558: f32 = home;\n                                                                        let _e1563: f32 = evening;\n                                                                        occupied = smoothstep((_e1555 - 0.025f), (_e1558 + 0.025f), mix(0.16f, 0.49f, _e1563));\n                                                                        let _e1568: f32 = bayX;\n                                                                        let _e1570: vec3<f32> = vAnchor_1;\n                                                                        let _e1572: vec3<f32> = vAnchor_1;\n                                                                        let _e1577: f32 = hash(vec2<f32>(floor(_e1568), floor((_e1570.x + _e1572.z))));\n                                                                        let _e1581: f32 = evening;\n                                                                        shop = (step(0.18f, _e1577) * mix(0.18f, 0.84f, _e1581));\n                                                                        let _e1589: vec2<f32> = f_2;\n                                                                        curtain = (0.78f + (0.22f * smoothstep(0.12f, 0.22f, abs((_e1589.x - 0.5f)))));\n                                                                        let _e1607: f32 = home;\n                                                                        lamp = mix(vec3<f32>(1f, 0.58f, 0.25f), vec3<f32>(0.92f, 0.87f, 0.66f), vec3(step(0.78f, _e1607)));\n                                                                        let _e1615: vec2<f32> = aa_1;\n                                                                        let _e1618: vec2<f32> = f_2;\n                                                                        let _e1625: f32 = fenetre;\n                                                                        frame = ((1f - smoothstep(0.01f, (0.025f + _e1615.x), abs((_e1618.x - 0.5f)))) * _e1625);\n                                                                        let _e1628: f32 = frame;\n                                                                        let _e1632: vec2<f32> = aa_1;\n                                                                        let _e1635: vec2<f32> = f_2;\n                                                                        let _e1642: f32 = fenetre;\n                                                                        frame = max(_e1628, ((1f - smoothstep(0.008f, (0.021f + _e1632.y), abs((_e1635.y - 0.53f)))) * _e1642));\n                                                                        let _e1645: f32 = frame;\n                                                                        let _e1647: f32 = lointain;\n                                                                        frame = (_e1645 * (1f - _e1647));\n                                                                        let _e1650: vec3<f32> = base;\n                                                                        let _e1651: vec3<f32> = enduit;\n                                                                        let _e1654: f32 = frame;\n                                                                        base = mix(_e1650, (_e1651 * 0.45f), vec3((_e1654 * 0.82f)));\n                                                                        let _e1664: vec2<f32> = f_2;\n                                                                        let _e1673: f32 = home;\n                                                                        blinds = mix(1f, (0.58f + (0.42f * smoothstep(0.1f, 0.28f, abs((_e1664.x - 0.5f))))), step(0.64f, _e1673));\n                                                                        let _e1677: vec3<f32> = lamp;\n                                                                        let _e1678: f32 = night;\n                                                                        let _e1680: f32 = edge_2;\n                                                                        let _e1682: f32 = fenetre;\n                                                                        let _e1683: f32 = occupied;\n                                                                        let _e1685: f32 = curtain;\n                                                                        let _e1687: f32 = blinds;\n                                                                        let _e1691: f32 = home;\n                                                                        let _e1695: f32 = vitrine;\n                                                                        let _e1696: f32 = shop;\n                                                                        let _e1700: f32 = rez;\n                                                                        let _e1704: f32 = lointain;\n                                                                        let _e1710: f32 = frame;\n                                                                        windowGlow = (((((_e1677 * _e1678) * _e1680) * mix(((((_e1682 * _e1683) * _e1685) * _e1687) * (0.8f + (0.65f * _e1691))), ((_e1695 * _e1696) * 1.1f), _e1700)) * (1f - (_e1704 * 0.65f))) * (1f - (_e1710 * 0.92f)));\n                                                                    }\n                                                                }\n                                                            }\n                                                        } else {\n                                                            let _e1715: f32 = m;\n                                                            if (_e1715 < 14.5f) {\n                                                                {\n                                                                    let _e1718: vec4<f32> = vColor_1;\n                                                                    if (_e1718.w > 0.5f) {\n                                                                        let _e1722: vec4<f32> = vColor_1;\n                                                                        local_16 = _e1722.xyz;\n                                                                    } else {\n                                                                        local_16 = vec3<f32>(0.2f, 0.2f, 0.21f);\n                                                                    }\n                                                                    let _e1729: vec3<f32> = local_16;\n                                                                    teinte = _e1729;\n                                                                    let _e1732: vec2<f32> = uv_5;\n                                                                    let _e1735: f32 = noise((_e1732 * 95f));\n                                                                    let _e1736: f32 = fineDetail;\n                                                                    granulat = mix(0.5f, _e1735, _e1736);\n                                                                    let _e1741: vec2<f32> = uv_5;\n                                                                    let _e1747: f32 = noise(((_e1741 * 0.18f) + vec2(3f)));\n                                                                    reprise = smoothstep(0.55f, 0.75f, _e1747);\n                                                                    let _e1753: vec2<f32> = uv_5;\n                                                                    let _e1756: f32 = noise((_e1753 * 0.9f));\n                                                                    let _e1763: vec2<f32> = uv_5;\n                                                                    let _e1769: f32 = noise(((_e1763 * 0.23f) + vec2(9f)));\n                                                                    let _e1772: f32 = fineDetail;\n                                                                    fissure = (((1f - smoothstep(0f, 0.035f, abs((_e1756 - 0.5f)))) * step(0.55f, _e1769)) * _e1772);\n                                                                    let _e1775: vec3<f32> = teinte;\n                                                                    let _e1777: f32 = granulat;\n                                                                    let _e1781: f32 = broad;\n                                                                    let _e1787: f32 = reprise;\n                                                                    let _e1793: f32 = fissure;\n                                                                    base = (((_e1775 * ((0.82f + (_e1777 * 0.22f)) + (_e1781 * 0.12f))) * (1f - (_e1787 * 0.12f))) * (1f - (_e1793 * 0.35f)));\n                                                                    roughness_2 = 0.9f;\n                                                                    metalness = 0f;\n                                                                    let _e1800: f32 = granulat;\n                                                                    let _e1803: f32 = fissure;\n                                                                    urbanHeight = ((_e1800 * 0.006f) - (_e1803 * 0.01f));\n                                                                }\n                                                            } else {\n                                                                let _e1807: f32 = m;\n                                                                if (_e1807 < 15.5f) {\n                                                                    {\n                                                                        let _e1810: vec4<f32> = vColor_1;\n                                                                        if (_e1810.w > 0.5f) {\n                                                                            let _e1814: vec4<f32> = vColor_1;\n                                                                            local_17 = _e1814.xyz;\n                                                                        } else {\n                                                                            local_17 = vec3<f32>(0.7f, 0.67f, 0.6f);\n                                                                        }\n                                                                        let _e1821: vec3<f32> = local_17;\n                                                                        teinte_1 = _e1821;\n                                                                        let _e1823: vec2<f32> = uv_5;\n                                                                        d_1 = (_e1823 * 1.3f);\n                                                                        let _e1827: vec2<f32> = d_1;\n                                                                        let _e1830: vec2<f32> = d_1;\n                                                                        let _e1832: f32 = floor(_e1830.y);\n                                                                        let _e1840: vec2<f32> = d_1;\n                                                                        rang = vec2<f32>((_e1827.x + (0.5f * (_e1832 - (floor((_e1832 / 2f)) * 2f)))), _e1840.y);\n                                                                        let _e1844: vec2<f32> = rang;\n                                                                        let _e1846: f32 = grid(_e1844, 0.035f);\n                                                                        joint = _e1846;\n                                                                        let _e1848: vec2<f32> = rang;\n                                                                        let _e1850: f32 = hash(floor(_e1848));\n                                                                        pierre = _e1850;\n                                                                        let _e1852: vec3<f32> = teinte_1;\n                                                                        let _e1854: f32 = pierre;\n                                                                        let _e1858: f32 = grain;\n                                                                        let _e1864: f32 = joint;\n                                                                        base = ((_e1852 * ((0.86f + (_e1854 * 0.16f)) + (_e1858 * 0.12f))) * (1f - (_e1864 * 0.3f)));\n                                                                        roughness_2 = 0.82f;\n                                                                        metalness = 0f;\n                                                                        let _e1872: f32 = joint;\n                                                                        urbanHeight = ((1f - _e1872) * 0.006f);\n                                                                    }\n                                                                } else {\n                                                                    let _e1876: f32 = m;\n                                                                    if (_e1876 < 17.5f) {\n                                                                        {\n                                                                            let _e1879: vec4<f32> = vColor_1;\n                                                                            if (_e1879.w > 0.5f) {\n                                                                                let _e1883: vec4<f32> = vColor_1;\n                                                                                local_18 = _e1883.xyz;\n                                                                            } else {\n                                                                                local_18 = vec3(0.5f);\n                                                                            }\n                                                                            let _e1888: vec3<f32> = local_18;\n                                                                            let _e1890: f32 = grain;\n                                                                            base = (_e1888 * (0.94f + (_e1890 * 0.06f)));\n                                                                            roughness_2 = 0.22f;\n                                                                            metalness = 0.35f;\n                                                                        }\n                                                                    } else {\n                                                                        {\n                                                                            let _e1897: vec4<f32> = vColor_1;\n                                                                            if (_e1897.w > 0.5f) {\n                                                                                let _e1901: vec4<f32> = vColor_1;\n                                                                                local_19 = _e1901.xyz;\n                                                                            } else {\n                                                                                local_19 = vec3(0.5f);\n                                                                            }\n                                                                            let _e1906: vec3<f32> = local_19;\n                                                                            let _e1908: f32 = grain;\n                                                                            base = (_e1906 * (0.9f + (_e1908 * 0.14f)));\n                                                                            roughness_2 = 0.92f;\n                                                                            metalness = 0f;\n                                                                        }\n                                                                    }\n                                                                }\n                                                            }\n                                                        }\n                                                    }\n                                                }\n                                            }\n                                        }\n                                    }\n                                }\n                            }\n                        }\n                    }\n                }\n            }\n        }\n    }\n    let _e1915: f32 = m;\n    let _e1918: f32 = m;\n    if ((_e1915 > 19.05f) && (_e1918 < 19.15f)) {\n        {\n            let _e1922: vec3<f32> = vAnchor_1;\n            let _e1927: vec3<f32> = vAnchor_1;\n            let _e1934: f32 = hash((floor((_e1922.xz * 7f)) + vec2(floor((_e1927.y * 3f)))));\n            home_1 = _e1934;\n            let _e1936: f32 = home_1;\n            let _e1939: f32 = home_1;\n            let _e1944: f32 = evening;\n            occupied_1 = smoothstep((_e1936 - 0.025f), (_e1939 + 0.025f), mix(0.16f, 0.49f, _e1944));\n            roughness_2 = 0.13f;\n            metalness = 0.35f;\n            let _e1959: f32 = home_1;\n            let _e1963: f32 = night;\n            let _e1965: f32 = occupied_1;\n            windowGlow = (((mix(vec3<f32>(1f, 0.58f, 0.25f), vec3<f32>(0.92f, 0.87f, 0.66f), vec3(step(0.78f, _e1959))) * _e1963) * _e1965) * 1.7f);\n        }\n    }\n    let _e1969: vec4<f32> = vColor_1;\n    let _e1973: f32 = m;\n    let _e1977: f32 = m;\n    let _e1980: vec3<f32> = vAnchor_1;\n    if (((_e1969.w > 0.5f) && (_e1973 < 12.5f)) && !(((_e1977 > 11.5f) && (_e1980.y < 0f)))) {\n        {\n            let _e1987: vec4<f32> = vColor_1;\n            let _e1990: f32 = grain;\n            let _e1996: f32 = panel;\n            let _e2001: f32 = m;\n            if (_e2001 < 3.5f) {\n                local_20 = 0.65f;\n            } else {\n                local_20 = 1f;\n            }\n            let _e2007: f32 = local_20;\n            tint = (((_e1987.xyz * (0.88f + (_e1990 * 0.2f))) * (1f - (_e1996 * 0.12f))) * _e2007);\n            let _e2010: f32 = m;\n            if (_e2010 > 7.5f) {\n                let _e2013: vec3<f32> = base;\n                let _e2016: vec3<f32> = tint;\n                local_21 = ((_e2013 * 0.35f) + (_e2016 * 0.65f));\n            } else {\n                let _e2020: vec3<f32> = tint;\n                local_21 = _e2020;\n            }\n            let _e2022: vec3<f32> = local_21;\n            base = _e2022;\n        }\n    }\n    let _e2023: f32 = vObject_1;\n    let _e2026: f32 = m;\n    if ((_e2023 > 0.5f) && (_e2026 < 2.5f)) {\n        {\n            let _e2030: vec3<f32> = an;\n            if (_e2030.y > 0.65f) {\n                let _e2034: vec3<f32> = vLocal_1;\n                local_23 = _e2034.xz;\n            } else {\n                let _e2036: vec3<f32> = an;\n                let _e2038: vec3<f32> = an;\n                if (_e2036.x > _e2038.z) {\n                    let _e2041: vec3<f32> = vLocal_1;\n                    local_22 = _e2041.zy;\n                } else {\n                    let _e2043: vec3<f32> = vLocal_1;\n                    local_22 = _e2043.xy;\n                }\n                let _e2046: vec2<f32> = local_22;\n                local_23 = _e2046;\n            }\n            let _e2048: vec2<f32> = local_23;\n            localUV = _e2048;\n            let _e2051: vec2<f32> = localUV;\n            let _e2054: vec2<f32> = localUV;\n            edgeDistance = (0.5f - max(abs(_e2051.x), abs(_e2054.y)));\n            let _e2063: f32 = edgeDistance;\n            let _e2064: f32 = fwidth(_e2063);\n            let _e2066: f32 = edgeDistance;\n            let _e2071: f32 = broad;\n            wear = ((1f - smoothstep(0.008f, (0.025f + _e2064), _e2066)) * (0.52f + (0.48f * _e2071)));\n            let _e2079: vec2<f32> = uv_5;\n            let _e2083: f32 = grain;\n            let _e2093: f32 = broad;\n            let _e2096: f32 = fineDetail;\n            scuff = (((1f - smoothstep(0.015f, 0.055f, abs(sin(((_e2079.y * 173f) + (_e2083 * 11f)))))) * smoothstep(0.52f, 0.74f, _e2093)) * _e2096);\n            let _e2099: vec3<f32> = base;\n            let _e2102: f32 = broad;\n            let _e2106: f32 = grain;\n            base = (_e2099 * ((0.82f + (0.24f * _e2102)) + (0.14f * _e2106)));\n            let _e2110: vec3<f32> = base;\n            let _e2111: vec3<f32> = base;\n            let _e2119: f32 = wear;\n            base = mix(_e2110, ((_e2111 * 1.28f) + vec3<f32>(0.055f, 0.065f, 0.07f)), vec3((_e2119 * 0.7f)));\n            let _e2124: vec3<f32> = base;\n            let _e2129: f32 = scuff;\n            base = (_e2124 + (vec3<f32>(0.04f, 0.045f, 0.048f) * _e2129));\n            let _e2132: f32 = roughness_2;\n            let _e2134: f32 = wear;\n            roughness_2 = mix(_e2132, 0.21f, (_e2134 * 0.82f));\n        }\n    }\n    let _e2138: f32 = m;\n    let _e2141: f32 = m;\n    if ((_e2138 > 18.5f) && (_e2141 < 19.5f)) {\n        {\n            let _e2145: vec4<f32> = vColor_1;\n            base = _e2145.xyz;\n            roughness_2 = 0.08f;\n            metalness = 0.48f;\n        }\n    }\n    let _e2150: f32 = panel;\n    let _e2154: f32 = grain;\n    let _e2157: f32 = fineDetail;\n    height_2 = (((1f - _e2150) * 0.012f) + ((_e2154 * 0.003f) * _e2157));\n    let _e2161: f32 = m;\n    let _e2164: f32 = m;\n    if ((_e2161 > 1.5f) && (_e2164 < 2.5f)) {\n        {\n            let _e2176: vec2<f32> = uv_5;\n            treadUV = ((mat2x2<f32>(vec2<f32>(0.707f, -0.707f), vec2<f32>(0.707f, 0.707f)) * _e2176) * 12f);\n            let _e2184: vec2<f32> = treadUV;\n            let _e2195: vec2<f32> = treadUV;\n            tread_1 = ((1f - smoothstep(0.26f, 0.34f, abs((fract(_e2184.x) - 0.5f)))) * (1f - smoothstep(0.08f, 0.16f, abs((fract(_e2195.y) - 0.5f)))));\n            let _e2206: vec2<f32> = uv_5;\n            let _e2210: f32 = grid((_e2206 * 0.5f), 0.007f);\n            let _e2211: f32 = architectural;\n            let _e2216: f32 = tread_1;\n            let _e2219: f32 = fineDetail;\n            height_2 = (((1f - (_e2210 * _e2211)) * 0.006f) + ((_e2216 * 0.0018f) * _e2219));\n        }\n    }\n    let _e2222: f32 = m;\n    if (_e2222 < 3.5f) {\n        let _e2225: vec3<f32> = n_6;\n        let _e2226: f32 = height_2;\n        let _e2227: vec3<f32> = reliefNormal(_e2225, _e2226);\n        n_6 = _e2227;\n    }\n    let _e2228: f32 = m;\n    let _e2231: f32 = m;\n    if ((_e2228 > 7.5f) && (_e2231 < 9.5f)) {\n        let _e2235: vec3<f32> = n_6;\n        let _e2236: vec2<f32> = uv_5;\n        let _e2239: f32 = noise((_e2236 * 7f));\n        let _e2244: f32 = fineDetail;\n        let _e2246: vec3<f32> = reliefNormal(_e2235, (((_e2239 - 0.5f) * 0.009f) * _e2244));\n        n_6 = _e2246;\n    }\n    let _e2247: f32 = m;\n    let _e2250: f32 = m;\n    if ((_e2247 > 9.5f) && (_e2250 < 11.5f)) {\n        let _e2254: vec3<f32> = n_6;\n        let _e2255: f32 = organicHeight;\n        let _e2256: f32 = fineDetail;\n        let _e2258: vec3<f32> = reliefNormal(_e2254, (_e2255 * _e2256));\n        n_6 = _e2258;\n    }\n    let _e2259: f32 = m;\n    let _e2262: f32 = m;\n    if ((_e2259 > 12.5f) && (_e2262 < 15.5f)) {\n        let _e2266: vec3<f32> = n_6;\n        let _e2267: f32 = urbanHeight;\n        let _e2268: f32 = fineDetail;\n        let _e2270: vec3<f32> = reliefNormal(_e2266, (_e2267 * _e2268));\n        n_6 = _e2270;\n    }\n    let _e2271: f32 = m;\n    let _e2274: f32 = m;\n    if ((_e2271 > 2.5f) && (_e2274 < 3.5f)) {\n        pbrWeight = 1f;\n    }\n    let _e2279: f32 = m;\n    let _e2282: f32 = m;\n    if ((_e2279 > 13.5f) && (_e2282 < 14.5f)) {\n        {\n            pbrWeight = 1f;\n            pbrLayer = 0f;\n        }\n    }\n    let _e2291: vec4<f32> = ferroUniforms.data[10];\n    let _e2295: f32 = pbrWeight;\n    if ((_e2291.x > 0.5f) && (_e2295 > 0f)) {\n        {\n            let _e2299: vec2<f32> = uv_5;\n            let _e2300: f32 = pbrLayer;\n            if (_e2300 < 0.5f) {\n                local_24 = 3f;\n            } else {\n                local_24 = 2f;\n            }\n            let _e2306: f32 = local_24;\n            texUV = (_e2299 / vec2(_e2306));\n            let _e2310: vec2<f32> = texUV;\n            let _e2311: f32 = pbrLayer;\n            coord = vec3<f32>(_e2310.x, _e2310.y, _e2311);\n            let _e2316: vec3<f32> = coord;\n            let _e2320: vec4<f32> = textureSample(uPbrAlbedo_texture, uPbrAlbedo_sampler, _e2316.xy, i32(_e2316.z));\n            albedo = _e2320.xyz;\n            let _e2323: f32 = pbrLayer;\n            if (_e2323 > 0.5f) {\n                let _e2326: vec3<f32> = albedo;\n                let _e2327: vec4<f32> = vColor_1;\n                if (_e2327.w > 0.5f) {\n                    let _e2331: vec4<f32> = vColor_1;\n                    local_25 = (_e2331.xyz * 1.9f);\n                } else {\n                    local_25 = vec3(1.25f);\n                }\n                let _e2338: vec3<f32> = local_25;\n                albedo = (_e2326 * _e2338);\n            }\n            let _e2340: vec3<f32> = base;\n            let _e2341: vec3<f32> = albedo;\n            let _e2342: f32 = pbrWeight;\n            base = mix(_e2340, _e2341, vec3((_e2342 * 0.92f)));\n            let _e2347: f32 = roughness_2;\n            let _e2348: vec3<f32> = coord;\n            let _e2352: vec4<f32> = textureSample(uPbrRough_texture, uPbrRough_sampler, _e2348.xy, i32(_e2348.z));\n            let _e2357: f32 = pbrWeight;\n            roughness_2 = mix(_e2347, clamp(_e2352.x, 0.35f, 0.98f), _e2357);\n            let _e2359: vec3<f32> = coord;\n            let _e2363: vec4<f32> = textureSample(uPbrNormal_texture, uPbrNormal_sampler, _e2359.xy, i32(_e2359.z));\n            mapN = ((_e2363.xyz * 2f) - vec3(1f));\n            let _e2371: vec3<f32> = mapN;\n            let _e2373: vec3<f32> = mapN;\n            let _e2376: vec2<f32> = (_e2373.xy * 0.5f);\n            mapN.x = _e2376.x;\n            mapN.y = _e2376.y;\n            let _e2381: vec3<f32> = vWorld_1;\n            let _e2382: vec3<f32> = dpdx(_e2381);\n            dp1_ = _e2382;\n            let _e2384: vec3<f32> = vWorld_1;\n            let _e2385: vec3<f32> = dpdy(_e2384);\n            dp2_ = -(_e2385);\n            let _e2388: vec2<f32> = texUV;\n            let _e2389: vec2<f32> = dpdx(_e2388);\n            duv1_ = _e2389;\n            let _e2391: vec2<f32> = texUV;\n            let _e2392: vec2<f32> = dpdy(_e2391);\n            duv2_ = -(_e2392);\n            let _e2395: vec3<f32> = dp2_;\n            let _e2396: vec3<f32> = geometricNormal;\n            let _e2398: vec2<f32> = duv1_;\n            let _e2401: vec3<f32> = geometricNormal;\n            let _e2402: vec3<f32> = dp1_;\n            let _e2404: vec2<f32> = duv2_;\n            t_1 = ((cross(_e2395, _e2396) * _e2398.x) + (cross(_e2401, _e2402) * _e2404.x));\n            let _e2409: vec3<f32> = dp2_;\n            let _e2410: vec3<f32> = geometricNormal;\n            let _e2412: vec2<f32> = duv1_;\n            let _e2415: vec3<f32> = geometricNormal;\n            let _e2416: vec3<f32> = dp1_;\n            let _e2418: vec2<f32> = duv2_;\n            b_2 = ((cross(_e2409, _e2410) * _e2412.y) + (cross(_e2415, _e2416) * _e2418.y));\n            let _e2423: vec3<f32> = t_1;\n            let _e2424: vec3<f32> = t_1;\n            let _e2426: vec3<f32> = b_2;\n            let _e2427: vec3<f32> = b_2;\n            inv = inverseSqrt(max(max(dot(_e2423, _e2424), dot(_e2426, _e2427)), 0.0000000001f));\n            let _e2434: vec3<f32> = t_1;\n            let _e2435: f32 = inv;\n            let _e2436: vec3<f32> = (_e2434 * _e2435);\n            let _e2437: vec3<f32> = b_2;\n            let _e2438: f32 = inv;\n            let _e2439: vec3<f32> = (_e2437 * _e2438);\n            let _e2440: vec3<f32> = geometricNormal;\n            let _e2454: vec3<f32> = mapN;\n            mapped = normalize((mat3x3<f32>(vec3<f32>(_e2436.x, _e2436.y, _e2436.z), vec3<f32>(_e2439.x, _e2439.y, _e2439.z), vec3<f32>(_e2440.x, _e2440.y, _e2440.z)) * _e2454));\n            let _e2458: vec3<f32> = n_6;\n            let _e2459: vec3<f32> = mapped;\n            let _e2460: f32 = pbrWeight;\n            n_6 = normalize(mix(_e2458, _e2459, vec3(_e2460)));\n            metalness = 0f;\n        }\n    }\n    let _e2465: f32 = m;\n    let _e2468: f32 = m;\n    if ((_e2465 > 19.5f) && (_e2468 < 20.5f)) {\n        {\n            let _e2472: vec4<f32> = vColor_1;\n            let _e2475: vec2<f32> = uv_5;\n            let _e2478: f32 = noise((_e2475 * 210f));\n            base = (_e2472.xyz * (0.96f + (_e2478 * 0.04f)));\n            roughness_2 = 0.53f;\n            metalness = 0f;\n        }\n    }\n    let _e2485: vec3<f32> = n_6;\n    let _e2486: vec3<f32> = dpdx(_e2485);\n    ndx = _e2486;\n    let _e2488: vec3<f32> = n_6;\n    let _e2489: vec3<f32> = dpdy(_e2488);\n    ndy = -(_e2489);\n    let _e2493: f32 = roughness_2;\n    let _e2494: f32 = roughness_2;\n    let _e2497: vec3<f32> = ndx;\n    let _e2498: vec3<f32> = ndx;\n    let _e2500: vec3<f32> = ndy;\n    let _e2501: vec3<f32> = ndy;\n    roughness_2 = min(0.98f, sqrt(((_e2493 * _e2494) + min(0.16f, (max(dot(_e2497, _e2498), dot(_e2500, _e2501)) * 0.28f)))));\n    let _e2513: vec4<f32> = ferroUniforms.data[8];\n    let _e2516: vec3<f32> = n_6;\n    let _e2523: f32 = m;\n    let _e2526: f32 = m;\n    wet = (((_e2513.x * clamp(_e2516.y, 0f, 1f)) * step(13.5f, _e2523)) * step(_e2526, 15.5f));\n    let _e2533: vec3<f32> = vWorld_1;\n    let _e2537: f32 = noise((_e2533.xz * 0.29f));\n    let _e2539: f32 = wet;\n    puddle = (smoothstep(0.48f, 0.72f, _e2537) * _e2539);\n    let _e2542: vec3<f32> = base;\n    let _e2544: f32 = wet;\n    base = (_e2542 * (1f - (_e2544 * 0.22f)));\n    let _e2549: f32 = roughness_2;\n    let _e2551: f32 = puddle;\n    roughness_2 = mix(_e2549, 0.105f, _e2551);\n    let _e2553: f32 = metalness;\n    let _e2555: f32 = puddle;\n    metalness = mix(_e2553, 0.24f, _e2555);\n    let _e2560: vec4<f32> = ferroUniforms.data[7];\n    let _e2562: vec3<f32> = vWorld_1;\n    view_2 = normalize((_e2560.xyz - _e2562));\n    let _e2569: vec4<f32> = ferroUniforms.data[7];\n    let _e2571: vec3<f32> = vWorld_1;\n    distanceToEye = length((_e2569.xyz - _e2571));\n    let _e2581: vec3<f32> = n_6;\n    light = (vec3<f32>(0.075f, 0.1f, 0.12f) * (0.72f + (0.28f * _e2581.y)));\n    let _e2587: vec3<f32> = light;\n    let _e2592: vec3<f32> = n_6;\n    light = (_e2587 + (vec3<f32>(0.075f, 0.09f, 0.09f) * max(dot(_e2592, vec3<f32>(-0.43967876f, 0.83050436f, 0.34197238f)), 0f)));\n    let _e2608: vec3<f32> = light;\n    let _e2610: f32 = panel;\n    light = (_e2608 * (1f - (_e2610 * 0.18f)));\n    let _e2615: f32 = vOutdoor_1;\n    let _e2622: vec4<f32> = ferroUniforms.data[95];\n    outdoors = (clamp(_e2615, 0f, 1f) * _e2622.x);\n    let _e2627: vec3<f32> = light;\n    let _e2631: vec4<f32> = ferroUniforms.data[91];\n    let _e2635: vec3<f32> = n_6;\n    let _e2642: f32 = outdoors;\n    light = mix(_e2627, (_e2631.xyz * (0.72f + (0.28f * max(_e2635.y, 0f)))), vec3(_e2642));\n    let _e2647: vec3<f32> = base;\n    let _e2653: f32 = metalness;\n    f0_4 = mix(vec3(0.04f), clamp(_e2647, vec3(0.025f), vec3(0.92f)), vec3(_e2653));\n    loop {\n        let _e2662: i32 = i;\n        if !((_e2662 < 12i)) {\n            break;\n        }\n        {\n            let _e2669: i32 = i;\n            let _e2673: vec4<f32> = ferroUniforms.data[72];\n            if (_e2669 >= bitcast<i32>(_e2673.x)) {\n                break;\n            }\n            let _e2677: i32 = i;\n            let _e2679: vec3<f32> = ferro_uLightPosition(i32(_e2677));\n            let _e2680: vec3<f32> = vWorld_1;\n            toLight = (_e2679 - _e2680);\n            let _e2683: vec3<f32> = toLight;\n            d_2 = length(_e2683);\n            let _e2686: vec3<f32> = toLight;\n            let _e2687: f32 = d_2;\n            l_4 = (_e2686 / vec3(max(_e2687, 0.001f)));\n            let _e2693: i32 = i;\n            if (_e2693 < 2i) {\n                local_26 = 0.27f;\n            } else {\n                local_26 = 0.13f;\n            }\n            let _e2699: f32 = local_26;\n            let _e2701: f32 = d_2;\n            let _e2702: f32 = d_2;\n            attenuation = (_e2699 / (1f + ((_e2701 * _e2702) * 0.26f)));\n            let _e2709: i32 = i;\n            let _e2711: f32 = ferro_uLightRange(i32(_e2709));\n            if (_e2711 > 0f) {\n                let _e2714: f32 = attenuation;\n                let _e2716: i32 = i;\n                let _e2718: f32 = ferro_uLightRange(i32(_e2716));\n                let _e2721: i32 = i;\n                let _e2723: f32 = ferro_uLightRange(i32(_e2721));\n                let _e2724: f32 = d_2;\n                attenuation = (_e2714 * (1f - smoothstep((_e2718 * 0.35f), _e2723, _e2724)));\n            }\n            let _e2728: i32 = i;\n            let _e2730: vec2<f32> = ferro_uLightCone(i32(_e2728));\n            if (_e2730.x > 0f) {\n                let _e2734: f32 = attenuation;\n                let _e2735: i32 = i;\n                let _e2737: vec2<f32> = ferro_uLightCone(i32(_e2735));\n                let _e2739: i32 = i;\n                let _e2741: vec2<f32> = ferro_uLightCone(i32(_e2739));\n                let _e2743: vec3<f32> = l_4;\n                let _e2745: i32 = i;\n                let _e2747: vec3<f32> = ferro_uLightDirection(i32(_e2745));\n                attenuation = (_e2734 * smoothstep(_e2737.x, _e2741.y, dot(-(_e2743), _e2747)));\n            }\n            let _e2751: vec3<f32> = n_6;\n            let _e2752: vec3<f32> = l_4;\n            diffuse = max(dot(_e2751, _e2752), 0f);\n            let _e2757: i32 = i;\n            if (_e2757 == 0i) {\n                let _e2760: vec3<f32> = geometricNormal;\n                let _e2761: vec3<f32> = l_4;\n                let _e2763: f32 = shadow(_e2760, _e2761, 0i);\n                local_28 = _e2763;\n            } else {\n                let _e2764: i32 = i;\n                let _e2770: vec4<f32> = ferroUniforms.data[95];\n                if ((_e2764 == 1i) && (_e2770.x < 0.5f)) {\n                    let _e2776: vec3<f32> = geometricNormal;\n                    let _e2777: vec3<f32> = l_4;\n                    let _e2779: f32 = shadow(_e2776, _e2777, 1i);\n                    local_27 = _e2779;\n                } else {\n                    local_27 = 1f;\n                }\n                let _e2782: f32 = local_27;\n                local_28 = _e2782;\n            }\n            let _e2784: f32 = local_28;\n            visibility_2 = _e2784;\n            let _e2786: vec3<f32> = light;\n            let _e2787: i32 = i;\n            let _e2789: vec3<f32> = ferro_uLightColor(i32(_e2787));\n            let _e2790: f32 = attenuation;\n            let _e2792: f32 = diffuse;\n            let _e2793: f32 = visibility_2;\n            light = (_e2786 + ((_e2789 * _e2790) * ((_e2792 * _e2793) + 0.035f)));\n            let _e2799: vec3<f32> = specular;\n            let _e2800: i32 = i;\n            let _e2802: vec3<f32> = ferro_uLightColor(i32(_e2800));\n            let _e2803: f32 = attenuation;\n            let _e2805: f32 = visibility_2;\n            let _e2807: vec3<f32> = n_6;\n            let _e2808: vec3<f32> = view_2;\n            let _e2809: vec3<f32> = l_4;\n            let _e2810: f32 = roughness_2;\n            let _e2811: vec3<f32> = f0_4;\n            let _e2812: vec3<f32> = metalHighlight(_e2807, _e2808, _e2809, _e2810, _e2811);\n            specular = (_e2799 + ((((_e2802 * _e2803) * _e2805) * _e2812) * 2.4f));\n        }\n        continuing {\n            let _e2666: i32 = i;\n            i = (_e2666 + 1i);\n        }\n    }\n    let _e2817: f32 = outdoors;\n    if (_e2817 > 0.5f) {\n        let _e2820: vec3<f32> = geometricNormal;\n        let _e2824: vec4<f32> = ferroUniforms.data[89];\n        let _e2827: f32 = shadow(_e2820, _e2824.xyz, 1i);\n        local_29 = _e2827;\n    } else {\n        local_29 = 0f;\n    }\n    let _e2830: f32 = local_29;\n    sunlight = _e2830;\n    let _e2832: f32 = m;\n    let _e2835: f32 = m;\n    if ((_e2832 > 10.5f) && (_e2835 < 11.5f)) {\n        let _e2839: vec3<f32> = n_6;\n        let _e2844: vec4<f32> = ferroUniforms.data[89];\n        local_30 = (max(dot(-(_e2839), _e2844.xyz), 0f) * 0.24f);\n    } else {\n        local_30 = 0f;\n    }\n    let _e2853: f32 = local_30;\n    leafBack = _e2853;\n    let _e2855: vec3<f32> = light;\n    let _e2859: vec4<f32> = ferroUniforms.data[90];\n    let _e2861: vec3<f32> = n_6;\n    let _e2865: vec4<f32> = ferroUniforms.data[89];\n    let _e2870: f32 = leafBack;\n    let _e2873: f32 = sunlight;\n    light = (_e2855 + ((_e2859.xyz * (max(dot(_e2861, _e2865.xyz), 0f) + _e2870)) * _e2873));\n    let _e2876: vec3<f32> = specular;\n    let _e2880: vec4<f32> = ferroUniforms.data[90];\n    let _e2882: f32 = sunlight;\n    let _e2884: vec3<f32> = n_6;\n    let _e2885: vec3<f32> = view_2;\n    let _e2889: vec4<f32> = ferroUniforms.data[89];\n    let _e2891: f32 = roughness_2;\n    let _e2892: vec3<f32> = f0_4;\n    let _e2893: vec3<f32> = metalHighlight(_e2884, _e2885, _e2889.xyz, _e2891, _e2892);\n    specular = (_e2876 + ((_e2880.xyz * _e2882) * _e2893));\n    let _e2899: vec4<f32> = ferroUniforms.data[88];\n    let _e2901: vec3<f32> = vWorld_1;\n    torchVector = (_e2899.xyz - _e2901);\n    let _e2904: vec3<f32> = torchVector;\n    torchDistance = length(_e2904);\n    let _e2907: vec3<f32> = torchVector;\n    torchDirection = normalize(_e2907);\n    let _e2912: vec3<f32> = torchDirection;\n    let _e2917: vec4<f32> = ferroUniforms.data[35];\n    cone = smoothstep(0.59f, 0.96f, dot(-(_e2912), _e2917.xyz));\n    let _e2922: f32 = cone;\n    let _e2924: f32 = torchDistance;\n    let _e2925: f32 = torchDistance;\n    let _e2931: vec3<f32> = geometricNormal;\n    let _e2932: vec3<f32> = torchDirection;\n    let _e2934: f32 = shadow(_e2931, _e2932, 2i);\n    torch = ((_e2922 / (1f + ((_e2924 * _e2925) * 0.045f))) * _e2934);\n    let _e2937: vec3<f32> = light;\n    let _e2942: f32 = torch;\n    let _e2944: vec3<f32> = n_6;\n    let _e2945: vec3<f32> = torchDirection;\n    light = (_e2937 + ((vec3<f32>(0.44f, 0.52f, 0.56f) * _e2942) * max(dot(_e2944, _e2945), 0f)));\n    let _e2951: vec3<f32> = specular;\n    let _e2956: f32 = torch;\n    let _e2958: vec3<f32> = n_6;\n    let _e2959: vec3<f32> = view_2;\n    let _e2960: vec3<f32> = torchDirection;\n    let _e2961: f32 = roughness_2;\n    let _e2962: vec3<f32> = f0_4;\n    let _e2963: vec3<f32> = metalHighlight(_e2958, _e2959, _e2960, _e2961, _e2962);\n    specular = (_e2951 + (((vec3<f32>(0.44f, 0.52f, 0.56f) * _e2956) * _e2963) * 1.5f));\n    let _e2971: vec4<f32> = ferroUniforms.data[88];\n    let _e2976: vec4<f32> = ferroUniforms.data[35];\n    let _e2981: vec3<f32> = vWorld_1;\n    muzzleVector = ((_e2971.xyz + (_e2976.xyz * 0.8f)) - _e2981);\n    let _e2984: vec3<f32> = muzzleVector;\n    muzzleDistance = length(_e2984);\n    let _e2990: vec4<f32> = ferroUniforms.data[74];\n    let _e2996: f32 = muzzleDistance;\n    let _e2997: f32 = muzzleDistance;\n    muzzlePower = ((_e2990.y * 2.2f) / (1f + ((_e2996 * _e2997) * 0.14f)));\n    let _e3004: vec3<f32> = muzzleVector;\n    let _e3005: f32 = muzzleDistance;\n    muzzleDirection = (_e3004 / vec3(max(_e3005, 0.001f)));\n    let _e3011: vec3<f32> = light;\n    let _e3016: f32 = muzzlePower;\n    let _e3020: vec3<f32> = n_6;\n    let _e3021: vec3<f32> = muzzleDirection;\n    light = (_e3011 + ((vec3<f32>(1f, 0.48f, 0.12f) * _e3016) * (0.22f + (0.78f * max(dot(_e3020, _e3021), 0f)))));\n    let _e3029: vec3<f32> = specular;\n    let _e3034: f32 = muzzlePower;\n    let _e3036: vec3<f32> = n_6;\n    let _e3037: vec3<f32> = view_2;\n    let _e3038: vec3<f32> = muzzleDirection;\n    let _e3039: f32 = roughness_2;\n    let _e3040: vec3<f32> = f0_4;\n    let _e3041: vec3<f32> = metalHighlight(_e3036, _e3037, _e3038, _e3039, _e3040);\n    specular = (_e3029 + ((vec3<f32>(1f, 0.48f, 0.12f) * _e3034) * _e3041));\n    let _e3044: f32 = vOverlay_1;\n    if (_e3044 > 0.5f) {\n        let _e3047: vec3<f32> = light;\n        light = (_e3047 + vec3<f32>(0.18f, 0.22f, 0.25f));\n    }\n    let _e3053: vec3<f32> = base;\n    let _e3054: vec3<f32> = light;\n    let _e3056: vec3<f32> = specular;\n    color = ((_e3053 * _e3054) + _e3056);\n    let _e3059: vec3<f32> = view_2;\n    let _e3061: vec3<f32> = n_6;\n    reflected = reflect(-(_e3059), _e3061);\n    let _e3067: vec4<f32> = ferroUniforms.data[94];\n    let _e3072: vec4<f32> = ferroUniforms.data[93];\n    let _e3076: vec3<f32> = reflected;\n    sky = mix(_e3067.xyz, _e3072.xyz, vec3(smoothstep(0f, 1f, _e3076.y)));\n    let _e3082: f32 = outdoors;\n    let _e3085: f32 = roughness_2;\n    let _e3089: f32 = metalness;\n    if (((_e3082 > 0.5f) && (_e3085 < 0.65f)) && (_e3089 > 0.25f)) {\n        {\n            let _e3093: vec3<f32> = reflected;\n            let _e3096: vec3<f32> = reflected;\n            let _e3108: vec4<f32> = ferroUniforms.data[9];\n            cloudUV = (((_e3093.xz / vec2(max(0.13f, (_e3096.y + 0.18f)))) * 1.8f) + _e3108.xy);\n            let _e3112: vec2<f32> = cloudUV;\n            let _e3113: f32 = noise(_e3112);\n            field = ((_e3113 * 0.8f) + 0.2f);\n            let _e3120: f32 = roughness_2;\n            let _e3125: f32 = roughness_2;\n            let _e3129: f32 = field;\n            let _e3134: vec3<f32> = reflected;\n            cloud = (smoothstep((0.49f - (_e3120 * 0.08f)), (0.73f + (_e3125 * 0.08f)), _e3129) * smoothstep(-0.01f, 0.24f, _e3134.y));\n            let _e3140: vec3<f32> = reflected;\n            let _e3144: vec4<f32> = ferroUniforms.data[89];\n            sun = max(0f, dot(_e3140, _e3144.xyz));\n            let _e3152: vec4<f32> = ferroUniforms.data[94];\n            let _e3158: vec4<f32> = ferroUniforms.data[94];\n            let _e3165: vec4<f32> = ferroUniforms.data[94];\n            skyLight = clamp((max(max(_e3152.x, _e3158.y), _e3165.z) * 1.5f), 0.025f, 1f);\n            let _e3178: vec4<f32> = ferroUniforms.data[94];\n            let _e3184: f32 = skyLight;\n            let _e3192: vec4<f32> = ferroUniforms.data[90];\n            let _e3194: f32 = sun;\n            cloudColor = (mix(_e3178.xyz, (vec3<f32>(1.12f, 1.1f, 1.01f) * _e3184), vec3(0.62f)) + ((_e3192.xyz * pow(_e3194, 6f)) * 0.12f));\n            let _e3202: vec3<f32> = sky;\n            let _e3203: vec3<f32> = cloudColor;\n            let _e3204: f32 = cloud;\n            sky = mix(_e3202, _e3203, vec3((_e3204 * 0.66f)));\n            let _e3209: vec3<f32> = sky;\n            let _e3213: vec4<f32> = ferroUniforms.data[90];\n            let _e3215: f32 = sun;\n            let _e3218: f32 = roughness_2;\n            sky = (_e3209 + ((_e3213.xyz * pow(_e3215, mix(48f, 10f, _e3218))) * 0.16f));\n        }\n    }\n    let _e3228: vec4<f32> = ferroUniforms.data[91];\n    let _e3232: vec3<f32> = sky;\n    let _e3236: vec3<f32> = reflected;\n    outside = mix((_e3228.xyz * 0.2f), _e3232, vec3(smoothstep(-0.16f, 0.18f, _e3236.y)));\n    let _e3253: vec3<f32> = reflected;\n    inside = mix(vec3<f32>(0.02f, 0.03f, 0.035f), vec3<f32>(0.18f, 0.24f, 0.27f), vec3(smoothstep(-0.45f, 0.75f, _e3253.y)));\n    let _e3259: vec3<f32> = inside;\n    let _e3260: vec3<f32> = outside;\n    let _e3261: f32 = outdoors;\n    environmentReflection = mix(_e3259, _e3260, vec3(_e3261));\n    let _e3265: vec3<f32> = environmentReflection;\n    let _e3269: vec4<f32> = ferroUniforms.data[91];\n    let _e3273: f32 = roughness_2;\n    let _e3274: f32 = roughness_2;\n    environmentReflection = mix(_e3265, (_e3269.xyz * 0.85f), vec3(((_e3273 * _e3274) * 0.8f)));\n    let _e3280: vec3<f32> = n_6;\n    let _e3281: vec3<f32> = view_2;\n    nv_1 = max(dot(_e3280, _e3281), 0f);\n    let _e3287: f32 = nv_1;\n    grazing = pow((1f - _e3287), 5f);\n    let _e3292: vec3<f32> = f0_4;\n    let _e3294: f32 = roughness_2;\n    let _e3297: vec3<f32> = f0_4;\n    let _e3299: vec3<f32> = f0_4;\n    let _e3301: f32 = grazing;\n    environmentFresnel = (_e3292 + ((max(vec3((1f - _e3294)), _e3297) - _e3299) * _e3301));\n    let _e3305: vec3<f32> = color;\n    let _e3306: vec3<f32> = environmentReflection;\n    let _e3307: vec3<f32> = environmentFresnel;\n    let _e3312: f32 = roughness_2;\n    let _e3316: f32 = roughness_2;\n    let _e3322: f32 = metalness;\n    color = (_e3305 + (((_e3306 * _e3307) * (0.18f + ((1.3f * (1f - _e3312)) * (1f - _e3316)))) * (0.5f + (_e3322 * 2.5f))));\n    let _e3333: vec4<f32> = ferroUniforms.data[74];\n    let _e3338: vec3<f32> = vWorld_1;\n    pulse = (0.94f + (0.06f * sin(((_e3333.x * 2.2f) + (_e3338.y * 3f)))));\n    let _e3347: vec3<f32> = color;\n    let _e3348: vec3<f32> = base;\n    let _e3349: f32 = emission;\n    let _e3351: f32 = pulse;\n    let _e3355: vec3<f32> = windowGlow;\n    color = (_e3347 + ((((_e3348 * _e3349) * _e3351) * 1.55f) + _e3355));\n    let _e3365: vec4<f32> = ferroUniforms.data[92];\n    let _e3367: f32 = outdoors;\n    fogColor = mix(vec3<f32>(0.009f, 0.018f, 0.024f), _e3365.xyz, vec3(_e3367));\n    let _e3372: f32 = distanceToEye;\n    let _e3376: vec3<f32> = vWorld_1;\n    let _e3389: vec4<f32> = ferroUniforms.data[95];\n    let _e3392: f32 = outdoors;\n    fog = (1f - exp((-(_e3372) * mix((0.014f + (0.008f * exp((-(max(_e3376.y, 0f)) * 0.7f)))), _e3389.y, _e3392))));\n    let _e3398: f32 = vOverlay_1;\n    if (_e3398 > 0.5f) {\n        fog = 0f;\n    }\n    let _e3402: vec3<f32> = color;\n    let _e3403: vec3<f32> = fogColor;\n    let _e3404: f32 = fog;\n    color = mix(_e3402, _e3403, vec3(min(_e3404, 0.86f)));\n    let _e3409: vec3<f32> = color;\n    let _e3410: vec3<f32> = color;\n    color = (_e3409 / (_e3410 + vec3(0.76f)));\n    let _e3415: vec3<f32> = color;\n    color = pow(max(_e3415, vec3(0f)), vec3(0.4545f));\n    let _e3425: vec4<f32> = ferroUniforms.data[98];\n    let _e3429: f32 = outdoors;\n    if ((_e3425.x > 0f) && (_e3429 > 0.5f)) {\n        {\n            let _e3433: vec3<f32> = vWorld_1;\n            let _e3438: vec4<f32> = ferroUniforms.data[97];\n            let _e3445: vec4<f32> = ferroUniforms.data[97];\n            let _e3449: vec4<f32> = textureSample(uVoile_texture, uVoile_sampler, ((_e3433.xz - _e3438.xy) * _e3445.zw));\n            seen = _e3449.x;\n            let _e3452: vec3<f32> = color;\n            dull = (vec3(dot(_e3452, vec3<f32>(0.299f, 0.587f, 0.114f))) * vec3<f32>(0.93f, 0.97f, 1.04f));\n            let _e3465: vec3<f32> = color;\n            let _e3466: vec3<f32> = color;\n            let _e3467: vec3<f32> = dull;\n            let _e3476: vec4<f32> = ferroUniforms.data[98];\n            let _e3479: f32 = seen;\n            color = mix(_e3465, (mix(_e3466, _e3467, vec3(0.6f)) * 0.42f), vec3((_e3476.x * (1f - _e3479))));\n        }\n    }\n    let _e3485: vec4<f32> = gl_FragCoord_1;\n    let _e3490: vec4<f32> = ferroUniforms.data[73];\n    screen = (_e3485.xy / _e3490.xy);\n    let _e3496: vec2<f32> = screen;\n    let _e3499: vec2<f32> = screen;\n    let _e3503: vec2<f32> = screen;\n    let _e3508: vec2<f32> = screen;\n    vignette = pow(max(0f, ((((16f * _e3496.x) * _e3499.y) * (1f - _e3503.x)) * (1f - _e3508.y))), 0.13f);\n    let _e3516: vec3<f32> = color;\n    let _e3520: vec4<f32> = ferroUniforms.data[99];\n    let _e3523: f32 = vignette;\n    color = (_e3516 * mix(_e3520.x, 1f, _e3523));\n    let _e3529: vec4<f32> = ferroUniforms.data[74];\n    let _e3533: f32 = vignette;\n    hurt = (_e3529.z * (1f - (_e3533 * 0.65f)));\n    let _e3539: vec3<f32> = color;\n    let _e3544: f32 = hurt;\n    color = mix(_e3539, vec3<f32>(0.64f, 0.035f, 0.015f), vec3(clamp((_e3544 * 0.68f), 0f, 0.6f)));\n    let _e3556: vec4<f32> = ferroUniforms.data[74];\n    waveRadius = ((1f - clamp(_e3556.w, 0f, 1f)) * 0.8f);\n    let _e3566: vec2<f32> = screen;\n    let _e3573: vec4<f32> = ferroUniforms.data[73];\n    let _e3579: vec4<f32> = ferroUniforms.data[73];\n    let _e3587: f32 = waveRadius;\n    let _e3597: vec4<f32> = ferroUniforms.data[74];\n    wave = (exp((-(abs((length(((_e3566 - vec2(0.5f)) * vec2<f32>((_e3573.x / _e3579.y), 1f))) - _e3587))) * 85f)) * _e3597.w);\n    let _e3602: vec3<f32> = color;\n    let _e3607: f32 = wave;\n    color = (_e3602 + (vec3<f32>(0.03f, 0.27f, 0.23f) * _e3607));\n    let _e3610: f32 = vOverlay_1;\n    let _e3613: f32 = emission;\n    if ((_e3610 > 0.5f) || (_e3613 > 0.5f)) {\n        local_31 = 0f;\n    } else {\n        let _e3619: f32 = roughness_2;\n        let _e3622: f32 = metalness;\n        let _e3627: f32 = puddle;\n        local_31 = clamp((((1f - _e3619) * (0.13f + (_e3622 * 0.6f))) + (_e3627 * 0.3f)), 0f, 0.75f);\n    }\n    let _e3635: f32 = local_31;\n    reflection = _e3635;\n    let _e3637: vec3<f32> = color;\n    let _e3638: f32 = reflection;\n    fragColor = vec4<f32>(_e3637.x, _e3637.y, _e3637.z, _e3638);\n    return;\n}\n\n@fragment \nfn main(@location(0) vWorld: vec3<f32>, @location(1) vNormal: vec3<f32>, @location(2) vSurface: vec3<f32>, @location(3) vLocal: vec3<f32>, @location(4) vFaceNormal: vec3<f32>, @location(5) @interpolate(flat) vDimensions: vec3<f32>, @location(6) vSurfaceNormal: vec3<f32>, @location(7) @interpolate(flat) vAnchor: vec3<f32>, @location(8) @interpolate(flat) vMaterial: f32, @location(9) @interpolate(flat) vEmission: f32, @location(10) @interpolate(flat) vOverlay: f32, @location(11) @interpolate(flat) vOutdoor: f32, @location(12) @interpolate(flat) vObject: f32, @location(13) @interpolate(flat) vColor: vec4<f32>, @builtin(position) gl_FragCoord: vec4<f32>) -> FragmentOutput {\n    vWorld_1 = vWorld;\n    vNormal_1 = vNormal;\n    vSurface_1 = vSurface;\n    vLocal_1 = vLocal;\n    vFaceNormal_1 = vFaceNormal;\n    vDimensions_1 = vDimensions;\n    vSurfaceNormal_1 = vSurfaceNormal;\n    vAnchor_1 = vAnchor;\n    vMaterial_1 = vMaterial;\n    vEmission_1 = vEmission;\n    vOverlay_1 = vOverlay;\n    vOutdoor_1 = vOutdoor;\n    vObject_1 = vObject;\n    vColor_1 = vColor;\n    gl_FragCoord_1 = gl_FragCoord;\n    main_1();\n    let _e84: vec4<f32> = fragColor;\n    return FragmentOutput(_e84);\n}\n"},"depth":{"uniforms":{"byteLength":112,"fields":[{"name":"uViewProjection","type":"mat4","offset":0,"count":1,"arrayStride":64,"matrixStride":16},{"name":"uWindTime","type":"vec2","offset":64,"count":1,"arrayStride":16,"matrixStride":0},{"name":"uSeaOrigin","type":"vec4","offset":80,"count":1,"arrayStride":16,"matrixStride":0},{"name":"uSeaMotion","type":"vec4","offset":96,"count":1,"arrayStride":16,"matrixStride":0}]},"textures":[],"entryPoint":"main","sourceSha256":"4f737073052ca3f93d9911c3c97ad42ec591248f7ad5eaeadc1bf67650503d23","vertex":"diagnostic(off, derivative_uniformity);\nstruct FerroUniforms {\n    data: array<vec4<f32>, 7>,\n}\n\nstruct VertexOutput {\n    @location(0) vWorld: vec3<f32>,\n    @location(1) vNormal: vec3<f32>,\n    @location(2) vSurface: vec3<f32>,\n    @location(3) vLocal: vec3<f32>,\n    @location(4) vFaceNormal: vec3<f32>,\n    @location(5) @interpolate(flat) vDimensions: vec3<f32>,\n    @location(6) vSurfaceNormal: vec3<f32>,\n    @location(7) @interpolate(flat) vAnchor: vec3<f32>,\n    @location(8) @interpolate(flat) vMaterial: f32,\n    @location(9) @interpolate(flat) vEmission: f32,\n    @location(10) @interpolate(flat) vOverlay: f32,\n    @location(11) @interpolate(flat) vOutdoor: f32,\n    @location(12) @interpolate(flat) vObject: f32,\n    @location(13) @interpolate(flat) vColor: vec4<f32>,\n    @builtin(position) gl_Position: vec4<f32>,\n}\n\n@group(0) @binding(0) \nvar<uniform> ferroUniforms: FerroUniforms;\nvar<private> aPosition_1: vec3<f32>;\nvar<private> aNormal_1: vec3<f32>;\nvar<private> iPosition_1: vec4<f32>;\nvar<private> iScale_1: vec4<f32>;\nvar<private> iRotation_1: vec4<f32>;\nvar<private> iColor_1: vec4<f32>;\nvar<private> vWorld: vec3<f32>;\nvar<private> vNormal: vec3<f32>;\nvar<private> vSurface: vec3<f32>;\nvar<private> vLocal: vec3<f32>;\nvar<private> vFaceNormal: vec3<f32>;\nvar<private> vDimensions: vec3<f32>;\nvar<private> vSurfaceNormal: vec3<f32>;\nvar<private> vAnchor: vec3<f32>;\nvar<private> vMaterial: f32;\nvar<private> vEmission: f32;\nvar<private> vOverlay: f32;\nvar<private> vOutdoor: f32;\nvar<private> vObject: f32;\nvar<private> vColor: vec4<f32>;\nvar<private> gl_Position: vec4<f32>;\n\nfn seaField(p: vec2<f32>) -> vec3<f32> {\n    var p_1: vec2<f32>;\n    var co: f32;\n    var si: f32;\n    var u: f32;\n    var v: f32;\n    var t: f32;\n    var a: f32;\n    var b: f32;\n    var c: f32;\n    var amplitude: f32;\n    var h: f32;\n    var du: f32;\n    var dv: f32;\n    var grad: vec2<f32>;\n    var q: vec2<f32>;\n    var edge: f32;\n    var r: f32;\n    var f: f32;\n    var fade: f32;\n    var local: f32;\n    var slope: f32;\n    var local_1: vec2<f32>;\n    var de: vec2<f32>;\n\n    p_1 = p;\n    let _e14: vec4<f32> = ferroUniforms.data[6];\n    co = cos(_e14.y);\n    let _e22: vec4<f32> = ferroUniforms.data[6];\n    si = sin(_e22.y);\n    let _e27: vec2<f32> = p_1;\n    let _e29: f32 = co;\n    let _e31: vec2<f32> = p_1;\n    let _e33: f32 = si;\n    u = ((_e27.x * _e29) + (_e31.y * _e33));\n    let _e37: vec2<f32> = p_1;\n    let _e40: f32 = si;\n    let _e42: vec2<f32> = p_1;\n    let _e44: f32 = co;\n    v = ((-(_e37.x) * _e40) + (_e42.y * _e44));\n    let _e51: vec4<f32> = ferroUniforms.data[6];\n    t = _e51.x;\n    let _e56: f32 = u;\n    let _e59: f32 = t;\n    a = ((0.24f * _e56) - (1.1f * _e59));\n    let _e64: f32 = u;\n    let _e67: f32 = v;\n    let _e71: f32 = t;\n    b = ((((0.41f * _e64) + (0.17f * _e67)) - (1.55f * _e71)) + 1.7f);\n    let _e78: f32 = v;\n    let _e81: f32 = t;\n    c = (((0.63f * _e78) - (0.83f * _e81)) + 0.4f);\n    let _e92: vec4<f32> = ferroUniforms.data[5];\n    amplitude = (0.035f + (0.1f * clamp(_e92.w, 0f, 2f)));\n    let _e101: f32 = amplitude;\n    let _e103: f32 = a;\n    let _e107: f32 = b;\n    let _e112: f32 = c;\n    h = (_e101 * (((0.6f * sin(_e103)) + (0.27f * sin(_e107))) + (0.13f * sin(_e112))));\n    let _e118: f32 = amplitude;\n    let _e122: f32 = a;\n    let _e128: f32 = b;\n    du = (_e118 * ((0.14400001f * cos(_e122)) + (0.110700004f * cos(_e128))));\n    let _e134: f32 = amplitude;\n    let _e138: f32 = b;\n    let _e144: f32 = c;\n    dv = (_e134 * ((0.045900002f * cos(_e138)) + (0.08189999f * cos(_e144))));\n    let _e150: f32 = du;\n    let _e151: f32 = co;\n    let _e153: f32 = dv;\n    let _e154: f32 = si;\n    let _e157: f32 = du;\n    let _e158: f32 = si;\n    let _e160: f32 = dv;\n    let _e161: f32 = co;\n    grad = vec2<f32>(((_e150 * _e151) - (_e153 * _e154)), ((_e157 * _e158) + (_e160 * _e161)));\n    let _e166: vec2<f32> = p_1;\n    let _e170: vec4<f32> = ferroUniforms.data[5];\n    q = (_e166 - _e170.xy);\n    let _e175: vec2<f32> = q;\n    let _e178: vec2<f32> = q;\n    edge = max(abs(_e175.x), abs(_e178.y));\n    let _e186: vec4<f32> = ferroUniforms.data[5];\n    r = _e186.z;\n    let _e190: f32 = r;\n    let _e191: f32 = edge;\n    f = clamp(((_e190 - _e191) / 16f), 0f, 1f);\n    let _e199: f32 = f;\n    let _e200: f32 = f;\n    let _e204: f32 = f;\n    fade = ((_e199 * _e200) * (3f - (2f * _e204)));\n    let _e209: f32 = f;\n    let _e212: f32 = f;\n    if ((_e209 > 0f) && (_e212 < 1f)) {\n        let _e218: f32 = f;\n        let _e221: f32 = f;\n        local = (((-6f * _e218) * (1f - _e221)) / 16f);\n    } else {\n        local = 0f;\n    }\n    let _e228: f32 = local;\n    slope = _e228;\n    let _e230: vec2<f32> = q;\n    let _e233: vec2<f32> = q;\n    if (abs(_e230.x) > abs(_e233.y)) {\n        let _e237: vec2<f32> = q;\n        local_1 = vec2<f32>(sign(_e237.x), 0f);\n    } else {\n        let _e243: vec2<f32> = q;\n        local_1 = vec2<f32>(0f, sign(_e243.y));\n    }\n    let _e248: vec2<f32> = local_1;\n    de = _e248;\n    let _e250: f32 = h;\n    let _e251: f32 = fade;\n    let _e253: vec2<f32> = grad;\n    let _e254: f32 = fade;\n    let _e256: f32 = h;\n    let _e257: f32 = slope;\n    let _e259: vec2<f32> = de;\n    let _e261: vec2<f32> = ((_e253 * _e254) + ((_e256 * _e257) * _e259));\n    return vec3<f32>((_e250 * _e251), _e261.x, _e261.y);\n}\n\nfn ferro_main() {\n    var c_1: vec3<f32>;\n    var s: vec3<f32>;\n    var rx: mat3x3<f32>;\n    var ry: mat3x3<f32>;\n    var rz: mat3x3<f32>;\n    var rotation: mat3x3<f32>;\n    var phase: f32;\n    var bend: f32;\n    var w: vec3<f32>;\n    var local_2: vec3<f32>;\n    var local_3: vec3<f32>;\n\n    let _e23: vec4<f32> = iRotation_1;\n    c_1 = cos(_e23.xyz);\n    let _e27: vec4<f32> = iRotation_1;\n    s = sin(_e27.xyz);\n    let _e35: vec3<f32> = c_1;\n    let _e37: vec3<f32> = s;\n    let _e40: vec3<f32> = s;\n    let _e43: vec3<f32> = c_1;\n    rx = mat3x3<f32>(vec3<f32>(1f, 0f, 0f), vec3<f32>(0f, _e35.x, _e37.x), vec3<f32>(0f, -(_e40.x), _e43.x));\n    let _e50: vec3<f32> = c_1;\n    let _e53: vec3<f32> = s;\n    let _e59: vec3<f32> = s;\n    let _e62: vec3<f32> = c_1;\n    ry = mat3x3<f32>(vec3<f32>(_e50.y, 0f, -(_e53.y)), vec3<f32>(0f, 1f, 0f), vec3<f32>(_e59.y, 0f, _e62.y));\n    let _e69: vec3<f32> = c_1;\n    let _e71: vec3<f32> = s;\n    let _e74: vec3<f32> = s;\n    let _e77: vec3<f32> = c_1;\n    rz = mat3x3<f32>(vec3<f32>(_e69.z, _e71.z, 0f), vec3<f32>(-(_e74.z), _e77.z, 0f), vec3<f32>(0f, 0f, 1f));\n    let _e88: mat3x3<f32> = rz;\n    let _e89: mat3x3<f32> = ry;\n    let _e91: mat3x3<f32> = rx;\n    rotation = ((_e88 * _e89) * _e91);\n    let _e94: mat3x3<f32> = rotation;\n    let _e95: vec3<f32> = aPosition_1;\n    let _e96: vec4<f32> = iScale_1;\n    let _e100: vec4<f32> = iPosition_1;\n    vWorld = ((_e94 * (_e95 * _e96.xyz)) + _e100.xyz);\n    let _e103: vec4<f32> = iPosition_1;\n    let _e107: vec4<f32> = iPosition_1;\n    if ((_e103.w > 10.5f) && (_e107.w < 11.5f)) {\n        {\n            let _e115: vec4<f32> = ferroUniforms.data[4];\n            let _e120: vec4<f32> = iPosition_1;\n            let _e125: vec4<f32> = iPosition_1;\n            phase = (((_e115.y * 0.85f) + (_e120.x * 0.37f)) + (_e125.z * 0.21f));\n            let _e131: vec3<f32> = aPosition_1;\n            let _e138: vec4<f32> = ferroUniforms.data[4];\n            bend = (((_e131.y + 0.5f) * _e138.x) * 0.055f);\n            let _e146: vec3<f32> = vWorld;\n            let _e148: f32 = phase;\n            let _e150: f32 = bend;\n            vWorld.x = (_e146.x + (sin(_e148) * _e150));\n            let _e154: vec3<f32> = vWorld;\n            let _e156: f32 = phase;\n            let _e160: f32 = bend;\n            vWorld.z = (_e154.z + ((cos((_e156 * 0.73f)) * _e160) * 0.6f));\n        }\n    }\n    let _e165: mat3x3<f32> = rotation;\n    let _e166: vec3<f32> = aNormal_1;\n    let _e167: vec4<f32> = iScale_1;\n    vNormal = normalize((_e165 * (_e166 / max(abs(_e167.xyz), vec3(0.0001f)))));\n    let _e176: vec4<f32> = iPosition_1;\n    let _e180: vec4<f32> = iPosition_1;\n    let _e185: vec4<f32> = iPosition_1;\n    if (((_e176.w > 11.5f) && (_e180.w < 12.5f)) && (_e185.y < 0f)) {\n        {\n            let _e190: vec4<f32> = iPosition_1;\n            let _e197: vec4<f32> = ferroUniforms.data[6];\n            if ((_e190.w > 12.1f) && (_e197.w > 0.5f)) {\n                {\n                    let _e203: vec3<f32> = vWorld;\n                    let _e205: vec3<f32> = seaField(_e203.xz);\n                    w = _e205;\n                    let _e211: vec4<f32> = ferroUniforms.data[6];\n                    let _e214: vec3<f32> = w;\n                    vWorld.y = (_e211.z + _e214.x);\n                    let _e217: vec3<f32> = w;\n                    let _e221: vec3<f32> = w;\n                    vNormal = normalize(vec3<f32>(-(_e217.y), 1f, -(_e221.z)));\n                }\n            } else {\n                let _e229: vec3<f32> = aPosition_1;\n                let _e233: vec4<f32> = iScale_1;\n                vWorld.y = (-1.25f + ((_e229.y - 0.5f) * abs(_e233.y)));\n            }\n        }\n    }\n    let _e238: vec4<f32> = iPosition_1;\n    vAnchor = _e238.xyz;\n    let _e240: vec4<f32> = iPosition_1;\n    vMaterial = _e240.w;\n    let _e242: vec4<f32> = iScale_1;\n    vEmission = _e242.w;\n    let _e244: vec4<f32> = iRotation_1;\n    vOverlay = (_e244.w - (floor((_e244.w / 2f)) * 2f));\n    let _e251: vec4<f32> = iRotation_1;\n    let _e255: f32 = floor((_e251.w * 0.5f));\n    vOutdoor = (_e255 - (floor((_e255 / 2f)) * 2f));\n    let _e261: vec4<f32> = iRotation_1;\n    vObject = floor((_e261.w * 0.25f));\n    let _e266: f32 = vObject;\n    if (_e266 > 0.5f) {\n        let _e269: vec3<f32> = aPosition_1;\n        let _e270: vec4<f32> = iScale_1;\n        local_2 = (_e269 * _e270.xyz);\n    } else {\n        let _e273: vec3<f32> = vWorld;\n        local_2 = _e273;\n    }\n    let _e275: vec3<f32> = local_2;\n    vSurface = _e275;\n    let _e276: vec3<f32> = aPosition_1;\n    vLocal = _e276;\n    let _e277: vec3<f32> = aNormal_1;\n    vFaceNormal = _e277;\n    let _e278: vec4<f32> = iScale_1;\n    vDimensions = abs(_e278.xyz);\n    let _e281: f32 = vObject;\n    if (_e281 > 0.5f) {\n        let _e284: vec3<f32> = aNormal_1;\n        let _e285: vec4<f32> = iScale_1;\n        local_3 = normalize((_e284 / max(abs(_e285.xyz), vec3(0.0001f))));\n    } else {\n        let _e293: vec3<f32> = vNormal;\n        local_3 = _e293;\n    }\n    let _e295: vec3<f32> = local_3;\n    vSurfaceNormal = _e295;\n    let _e296: vec4<f32> = iColor_1;\n    vColor = _e296;\n    let _e301: vec4<f32> = ferroUniforms.data[0];\n    let _e307: vec4<f32> = ferroUniforms.data[1];\n    let _e313: vec4<f32> = ferroUniforms.data[2];\n    let _e319: vec4<f32> = ferroUniforms.data[3];\n    let _e341: vec3<f32> = vWorld;\n    gl_Position = (mat4x4<f32>(vec4<f32>(_e301.x, _e301.y, _e301.z, _e301.w), vec4<f32>(_e307.x, _e307.y, _e307.z, _e307.w), vec4<f32>(_e313.x, _e313.y, _e313.z, _e313.w), vec4<f32>(_e319.x, _e319.y, _e319.z, _e319.w)) * vec4<f32>(_e341.x, _e341.y, _e341.z, 1f));\n    return;\n}\n\nfn main_1() {\n    ferro_main();\n    let _e25: vec4<f32> = gl_Position;\n    let _e27: vec4<f32> = gl_Position;\n    gl_Position.z = ((_e25.z + _e27.w) * 0.5f);\n    return;\n}\n\n@vertex \nfn main(@location(0) aPosition: vec3<f32>, @location(1) aNormal: vec3<f32>, @location(2) iPosition: vec4<f32>, @location(3) iScale: vec4<f32>, @location(4) iRotation: vec4<f32>, @location(5) iColor: vec4<f32>) -> VertexOutput {\n    aPosition_1 = aPosition;\n    aNormal_1 = aNormal;\n    iPosition_1 = iPosition;\n    iScale_1 = iScale;\n    iRotation_1 = iRotation;\n    iColor_1 = iColor;\n    main_1();\n    let _e56: vec3<f32> = vWorld;\n    let _e58: vec3<f32> = vNormal;\n    let _e60: vec3<f32> = vSurface;\n    let _e62: vec3<f32> = vLocal;\n    let _e64: vec3<f32> = vFaceNormal;\n    let _e66: vec3<f32> = vDimensions;\n    let _e68: vec3<f32> = vSurfaceNormal;\n    let _e70: vec3<f32> = vAnchor;\n    let _e72: f32 = vMaterial;\n    let _e74: f32 = vEmission;\n    let _e76: f32 = vOverlay;\n    let _e78: f32 = vOutdoor;\n    let _e80: f32 = vObject;\n    let _e82: vec4<f32> = vColor;\n    let _e84: vec4<f32> = gl_Position;\n    return VertexOutput(_e56, _e58, _e60, _e62, _e64, _e66, _e68, _e70, _e72, _e74, _e76, _e78, _e80, _e82, _e84);\n}\n","fragment":"diagnostic(off, derivative_uniformity);\nstruct FerroUniforms {\n    data: array<vec4<f32>, 7>,\n}\n\n@group(0) @binding(0) \nvar<uniform> ferroUniforms: FerroUniforms;\nvar<private> vMaterial_1: f32;\n\nfn main_1() {\n    let _e4: f32 = vMaterial_1;\n    let _e7: f32 = vMaterial_1;\n    if ((_e4 > 12.1f) && (_e7 < 12.4f)) {\n        discard;\n    } else {\n        return;\n    }\n}\n\n@fragment \nfn main(@location(8) @interpolate(flat) vMaterial: f32) {\n    vMaterial_1 = vMaterial;\n    main_1();\n    return;\n}\n"},"sky":{"uniforms":{"byteLength":192,"fields":[{"name":"uSkyRight","type":"vec3","offset":0,"count":1,"arrayStride":16,"matrixStride":0},{"name":"uSkyUp","type":"vec3","offset":16,"count":1,"arrayStride":16,"matrixStride":0},{"name":"uSkyForward","type":"vec3","offset":32,"count":1,"arrayStride":16,"matrixStride":0},{"name":"uSkyTop","type":"vec3","offset":48,"count":1,"arrayStride":16,"matrixStride":0},{"name":"uSkyBottom","type":"vec3","offset":64,"count":1,"arrayStride":16,"matrixStride":0},{"name":"uSkyFog","type":"vec3","offset":80,"count":1,"arrayStride":16,"matrixStride":0},{"name":"uSunDirection","type":"vec3","offset":96,"count":1,"arrayStride":16,"matrixStride":0},{"name":"uSunColor","type":"vec3","offset":112,"count":1,"arrayStride":16,"matrixStride":0},{"name":"uSkyFov","type":"vec2","offset":128,"count":1,"arrayStride":16,"matrixStride":0},{"name":"uSkyMotion","type":"vec2","offset":144,"count":1,"arrayStride":16,"matrixStride":0},{"name":"uWeather","type":"vec4","offset":160,"count":1,"arrayStride":16,"matrixStride":0},{"name":"uCloudOffset","type":"vec2","offset":176,"count":1,"arrayStride":16,"matrixStride":0}]},"textures":[],"entryPoint":"main","sourceSha256":"2463c336a79d0b1ed730842ac6619e3ae7ff8a17d9e3b0ef4f747ff6c7b12a34","vertex":"diagnostic(off, derivative_uniformity);\nstruct FerroUniforms {\n    data: array<vec4<f32>, 12>,\n}\n\nstruct VertexOutput {\n    @location(0) vUV: vec2<f32>,\n    @builtin(position) gl_Position: vec4<f32>,\n}\n\n@group(0) @binding(0) \nvar<uniform> ferroUniforms: FerroUniforms;\nvar<private> vUV: vec2<f32>;\nvar<private> gl_VertexIndex_1: u32;\nvar<private> gl_Position: vec4<f32>;\n\nfn ferro_main() {\n    var p: vec2<f32>;\n\n    let _e5: u32 = gl_VertexIndex_1;\n    let _e13: u32 = gl_VertexIndex_1;\n    p = vec2<f32>(f32(((_e5 << 1u) & 2u)), f32((_e13 & 2u)));\n    let _e20: vec2<f32> = p;\n    vUV = _e20;\n    let _e22: vec2<f32> = p;\n    let _e27: vec2<f32> = ((_e22 * 2f) - vec2(1f));\n    gl_Position = vec4<f32>(_e27.x, _e27.y, 0f, 1f);\n    return;\n}\n\nfn main_1() {\n    ferro_main();\n    let _e7: vec4<f32> = gl_Position;\n    let _e9: vec4<f32> = gl_Position;\n    gl_Position.z = ((_e7.z + _e9.w) * 0.5f);\n    return;\n}\n\n@vertex \nfn main(@builtin(vertex_index) gl_VertexIndex: u32) -> VertexOutput {\n    gl_VertexIndex_1 = gl_VertexIndex;\n    main_1();\n    let _e8: vec2<f32> = vUV;\n    let _e10: vec4<f32> = gl_Position;\n    return VertexOutput(_e8, _e10);\n}\n","fragment":"diagnostic(off, derivative_uniformity);\nstruct FerroUniforms {\n    data: array<vec4<f32>, 12>,\n}\n\nstruct FragmentOutput {\n    @location(0) fragColor: vec4<f32>,\n}\n\n@group(0) @binding(0) \nvar<uniform> ferroUniforms: FerroUniforms;\nvar<private> vUV_1: vec2<f32>;\nvar<private> fragColor: vec4<f32>;\n\nfn hash(p: vec2<f32>) -> f32 {\n    var p_1: vec2<f32>;\n\n    p_1 = p;\n    let _e7: vec2<f32> = p_1;\n    return fract((sin(dot(_e7, vec2<f32>(127.1f, 311.7f))) * 43758.547f));\n}\n\nfn noise(p_2: vec2<f32>) -> f32 {\n    var p_3: vec2<f32>;\n    var a: vec2<f32>;\n    var b: vec2<f32>;\n\n    p_3 = p_2;\n    let _e7: vec2<f32> = p_3;\n    a = floor(_e7);\n    let _e10: vec2<f32> = p_3;\n    b = fract(_e10);\n    let _e13: vec2<f32> = b;\n    let _e14: vec2<f32> = b;\n    let _e18: vec2<f32> = b;\n    b = ((_e13 * _e14) * (vec2(3f) - (2f * _e18)));\n    let _e23: vec2<f32> = a;\n    let _e24: f32 = hash(_e23);\n    let _e25: vec2<f32> = a;\n    let _e30: f32 = hash((_e25 + vec2<f32>(1f, 0f)));\n    let _e31: vec2<f32> = b;\n    let _e34: vec2<f32> = a;\n    let _e39: f32 = hash((_e34 + vec2<f32>(0f, 1f)));\n    let _e40: vec2<f32> = a;\n    let _e44: f32 = hash((_e40 + vec2(1f)));\n    let _e45: vec2<f32> = b;\n    let _e48: vec2<f32> = b;\n    return mix(mix(_e24, _e30, _e31.x), mix(_e39, _e44, _e45.x), _e48.y);\n}\n\nfn cloud(p_4: vec2<f32>) -> f32 {\n    var p_5: vec2<f32>;\n\n    p_5 = p_4;\n    let _e7: vec2<f32> = p_5;\n    let _e8: f32 = noise(_e7);\n    let _e11: vec2<f32> = p_5;\n    let _e17: f32 = noise(((_e11 * 2.03f) + vec2(11f)));\n    let _e21: vec2<f32> = p_5;\n    let _e24: f32 = noise((_e21 * 4.17f));\n    let _e28: vec2<f32> = p_5;\n    let _e31: f32 = noise((_e28 * 8.1f));\n    return ((((_e8 * 0.52f) + (_e17 * 0.28f)) + (_e24 * 0.14f)) + (_e31 * 0.06f));\n}\n\nfn main_1() {\n    var uv: vec2<f32>;\n    var ray: vec3<f32>;\n    var elevation: f32;\n    var color: vec3<f32>;\n    var sun: f32;\n    var cloudUV: vec2<f32>;\n    var clouds: f32;\n    var skyLight: f32;\n    var cloudColor: vec3<f32>;\n    var night: f32;\n    var stars: vec2<f32>;\n    var starCell: vec2<f32>;\n    var starSeed: f32;\n    var sparkle: f32;\n    var vignette: f32;\n\n    let _e5: vec2<f32> = vUV_1;\n    uv = ((_e5 * 2f) - vec2(1f));\n    let _e15: vec4<f32> = ferroUniforms.data[2];\n    let _e20: vec4<f32> = ferroUniforms.data[0];\n    let _e22: vec2<f32> = uv;\n    let _e28: vec4<f32> = ferroUniforms.data[8];\n    let _e36: vec4<f32> = ferroUniforms.data[1];\n    let _e38: vec2<f32> = uv;\n    let _e44: vec4<f32> = ferroUniforms.data[8];\n    ray = normalize(((_e15.xyz + ((_e20.xyz * _e22.x) * _e28.x)) + ((_e36.xyz * _e38.y) * _e44.y)));\n    let _e51: vec3<f32> = ray;\n    elevation = clamp(_e51.y, 0f, 1f);\n    let _e60: vec4<f32> = ferroUniforms.data[4];\n    let _e65: vec4<f32> = ferroUniforms.data[3];\n    let _e67: f32 = elevation;\n    color = mix(_e60.xyz, _e65.xyz, vec3(pow(_e67, 0.55f)));\n    let _e74: vec3<f32> = ray;\n    let _e78: vec4<f32> = ferroUniforms.data[6];\n    sun = max(0f, dot(_e74, _e78.xyz));\n    let _e83: vec3<f32> = color;\n    let _e87: vec4<f32> = ferroUniforms.data[7];\n    let _e89: f32 = sun;\n    let _e94: f32 = sun;\n    let _e102: f32 = sun;\n    color = (_e83 + (_e87.xyz * (((pow(_e89, 48f) * 0.2f) + (pow(_e94, 650f) * 0.65f)) + (smoothstep(0.99925f, 0.99965f, _e102) * 2.8f))));\n    let _e109: vec3<f32> = ray;\n    let _e112: vec3<f32> = ray;\n    let _e124: vec4<f32> = ferroUniforms.data[11];\n    cloudUV = (((_e109.xz / vec2(max(0.13f, (_e112.y + 0.18f)))) * 1.8f) + _e124.xy);\n    let _e132: vec4<f32> = ferroUniforms.data[10];\n    let _e142: vec4<f32> = ferroUniforms.data[10];\n    let _e148: vec2<f32> = cloudUV;\n    let _e149: f32 = cloud(_e148);\n    let _e154: vec3<f32> = ray;\n    clouds = (smoothstep((0.68f - (_e132.y * 0.49f)), (0.88f - (_e142.y * 0.41f)), _e149) * smoothstep(-0.03f, 0.16f, _e154.y));\n    let _e162: vec4<f32> = ferroUniforms.data[4];\n    let _e168: vec4<f32> = ferroUniforms.data[4];\n    let _e175: vec4<f32> = ferroUniforms.data[4];\n    skyLight = clamp((max(max(_e162.x, _e168.y), _e175.z) * 1.5f), 0.025f, 1f);\n    let _e188: vec4<f32> = ferroUniforms.data[4];\n    let _e194: f32 = skyLight;\n    let _e202: vec4<f32> = ferroUniforms.data[7];\n    let _e204: f32 = sun;\n    cloudColor = (mix(_e188.xyz, (vec3<f32>(1.12f, 1.1f, 1.01f) * _e194), vec3(0.62f)) + ((_e202.xyz * pow(_e204, 6f)) * 0.12f));\n    let _e212: vec3<f32> = cloudColor;\n    let _e217: f32 = skyLight;\n    let _e222: vec4<f32> = ferroUniforms.data[10];\n    cloudColor = mix(_e212, (vec3<f32>(0.075f, 0.09f, 0.12f) * _e217), vec3((_e222.z * 0.84f)));\n    let _e229: vec3<f32> = color;\n    let _e230: vec3<f32> = cloudColor;\n    let _e231: f32 = clouds;\n    color = mix(_e229, _e230, vec3((_e231 * 0.92f)));\n    let _e236: vec3<f32> = color;\n    let _e244: vec4<f32> = ferroUniforms.data[10];\n    color = (_e236 + (vec3<f32>(0.65f, 0.72f, 0.9f) * _e244.w));\n    let _e255: vec4<f32> = ferroUniforms.data[4];\n    let _e261: vec4<f32> = ferroUniforms.data[4];\n    let _e268: vec4<f32> = ferroUniforms.data[4];\n    night = (1f - smoothstep(0.025f, 0.16f, max(max(_e255.x, _e261.y), _e268.z)));\n    let _e275: vec3<f32> = ray;\n    let _e278: vec3<f32> = ray;\n    stars = ((_e275.xz / vec2(max(0.08f, _e278.y))) * 310f);\n    let _e286: vec2<f32> = stars;\n    starCell = floor(_e286);\n    let _e289: vec2<f32> = starCell;\n    let _e290: f32 = hash(_e289);\n    starSeed = _e290;\n    let _e293: f32 = starSeed;\n    let _e295: vec2<f32> = stars;\n    let _e300: vec2<f32> = stars;\n    sparkle = (step(0.997f, _e293) * exp((-(dot((fract(_e295) - vec2(0.5f)), (fract(_e300) - vec2(0.5f)))) * 90f)));\n    let _e312: vec3<f32> = color;\n    let _e317: f32 = sparkle;\n    let _e319: f32 = night;\n    let _e322: f32 = clouds;\n    let _e327: vec3<f32> = ray;\n    color = (_e312 + ((((vec3<f32>(0.35f, 0.42f, 0.55f) * _e317) * _e319) * (1f - _e322)) * smoothstep(0.08f, 0.3f, _e327.y)));\n    let _e332: vec3<f32> = color;\n    let _e333: vec3<f32> = color;\n    color = (_e332 / (_e333 + vec3(0.76f)));\n    let _e338: vec3<f32> = color;\n    color = pow(max(_e338, vec3(0f)), vec3(0.4545f));\n    let _e347: vec2<f32> = vUV_1;\n    let _e350: vec2<f32> = vUV_1;\n    let _e354: vec2<f32> = vUV_1;\n    let _e359: vec2<f32> = vUV_1;\n    vignette = pow(max(0f, ((((16f * _e347.x) * _e350.y) * (1f - _e354.x)) * (1f - _e359.y))), 0.13f);\n    let _e367: vec3<f32> = color;\n    let _e370: f32 = vignette;\n    let _e372: vec3<f32> = (_e367 * mix(0.76f, 1f, _e370));\n    fragColor = vec4<f32>(_e372.x, _e372.y, _e372.z, 0f);\n    return;\n}\n\n@fragment \nfn main(@location(0) vUV: vec2<f32>) -> FragmentOutput {\n    vUV_1 = vUV;\n    main_1();\n    let _e10: vec4<f32> = fragColor;\n    return FragmentOutput(_e10);\n}\n"},"fx":{"uniforms":{"byteLength":224,"fields":[{"name":"uViewProjection","type":"mat4","offset":0,"count":1,"arrayStride":64,"matrixStride":16},{"name":"uWindTime","type":"vec2","offset":64,"count":1,"arrayStride":16,"matrixStride":0},{"name":"uSeaOrigin","type":"vec4","offset":80,"count":1,"arrayStride":16,"matrixStride":0},{"name":"uSeaMotion","type":"vec4","offset":96,"count":1,"arrayStride":16,"matrixStride":0},{"name":"uEye","type":"vec3","offset":112,"count":1,"arrayStride":16,"matrixStride":0},{"name":"uAmbient","type":"vec3","offset":128,"count":1,"arrayStride":16,"matrixStride":0},{"name":"uSkyTop","type":"vec3","offset":144,"count":1,"arrayStride":16,"matrixStride":0},{"name":"uSkyBottom","type":"vec3","offset":160,"count":1,"arrayStride":16,"matrixStride":0},{"name":"uFogColor","type":"vec3","offset":176,"count":1,"arrayStride":16,"matrixStride":0},{"name":"uEnvironment","type":"vec2","offset":192,"count":1,"arrayStride":16,"matrixStride":0},{"name":"uTime","type":"float","offset":208,"count":1,"arrayStride":16,"matrixStride":0}]},"textures":[],"entryPoint":"main","sourceSha256":"c349cdd09f5fd161892991f462f09bf88b5f421f7289144243b7558f96e435a2","vertex":"diagnostic(off, derivative_uniformity);\nstruct FerroUniforms {\n    data: array<vec4<f32>, 14>,\n}\n\nstruct VertexOutput {\n    @location(0) vWorld: vec3<f32>,\n    @location(1) vNormal: vec3<f32>,\n    @location(2) vSurface: vec3<f32>,\n    @location(3) vLocal: vec3<f32>,\n    @location(4) vFaceNormal: vec3<f32>,\n    @location(5) @interpolate(flat) vDimensions: vec3<f32>,\n    @location(6) vSurfaceNormal: vec3<f32>,\n    @location(7) @interpolate(flat) vAnchor: vec3<f32>,\n    @location(8) @interpolate(flat) vMaterial: f32,\n    @location(9) @interpolate(flat) vEmission: f32,\n    @location(10) @interpolate(flat) vOverlay: f32,\n    @location(11) @interpolate(flat) vOutdoor: f32,\n    @location(12) @interpolate(flat) vObject: f32,\n    @location(13) @interpolate(flat) vColor: vec4<f32>,\n    @builtin(position) gl_Position: vec4<f32>,\n}\n\n@group(0) @binding(0) \nvar<uniform> ferroUniforms: FerroUniforms;\nvar<private> aPosition_1: vec3<f32>;\nvar<private> aNormal_1: vec3<f32>;\nvar<private> iPosition_1: vec4<f32>;\nvar<private> iScale_1: vec4<f32>;\nvar<private> iRotation_1: vec4<f32>;\nvar<private> iColor_1: vec4<f32>;\nvar<private> vWorld: vec3<f32>;\nvar<private> vNormal: vec3<f32>;\nvar<private> vSurface: vec3<f32>;\nvar<private> vLocal: vec3<f32>;\nvar<private> vFaceNormal: vec3<f32>;\nvar<private> vDimensions: vec3<f32>;\nvar<private> vSurfaceNormal: vec3<f32>;\nvar<private> vAnchor: vec3<f32>;\nvar<private> vMaterial: f32;\nvar<private> vEmission: f32;\nvar<private> vOverlay: f32;\nvar<private> vOutdoor: f32;\nvar<private> vObject: f32;\nvar<private> vColor: vec4<f32>;\nvar<private> gl_Position: vec4<f32>;\n\nfn seaField(p: vec2<f32>) -> vec3<f32> {\n    var p_1: vec2<f32>;\n    var co: f32;\n    var si: f32;\n    var u: f32;\n    var v: f32;\n    var t: f32;\n    var a: f32;\n    var b: f32;\n    var c: f32;\n    var amplitude: f32;\n    var h: f32;\n    var du: f32;\n    var dv: f32;\n    var grad: vec2<f32>;\n    var q: vec2<f32>;\n    var edge: f32;\n    var r: f32;\n    var f: f32;\n    var fade: f32;\n    var local: f32;\n    var slope: f32;\n    var local_1: vec2<f32>;\n    var de: vec2<f32>;\n\n    p_1 = p;\n    let _e14: vec4<f32> = ferroUniforms.data[6];\n    co = cos(_e14.y);\n    let _e22: vec4<f32> = ferroUniforms.data[6];\n    si = sin(_e22.y);\n    let _e27: vec2<f32> = p_1;\n    let _e29: f32 = co;\n    let _e31: vec2<f32> = p_1;\n    let _e33: f32 = si;\n    u = ((_e27.x * _e29) + (_e31.y * _e33));\n    let _e37: vec2<f32> = p_1;\n    let _e40: f32 = si;\n    let _e42: vec2<f32> = p_1;\n    let _e44: f32 = co;\n    v = ((-(_e37.x) * _e40) + (_e42.y * _e44));\n    let _e51: vec4<f32> = ferroUniforms.data[6];\n    t = _e51.x;\n    let _e56: f32 = u;\n    let _e59: f32 = t;\n    a = ((0.24f * _e56) - (1.1f * _e59));\n    let _e64: f32 = u;\n    let _e67: f32 = v;\n    let _e71: f32 = t;\n    b = ((((0.41f * _e64) + (0.17f * _e67)) - (1.55f * _e71)) + 1.7f);\n    let _e78: f32 = v;\n    let _e81: f32 = t;\n    c = (((0.63f * _e78) - (0.83f * _e81)) + 0.4f);\n    let _e92: vec4<f32> = ferroUniforms.data[5];\n    amplitude = (0.035f + (0.1f * clamp(_e92.w, 0f, 2f)));\n    let _e101: f32 = amplitude;\n    let _e103: f32 = a;\n    let _e107: f32 = b;\n    let _e112: f32 = c;\n    h = (_e101 * (((0.6f * sin(_e103)) + (0.27f * sin(_e107))) + (0.13f * sin(_e112))));\n    let _e118: f32 = amplitude;\n    let _e122: f32 = a;\n    let _e128: f32 = b;\n    du = (_e118 * ((0.14400001f * cos(_e122)) + (0.110700004f * cos(_e128))));\n    let _e134: f32 = amplitude;\n    let _e138: f32 = b;\n    let _e144: f32 = c;\n    dv = (_e134 * ((0.045900002f * cos(_e138)) + (0.08189999f * cos(_e144))));\n    let _e150: f32 = du;\n    let _e151: f32 = co;\n    let _e153: f32 = dv;\n    let _e154: f32 = si;\n    let _e157: f32 = du;\n    let _e158: f32 = si;\n    let _e160: f32 = dv;\n    let _e161: f32 = co;\n    grad = vec2<f32>(((_e150 * _e151) - (_e153 * _e154)), ((_e157 * _e158) + (_e160 * _e161)));\n    let _e166: vec2<f32> = p_1;\n    let _e170: vec4<f32> = ferroUniforms.data[5];\n    q = (_e166 - _e170.xy);\n    let _e175: vec2<f32> = q;\n    let _e178: vec2<f32> = q;\n    edge = max(abs(_e175.x), abs(_e178.y));\n    let _e186: vec4<f32> = ferroUniforms.data[5];\n    r = _e186.z;\n    let _e190: f32 = r;\n    let _e191: f32 = edge;\n    f = clamp(((_e190 - _e191) / 16f), 0f, 1f);\n    let _e199: f32 = f;\n    let _e200: f32 = f;\n    let _e204: f32 = f;\n    fade = ((_e199 * _e200) * (3f - (2f * _e204)));\n    let _e209: f32 = f;\n    let _e212: f32 = f;\n    if ((_e209 > 0f) && (_e212 < 1f)) {\n        let _e218: f32 = f;\n        let _e221: f32 = f;\n        local = (((-6f * _e218) * (1f - _e221)) / 16f);\n    } else {\n        local = 0f;\n    }\n    let _e228: f32 = local;\n    slope = _e228;\n    let _e230: vec2<f32> = q;\n    let _e233: vec2<f32> = q;\n    if (abs(_e230.x) > abs(_e233.y)) {\n        let _e237: vec2<f32> = q;\n        local_1 = vec2<f32>(sign(_e237.x), 0f);\n    } else {\n        let _e243: vec2<f32> = q;\n        local_1 = vec2<f32>(0f, sign(_e243.y));\n    }\n    let _e248: vec2<f32> = local_1;\n    de = _e248;\n    let _e250: f32 = h;\n    let _e251: f32 = fade;\n    let _e253: vec2<f32> = grad;\n    let _e254: f32 = fade;\n    let _e256: f32 = h;\n    let _e257: f32 = slope;\n    let _e259: vec2<f32> = de;\n    let _e261: vec2<f32> = ((_e253 * _e254) + ((_e256 * _e257) * _e259));\n    return vec3<f32>((_e250 * _e251), _e261.x, _e261.y);\n}\n\nfn ferro_main() {\n    var c_1: vec3<f32>;\n    var s: vec3<f32>;\n    var rx: mat3x3<f32>;\n    var ry: mat3x3<f32>;\n    var rz: mat3x3<f32>;\n    var rotation: mat3x3<f32>;\n    var particlePosition: vec3<f32>;\n    var radial: f32;\n    var side: f32;\n    var inner: f32;\n    var phase: f32;\n    var bend: f32;\n    var w: vec3<f32>;\n    var local_2: vec3<f32>;\n    var local_3: vec3<f32>;\n\n    let _e23: vec4<f32> = iRotation_1;\n    c_1 = cos(_e23.xyz);\n    let _e27: vec4<f32> = iRotation_1;\n    s = sin(_e27.xyz);\n    let _e35: vec3<f32> = c_1;\n    let _e37: vec3<f32> = s;\n    let _e40: vec3<f32> = s;\n    let _e43: vec3<f32> = c_1;\n    rx = mat3x3<f32>(vec3<f32>(1f, 0f, 0f), vec3<f32>(0f, _e35.x, _e37.x), vec3<f32>(0f, -(_e40.x), _e43.x));\n    let _e50: vec3<f32> = c_1;\n    let _e53: vec3<f32> = s;\n    let _e59: vec3<f32> = s;\n    let _e62: vec3<f32> = c_1;\n    ry = mat3x3<f32>(vec3<f32>(_e50.y, 0f, -(_e53.y)), vec3<f32>(0f, 1f, 0f), vec3<f32>(_e59.y, 0f, _e62.y));\n    let _e69: vec3<f32> = c_1;\n    let _e71: vec3<f32> = s;\n    let _e74: vec3<f32> = s;\n    let _e77: vec3<f32> = c_1;\n    rz = mat3x3<f32>(vec3<f32>(_e69.z, _e71.z, 0f), vec3<f32>(-(_e74.z), _e77.z, 0f), vec3<f32>(0f, 0f, 1f));\n    let _e88: mat3x3<f32> = rz;\n    let _e89: mat3x3<f32> = ry;\n    let _e91: mat3x3<f32> = rx;\n    rotation = ((_e88 * _e89) * _e91);\n    let _e94: vec3<f32> = aPosition_1;\n    particlePosition = _e94;\n    let _e96: vec4<f32> = iPosition_1;\n    if (_e96.w >= 20f) {\n        {\n            let _e100: vec3<f32> = aPosition_1;\n            radial = length(_e100.xz);\n            let _e104: f32 = radial;\n            side = clamp(((_e104 - 0.37f) / 0.13f), 0f, 1f);\n            let _e113: vec4<f32> = iPosition_1;\n            inner = clamp((_e113.w - 20f), 0f, 0.999f);\n            let _e121: vec3<f32> = particlePosition;\n            let _e123: vec3<f32> = particlePosition;\n            let _e125: f32 = inner;\n            let _e129: f32 = side;\n            let _e131: f32 = radial;\n            let _e135: vec2<f32> = (_e123.xz * (mix((_e125 * 0.5f), 0.5f, _e129) / max(_e131, 0.0001f)));\n            particlePosition.x = _e135.x;\n            particlePosition.z = _e135.y;\n        }\n    }\n    let _e140: mat3x3<f32> = rotation;\n    let _e141: vec3<f32> = particlePosition;\n    let _e142: vec4<f32> = iScale_1;\n    let _e146: vec4<f32> = iPosition_1;\n    vWorld = ((_e140 * (_e141 * _e142.xyz)) + _e146.xyz);\n    let _e149: vec4<f32> = iPosition_1;\n    let _e153: vec4<f32> = iPosition_1;\n    if ((_e149.w > 10.5f) && (_e153.w < 11.5f)) {\n        {\n            let _e161: vec4<f32> = ferroUniforms.data[4];\n            let _e166: vec4<f32> = iPosition_1;\n            let _e171: vec4<f32> = iPosition_1;\n            phase = (((_e161.y * 0.85f) + (_e166.x * 0.37f)) + (_e171.z * 0.21f));\n            let _e177: vec3<f32> = aPosition_1;\n            let _e184: vec4<f32> = ferroUniforms.data[4];\n            bend = (((_e177.y + 0.5f) * _e184.x) * 0.055f);\n            let _e192: vec3<f32> = vWorld;\n            let _e194: f32 = phase;\n            let _e196: f32 = bend;\n            vWorld.x = (_e192.x + (sin(_e194) * _e196));\n            let _e200: vec3<f32> = vWorld;\n            let _e202: f32 = phase;\n            let _e206: f32 = bend;\n            vWorld.z = (_e200.z + ((cos((_e202 * 0.73f)) * _e206) * 0.6f));\n        }\n    }\n    let _e211: mat3x3<f32> = rotation;\n    let _e212: vec3<f32> = aNormal_1;\n    let _e213: vec4<f32> = iScale_1;\n    vNormal = normalize((_e211 * (_e212 / max(abs(_e213.xyz), vec3(0.0001f)))));\n    let _e222: vec4<f32> = iPosition_1;\n    let _e226: vec4<f32> = iPosition_1;\n    let _e231: vec4<f32> = iPosition_1;\n    if (((_e222.w > 11.5f) && (_e226.w < 12.5f)) && (_e231.y < 0f)) {\n        {\n            let _e236: vec4<f32> = iPosition_1;\n            let _e243: vec4<f32> = ferroUniforms.data[6];\n            if ((_e236.w > 12.1f) && (_e243.w > 0.5f)) {\n                {\n                    let _e249: vec3<f32> = vWorld;\n                    let _e251: vec3<f32> = seaField(_e249.xz);\n                    w = _e251;\n                    let _e257: vec4<f32> = ferroUniforms.data[6];\n                    let _e260: vec3<f32> = w;\n                    vWorld.y = (_e257.z + _e260.x);\n                    let _e263: vec3<f32> = w;\n                    let _e267: vec3<f32> = w;\n                    vNormal = normalize(vec3<f32>(-(_e263.y), 1f, -(_e267.z)));\n                }\n            } else {\n                let _e275: vec3<f32> = aPosition_1;\n                let _e279: vec4<f32> = iScale_1;\n                vWorld.y = (-1.25f + ((_e275.y - 0.5f) * abs(_e279.y)));\n            }\n        }\n    }\n    let _e284: vec4<f32> = iPosition_1;\n    vAnchor = _e284.xyz;\n    let _e286: vec4<f32> = iPosition_1;\n    vMaterial = _e286.w;\n    let _e288: vec4<f32> = iScale_1;\n    vEmission = _e288.w;\n    let _e290: vec4<f32> = iRotation_1;\n    vOverlay = (_e290.w - (floor((_e290.w / 2f)) * 2f));\n    let _e297: vec4<f32> = iRotation_1;\n    let _e301: f32 = floor((_e297.w * 0.5f));\n    vOutdoor = (_e301 - (floor((_e301 / 2f)) * 2f));\n    let _e307: vec4<f32> = iRotation_1;\n    vObject = floor((_e307.w * 0.25f));\n    let _e312: f32 = vObject;\n    if (_e312 > 0.5f) {\n        let _e315: vec3<f32> = aPosition_1;\n        let _e316: vec4<f32> = iScale_1;\n        local_2 = (_e315 * _e316.xyz);\n    } else {\n        let _e319: vec3<f32> = vWorld;\n        local_2 = _e319;\n    }\n    let _e321: vec3<f32> = local_2;\n    let _e324: vec4<f32> = iScale_1;\n    let _e327: vec4<f32> = iScale_1;\n    let _e331: vec4<f32> = iScale_1;\n    vSurface = (_e321 * min(1f, (2.6f / max(max(abs(_e324.x), abs(_e327.y)), max(abs(_e331.z), 0.001f)))));\n    let _e340: vec3<f32> = aPosition_1;\n    vLocal = _e340;\n    let _e341: vec3<f32> = aNormal_1;\n    vFaceNormal = _e341;\n    let _e342: vec4<f32> = iScale_1;\n    vDimensions = abs(_e342.xyz);\n    let _e345: f32 = vObject;\n    if (_e345 > 0.5f) {\n        let _e348: vec3<f32> = aNormal_1;\n        let _e349: vec4<f32> = iScale_1;\n        local_3 = normalize((_e348 / max(abs(_e349.xyz), vec3(0.0001f))));\n    } else {\n        let _e357: vec3<f32> = vNormal;\n        local_3 = _e357;\n    }\n    let _e359: vec3<f32> = local_3;\n    vSurfaceNormal = _e359;\n    let _e360: vec4<f32> = iColor_1;\n    vColor = _e360;\n    let _e365: vec4<f32> = ferroUniforms.data[0];\n    let _e371: vec4<f32> = ferroUniforms.data[1];\n    let _e377: vec4<f32> = ferroUniforms.data[2];\n    let _e383: vec4<f32> = ferroUniforms.data[3];\n    let _e405: vec3<f32> = vWorld;\n    gl_Position = (mat4x4<f32>(vec4<f32>(_e365.x, _e365.y, _e365.z, _e365.w), vec4<f32>(_e371.x, _e371.y, _e371.z, _e371.w), vec4<f32>(_e377.x, _e377.y, _e377.z, _e377.w), vec4<f32>(_e383.x, _e383.y, _e383.z, _e383.w)) * vec4<f32>(_e405.x, _e405.y, _e405.z, 1f));\n    return;\n}\n\nfn main_1() {\n    ferro_main();\n    let _e25: vec4<f32> = gl_Position;\n    let _e27: vec4<f32> = gl_Position;\n    gl_Position.z = ((_e25.z + _e27.w) * 0.5f);\n    return;\n}\n\n@vertex \nfn main(@location(0) aPosition: vec3<f32>, @location(1) aNormal: vec3<f32>, @location(2) iPosition: vec4<f32>, @location(3) iScale: vec4<f32>, @location(4) iRotation: vec4<f32>, @location(5) iColor: vec4<f32>) -> VertexOutput {\n    aPosition_1 = aPosition;\n    aNormal_1 = aNormal;\n    iPosition_1 = iPosition;\n    iScale_1 = iScale;\n    iRotation_1 = iRotation;\n    iColor_1 = iColor;\n    main_1();\n    let _e56: vec3<f32> = vWorld;\n    let _e58: vec3<f32> = vNormal;\n    let _e60: vec3<f32> = vSurface;\n    let _e62: vec3<f32> = vLocal;\n    let _e64: vec3<f32> = vFaceNormal;\n    let _e66: vec3<f32> = vDimensions;\n    let _e68: vec3<f32> = vSurfaceNormal;\n    let _e70: vec3<f32> = vAnchor;\n    let _e72: f32 = vMaterial;\n    let _e74: f32 = vEmission;\n    let _e76: f32 = vOverlay;\n    let _e78: f32 = vOutdoor;\n    let _e80: f32 = vObject;\n    let _e82: vec4<f32> = vColor;\n    let _e84: vec4<f32> = gl_Position;\n    return VertexOutput(_e56, _e58, _e60, _e62, _e64, _e66, _e68, _e70, _e72, _e74, _e76, _e78, _e80, _e82, _e84);\n}\n","fragment":"diagnostic(off, derivative_uniformity);\nstruct FerroUniforms {\n    data: array<vec4<f32>, 14>,\n}\n\nstruct FragmentOutput {\n    @location(0) fragColor: vec4<f32>,\n}\n\n@group(0) @binding(0) \nvar<uniform> ferroUniforms: FerroUniforms;\nvar<private> vWorld_1: vec3<f32>;\nvar<private> vNormal_1: vec3<f32>;\nvar<private> vSurface_1: vec3<f32>;\nvar<private> vLocal_1: vec3<f32>;\nvar<private> vFaceNormal_1: vec3<f32>;\nvar<private> vDimensions_1: vec3<f32>;\nvar<private> vMaterial_1: f32;\nvar<private> vEmission_1: f32;\nvar<private> vOutdoor_1: f32;\nvar<private> vColor_1: vec4<f32>;\nvar<private> fragColor: vec4<f32>;\n\nfn noise(p: vec3<f32>) -> f32 {\n    var p_1: vec3<f32>;\n\n    p_1 = p;\n    let _e18: vec3<f32> = p_1;\n    let _e22: vec3<f32> = p_1;\n    let _e30: vec4<f32> = ferroUniforms.data[13];\n    let _e39: vec3<f32> = p_1;\n    let _e43: vec3<f32> = p_1;\n    let _e51: vec4<f32> = ferroUniforms.data[13];\n    let _e60: vec3<f32> = p_1;\n    let _e64: vec3<f32> = p_1;\n    return (((0.5f + (0.18f * sin((((_e18.x * 3.7f) + (_e22.y * 2.1f)) + (_e30.x * 0.65f))))) + (0.16f * sin((((_e39.y * 4.9f) - (_e43.z * 3.1f)) - (_e51.x * 0.41f))))) + (0.12f * sin(((_e60.z * 7.1f) + (_e64.x * 4.3f)))));\n}\n\nfn main_1() {\n    var toEye: vec3<f32>;\n    var distanceToEye: f32;\n    var local: f32;\n    var edge: f32;\n    var grain: f32;\n    var fire: bool;\n    var smoke: bool;\n    var spark: bool;\n    var local_1: f32;\n    var heat: f32;\n    var local_2: f32;\n    var alpha: f32;\n    var flow: vec3<f32>;\n    var billow: f32;\n    var glass: bool;\n    var color: vec3<f32>;\n    var r: vec3<f32>;\n    var temperature: vec3<f32>;\n    var fog: f32;\n\n    let _e17: vec4<f32> = ferroUniforms.data[7];\n    let _e19: vec3<f32> = vWorld_1;\n    toEye = (_e17.xyz - _e19);\n    let _e22: vec3<f32> = toEye;\n    distanceToEye = max(length(_e22), 0.001f);\n    let _e27: f32 = vMaterial_1;\n    if (_e27 >= 15.5f) {\n        local = 1f;\n    } else {\n        let _e31: vec3<f32> = vNormal_1;\n        let _e33: vec3<f32> = toEye;\n        let _e34: f32 = distanceToEye;\n        local = pow(max(dot(normalize(_e31), (_e33 / vec3(_e34))), 0f), 0.65f);\n    }\n    let _e43: f32 = local;\n    edge = _e43;\n    let _e45: vec3<f32> = vSurface_1;\n    let _e46: f32 = noise(_e45);\n    grain = clamp(_e46, 0.1f, 1f);\n    let _e51: f32 = vMaterial_1;\n    let _e54: f32 = vMaterial_1;\n    fire = ((_e51 > 13.5f) && (_e54 < 14.5f));\n    let _e59: f32 = vMaterial_1;\n    let _e62: f32 = vMaterial_1;\n    smoke = ((_e59 > 14.5f) && (_e62 < 15.5f));\n    let _e67: f32 = vMaterial_1;\n    let _e70: f32 = vMaterial_1;\n    spark = ((_e67 > 16.5f) && (_e70 < 17.5f));\n    let _e75: bool = fire;\n    if _e75 {\n        let _e78: vec3<f32> = vSurface_1;\n        let _e88: vec4<f32> = ferroUniforms.data[13];\n        let _e95: f32 = noise(((_e78 * vec3<f32>(1.65f, 0.72f, 1.65f)) - vec3<f32>(0f, (_e88.x * 2.7f), 0f)));\n        local_1 = smoothstep(0.22f, 0.83f, _e95);\n    } else {\n        local_1 = 0f;\n    }\n    let _e99: f32 = local_1;\n    heat = _e99;\n    let _e101: vec4<f32> = vColor_1;\n    let _e103: f32 = edge;\n    let _e106: f32 = grain;\n    let _e111: bool = fire;\n    if _e111 {\n        let _e114: f32 = heat;\n        local_2 = mix(0.28f, 1f, _e114);\n    } else {\n        local_2 = 1f;\n    }\n    let _e118: f32 = local_2;\n    alpha = clamp((((_e101.w * _e103) * (0.58f + (_e106 * 0.42f))) * _e118), 0f, 0.94f);\n    let _e124: bool = smoke;\n    if _e124 {\n        {\n            let _e125: vec3<f32> = vSurface_1;\n            let _e135: vec4<f32> = ferroUniforms.data[13];\n            flow = ((_e125 * vec3<f32>(0.91f, 0.65f, 0.91f)) - vec3<f32>(0f, (_e135.x * 0.3f), 0f));\n            let _e143: vec3<f32> = flow;\n            let _e144: f32 = noise(_e143);\n            let _e147: vec3<f32> = flow;\n            let _e155: f32 = noise(((_e147 * 2.1f) + vec3<f32>(7f, 3f, 11f)));\n            billow = ((_e144 * 0.66f) + (_e155 * 0.34f));\n            let _e160: f32 = alpha;\n            let _e163: f32 = billow;\n            alpha = (_e160 * smoothstep(0.16f, 0.76f, _e163));\n        }\n    }\n    let _e166: bool = spark;\n    if _e166 {\n        let _e167: f32 = alpha;\n        let _e173: vec3<f32> = vLocal_1;\n        alpha = (_e167 * (0.3f + (0.7f * smoothstep(-0.5f, 0.18f, _e173.y))));\n    }\n    let _e179: f32 = vMaterial_1;\n    let _e182: f32 = vMaterial_1;\n    glass = ((_e179 > 17.5f) && (_e182 < 18.5f));\n    let _e187: bool = glass;\n    if _e187 {\n        let _e188: vec4<f32> = vColor_1;\n        let _e192: vec3<f32> = vNormal_1;\n        let _e194: vec3<f32> = toEye;\n        let _e195: f32 = distanceToEye;\n        alpha = mix(_e188.w, 0.7f, pow((1f - abs(dot(normalize(_e192), (_e194 / vec3(_e195))))), 3f));\n    }\n    let _e204: f32 = alpha;\n    if (_e204 < 0.004f) {\n        discard;\n    }\n    let _e207: vec4<f32> = vColor_1;\n    let _e212: vec4<f32> = ferroUniforms.data[8];\n    let _e219: f32 = vEmission_1;\n    color = (_e207.xyz * (((_e212.xyz * 0.65f) + vec3(0.34f)) + vec3((max(_e219, 0f) * 1.25f))));\n    let _e228: bool = glass;\n    if _e228 {\n        {\n            let _e229: vec3<f32> = toEye;\n            let _e231: f32 = distanceToEye;\n            let _e234: vec3<f32> = vNormal_1;\n            r = reflect((-(_e229) / vec3(_e231)), normalize(_e234));\n            let _e238: vec3<f32> = color;\n            let _e242: vec4<f32> = ferroUniforms.data[10];\n            let _e247: vec4<f32> = ferroUniforms.data[9];\n            let _e251: vec3<f32> = r;\n            color = mix(_e238, mix(_e242.xyz, _e247.xyz, vec3(smoothstep(0f, 1f, _e251.y))), vec3(0.68f));\n        }\n    }\n    let _e259: bool = fire;\n    if _e259 {\n        {\n            let _e270: f32 = heat;\n            temperature = mix(vec3<f32>(0.72f, 0.025f, 0.002f), vec3<f32>(1.8f, 0.23f, 0.008f), vec3(smoothstep(0.1f, 0.65f, _e270)));\n            let _e275: vec3<f32> = temperature;\n            let _e282: f32 = heat;\n            temperature = mix(_e275, vec3<f32>(2.7f, 1.45f, 0.23f), vec3(smoothstep(0.6f, 1f, _e282)));\n            let _e286: vec3<f32> = temperature;\n            let _e288: f32 = vEmission_1;\n            let _e296: f32 = grain;\n            color = ((_e286 * (0.55f + (max(_e288, 0f) * 0.45f))) * (0.7f + (_e296 * 0.3f)));\n        }\n    }\n    let _e301: bool = smoke;\n    if _e301 {\n        let _e302: vec3<f32> = color;\n        let _e305: f32 = grain;\n        color = (_e302 * (0.74f + (0.4f * _e305)));\n    }\n    let _e309: bool = spark;\n    if _e309 {\n        let _e321: vec3<f32> = vLocal_1;\n        let _e327: f32 = vEmission_1;\n        color = (mix(vec3<f32>(1.3f, 0.1f, 0.005f), vec3<f32>(2.6f, 1.7f, 0.52f), vec3(smoothstep(-0.25f, 0.42f, _e321.y))) * (0.5f + (_e327 * 0.45f)));\n    }\n    let _e333: f32 = distanceToEye;\n    let _e339: vec4<f32> = ferroUniforms.data[12];\n    let _e342: f32 = vOutdoor_1;\n    fog = (1f - exp((-(_e333) * mix(0.018f, _e339.y, clamp(_e342, 0f, 1f)))));\n    let _e351: vec3<f32> = color;\n    let _e355: vec4<f32> = ferroUniforms.data[11];\n    let _e358: f32 = fog;\n    color = mix(_e351, _e355.xyz, vec3(min(0.86f, _e358)));\n    let _e362: vec3<f32> = color;\n    let _e363: vec3<f32> = color;\n    color = pow(max((_e362 / (_e363 + vec3(0.76f))), vec3(0f)), vec3(0.4545f));\n    let _e374: vec3<f32> = color;\n    let _e375: f32 = alpha;\n    fragColor = vec4<f32>(_e374.x, _e374.y, _e374.z, _e375);\n    return;\n}\n\n@fragment \nfn main(@location(0) vWorld: vec3<f32>, @location(1) vNormal: vec3<f32>, @location(2) vSurface: vec3<f32>, @location(3) vLocal: vec3<f32>, @location(4) vFaceNormal: vec3<f32>, @location(5) @interpolate(flat) vDimensions: vec3<f32>, @location(8) @interpolate(flat) vMaterial: f32, @location(9) @interpolate(flat) vEmission: f32, @location(11) @interpolate(flat) vOutdoor: f32, @location(13) @interpolate(flat) vColor: vec4<f32>) -> FragmentOutput {\n    vWorld_1 = vWorld;\n    vNormal_1 = vNormal;\n    vSurface_1 = vSurface;\n    vLocal_1 = vLocal;\n    vFaceNormal_1 = vFaceNormal;\n    vDimensions_1 = vDimensions;\n    vMaterial_1 = vMaterial;\n    vEmission_1 = vEmission;\n    vOutdoor_1 = vOutdoor;\n    vColor_1 = vColor;\n    main_1();\n    let _e46: vec4<f32> = fragColor;\n    return FragmentOutput(_e46);\n}\n"},"post":{"uniforms":{"byteLength":64,"fields":[{"name":"uReflections","type":"int","offset":0,"count":1,"arrayStride":16,"matrixStride":0},{"name":"uTexel","type":"vec2","offset":16,"count":1,"arrayStride":16,"matrixStride":0},{"name":"uPass","type":"int","offset":32,"count":1,"arrayStride":16,"matrixStride":0},{"name":"uBloomThreshold","type":"vec2","offset":48,"count":1,"arrayStride":16,"matrixStride":0}]},"textures":[{"name":"uScene","binding":1,"samplerBinding":2,"dimension":"2d","depth":false,"sampleType":"float","samplerType":"filtering","sourceType":"sampler2D","renderTarget":true},{"name":"uBloom","binding":3,"samplerBinding":4,"dimension":"2d","depth":false,"sampleType":"float","samplerType":"filtering","sourceType":"sampler2D","renderTarget":true},{"name":"uReflection","binding":5,"samplerBinding":6,"dimension":"2d","depth":false,"sampleType":"float","samplerType":"filtering","sourceType":"sampler2D","renderTarget":true}],"entryPoint":"main","sourceSha256":"2c0e89a92146e55f9d52fe6de26a8da20228467f2b4815391a2e9b91836597b2","vertex":"diagnostic(off, derivative_uniformity);\nstruct FerroUniforms {\n    data: array<vec4<f32>, 4>,\n}\n\nstruct VertexOutput {\n    @location(0) vUV: vec2<f32>,\n    @builtin(position) gl_Position: vec4<f32>,\n}\n\n@group(0) @binding(0) \nvar<uniform> ferroUniforms: FerroUniforms;\n@group(0) @binding(1) \nvar uScene_texture: texture_2d<f32>;\n@group(0) @binding(2) \nvar uScene_sampler: sampler;\n@group(0) @binding(3) \nvar uBloom_texture: texture_2d<f32>;\n@group(0) @binding(4) \nvar uBloom_sampler: sampler;\n@group(0) @binding(5) \nvar uReflection_texture: texture_2d<f32>;\n@group(0) @binding(6) \nvar uReflection_sampler: sampler;\nvar<private> vUV: vec2<f32>;\nvar<private> gl_VertexIndex_1: u32;\nvar<private> gl_Position: vec4<f32>;\n\nfn ferro_main() {\n    var p: vec2<f32>;\n\n    let _e11: u32 = gl_VertexIndex_1;\n    let _e19: u32 = gl_VertexIndex_1;\n    p = vec2<f32>(f32(((_e11 << 1u) & 2u)), f32((_e19 & 2u)));\n    let _e26: vec2<f32> = p;\n    vUV = _e26;\n    let _e28: vec2<f32> = p;\n    let _e33: vec2<f32> = ((_e28 * 2f) - vec2(1f));\n    gl_Position = vec4<f32>(_e33.x, _e33.y, 0f, 1f);\n    return;\n}\n\nfn main_1() {\n    ferro_main();\n    let _e13: vec4<f32> = gl_Position;\n    let _e15: vec4<f32> = gl_Position;\n    gl_Position.z = ((_e13.z + _e15.w) * 0.5f);\n    return;\n}\n\n@vertex \nfn main(@builtin(vertex_index) gl_VertexIndex: u32) -> VertexOutput {\n    gl_VertexIndex_1 = gl_VertexIndex;\n    main_1();\n    let _e20: vec2<f32> = vUV;\n    let _e22: vec4<f32> = gl_Position;\n    return VertexOutput(_e20, _e22);\n}\n","fragment":"diagnostic(off, derivative_uniformity);\nstruct FerroUniforms {\n    data: array<vec4<f32>, 4>,\n}\n\nstruct FragmentOutput {\n    @location(0) fragColor: vec4<f32>,\n}\n\n@group(0) @binding(0) \nvar<uniform> ferroUniforms: FerroUniforms;\n@group(0) @binding(1) \nvar uScene_texture: texture_2d<f32>;\n@group(0) @binding(2) \nvar uScene_sampler: sampler;\n@group(0) @binding(3) \nvar uBloom_texture: texture_2d<f32>;\n@group(0) @binding(4) \nvar uBloom_sampler: sampler;\n@group(0) @binding(5) \nvar uReflection_texture: texture_2d<f32>;\n@group(0) @binding(6) \nvar uReflection_sampler: sampler;\nvar<private> vUV_1: vec2<f32>;\nvar<private> fragColor: vec4<f32>;\n\nfn bright(uv: vec2<f32>) -> vec3<f32> {\n    var uv_1: vec2<f32>;\n    var c: vec3<f32>;\n\n    uv_1 = uv;\n    let _e13: vec2<f32> = uv_1;\n    let _e16: vec2<f32> = uv_1;\n    let _e20: vec4<f32> = textureSample(uScene_texture, uScene_sampler, vec2<f32>(_e13.x, (1f - _e16.y)));\n    c = _e20.xyz;\n    let _e23: vec3<f32> = c;\n    let _e27: vec4<f32> = ferroUniforms.data[3];\n    let _e33: vec4<f32> = ferroUniforms.data[3];\n    let _e36: vec3<f32> = c;\n    let _e38: vec3<f32> = c;\n    let _e41: vec3<f32> = c;\n    return (_e23 * smoothstep(_e27.x, _e33.y, max(max(_e36.x, _e38.y), _e41.z)));\n}\n\nfn main_1() {\n    var c_1: vec3<f32>;\n    var local: vec2<f32>;\n    var axis: vec2<f32>;\n    var c_2: vec3<f32>;\n    var scene: vec4<f32>;\n    var reflection: vec4<f32>;\n\n    let _e14: vec4<f32> = ferroUniforms.data[2];\n    if (bitcast<i32>(_e14.x) == 0i) {\n        {\n            let _e19: vec2<f32> = vUV_1;\n            let _e23: vec4<f32> = ferroUniforms.data[1];\n            let _e34: vec3<f32> = bright((_e19 + (_e23.xy * vec2<f32>(-1f, -1f))));\n            let _e35: vec2<f32> = vUV_1;\n            let _e39: vec4<f32> = ferroUniforms.data[1];\n            let _e49: vec3<f32> = bright((_e35 + (_e39.xy * vec2<f32>(1f, -1f))));\n            c_1 = (_e34 + _e49);\n            let _e52: vec3<f32> = c_1;\n            let _e53: vec2<f32> = vUV_1;\n            let _e57: vec4<f32> = ferroUniforms.data[1];\n            let _e67: vec3<f32> = bright((_e53 + (_e57.xy * vec2<f32>(-1f, 1f))));\n            let _e68: vec2<f32> = vUV_1;\n            let _e72: vec4<f32> = ferroUniforms.data[1];\n            let _e81: vec3<f32> = bright((_e68 + (_e72.xy * vec2<f32>(1f, 1f))));\n            c_1 = (_e52 + (_e67 + _e81));\n            let _e84: vec3<f32> = c_1;\n            let _e86: vec3<f32> = (_e84 * 0.25f);\n            fragColor = vec4<f32>(_e86.x, _e86.y, _e86.z, 1f);\n            return;\n        }\n    }\n    let _e95: vec4<f32> = ferroUniforms.data[2];\n    if (bitcast<i32>(_e95.x) == 1i) {\n        let _e103: vec4<f32> = ferroUniforms.data[1];\n        local = vec2<f32>(_e103.x, 0f);\n    } else {\n        let _e112: vec4<f32> = ferroUniforms.data[1];\n        local = vec2<f32>(0f, _e112.y);\n    }\n    let _e117: vec2<f32> = local;\n    axis = _e117;\n    let _e119: vec2<f32> = vUV_1;\n    let _e122: vec2<f32> = vUV_1;\n    let _e126: vec4<f32> = textureSample(uBloom_texture, uBloom_sampler, vec2<f32>(_e119.x, (1f - _e122.y)));\n    c_2 = (_e126.xyz * 0.227027f);\n    let _e131: vec3<f32> = c_2;\n    let _e132: vec2<f32> = vUV_1;\n    let _e133: vec2<f32> = axis;\n    let _e139: vec2<f32> = vUV_1;\n    let _e140: vec2<f32> = axis;\n    let _e147: vec4<f32> = textureSample(uBloom_texture, uBloom_sampler, vec2<f32>((_e132 + (_e133 * 1.384615f)).x, (1f - (_e139 + (_e140 * 1.384615f)).y)));\n    c_2 = (_e131 + (_e147.xyz * 0.316216f));\n    let _e152: vec3<f32> = c_2;\n    let _e153: vec2<f32> = vUV_1;\n    let _e154: vec2<f32> = axis;\n    let _e160: vec2<f32> = vUV_1;\n    let _e161: vec2<f32> = axis;\n    let _e168: vec4<f32> = textureSample(uBloom_texture, uBloom_sampler, vec2<f32>((_e153 - (_e154 * 1.384615f)).x, (1f - (_e160 - (_e161 * 1.384615f)).y)));\n    c_2 = (_e152 + (_e168.xyz * 0.316216f));\n    let _e173: vec3<f32> = c_2;\n    let _e174: vec2<f32> = vUV_1;\n    let _e175: vec2<f32> = axis;\n    let _e181: vec2<f32> = vUV_1;\n    let _e182: vec2<f32> = axis;\n    let _e189: vec4<f32> = textureSample(uBloom_texture, uBloom_sampler, vec2<f32>((_e174 + (_e175 * 3.230769f)).x, (1f - (_e181 + (_e182 * 3.230769f)).y)));\n    c_2 = (_e173 + (_e189.xyz * 0.07027f));\n    let _e194: vec3<f32> = c_2;\n    let _e195: vec2<f32> = vUV_1;\n    let _e196: vec2<f32> = axis;\n    let _e202: vec2<f32> = vUV_1;\n    let _e203: vec2<f32> = axis;\n    let _e210: vec4<f32> = textureSample(uBloom_texture, uBloom_sampler, vec2<f32>((_e195 - (_e196 * 3.230769f)).x, (1f - (_e202 - (_e203 * 3.230769f)).y)));\n    c_2 = (_e194 + (_e210.xyz * 0.07027f));\n    let _e218: vec4<f32> = ferroUniforms.data[2];\n    if (bitcast<i32>(_e218.x) == 2i) {\n        {\n            let _e223: vec2<f32> = vUV_1;\n            let _e226: vec2<f32> = vUV_1;\n            let _e230: vec4<f32> = textureSample(uScene_texture, uScene_sampler, vec2<f32>(_e223.x, (1f - _e226.y)));\n            scene = _e230;\n            let _e232: vec2<f32> = vUV_1;\n            let _e235: vec2<f32> = vUV_1;\n            let _e239: vec4<f32> = textureSample(uReflection_texture, uReflection_sampler, vec2<f32>(_e232.x, (1f - _e235.y)));\n            reflection = _e239;\n            let _e241: vec4<f32> = scene;\n            let _e243: vec3<f32> = c_2;\n            c_2 = (_e241.xyz + (_e243 * 0.28f));\n            let _e250: vec4<f32> = ferroUniforms.data[0];\n            if (bitcast<i32>(_e250.x) == 1i) {\n                let _e255: vec3<f32> = c_2;\n                let _e256: vec4<f32> = reflection;\n                let _e259: vec4<f32> = reflection;\n                let _e263: vec4<f32> = scene;\n                c_2 = mix(_e255, _e256.xyz, vec3((min(0.7f, _e259.w) * step(0.025f, _e263.w))));\n            }\n        }\n    }\n    let _e269: vec3<f32> = c_2;\n    fragColor = vec4<f32>(_e269.x, _e269.y, _e269.z, 1f);\n    return;\n}\n\n@fragment \nfn main(@location(0) vUV: vec2<f32>) -> FragmentOutput {\n    vUV_1 = vUV;\n    main_1();\n    let _e22: vec4<f32> = fragColor;\n    return FragmentOutput(_e22);\n}\n"},"ssr":{"uniforms":{"byteLength":32,"fields":[{"name":"uProjection","type":"vec4","offset":0,"count":1,"arrayStride":16,"matrixStride":0},{"name":"uPixel","type":"vec2","offset":16,"count":1,"arrayStride":16,"matrixStride":0}]},"textures":[{"name":"uColor","binding":1,"samplerBinding":2,"dimension":"2d","depth":false,"sampleType":"float","samplerType":"filtering","sourceType":"sampler2D","renderTarget":true},{"name":"uDepth","binding":3,"samplerBinding":4,"dimension":"2d","depth":true,"sampleType":"depth","samplerType":"non-filtering","sourceType":"sampler2D","renderTarget":true}],"entryPoint":"main","sourceSha256":"27e51e71795d033c7b7e0c9d8406afa2101aa8132cd220ea3420b6bb4d2e4e89","vertex":"diagnostic(off, derivative_uniformity);\nstruct FerroUniforms {\n    data: array<vec4<f32>, 2>,\n}\n\nstruct VertexOutput {\n    @location(0) vUV: vec2<f32>,\n    @builtin(position) gl_Position: vec4<f32>,\n}\n\n@group(0) @binding(0) \nvar<uniform> ferroUniforms: FerroUniforms;\n@group(0) @binding(1) \nvar uColor_texture: texture_2d<f32>;\n@group(0) @binding(2) \nvar uColor_sampler: sampler;\n@group(0) @binding(3) \nvar uDepth_texture: texture_depth_2d;\n@group(0) @binding(4) \nvar uDepth_sampler: sampler;\nvar<private> vUV: vec2<f32>;\nvar<private> gl_VertexIndex_1: u32;\nvar<private> gl_Position: vec4<f32>;\n\nfn ferro_main() {\n    var p: vec2<f32>;\n\n    let _e9: u32 = gl_VertexIndex_1;\n    let _e17: u32 = gl_VertexIndex_1;\n    p = vec2<f32>(f32(((_e9 << 1u) & 2u)), f32((_e17 & 2u)));\n    let _e24: vec2<f32> = p;\n    vUV = _e24;\n    let _e26: vec2<f32> = p;\n    let _e31: vec2<f32> = ((_e26 * 2f) - vec2(1f));\n    gl_Position = vec4<f32>(_e31.x, _e31.y, 0f, 1f);\n    return;\n}\n\nfn main_1() {\n    ferro_main();\n    let _e11: vec4<f32> = gl_Position;\n    let _e13: vec4<f32> = gl_Position;\n    gl_Position.z = ((_e11.z + _e13.w) * 0.5f);\n    return;\n}\n\n@vertex \nfn main(@builtin(vertex_index) gl_VertexIndex: u32) -> VertexOutput {\n    gl_VertexIndex_1 = gl_VertexIndex;\n    main_1();\n    let _e16: vec2<f32> = vUV;\n    let _e18: vec4<f32> = gl_Position;\n    return VertexOutput(_e16, _e18);\n}\n","fragment":"diagnostic(off, derivative_uniformity);\nstruct FerroUniforms {\n    data: array<vec4<f32>, 2>,\n}\n\nstruct FragmentOutput {\n    @location(0) fragColor: vec4<f32>,\n}\n\n@group(0) @binding(0) \nvar<uniform> ferroUniforms: FerroUniforms;\n@group(0) @binding(1) \nvar uColor_texture: texture_2d<f32>;\n@group(0) @binding(2) \nvar uColor_sampler: sampler;\n@group(0) @binding(3) \nvar uDepth_texture: texture_depth_2d;\n@group(0) @binding(4) \nvar uDepth_sampler: sampler;\nvar<private> vUV_1: vec2<f32>;\nvar<private> fragColor: vec4<f32>;\n\nfn distanceZ(depth: f32) -> f32 {\n    var depth_1: f32;\n\n    depth_1 = depth;\n    let _e14: vec4<f32> = ferroUniforms.data[0];\n    let _e17: f32 = depth_1;\n    let _e25: vec4<f32> = ferroUniforms.data[0];\n    return (_e14.w / (((_e17 * 2f) - 1f) + _e25.z));\n}\n\nfn position(uv: vec2<f32>) -> vec3<f32> {\n    var uv_1: vec2<f32>;\n    var z: f32;\n\n    uv_1 = uv;\n    let _e11: vec2<f32> = uv_1;\n    let _e14: vec2<f32> = uv_1;\n    let _e19: vec4<f32> = vec4<f32>(textureSampleLevel(uDepth_texture, uDepth_sampler, vec2<f32>(_e11.x, (1f - _e14.y)),0),0.0,0.0,1.0);\n    let _e21: f32 = distanceZ(_e19.x);\n    z = _e21;\n    let _e23: vec2<f32> = uv_1;\n    let _e32: vec4<f32> = ferroUniforms.data[0];\n    let _e36: f32 = z;\n    let _e37: vec2<f32> = ((((_e23 * 2f) - vec2(1f)) * _e32.xy) * _e36);\n    let _e38: f32 = z;\n    return vec3<f32>(_e37.x, _e37.y, -(_e38));\n}\n\nfn project(p: vec3<f32>) -> vec2<f32> {\n    var p_1: vec3<f32>;\n\n    p_1 = p;\n    let _e13: vec3<f32> = p_1;\n    let _e16: vec3<f32> = p_1;\n    let _e22: vec4<f32> = ferroUniforms.data[0];\n    return (vec2(0.5f) + ((0.5f * _e13.xy) / (-(_e16.z) * _e22.xy)));\n}\n\nfn main_1() {\n    var original: vec4<f32>;\n    var depth_2: f32;\n    var p_2: vec3<f32>;\n    var dx: vec3<f32>;\n    var dy: vec3<f32>;\n    var n: vec3<f32>;\n    var eye: vec3<f32>;\n    var r: vec3<f32>;\n    var origin: vec3<f32>;\n    var prev: f32 = 0f;\n    var travel: f32 = 0.16f;\n    var weight: f32 = 0f;\n    var hit: vec2<f32> = vec2(0f);\n    var i: i32 = 0i;\n    var oldTravel: f32;\n    var q: vec3<f32>;\n    var uv_2: vec2<f32>;\n    var sceneZ: f32;\n    var delta: f32;\n    var lo: f32;\n    var hi: f32;\n    var j: i32;\n    var mid: f32;\n    var v: vec3<f32>;\n    var at: vec2<f32>;\n    var d: f32;\n    var edge: f32;\n    var fresnel: f32;\n\n    fragColor = vec4(0f);\n    let _e11: vec2<f32> = vUV_1;\n    let _e14: vec2<f32> = vUV_1;\n    let _e18: vec4<f32> = textureSample(uColor_texture, uColor_sampler, vec2<f32>(_e11.x, (1f - _e14.y)));\n    original = _e18;\n    let _e20: vec2<f32> = vUV_1;\n    let _e23: vec2<f32> = vUV_1;\n    let _e28: vec4<f32> = vec4<f32>(textureSampleLevel(uDepth_texture, uDepth_sampler, vec2<f32>(_e20.x, (1f - _e23.y)),0),0.0,0.0,1.0);\n    depth_2 = _e28.x;\n    let _e31: vec2<f32> = vUV_1;\n    let _e32: vec3<f32> = position(_e31);\n    p_2 = _e32;\n    let _e34: vec3<f32> = p_2;\n    let _e35: vec3<f32> = dpdx(_e34);\n    dx = _e35;\n    let _e37: vec3<f32> = p_2;\n    let _e38: vec3<f32> = dpdy(_e37);\n    dy = -(_e38);\n    let _e41: vec3<f32> = dx;\n    let _e42: vec3<f32> = dy;\n    n = normalize(cross(_e41, _e42));\n    let _e46: vec4<f32> = original;\n    let _e50: f32 = depth_2;\n    let _e54: vec3<f32> = p_2;\n    let _e60: vec3<f32> = p_2;\n    if ((((_e46.w < 0.06f) || (_e50 >= 0.999999f)) || (-(_e54.z) > 200f)) || (-(_e60.z) < 0.12f)) {\n        return;\n    }\n    let _e66: vec3<f32> = p_2;\n    eye = normalize(-(_e66));\n    let _e70: vec3<f32> = n;\n    let _e71: vec3<f32> = eye;\n    if (dot(_e70, _e71) < 0f) {\n        let _e75: vec3<f32> = n;\n        n = -(_e75);\n    }\n    let _e77: vec3<f32> = eye;\n    let _e79: vec3<f32> = n;\n    r = reflect(-(_e77), _e79);\n    let _e82: vec3<f32> = p_2;\n    let _e83: vec3<f32> = n;\n    origin = (_e82 + (_e83 * 0.055f));\n    loop {\n        let _e99: i32 = i;\n        if !((_e99 < 48i)) {\n            break;\n        }\n        {\n            let _e106: f32 = travel;\n            oldTravel = _e106;\n            let _e108: f32 = travel;\n            let _e110: i32 = i;\n            travel = (_e108 + (0.24f + (f32(_e110) * 0.085f)));\n            let _e116: vec3<f32> = origin;\n            let _e117: vec3<f32> = r;\n            let _e118: f32 = travel;\n            q = (_e116 + (_e117 * _e118));\n            let _e122: vec3<f32> = q;\n            if (_e122.z > -0.08f) {\n                break;\n            }\n            let _e127: vec3<f32> = q;\n            let _e128: vec2<f32> = project(_e127);\n            uv_2 = _e128;\n            let _e130: vec2<f32> = uv_2;\n            let _e132: vec2<f32> = uv_2;\n            let _e137: vec2<f32> = uv_2;\n            let _e139: vec2<f32> = uv_2;\n            if ((min(_e130.x, _e132.y) < 0.012f) || (max(_e137.x, _e139.y) > 0.988f)) {\n                break;\n            }\n            let _e145: vec2<f32> = uv_2;\n            let _e148: vec2<f32> = uv_2;\n            let _e153: vec4<f32> = vec4<f32>(textureSampleLevel(uDepth_texture, uDepth_sampler, vec2<f32>(_e145.x, (1f - _e148.y)),0),0.0,0.0,1.0);\n            let _e155: f32 = distanceZ(_e153.x);\n            sceneZ = _e155;\n            let _e157: vec3<f32> = q;\n            let _e160: f32 = sceneZ;\n            delta = (-(_e157.z) - _e160);\n            let _e163: f32 = delta;\n            let _e166: f32 = prev;\n            let _e170: f32 = delta;\n            let _e172: f32 = travel;\n            if (((_e163 > 0f) && (_e166 <= 0f)) && (_e170 < (1.2f + (_e172 * 0.025f)))) {\n                {\n                    let _e178: f32 = oldTravel;\n                    lo = _e178;\n                    let _e180: f32 = travel;\n                    hi = _e180;\n                    j = 0i;\n                    loop {\n                        let _e184: i32 = j;\n                        if !((_e184 < 5i)) {\n                            break;\n                        }\n                        {\n                            let _e191: f32 = lo;\n                            let _e192: f32 = hi;\n                            mid = ((_e191 + _e192) * 0.5f);\n                            let _e197: vec3<f32> = origin;\n                            let _e198: vec3<f32> = r;\n                            let _e199: f32 = mid;\n                            v = (_e197 + (_e198 * _e199));\n                            let _e203: vec3<f32> = v;\n                            let _e204: vec2<f32> = project(_e203);\n                            at = _e204;\n                            let _e206: vec3<f32> = v;\n                            let _e209: vec2<f32> = at;\n                            let _e212: vec2<f32> = at;\n                            let _e217: vec4<f32> = vec4<f32>(textureSampleLevel(uDepth_texture, uDepth_sampler, vec2<f32>(_e209.x, (1f - _e212.y)),0),0.0,0.0,1.0);\n                            let _e219: f32 = distanceZ(_e217.x);\n                            d = (-(_e206.z) - _e219);\n                            let _e222: f32 = d;\n                            if (_e222 > 0f) {\n                                let _e225: f32 = mid;\n                                hi = _e225;\n                            } else {\n                                let _e226: f32 = mid;\n                                lo = _e226;\n                            }\n                        }\n                        continuing {\n                            let _e188: i32 = j;\n                            j = (_e188 + 1i);\n                        }\n                    }\n                    let _e227: vec3<f32> = origin;\n                    let _e228: vec3<f32> = r;\n                    let _e229: f32 = lo;\n                    let _e230: f32 = hi;\n                    let _e236: vec2<f32> = project((_e227 + ((_e228 * (_e229 + _e230)) * 0.5f)));\n                    hit = _e236;\n                    let _e237: vec2<f32> = hit;\n                    let _e239: vec2<f32> = hit;\n                    let _e243: vec2<f32> = hit;\n                    let _e247: vec2<f32> = hit;\n                    edge = min(min(_e237.x, _e239.y), min((1f - _e243.x), (1f - _e247.y)));\n                    let _e255: f32 = edge;\n                    let _e260: f32 = travel;\n                    weight = (smoothstep(0.01f, 0.12f, _e255) * (1f - smoothstep(70f, 115f, _e260)));\n                    break;\n                }\n            }\n            let _e264: f32 = delta;\n            prev = _e264;\n        }\n        continuing {\n            let _e103: i32 = i;\n            i = (_e103 + 1i);\n        }\n    }\n    let _e265: f32 = weight;\n    if (_e265 > 0f) {\n        {\n            let _e271: vec3<f32> = n;\n            let _e272: vec3<f32> = eye;\n            fresnel = (0.35f + (0.65f * pow((1f - max(dot(_e271, _e272), 0f)), 3f)));\n            let _e282: vec2<f32> = hit;\n            let _e285: vec2<f32> = hit;\n            let _e289: vec4<f32> = textureSample(uColor_texture, uColor_sampler, vec2<f32>(_e282.x, (1f - _e285.y)));\n            let _e290: vec3<f32> = _e289.xyz;\n            let _e291: f32 = weight;\n            let _e292: vec4<f32> = original;\n            let _e295: f32 = fresnel;\n            fragColor = vec4<f32>(_e290.x, _e290.y, _e290.z, ((_e291 * _e292.w) * _e295));\n            return;\n        }\n    } else {\n        return;\n    }\n}\n\n@fragment \nfn main(@location(0) vUV: vec2<f32>) -> FragmentOutput {\n    vUV_1 = vUV;\n    main_1();\n    let _e18: vec4<f32> = fragColor;\n    return FragmentOutput(_e18);\n}\n"},"crowd":{"uniforms":{"byteLength":1408,"fields":[{"name":"uVP","type":"mat4","offset":0,"count":1,"arrayStride":64,"matrixStride":16},{"name":"uDistanceGait","type":"float","offset":64,"count":1,"arrayStride":16,"matrixStride":0},{"name":"uVoileZoneF","type":"vec4","offset":80,"count":1,"arrayStride":16,"matrixStride":0},{"name":"uSolZone","type":"vec4","offset":96,"count":1,"arrayStride":16,"matrixStride":0},{"name":"uReglages","type":"vec4","offset":112,"count":1,"arrayStride":16,"matrixStride":0},{"name":"uCamps","type":"ivec4","offset":128,"count":1,"arrayStride":16,"matrixStride":0},{"name":"uFactions","type":"vec3","offset":144,"count":3,"arrayStride":16,"matrixStride":0},{"name":"uPdrMatriceOmbre","type":"mat4","offset":192,"count":1,"arrayStride":64,"matrixStride":16},{"name":"uPdrOmbreReglages","type":"vec4","offset":256,"count":1,"arrayStride":16,"matrixStride":0},{"name":"uPdrOeil","type":"vec3","offset":272,"count":1,"arrayStride":16,"matrixStride":0},{"name":"uPdrSoleil","type":"vec3","offset":288,"count":1,"arrayStride":16,"matrixStride":0},{"name":"uPdrCouleurSoleil","type":"vec3","offset":304,"count":1,"arrayStride":16,"matrixStride":0},{"name":"uPdrAmbiance","type":"vec3","offset":320,"count":1,"arrayStride":16,"matrixStride":0},{"name":"uPdrBrouillard","type":"vec3","offset":336,"count":1,"arrayStride":16,"matrixStride":0},{"name":"uPdrCielHaut","type":"vec3","offset":352,"count":1,"arrayStride":16,"matrixStride":0},{"name":"uPdrCielBas","type":"vec3","offset":368,"count":1,"arrayStride":16,"matrixStride":0},{"name":"uPdrEnvironnement","type":"vec4","offset":384,"count":1,"arrayStride":16,"matrixStride":0},{"name":"uPdrResolution","type":"vec2","offset":400,"count":1,"arrayStride":16,"matrixStride":0},{"name":"uPdrLumierePosition","type":"vec3","offset":416,"count":12,"arrayStride":16,"matrixStride":0},{"name":"uPdrLumiereCouleur","type":"vec3","offset":608,"count":12,"arrayStride":16,"matrixStride":0},{"name":"uPdrLumierePortee","type":"float","offset":800,"count":12,"arrayStride":16,"matrixStride":0},{"name":"uPdrLumiereDirection","type":"vec3","offset":992,"count":12,"arrayStride":16,"matrixStride":0},{"name":"uPdrLumiereCone","type":"vec2","offset":1184,"count":12,"arrayStride":16,"matrixStride":0},{"name":"uPdrLumieres","type":"int","offset":1376,"count":1,"arrayStride":16,"matrixStride":0},{"name":"uVignette","type":"float","offset":1392,"count":1,"arrayStride":16,"matrixStride":0}]},"textures":[{"name":"uCour","binding":1,"samplerBinding":2,"dimension":"2d","depth":false,"sampleType":"unfilterable-float","samplerType":"non-filtering","sourceType":"sampler2D","renderTarget":false},{"name":"uPrec","binding":3,"samplerBinding":4,"dimension":"2d","depth":false,"sampleType":"unfilterable-float","samplerType":"non-filtering","sourceType":"sampler2D","renderTarget":false},{"name":"uLocomotion","binding":5,"samplerBinding":6,"dimension":"2d","depth":false,"sampleType":"unfilterable-float","samplerType":"non-filtering","sourceType":"sampler2D","renderTarget":false},{"name":"uMarques","binding":7,"samplerBinding":8,"dimension":"2d","depth":false,"sampleType":"uint","samplerType":"non-filtering","sourceType":"usampler2D","renderTarget":false},{"name":"uVoileF","binding":9,"samplerBinding":10,"dimension":"2d","depth":false,"sampleType":"float","samplerType":"filtering","sourceType":"sampler2D","renderTarget":false},{"name":"uSol","binding":11,"samplerBinding":12,"dimension":"2d","depth":false,"sampleType":"float","samplerType":"filtering","sourceType":"sampler2D","renderTarget":false},{"name":"uPdrOmbre","binding":13,"samplerBinding":14,"dimension":"2d","depth":true,"sampleType":"depth","samplerType":"non-filtering","sourceType":"sampler2D","renderTarget":true}],"entryPoint":"main","sourceSha256":"5291b9cb1e6fb9168f348c87577ad8fd42b698a4d2146668670134b999823311","vertex":"diagnostic(off, derivative_uniformity);\nstruct FerroUniforms {\n    data: array<vec4<f32>, 88>,\n}\n\nstruct Unite {\n    xz: vec2<f32>,\n    cap: f32,\n    faction: u32,\n    type_: u32,\n    etat: u32,\n    niveau: u32,\n    drapeaux: u32,\n    marques: u32,\n    vitesse: f32,\n    gait: vec2<f32>,\n    cachee: bool,\n    h: u32,\n}\n\nstruct Pose {\n    jg: f32,\n    jd: f32,\n    bg: f32,\n    bd: f32,\n    torse: f32,\n    tete: f32,\n    haut: f32,\n    roulis: f32,\n    tourelle: f32,\n    bouclier: f32,\n    banderole: f32,\n    poutre: f32,\n    kg: f32,\n    kd: f32,\n    fg: f32,\n    fd: f32,\n}\n\nstruct VertexOutput {\n    @location(0) vMonde: vec3<f32>,\n    @location(1) vNormale: vec3<f32>,\n    @location(2) vUV: vec2<f32>,\n    @location(3) @interpolate(flat) vBase: vec3<f32>,\n    @location(4) @interpolate(flat) vMatiere: vec4<f32>,\n    @location(5) @interpolate(flat) vMotif: vec3<f32>,\n    @location(6) @interpolate(flat) vFaction: u32,\n    @builtin(position) gl_Position: vec4<f32>,\n}\n\nconst HAUTS: array<vec3<f32>, 16> = array<vec3<f32>, 16>(vec3<f32>(0.84f, 0.22f, 0.16f), vec3<f32>(0.2f, 0.2f, 0.22f), vec3<f32>(0.66f, 0.17f, 0.13f), vec3<f32>(0.34f, 0.31f, 0.33f), vec3<f32>(0.9f, 0.58f, 0.12f), vec3<f32>(0.3f, 0.29f, 0.27f), vec3<f32>(0.8f, 0.5f, 0.1f), vec3<f32>(0.42f, 0.4f, 0.36f), vec3<f32>(0.1f, 0.15f, 0.3f), vec3<f32>(0.12f, 0.17f, 0.33f), vec3<f32>(0.16f, 0.2f, 0.36f), vec3<f32>(0.09f, 0.12f, 0.24f), vec3<f32>(0.12f, 0.12f, 0.13f), vec3<f32>(0.18f, 0.17f, 0.18f), vec3<f32>(0.25f, 0.1f, 0.09f), vec3<f32>(0.14f, 0.14f, 0.16f));\nconst PIV_HANCHES: vec3<f32> = vec3<f32>(0f, 0.95f, 0f);\nconst PIV_COU: vec3<f32> = vec3<f32>(0f, 1.52f, 0f);\nconst PIV_JAMBE_G: vec3<f32> = vec3<f32>(-0.105f, 0.97f, 0f);\nconst PIV_JAMBE_D: vec3<f32> = vec3<f32>(0.105f, 0.97f, 0f);\nconst PIV_BRAS_G: vec3<f32> = vec3<f32>(-0.235f, 1.43f, 0f);\nconst PIV_BRAS_D: vec3<f32> = vec3<f32>(0.235f, 1.43f, 0f);\nconst PIV_BANDEROLE: vec3<f32> = vec3<f32>(0.27f, 1.85f, 0.05f);\nconst PIV_TOURELLE: vec3<f32> = vec3<f32>(0f, 3.12f, 0.6f);\n\n@group(0) @binding(0) \nvar<uniform> ferroUniforms: FerroUniforms;\n@group(0) @binding(1) \nvar uCour_texture: texture_2d<f32>;\n@group(0) @binding(2) \nvar uCour_sampler: sampler;\n@group(0) @binding(3) \nvar uPrec_texture: texture_2d<f32>;\n@group(0) @binding(4) \nvar uPrec_sampler: sampler;\n@group(0) @binding(5) \nvar uLocomotion_texture: texture_2d<f32>;\n@group(0) @binding(6) \nvar uLocomotion_sampler: sampler;\n@group(0) @binding(7) \nvar uMarques_texture: texture_2d<u32>;\n@group(0) @binding(8) \nvar uMarques_sampler: sampler;\n@group(0) @binding(9) \nvar uVoileF_texture: texture_2d<f32>;\n@group(0) @binding(10) \nvar uVoileF_sampler: sampler;\n@group(0) @binding(11) \nvar uSol_texture: texture_2d<f32>;\n@group(0) @binding(12) \nvar uSol_sampler: sampler;\n@group(0) @binding(13) \nvar uPdrOmbre_texture: texture_depth_2d;\n@group(0) @binding(14) \nvar uPdrOmbre_sampler: sampler;\nvar<private> aPosition_1: vec3<f32>;\nvar<private> aNormale_1: vec3<f32>;\nvar<private> aUV_1: vec2<f32>;\nvar<private> aInfo_1: vec4<u32>;\nvar<private> aUnite_1: u32;\nvar<private> vMonde: vec3<f32>;\nvar<private> vNormale: vec3<f32>;\nvar<private> vUV: vec2<f32>;\nvar<private> vBase: vec3<f32>;\nvar<private> vMatiere: vec4<f32>;\nvar<private> vMotif: vec3<f32>;\nvar<private> vFaction: u32;\nvar<private> gl_Position: vec4<f32>;\n\nfn ferro_uFactions(index: i32) -> vec3<f32> {\n    var index_1: i32;\n\n    index_1 = index;\n    let _e6: i32 = index_1;\n    let _e12: vec4<f32> = ferroUniforms.data[(9i + (_e6 * 1i))];\n    return _e12.xyz;\n}\n\nfn ferro_uPdrLumierePosition(index_2: i32) -> vec3<f32> {\n    var index_3: i32;\n\n    index_3 = index_2;\n    let _e6: i32 = index_3;\n    let _e12: vec4<f32> = ferroUniforms.data[(26i + (_e6 * 1i))];\n    return _e12.xyz;\n}\n\nfn ferro_uPdrLumiereCouleur(index_4: i32) -> vec3<f32> {\n    var index_5: i32;\n\n    index_5 = index_4;\n    let _e6: i32 = index_5;\n    let _e12: vec4<f32> = ferroUniforms.data[(38i + (_e6 * 1i))];\n    return _e12.xyz;\n}\n\nfn ferro_uPdrLumierePortee(index_6: i32) -> f32 {\n    var index_7: i32;\n\n    index_7 = index_6;\n    let _e6: i32 = index_7;\n    let _e12: vec4<f32> = ferroUniforms.data[(50i + (_e6 * 1i))];\n    return _e12.x;\n}\n\nfn ferro_uPdrLumiereDirection(index_8: i32) -> vec3<f32> {\n    var index_9: i32;\n\n    index_9 = index_8;\n    let _e6: i32 = index_9;\n    let _e12: vec4<f32> = ferroUniforms.data[(62i + (_e6 * 1i))];\n    return _e12.xyz;\n}\n\nfn ferro_uPdrLumiereCone(index_10: i32) -> vec2<f32> {\n    var index_11: i32;\n\n    index_11 = index_10;\n    let _e6: i32 = index_11;\n    let _e12: vec4<f32> = ferroUniforms.data[(74i + (_e6 * 1i))];\n    return _e12.xy;\n}\n\nfn hache(x: u32) -> u32 {\n    var x_1: u32;\n\n    x_1 = x;\n    let _e24: u32 = x_1;\n    let _e25: u32 = x_1;\n    x_1 = (_e24 ^ (_e25 >> 16u));\n    let _e30: u32 = x_1;\n    x_1 = (_e30 * 2146121005u);\n    let _e33: u32 = x_1;\n    let _e34: u32 = x_1;\n    x_1 = (_e33 ^ (_e34 >> 15u));\n    let _e39: u32 = x_1;\n    x_1 = (_e39 * 2221713035u);\n    let _e42: u32 = x_1;\n    let _e43: u32 = x_1;\n    x_1 = (_e42 ^ (_e43 >> 16u));\n    let _e48: u32 = x_1;\n    return _e48;\n}\n\nfn lireUnite(id: i32) -> Unite {\n    var id_1: i32;\n    var u: Unite;\n    var t: vec2<i32>;\n    var c: vec4<f32>;\n    var code: u32;\n    var g: vec4<f32>;\n    var p: vec4<f32>;\n    var pc: u32;\n    var d: vec2<f32>;\n    var a: f32;\n\n    id_1 = id;\n    let _e25: i32 = id_1;\n    let _e28: i32 = id_1;\n    t = vec2<i32>((_e25 & 1023i), (_e28 >> 10u));\n    let _e34: vec2<i32> = t;\n    let _e36: vec4<f32> = textureLoad(uCour_texture, _e34, 0i);\n    c = _e36;\n    let _e38: vec4<f32> = c;\n    code = u32((_e38.w + 0.5f));\n    let _e45: u32 = code;\n    u.faction = (_e45 & 3u);\n    let _e49: u32 = code;\n    u.type_ = ((_e49 >> 2u) & 15u);\n    let _e56: u32 = code;\n    u.etat = ((_e56 >> 6u) & 15u);\n    let _e63: u32 = code;\n    u.niveau = ((_e63 >> 10u) & 63u);\n    let _e70: u32 = code;\n    u.drapeaux = ((_e70 >> 16u) & 255u);\n    u.gait = vec2<f32>(-1f, 0f);\n    let _e84: vec4<f32> = ferroUniforms.data[4];\n    if (_e84.x > 0.5f) {\n        {\n            let _e88: vec2<i32> = t;\n            let _e90: vec4<f32> = textureLoad(uLocomotion_texture, _e88, 0i);\n            g = _e90;\n            let _e93: vec4<f32> = g;\n            let _e95: vec4<f32> = g;\n            let _e100: vec4<f32> = ferroUniforms.data[7];\n            let _e104: vec4<f32> = g;\n            let _e106: vec4<f32> = g;\n            let _e111: vec4<f32> = ferroUniforms.data[7];\n            u.gait = vec2<f32>(mix(_e93.x, _e95.y, _e100.x), mix(_e104.z, _e106.w, _e111.x));\n        }\n    }\n    let _e117: vec2<i32> = t;\n    let _e119: vec4<u32> = textureLoad(uMarques_texture, _e117, 0i);\n    u.marques = _e119.x;\n    let _e122: vec4<f32> = c;\n    u.xz = _e122.xy;\n    let _e125: vec4<f32> = c;\n    u.cap = _e125.z;\n    u.vitesse = 0f;\n    let _e130: Unite = u;\n    u.cachee = (_e130.faction == 3u);\n    let _e135: i32 = id_1;\n    let _e137: u32 = hache(u32(_e135));\n    u.h = _e137;\n    let _e138: i32 = id_1;\n    let _e142: vec4<f32> = ferroUniforms.data[8];\n    if (_e138 < bitcast<vec4<i32>>(_e142.xyzw).z) {\n        {\n            let _e147: vec2<i32> = t;\n            let _e149: vec4<f32> = textureLoad(uPrec_texture, _e147, 0i);\n            p = _e149;\n            let _e151: vec4<f32> = p;\n            pc = u32((_e151.w + 0.5f));\n            let _e157: vec4<f32> = c;\n            let _e159: vec4<f32> = p;\n            d = (_e157.xy - _e159.xy);\n            let _e163: u32 = pc;\n            let _e166: u32 = code;\n            let _e170: vec2<f32> = d;\n            let _e171: vec2<f32> = d;\n            if (((_e163 & 63u) == (_e166 & 63u)) && (dot(_e170, _e171) < 64f)) {\n                {\n                    let _e177: vec4<f32> = p;\n                    let _e179: vec2<f32> = d;\n                    let _e183: vec4<f32> = ferroUniforms.data[7];\n                    u.xz = (_e177.xy + (_e179 * _e183.x));\n                    let _e188: vec4<f32> = c;\n                    let _e190: vec4<f32> = p;\n                    a = (_e188.z - _e190.z);\n                    let _e194: f32 = a;\n                    let _e196: f32 = a;\n                    a = (_e194 - (6.2831855f * floor(((_e196 + 3.1415927f) / 6.2831855f))));\n                    let _e205: vec4<f32> = p;\n                    let _e207: f32 = a;\n                    let _e211: vec4<f32> = ferroUniforms.data[7];\n                    u.cap = (_e205.z + (_e207 * _e211.x));\n                    let _e217: vec2<f32> = d;\n                    let _e222: vec4<f32> = ferroUniforms.data[7];\n                    u.vitesse = (length(_e217) * _e222.w);\n                }\n            }\n        }\n    }\n    let _e226: Unite = u;\n    let _e232: vec4<f32> = ferroUniforms.data[7];\n    let _e238: Unite = u;\n    let _e244: vec4<f32> = ferroUniforms.data[8];\n    let _e250: Unite = u;\n    let _e256: vec4<f32> = ferroUniforms.data[8];\n    if (((!(_e226.cachee) && (_e232.z > 0.5f)) && (i32(_e238.faction) != bitcast<vec4<i32>>(_e244.xyzw).x)) && (i32(_e250.faction) != bitcast<vec4<i32>>(_e256.xyzw).y)) {\n        let _e263: Unite = u;\n        let _e268: vec4<f32> = ferroUniforms.data[5];\n        let _e275: vec4<f32> = ferroUniforms.data[5];\n        let _e280: vec4<f32> = textureSampleLevel(uVoileF_texture, uVoileF_sampler, ((_e263.xz - _e268.xy) * _e275.zw), 0f);\n        u.cachee = (_e280.x < 0.35f);\n    }\n    let _e284: Unite = u;\n    return _e284;\n}\n\nfn solSous(xz: vec2<f32>) -> f32 {\n    var xz_1: vec2<f32>;\n\n    xz_1 = xz;\n    let _e24: vec2<f32> = xz_1;\n    let _e28: vec4<f32> = ferroUniforms.data[6];\n    let _e35: vec4<f32> = ferroUniforms.data[6];\n    let _e40: vec4<f32> = textureSampleLevel(uSol_texture, uSol_sampler, ((_e24 - _e28.xy) * _e35.zw), 0f);\n    return (_e40.x * 2.55f);\n}\n\nfn haut(u_1: Unite) -> vec3<f32> {\n    var u_2: Unite;\n    var k: u32;\n    var local: array<vec3<f32>, 16> = HAUTS;\n\n    u_2 = u_1;\n    let _e25: Unite = u_2;\n    k = ((_e25.h >> 4u) & 3u);\n    let _e33: Unite = u_2;\n    let _e43: vec3<f32> = local[((_e33.h >> 4u) & 15u)];\n    return _e43;\n}\n\nfn porteur(u_3: Unite) -> bool {\n    var u_4: Unite;\n\n    u_4 = u_3;\n    let _e25: Unite = u_4;\n    let _e29: Unite = u_4;\n    let _e34: Unite = u_4;\n    return (((_e25.type_ == 1u) || (_e29.type_ == 5u)) && (((_e34.h >> 20u) & 7u) == 0u));\n}\n\nfn humanGait(phase: f32, amount: f32) -> vec4<f32> {\n    var phase_1: f32;\n    var amount_1: f32;\n    var u_5: f32;\n    var local_1: f32;\n    var f: f32;\n    var t_1: f32;\n    var local_2: f32;\n    var z: f32;\n    var local_3: f32;\n    var lift: f32;\n    var root: f32;\n    var dy: f32;\n    var d_1: f32;\n    var knee: f32;\n    var hip: f32;\n\n    phase_1 = phase;\n    amount_1 = amount;\n    let _e42: f32 = amount_1;\n    amount_1 = clamp(_e42, 0f, 1.2f);\n    let _e46: f32 = phase_1;\n    u_5 = fract((_e46 / 6.2831855f));\n    let _e51: f32 = u_5;\n    if (_e51 < 0.52f) {\n        local_1 = 0f;\n    } else {\n        let _e55: f32 = u_5;\n        local_1 = ((_e55 - 0.52f) / 0.48f);\n    }\n    let _e61: f32 = local_1;\n    f = _e61;\n    let _e63: f32 = f;\n    let _e64: f32 = f;\n    let _e68: f32 = f;\n    t_1 = ((_e63 * _e64) * (3f - (2f * _e68)));\n    let _e74: f32 = amount_1;\n    let _e76: f32 = u_5;\n    if (_e76 < 0.52f) {\n        let _e81: f32 = u_5;\n        local_2 = (1f - ((2f * _e81) / 0.52f));\n    } else {\n        let _e89: f32 = t_1;\n        local_2 = (-1f + (2f * _e89));\n    }\n    let _e93: f32 = local_2;\n    z = ((0.3f * _e74) * _e93);\n    let _e96: f32 = u_5;\n    if (_e96 < 0.52f) {\n        local_3 = 0f;\n    } else {\n        let _e101: f32 = amount_1;\n        let _e104: f32 = f;\n        local_3 = ((0.09f * _e101) * pow(sin((3.1415927f * _e104)), 2f));\n    }\n    let _e111: f32 = local_3;\n    lift = _e111;\n    let _e115: f32 = amount_1;\n    let _e118: f32 = amount_1;\n    let _e120: f32 = phase_1;\n    root = ((-0.072f * _e115) + ((0.003f * _e118) * cos((_e120 * 2f))));\n    let _e128: f32 = root;\n    let _e132: f32 = lift;\n    dy = (((0.97f + _e128) - 0.145f) - _e132);\n    let _e135: f32 = dy;\n    let _e136: f32 = z;\n    d_1 = clamp(length(vec2<f32>(_e135, _e136)), 0.05f, 0.82499f);\n    let _e143: f32 = d_1;\n    let _e144: f32 = d_1;\n    knee = -(acos(clamp(((((_e143 * _e144) - 0.20249999f) - 0.140625f) / 0.33749998f), -1f, 1f)));\n    let _e167: f32 = z;\n    let _e168: f32 = dy;\n    let _e173: f32 = d_1;\n    let _e174: f32 = d_1;\n    let _e184: f32 = d_1;\n    hip = (atan2(_e167, _e168) + acos(clamp((((0.20249999f + (_e173 * _e174)) - 0.140625f) / (0.9f * _e184)), -1f, 1f)));\n    let _e194: f32 = hip;\n    let _e195: f32 = knee;\n    let _e196: f32 = hip;\n    let _e198: f32 = knee;\n    let _e200: f32 = root;\n    return vec4<f32>(_e194, _e195, (-(_e196) - _e198), _e200);\n}\n\nfn tourneX(v: vec3<f32>, a_1: f32) -> vec3<f32> {\n    var v_1: vec3<f32>;\n    var a_2: f32;\n    var c_1: f32;\n    var s: f32;\n\n    v_1 = v;\n    a_2 = a_1;\n    let _e42: f32 = a_2;\n    c_1 = cos(_e42);\n    let _e45: f32 = a_2;\n    s = sin(_e45);\n    let _e48: vec3<f32> = v_1;\n    let _e50: vec3<f32> = v_1;\n    let _e52: f32 = c_1;\n    let _e54: vec3<f32> = v_1;\n    let _e56: f32 = s;\n    let _e59: vec3<f32> = v_1;\n    let _e62: f32 = s;\n    let _e64: vec3<f32> = v_1;\n    let _e66: f32 = c_1;\n    return vec3<f32>(_e48.x, ((_e50.y * _e52) + (_e54.z * _e56)), ((-(_e59.y) * _e62) + (_e64.z * _e66)));\n}\n\nfn tourner(p_1: ptr<function, vec3<f32>>, n: ptr<function, vec3<f32>>, pivot: vec3<f32>, a_3: f32) {\n    var pivot_1: vec3<f32>;\n    var a_4: f32;\n\n    pivot_1 = pivot;\n    a_4 = a_3;\n    let _e44: vec3<f32> = pivot_1;\n    let _e45: vec3<f32> = (*p_1);\n    let _e46: vec3<f32> = pivot_1;\n    let _e48: f32 = a_4;\n    let _e49: vec3<f32> = tourneX((_e45 - _e46), _e48);\n    (*p_1) = (_e44 + _e49);\n    let _e51: vec3<f32> = (*n);\n    let _e52: f32 = a_4;\n    let _e53: vec3<f32> = tourneX(_e51, _e52);\n    (*n) = _e53;\n    return;\n}\n\nfn poser(u_6: Unite, cuivre: bool) -> Pose {\n    var u_7: Unite;\n    var cuivre_1: bool;\n    var q: Pose = Pose(0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f);\n    var t_2: f32;\n    var ph: f32;\n    var e: u32;\n    var court: bool;\n    var local_4: bool;\n    var marche: bool;\n    var local_5: f32;\n    var local_6: f32;\n    var amp: f32;\n    var local_7: f32;\n    var w: f32;\n    var s_1: f32;\n    var local_8: f32;\n    var cadence: f32;\n    var amount_2: f32;\n    var phase_2: f32;\n    var left: vec4<f32>;\n    var right: vec4<f32>;\n    var local_9: f32;\n    var k_1: f32;\n    var k_2: f32;\n    var k_3: f32;\n    var k_4: f32;\n    var k_5: f32;\n    var k_6: f32;\n    var local_10: f32;\n    var leve: bool;\n    var local_11: f32;\n    var local_12: f32;\n    var local_13: f32;\n    var local_14: f32;\n    var local_15: f32;\n    var local_16: f32;\n    var local_17: f32;\n\n    u_7 = u_6;\n    cuivre_1 = cuivre;\n    let _e63: vec4<f32> = ferroUniforms.data[7];\n    t_2 = _e63.y;\n    let _e67: Unite = u_7;\n    ph = (f32((_e67.h & 1023u)) * 0.0061419f);\n    let _e75: Unite = u_7;\n    e = _e75.etat;\n    let _e78: u32 = e;\n    court = (_e78 == 8u);\n    let _e82: Unite = u_7;\n    if (_e82.gait.x >= 0f) {\n        let _e87: Unite = u_7;\n        local_4 = (_e87.gait.y > 0.001f);\n    } else {\n        let _e92: Unite = u_7;\n        let _e96: u32 = e;\n        let _e100: bool = court;\n        local_4 = (((_e92.vitesse > 0.25f) || (_e96 == 1u)) || _e100);\n    }\n    let _e103: bool = local_4;\n    marche = _e103;\n    let _e105: bool = court;\n    if _e105 {\n        local_6 = 0.65f;\n    } else {\n        let _e108: Unite = u_7;\n        let _e110: u32 = e;\n        if (_e110 == 1u) {\n            local_5 = 1.1f;\n        } else {\n            local_5 = 0f;\n        }\n        let _e116: f32 = local_5;\n        local_6 = (0.32f * clamp((max(_e108.vitesse, _e116) / 1.4f), 0f, 1f));\n    }\n    let _e125: f32 = local_6;\n    amp = _e125;\n    let _e127: f32 = t_2;\n    let _e128: bool = court;\n    if _e128 {\n        local_7 = 1.55f;\n    } else {\n        local_7 = 0.85f;\n    }\n    let _e132: f32 = local_7;\n    let _e136: f32 = ph;\n    w = (((_e127 * _e132) * 6.2831855f) + _e136);\n    let _e139: f32 = w;\n    s_1 = sin(_e139);\n    let _e142: bool = marche;\n    let _e143: u32 = e;\n    let _e146: u32 = e;\n    if (_e142 && ((_e143 < 2u) || (_e146 == 8u))) {\n        {\n            let _e151: bool = court;\n            if _e151 {\n                local_8 = 2.2f;\n            } else {\n                local_8 = 1.1f;\n            }\n            let _e155: f32 = local_8;\n            cadence = _e155;\n            let _e157: Unite = u_7;\n            let _e160: f32 = cadence;\n            amount_2 = clamp((_e157.vitesse / (1.153846f * _e160)), 0f, 1.2f);\n            let _e167: f32 = t_2;\n            let _e168: f32 = cadence;\n            let _e172: f32 = ph;\n            phase_2 = (((_e167 * _e168) * 6.2831855f) + _e172);\n            let _e175: Unite = u_7;\n            if (_e175.gait.x >= 0f) {\n                {\n                    let _e180: Unite = u_7;\n                    phase_2 = _e180.gait.x;\n                    let _e183: Unite = u_7;\n                    amount_2 = _e183.gait.y;\n                }\n            }\n            let _e186: f32 = phase_2;\n            let _e187: f32 = amount_2;\n            let _e188: vec4<f32> = humanGait(_e186, _e187);\n            left = _e188;\n            let _e190: f32 = phase_2;\n            let _e193: f32 = amount_2;\n            let _e194: vec4<f32> = humanGait((_e190 + 3.1415927f), _e193);\n            right = _e194;\n            let _e197: vec4<f32> = left;\n            q.jg = _e197.x;\n            let _e200: vec4<f32> = right;\n            q.jd = _e200.x;\n            let _e203: vec4<f32> = left;\n            q.kg = _e203.y;\n            let _e206: vec4<f32> = right;\n            q.kd = _e206.y;\n            let _e209: vec4<f32> = left;\n            q.fg = _e209.z;\n            let _e212: vec4<f32> = right;\n            q.fd = _e212.z;\n            let _e215: vec4<f32> = left;\n            q.haut = _e215.w;\n            let _e218: f32 = phase_2;\n            let _e223: f32 = amount_2;\n            q.bg = ((-(sin(_e218)) * 0.23f) * _e223);\n            let _e226: Pose = q;\n            q.bd = -(_e226.bg);\n            let _e230: bool = court;\n            if _e230 {\n                local_9 = 0.12f;\n            } else {\n                let _e233: f32 = phase_2;\n                local_9 = (0.012f * sin(_e233));\n            }\n            let _e237: f32 = local_9;\n            q.torse = _e237;\n        }\n    } else {\n        let _e238: bool = marche;\n        if _e238 {\n            {\n                let _e240: f32 = amp;\n                let _e241: f32 = s_1;\n                q.jg = (_e240 * _e241);\n                let _e244: f32 = amp;\n                let _e246: f32 = s_1;\n                q.jd = (-(_e244) * _e246);\n                let _e249: f32 = amp;\n                let _e253: f32 = s_1;\n                q.bg = ((-(_e249) * 0.8f) * _e253);\n                let _e256: f32 = amp;\n                let _e259: f32 = s_1;\n                q.bd = ((_e256 * 0.8f) * _e259);\n            }\n        } else {\n            {\n                let _e263: f32 = t_2;\n                let _e266: f32 = ph;\n                q.torse = (0.025f * sin(((_e263 * 1.3f) + _e266)));\n                let _e272: f32 = t_2;\n                let _e275: f32 = ph;\n                q.bg = (0.05f * sin(((_e272 * 1.1f) + _e275)));\n                let _e280: Pose = q;\n                q.bd = -(_e280.bg);\n                let _e285: f32 = t_2;\n                let _e288: f32 = ph;\n                q.tete = (0.06f * sin(((_e285 * 0.7f) + (_e288 * 1.7f))));\n            }\n        }\n    }\n    let _e294: u32 = e;\n    if (_e294 == 2u) {\n        {\n            let _e299: f32 = t_2;\n            let _e302: f32 = ph;\n            k_1 = (0.5f + (0.5f * sin(((_e299 * 7.5f) + _e302))));\n            let _e311: f32 = k_1;\n            q.bd = (1.25f + (0.45f * _e311));\n            let _e318: f32 = k_1;\n            q.bg = (1.05f + (0.4f * (1f - _e318)));\n            let _e325: f32 = k_1;\n            q.torse = (0.1f + (0.18f * _e325));\n            let _e328: bool = marche;\n            if !(_e328) {\n                {\n                    q.jg = 0.3f;\n                    q.jd = -0.22f;\n                }\n            }\n        }\n    } else {\n        let _e335: u32 = e;\n        if (_e335 == 3u) {\n            {\n                let _e340: f32 = t_2;\n                let _e343: f32 = ph;\n                k_2 = (0.5f + (0.5f * sin(((_e340 * 5f) + _e343))));\n                q.torse = 0.78f;\n                let _e354: f32 = k_2;\n                q.bg = (0.55f + (0.5f * _e354));\n                let _e361: f32 = k_2;\n                q.bd = (0.55f + (0.5f * (1f - _e361)));\n                q.jd = 0.15f;\n                q.jg = 0.15f;\n                q.haut = -0.06f;\n                q.tete = -0.3f;\n            }\n        } else {\n            let _e374: u32 = e;\n            if (_e374 == 4u) {\n                {\n                    q.bd = 0.95f;\n                    q.bg = 0.95f;\n                }\n            } else {\n                let _e380: u32 = e;\n                if (_e380 == 5u) {\n                    {\n                        let _e385: f32 = t_2;\n                        let _e388: f32 = ph;\n                        k_3 = (0.5f + (0.5f * sin(((_e385 * 4.2f) + _e388))));\n                        let _e398: f32 = k_3;\n                        let _e400: f32 = (0.4f + (1.5f * _e398));\n                        q.bd = _e400;\n                        q.bg = _e400;\n                        let _e404: f32 = k_3;\n                        q.torse = (0.35f - (0.25f * _e404));\n                        let _e411: f32 = k_3;\n                        q.haut = (-0.05f * (1f - _e411));\n                    }\n                } else {\n                    let _e414: u32 = e;\n                    if (_e414 == 6u) {\n                        {\n                            let _e419: f32 = t_2;\n                            let _e422: f32 = ph;\n                            k_4 = (0.5f + (0.5f * sin(((_e419 * 3.6f) + _e422))));\n                            q.bd = 1.25f;\n                            q.bg = 1.25f;\n                            let _e435: f32 = k_4;\n                            q.torse = (-0.15f - (0.2f * _e435));\n                            q.jg = 0.35f;\n                            q.jd = -0.1f;\n                        }\n                    } else {\n                        let _e443: u32 = e;\n                        if (_e443 == 7u) {\n                            {\n                                let _e447: f32 = t_2;\n                                let _e450: f32 = ph;\n                                k_5 = max(0f, sin(((_e447 * 6.2f) + _e450)));\n                                let _e459: f32 = k_5;\n                                let _e461: f32 = k_5;\n                                q.jd = (-0.2f + ((1.35f * _e459) * _e461));\n                                q.jg = 0f;\n                                q.bg = -0.4f;\n                                q.bd = 0.5f;\n                                let _e474: f32 = k_5;\n                                q.torse = (-0.08f * _e474);\n                            }\n                        } else {\n                            let _e476: u32 = e;\n                            if (_e476 == 9u) {\n                                {\n                                    q.jg = 0.28f;\n                                    q.jd = -0.28f;\n                                    q.bd = 0.55f;\n                                    q.bg = 0.55f;\n                                    q.haut = -0.07f;\n                                    q.torse = 0.12f;\n                                }\n                            } else {\n                                let _e492: u32 = e;\n                                if (_e492 == 10u) {\n                                    {\n                                        q.jd = 1.5f;\n                                        q.jg = 1.5f;\n                                        q.haut = -0.62f;\n                                        let _e505: f32 = t_2;\n                                        let _e508: f32 = ph;\n                                        q.torse = (-0.22f + (0.05f * sin(((_e505 * 2f) + _e508))));\n                                        let _e517: f32 = t_2;\n                                        let _e520: f32 = ph;\n                                        let _e524: f32 = (0.8f + (0.08f * sin(((_e517 * 1.7f) + _e520))));\n                                        q.bd = _e524;\n                                        q.bg = _e524;\n                                        let _e528: f32 = t_2;\n                                        let _e531: f32 = ph;\n                                        q.tete = (0.3f + (0.1f * sin(((_e528 * 2.6f) + _e531))));\n                                    }\n                                } else {\n                                    let _e536: u32 = e;\n                                    if (_e536 == 11u) {\n                                        {\n                                            let _e541: f32 = t_2;\n                                            let _e544: f32 = ph;\n                                            k_6 = (0.5f + (0.5f * sin(((_e541 * 3f) + _e544))));\n                                            let _e553: f32 = k_6;\n                                            q.bd = (0.6f + (2.1f * _e553));\n                                            q.bg = 1f;\n                                        }\n                                    }\n                                }\n                            }\n                        }\n                    }\n                }\n            }\n        }\n    }\n    let _e558: Unite = u_7;\n    let _e564: u32 = e;\n    let _e567: u32 = e;\n    let _e571: u32 = e;\n    if (((_e558.drapeaux & 1u) != 0u) && (((_e564 < 2u) || (_e567 == 4u)) || (_e571 == 8u))) {\n        q.bd = 0.95f;\n        q.bg = 0.95f;\n    }\n    if false {\n        {\n            let _e580: Unite = u_7;\n            let _e581: bool = porteur(_e580);\n            if _e581 {\n                {\n                    let _e585: f32 = t_2;\n                    let _e588: f32 = ph;\n                    q.bd = (2.85f + (0.08f * sin(((_e585 * 1.7f) + _e588))));\n                    let _e595: f32 = t_2;\n                    let _e598: f32 = ph;\n                    q.banderole = (0.12f * sin(((_e595 * 2.3f) + _e598)));\n                    let _e602: Unite = u_7;\n                    if (_e602.type_ == 5u) {\n                        let _e607: bool = marche;\n                        if _e607 {\n                            let _e608: Pose = q;\n                            local_10 = _e608.bg;\n                        } else {\n                            local_10 = 0.3f;\n                        }\n                        let _e612: f32 = local_10;\n                        q.bg = _e612;\n                    }\n                }\n            }\n            let _e613: Unite = u_7;\n            let _e617: Unite = u_7;\n            if ((_e613.type_ == 6u) || (_e617.type_ == 10u)) {\n                {\n                    let _e622: Unite = u_7;\n                    let _e628: u32 = e;\n                    let _e632: u32 = e;\n                    leve = ((((_e622.drapeaux & 8u) != 0u) || (_e628 == 9u)) || (_e632 == 2u));\n                    let _e638: bool = leve;\n                    if _e638 {\n                        local_11 = 0f;\n                    } else {\n                        local_11 = -0.35f;\n                    }\n                    let _e643: f32 = local_11;\n                    q.bouclier = _e643;\n                    let _e645: bool = leve;\n                    if _e645 {\n                        local_12 = 1.05f;\n                    } else {\n                        local_12 = 0.3f;\n                    }\n                    let _e649: f32 = local_12;\n                    q.bg = _e649;\n                }\n            }\n            let _e650: Unite = u_7;\n            if (_e650.type_ == 7u) {\n                {\n                    q.bd = 0.95f;\n                    q.bg = 0.95f;\n                    let _e658: u32 = e;\n                    let _e661: u32 = e;\n                    let _e665: u32 = e;\n                    if (((_e658 == 6u) || (_e661 == 2u)) || (_e665 == 7u)) {\n                        let _e671: f32 = t_2;\n                        let _e674: f32 = ph;\n                        local_13 = (0.38f * max(0f, sin(((_e671 * 5f) + _e674))));\n                    } else {\n                        local_13 = 0f;\n                    }\n                    let _e681: f32 = local_13;\n                    q.poutre = _e681;\n                }\n            }\n            let _e682: Unite = u_7;\n            if (_e682.type_ == 3u) {\n                {\n                    let _e686: bool = cuivre_1;\n                    if _e686 {\n                        {\n                            q.bd = 1.35f;\n                            q.bg = 1.35f;\n                            let _e691: Pose = q;\n                            let _e694: f32 = t_2;\n                            let _e697: f32 = ph;\n                            q.torse = (_e691.torse + (0.05f * sin(((_e694 * 3f) + _e697))));\n                        }\n                    } else {\n                        {\n                            let _e705: f32 = t_2;\n                            let _e708: f32 = ph;\n                            q.bd = (1f + (0.5f * abs(sin(((_e705 * 8f) + _e708)))));\n                            let _e717: f32 = t_2;\n                            let _e720: f32 = ph;\n                            q.bg = (1f + (0.5f * abs(sin((((_e717 * 8f) + _e720) + 1.57f)))));\n                        }\n                    }\n                }\n            }\n        }\n    }\n    let _e728: Unite = u_7;\n    let _e732: Unite = u_7;\n    if ((_e728.type_ == 11u) || (_e732.type_ == 12u)) {\n        {\n            q.tete = 0f;\n            q.bd = 0f;\n            q.bg = 0f;\n            q.jd = 0f;\n            q.jg = 0f;\n            let _e744: Unite = u_7;\n            if (_e744.type_ == 11u) {\n                let _e749: Unite = u_7;\n                local_14 = (0.06f * clamp((_e749.vitesse / 8f), 0f, 1f));\n            } else {\n                local_14 = 0f;\n            }\n            let _e759: f32 = local_14;\n            q.torse = _e759;\n            let _e761: bool = marche;\n            if _e761 {\n                let _e763: f32 = t_2;\n                let _e766: f32 = ph;\n                local_15 = (0.015f * sin(((_e763 * 13f) + _e766)));\n            } else {\n                local_15 = 0f;\n            }\n            let _e772: f32 = local_15;\n            q.haut = _e772;\n            let _e773: Unite = u_7;\n            let _e777: u32 = e;\n            if ((_e773.type_ == 12u) && (_e777 == 11u)) {\n                let _e784: f32 = t_2;\n                let _e787: f32 = ph;\n                q.tourelle = (0.1f + (0.12f * sin(((_e784 * 2f) + _e787))));\n            }\n            let _e792: u32 = e;\n            if (_e792 == 10u) {\n                {\n                    let _e796: Unite = u_7;\n                    if (_e796.type_ == 11u) {\n                        local_16 = 1.25f;\n                    } else {\n                        local_16 = 0.05f;\n                    }\n                    let _e803: f32 = local_16;\n                    q.roulis = _e803;\n                    let _e805: Unite = u_7;\n                    if (_e805.type_ == 11u) {\n                        local_17 = -0.05f;\n                    } else {\n                        local_17 = -0.08f;\n                    }\n                    let _e814: f32 = local_17;\n                    q.haut = _e814;\n                }\n            }\n        }\n    }\n    let _e815: Unite = u_7;\n    if ((_e815.drapeaux & 2u) != 0u) {\n        let _e822: Pose = q;\n        q.torse = (_e822.torse - 0.22f);\n    }\n    let _e826: bool = marche;\n    let _e827: u32 = e;\n    let _e830: u32 = e;\n    if !((_e826 && ((_e827 < 2u) || (_e830 == 8u)))) {\n        {\n            let _e838: Pose = q;\n            q.kg = (-(max(0f, _e838.jg)) * 1.25f);\n            let _e846: Pose = q;\n            q.kd = (-(max(0f, _e846.jd)) * 1.25f);\n        }\n    }\n    let _e852: Pose = q;\n    return _e852;\n}\n\nfn poserOs(p_2: ptr<function, vec3<f32>>, n_1: ptr<function, vec3<f32>>, os: u32, q_1: Pose) {\n    var os_1: u32;\n    var q_2: Pose;\n    var left_1: bool;\n    var local_18: f32;\n    var a_5: f32;\n    var local_19: f32;\n    var x_2: f32;\n    var local_20: f32;\n    var local_21: f32;\n    var local_22: vec3<f32>;\n    var local_23: f32;\n    var a_6: f32;\n    var local_24: f32;\n    var knee_1: vec3<f32>;\n    var local_25: f32;\n    var local_26: vec3<f32>;\n    var local_27: f32;\n    var a_7: f32;\n    var local_28: f32;\n    var elbow: vec3<f32>;\n    var local_29: vec3<f32>;\n\n    os_1 = os;\n    q_2 = q_1;\n    let _e44: u32 = os_1;\n    let _e47: u32 = os_1;\n    if ((_e44 == 20u) || (_e47 == 21u)) {\n        {\n            let _e51: u32 = os_1;\n            left_1 = (_e51 == 20u);\n            let _e55: bool = left_1;\n            if _e55 {\n                let _e56: Pose = q_2;\n                local_18 = _e56.jg;\n            } else {\n                let _e58: Pose = q_2;\n                local_18 = _e58.jd;\n            }\n            let _e61: f32 = local_18;\n            a_5 = _e61;\n            let _e63: bool = left_1;\n            if _e63 {\n                local_19 = -0.105f;\n            } else {\n                local_19 = 0.105f;\n            }\n            let _e68: f32 = local_19;\n            x_2 = _e68;\n            let _e72: f32 = x_2;\n            let _e76: bool = left_1;\n            if _e76 {\n                let _e77: Pose = q_2;\n                local_20 = _e77.fg;\n            } else {\n                let _e79: Pose = q_2;\n                local_20 = _e79.fd;\n            }\n            let _e82: f32 = local_20;\n            tourner(p_2, n_1, vec3<f32>(_e72, 0.145f, 0f), _e82);\n            let _e87: f32 = x_2;\n            let _e91: bool = left_1;\n            if _e91 {\n                let _e92: Pose = q_2;\n                local_21 = _e92.kg;\n            } else {\n                let _e94: Pose = q_2;\n                local_21 = _e94.kd;\n            }\n            let _e97: f32 = local_21;\n            tourner(p_2, n_1, vec3<f32>(_e87, 0.52f, 0f), _e97);\n            let _e102: bool = left_1;\n            if _e102 {\n                local_22 = PIV_JAMBE_G;\n            } else {\n                local_22 = PIV_JAMBE_D;\n            }\n            let _e104: vec3<f32> = local_22;\n            let _e105: f32 = a_5;\n            tourner(p_2, n_1, _e104, _e105);\n        }\n    } else {\n        let _e108: u32 = os_1;\n        let _e111: u32 = os_1;\n        if ((_e108 == 16u) || (_e111 == 17u)) {\n            {\n                let _e115: u32 = os_1;\n                if (_e115 == 16u) {\n                    let _e118: Pose = q_2;\n                    local_23 = _e118.jg;\n                } else {\n                    let _e120: Pose = q_2;\n                    local_23 = _e120.jd;\n                }\n                let _e123: f32 = local_23;\n                a_6 = _e123;\n                let _e125: u32 = os_1;\n                if (_e125 == 16u) {\n                    local_24 = -0.105f;\n                } else {\n                    local_24 = 0.105f;\n                }\n                let _e132: f32 = local_24;\n                knee_1 = vec3<f32>(_e132, 0.52f, 0f);\n                let _e139: vec3<f32> = knee_1;\n                let _e140: u32 = os_1;\n                if (_e140 == 16u) {\n                    let _e143: Pose = q_2;\n                    local_25 = _e143.kg;\n                } else {\n                    let _e145: Pose = q_2;\n                    local_25 = _e145.kd;\n                }\n                let _e148: f32 = local_25;\n                tourner(p_2, n_1, _e139, _e148);\n                let _e153: u32 = os_1;\n                if (_e153 == 16u) {\n                    local_26 = PIV_JAMBE_G;\n                } else {\n                    local_26 = PIV_JAMBE_D;\n                }\n                let _e157: vec3<f32> = local_26;\n                let _e158: f32 = a_6;\n                tourner(p_2, n_1, _e157, _e158);\n            }\n        } else {\n            let _e161: u32 = os_1;\n            let _e164: u32 = os_1;\n            if ((_e161 == 18u) || (_e164 == 19u)) {\n                {\n                    let _e168: u32 = os_1;\n                    if (_e168 == 18u) {\n                        let _e171: Pose = q_2;\n                        local_27 = _e171.bg;\n                    } else {\n                        let _e173: Pose = q_2;\n                        local_27 = _e173.bd;\n                    }\n                    let _e176: f32 = local_27;\n                    a_7 = _e176;\n                    let _e178: u32 = os_1;\n                    if (_e178 == 18u) {\n                        local_28 = -0.255f;\n                    } else {\n                        local_28 = 0.255f;\n                    }\n                    let _e185: f32 = local_28;\n                    elbow = vec3<f32>(_e185, 1.19f, 0f);\n                    let _e192: vec3<f32> = elbow;\n                    let _e195: f32 = a_7;\n                    tourner(p_2, n_1, _e192, (0.13f + (max(0f, _e195) * 0.4f)));\n                    let _e204: u32 = os_1;\n                    if (_e204 == 18u) {\n                        local_29 = PIV_BRAS_G;\n                    } else {\n                        local_29 = PIV_BRAS_D;\n                    }\n                    let _e208: vec3<f32> = local_29;\n                    let _e209: f32 = a_7;\n                    tourner(p_2, n_1, _e208, _e209);\n                }\n            } else {\n                let _e212: u32 = os_1;\n                if (_e212 == 4u) {\n                    let _e217: Pose = q_2;\n                    tourner(p_2, n_1, PIV_JAMBE_G, _e217.jg);\n                } else {\n                    let _e221: u32 = os_1;\n                    if (_e221 == 5u) {\n                        let _e226: Pose = q_2;\n                        tourner(p_2, n_1, PIV_JAMBE_D, _e226.jd);\n                    } else {\n                        let _e230: u32 = os_1;\n                        if (_e230 == 2u) {\n                            let _e235: Pose = q_2;\n                            tourner(p_2, n_1, PIV_BRAS_G, _e235.bg);\n                        } else {\n                            let _e239: u32 = os_1;\n                            let _e242: u32 = os_1;\n                            if ((_e239 == 3u) || (_e242 == 7u)) {\n                                let _e248: Pose = q_2;\n                                tourner(p_2, n_1, PIV_BRAS_D, _e248.bd);\n                            } else {\n                                let _e252: u32 = os_1;\n                                if (_e252 == 8u) {\n                                    let _e257: Pose = q_2;\n                                    tourner(p_2, n_1, PIV_BRAS_G, _e257.bouclier);\n                                } else {\n                                    let _e261: u32 = os_1;\n                                    if (_e261 == 12u) {\n                                        let _e266: Pose = q_2;\n                                        tourner(p_2, n_1, PIV_BANDEROLE, -(_e266.banderole));\n                                    } else {\n                                        let _e271: u32 = os_1;\n                                        if (_e271 == 13u) {\n                                            let _e275: vec3<f32> = (*p_2);\n                                            let _e277: Pose = q_2;\n                                            (*p_2).z = (_e275.z + _e277.poutre);\n                                        } else {\n                                            let _e280: u32 = os_1;\n                                            let _e283: u32 = os_1;\n                                            if ((_e280 == 1u) || (_e283 == 14u)) {\n                                                let _e289: Pose = q_2;\n                                                tourner(p_2, n_1, PIV_COU, -(_e289.tete));\n                                            } else {\n                                                let _e294: u32 = os_1;\n                                                if (_e294 == 10u) {\n                                                    let _e299: Pose = q_2;\n                                                    tourner(p_2, n_1, PIV_TOURELLE, -(_e299.tourelle));\n                                                }\n                                            }\n                                        }\n                                    }\n                                }\n                            }\n                        }\n                    }\n                }\n            }\n        }\n    }\n    let _e304: u32 = os_1;\n    let _e307: u32 = os_1;\n    let _e311: u32 = os_1;\n    let _e315: u32 = os_1;\n    let _e319: u32 = os_1;\n    let _e323: u32 = os_1;\n    let _e327: u32 = os_1;\n    let _e331: u32 = os_1;\n    let _e335: u32 = os_1;\n    if (((((((((_e304 != 4u) && (_e307 != 5u)) && (_e311 != 16u)) && (_e315 != 17u)) && (_e319 != 20u)) && (_e323 != 21u)) && (_e327 != 9u)) && (_e331 != 10u)) && (_e335 != 11u)) {\n        let _e341: Pose = q_2;\n        tourner(p_2, n_1, PIV_HANCHES, -(_e341.torse));\n        return;\n    } else {\n        return;\n    }\n}\n\nfn ferro_main() {\n    var u_8: Unite;\n    var os_2: u32;\n    var cuivre_2: bool;\n    var cache: bool;\n    var local_30: bool;\n    var q_3: Pose;\n    var p_3: vec3<f32>;\n    var n_2: vec3<f32>;\n    var bp: vec3<f32>;\n    var bn: vec3<f32>;\n    var c_2: f32;\n    var s_2: f32;\n    var height: f32;\n    var width: f32;\n    var c_3: f32;\n    var s_3: f32;\n    var monde: vec3<f32>;\n    var tt: u32;\n    var h: u32;\n    var camp: vec3<f32>;\n    var b: vec3<f32>;\n    var P: array<vec3<f32>, 8> = array<vec3<f32>, 8>(vec3<f32>(0.28f, 0.17f, 0.12f), vec3<f32>(0.37f, 0.23f, 0.16f), vec3<f32>(0.45f, 0.29f, 0.2f), vec3<f32>(0.51f, 0.34f, 0.23f), vec3<f32>(0.6f, 0.41f, 0.29f), vec3<f32>(0.66f, 0.46f, 0.32f), vec3<f32>(0.79f, 0.6f, 0.46f), vec3<f32>(0.87f, 0.7f, 0.57f));\n    var P_1: array<vec3<f32>, 4> = array<vec3<f32>, 4>(vec3<f32>(0.15f, 0.17f, 0.23f), vec3<f32>(0.22f, 0.21f, 0.22f), vec3<f32>(0.3f, 0.27f, 0.22f), vec3<f32>(0.11f, 0.12f, 0.16f));\n    var P_2: array<vec3<f32>, 4> = array<vec3<f32>, 4>(vec3<f32>(0.14f, 0.14f, 0.15f), vec3<f32>(0.3f, 0.24f, 0.16f), vec3<f32>(0.2f, 0.26f, 0.22f), vec3<f32>(0.35f, 0.12f, 0.1f));\n    var P_3: array<vec3<f32>, 4> = array<vec3<f32>, 4>(vec3<f32>(0.1f, 0.08f, 0.07f), vec3<f32>(0.3f, 0.2f, 0.12f), vec3<f32>(0.55f, 0.42f, 0.25f), vec3<f32>(0.16f, 0.15f, 0.15f));\n    var local_31: vec3<f32>;\n    var local_32: vec3<f32>;\n    var local_33: vec3<f32>;\n    var mat: u32;\n    var local_34: vec4<f32>;\n    var local_35: vec4<f32>;\n    var local_36: vec4<f32>;\n    var local_37: vec4<f32>;\n    var local_38: vec4<f32>;\n    var local_39: vec3<f32>;\n    var k_7: f32;\n\n    let _e38: u32 = aUnite_1;\n    let _e40: Unite = lireUnite(i32(_e38));\n    u_8 = _e40;\n    let _e42: vec4<u32> = aInfo_1;\n    os_2 = _e42.x;\n    let _e45: Unite = u_8;\n    cuivre_2 = ((_e45.h & 1u) == 1u);\n    let _e52: Unite = u_8;\n    cache = _e52.cachee;\n    let _e55: u32 = os_2;\n    let _e58: Unite = u_8;\n    let _e65: Unite = u_8;\n    if (((_e55 == 6u) && ((_e58.drapeaux & 1u) == 0u)) && (_e65.etat != 4u)) {\n        cache = true;\n    }\n    let _e71: u32 = os_2;\n    let _e74: Unite = u_8;\n    let _e75: bool = porteur(_e74);\n    if ((_e71 == 12u) && !(_e75)) {\n        cache = true;\n    }\n    let _e79: u32 = os_2;\n    let _e82: Unite = u_8;\n    if ((_e79 == 11u) && ((_e82.marques & 1u) == 0u)) {\n        cache = true;\n    }\n    let _e90: Unite = u_8;\n    let _e94: u32 = os_2;\n    if (_e94 == 14u) {\n        let _e97: bool = cuivre_2;\n        local_30 = !(_e97);\n    } else {\n        let _e99: u32 = os_2;\n        let _e102: u32 = os_2;\n        let _e106: bool = cuivre_2;\n        local_30 = (((_e99 == 15u) || (_e102 == 7u)) && _e106);\n    }\n    let _e109: bool = local_30;\n    if ((_e90.type_ == 3u) && _e109) {\n        cache = true;\n    }\n    let _e112: bool = cache;\n    if _e112 {\n        {\n            gl_Position = vec4<f32>(0f, 0f, 3f, 1f);\n            let _e120: vec3<f32> = vec3(0f);\n            vNormale = _e120;\n            vMonde = _e120;\n            vUV = vec2(0f);\n            let _e124: vec3<f32> = vec3(0f);\n            vMotif = _e124;\n            vBase = _e124;\n            vMatiere = vec4(0f);\n            vFaction = 0u;\n            return;\n        }\n    }\n    let _e128: Unite = u_8;\n    let _e129: bool = cuivre_2;\n    let _e130: Pose = poser(_e128, _e129);\n    q_3 = _e130;\n    let _e132: vec3<f32> = aPosition_1;\n    p_3 = _e132;\n    let _e134: vec3<f32> = aNormale_1;\n    n_2 = _e134;\n    let _e138: u32 = os_2;\n    let _e139: Pose = q_3;\n    poserOs((&p_3), (&n_2), _e138, _e139);\n    let _e142: vec4<u32> = aInfo_1;\n    if ((_e142.w & 32u) != 0u) {\n        {\n            let _e148: vec3<f32> = aPosition_1;\n            bp = _e148;\n            let _e150: vec3<f32> = aNormale_1;\n            bn = _e150;\n            let _e154: vec2<f32> = aUV_1;\n            let _e159: Pose = q_3;\n            poserOs((&bp), (&bn), u32((_e154.x + 0.5f)), _e159);\n            let _e162: vec3<f32> = p_3;\n            let _e163: vec3<f32> = bp;\n            let _e164: vec2<f32> = aUV_1;\n            p_3 = mix(_e162, _e163, vec3(_e164.y));\n            let _e168: vec3<f32> = n_2;\n            let _e169: vec3<f32> = bn;\n            let _e170: vec2<f32> = aUV_1;\n            n_2 = normalize(mix(_e168, _e169, vec3(_e170.y)));\n        }\n    }\n    let _e175: u32 = os_2;\n    if (_e175 != 11u) {\n        {\n            let _e178: Pose = q_3;\n            if (_e178.roulis != 0f) {\n                {\n                    let _e182: Pose = q_3;\n                    c_2 = cos(_e182.roulis);\n                    let _e186: Pose = q_3;\n                    s_2 = sin(_e186.roulis);\n                    let _e190: f32 = c_2;\n                    let _e191: vec3<f32> = p_3;\n                    let _e194: f32 = s_2;\n                    let _e195: vec3<f32> = p_3;\n                    let _e199: f32 = s_2;\n                    let _e200: vec3<f32> = p_3;\n                    let _e203: f32 = c_2;\n                    let _e204: vec3<f32> = p_3;\n                    let _e208: vec3<f32> = p_3;\n                    p_3 = vec3<f32>(((_e190 * _e191.x) - (_e194 * _e195.y)), ((_e199 * _e200.x) + (_e203 * _e204.y)), _e208.z);\n                    let _e211: f32 = c_2;\n                    let _e212: vec3<f32> = n_2;\n                    let _e215: f32 = s_2;\n                    let _e216: vec3<f32> = n_2;\n                    let _e220: f32 = s_2;\n                    let _e221: vec3<f32> = n_2;\n                    let _e224: f32 = c_2;\n                    let _e225: vec3<f32> = n_2;\n                    let _e229: vec3<f32> = n_2;\n                    n_2 = vec3<f32>(((_e211 * _e212.x) - (_e215 * _e216.y)), ((_e220 * _e221.x) + (_e224 * _e225.y)), _e229.z);\n                }\n            }\n            let _e233: vec3<f32> = p_3;\n            let _e235: Pose = q_3;\n            p_3.y = (_e233.y + _e235.haut);\n        }\n    }\n    let _e239: Unite = u_8;\n    height = (0.94f + (f32(((_e239.h >> 22u) & 7u)) * 0.017f));\n    let _e252: Unite = u_8;\n    width = (0.92f + (f32(((_e252.h >> 25u) & 7u)) * 0.022f));\n    let _e264: vec3<f32> = p_3;\n    let _e265: f32 = width;\n    let _e266: f32 = height;\n    p_3 = (_e264 * vec3<f32>(_e265, _e266, 1f));\n    let _e270: vec3<f32> = n_2;\n    let _e271: f32 = width;\n    let _e272: f32 = height;\n    n_2 = normalize((_e270 / vec3<f32>(_e271, _e272, 1f)));\n    let _e277: Unite = u_8;\n    c_3 = cos(_e277.cap);\n    let _e281: Unite = u_8;\n    s_3 = sin(_e281.cap);\n    let _e285: vec3<f32> = p_3;\n    p_3 = (_e285 * 1f);\n    let _e288: Unite = u_8;\n    let _e291: f32 = c_3;\n    let _e292: vec3<f32> = p_3;\n    let _e296: f32 = s_3;\n    let _e297: vec3<f32> = p_3;\n    let _e301: Unite = u_8;\n    let _e303: f32 = solSous(_e301.xz);\n    let _e304: vec3<f32> = p_3;\n    let _e307: Unite = u_8;\n    let _e310: f32 = s_3;\n    let _e311: vec3<f32> = p_3;\n    let _e315: f32 = c_3;\n    let _e316: vec3<f32> = p_3;\n    monde = vec3<f32>(((_e288.xz.x + (_e291 * _e292.x)) + (_e296 * _e297.z)), (_e303 + _e304.y), ((_e307.xz.y - (_e310 * _e311.x)) + (_e315 * _e316.z)));\n    let _e325: vec4<f32> = ferroUniforms.data[0];\n    let _e331: vec4<f32> = ferroUniforms.data[1];\n    let _e337: vec4<f32> = ferroUniforms.data[2];\n    let _e343: vec4<f32> = ferroUniforms.data[3];\n    let _e365: vec3<f32> = monde;\n    gl_Position = (mat4x4<f32>(vec4<f32>(_e325.x, _e325.y, _e325.z, _e325.w), vec4<f32>(_e331.x, _e331.y, _e331.z, _e331.w), vec4<f32>(_e337.x, _e337.y, _e337.z, _e337.w), vec4<f32>(_e343.x, _e343.y, _e343.z, _e343.w)) * vec4<f32>(_e365.x, _e365.y, _e365.z, 1f));\n    let _e372: vec3<f32> = monde;\n    vMonde = _e372;\n    let _e373: f32 = c_3;\n    let _e374: vec3<f32> = n_2;\n    let _e377: f32 = s_3;\n    let _e378: vec3<f32> = n_2;\n    let _e382: vec3<f32> = n_2;\n    let _e384: f32 = s_3;\n    let _e386: vec3<f32> = n_2;\n    let _e389: f32 = c_3;\n    let _e390: vec3<f32> = n_2;\n    vNormale = vec3<f32>(((_e373 * _e374.x) + (_e377 * _e378.z)), _e382.y, ((-(_e384) * _e386.x) + (_e389 * _e390.z)));\n    let _e395: vec2<f32> = aUV_1;\n    vUV = _e395;\n    let _e396: Unite = u_8;\n    vFaction = _e396.faction;\n    let _e398: vec4<u32> = aInfo_1;\n    tt = _e398.y;\n    let _e401: Unite = u_8;\n    h = _e401.h;\n    let _e404: Unite = u_8;\n    let _e407: vec3<f32> = ferro_uFactions(i32(_e404.faction));\n    camp = _e407;\n    let _e410: u32 = tt;\n    if (_e410 == 0u) {\n        {\n            let _e447: u32 = h;\n            let _e454: vec3<f32> = P[((_e447 >> 8u) & 7u)];\n            b = _e454;\n        }\n    } else {\n        let _e455: u32 = tt;\n        if (_e455 == 1u) {\n            let _e458: Unite = u_8;\n            let _e459: vec3<f32> = haut(_e458);\n            b = _e459;\n        } else {\n            let _e460: u32 = tt;\n            if (_e460 == 2u) {\n                {\n                    let _e481: u32 = h;\n                    let _e488: vec3<f32> = P_1[((_e481 >> 10u) & 3u)];\n                    b = _e488;\n                }\n            } else {\n                let _e489: u32 = tt;\n                if (_e489 == 3u) {\n                    let _e492: vec3<f32> = camp;\n                    b = _e492;\n                } else {\n                    let _e493: u32 = tt;\n                    if (_e493 == 4u) {\n                        b = vec3<f32>(0.06f, 0.06f, 0.065f);\n                    } else {\n                        let _e500: u32 = tt;\n                        if (_e500 == 5u) {\n                            b = vec3<f32>(0.55f, 0.57f, 0.6f);\n                        } else {\n                            let _e507: u32 = tt;\n                            if (_e507 == 6u) {\n                                {\n                                    let _e528: u32 = h;\n                                    let _e535: vec3<f32> = P_2[((_e528 >> 12u) & 3u)];\n                                    b = _e535;\n                                }\n                            } else {\n                                let _e536: u32 = tt;\n                                if (_e536 == 7u) {\n                                    let _e539: vec3<f32> = camp;\n                                    b = mix(_e539, vec3(1f), vec3(0.55f));\n                                } else {\n                                    let _e545: u32 = tt;\n                                    if (_e545 == 8u) {\n                                        b = vec3<f32>(0.1f, 0.13f, 0.17f);\n                                    } else {\n                                        let _e552: u32 = tt;\n                                        if (_e552 == 9u) {\n                                            b = vec3<f32>(0.46f, 0.33f, 0.2f);\n                                        } else {\n                                            let _e559: u32 = tt;\n                                            if (_e559 == 10u) {\n                                                b = vec3<f32>(0.86f, 0.86f, 0.83f);\n                                            } else {\n                                                let _e566: u32 = tt;\n                                                if (_e566 == 11u) {\n                                                    let _e569: vec3<f32> = camp;\n                                                    b = mix(_e569, vec3(1f), vec3(0.35f));\n                                                } else {\n                                                    let _e575: u32 = tt;\n                                                    if (_e575 == 12u) {\n                                                        {\n                                                            let _e596: u32 = h;\n                                                            let _e603: vec3<f32> = P_3[((_e596 >> 14u) & 3u)];\n                                                            b = _e603;\n                                                        }\n                                                    } else {\n                                                        let _e604: u32 = tt;\n                                                        if (_e604 == 13u) {\n                                                            let _e607: Unite = u_8;\n                                                            if (_e607.faction == 1u) {\n                                                                local_32 = vec3<f32>(0.95f, 0.72f, 0.18f);\n                                                            } else {\n                                                                let _e615: Unite = u_8;\n                                                                if (_e615.faction == 2u) {\n                                                                    local_31 = vec3<f32>(0.13f, 0.22f, 0.48f);\n                                                                } else {\n                                                                    let _e623: vec3<f32> = camp;\n                                                                    local_31 = _e623;\n                                                                }\n                                                                let _e625: vec3<f32> = local_31;\n                                                                local_32 = _e625;\n                                                            }\n                                                            let _e627: vec3<f32> = local_32;\n                                                            b = _e627;\n                                                        } else {\n                                                            let _e628: u32 = tt;\n                                                            if (_e628 == 15u) {\n                                                                let _e631: u32 = h;\n                                                                if (((_e631 >> 12u) & 1u) == 0u) {\n                                                                    local_33 = vec3<f32>(0.09f, 0.12f, 0.17f);\n                                                                } else {\n                                                                    local_33 = vec3<f32>(0.3f, 0.14f, 0.12f);\n                                                                }\n                                                                let _e648: vec3<f32> = local_33;\n                                                                b = _e648;\n                                                            } else {\n                                                                b = vec3<f32>(0.8f, 0.62f, 0.25f);\n                                                            }\n                                                        }\n                                                    }\n                                                }\n                                            }\n                                        }\n                                    }\n                                }\n                            }\n                        }\n                    }\n                }\n            }\n        }\n    }\n    let _e653: vec4<u32> = aInfo_1;\n    mat = _e653.z;\n    let _e656: u32 = mat;\n    if (_e656 == 1u) {\n        local_38 = vec4<f32>(0.22f, 0.35f, 0f, 0f);\n    } else {\n        let _e664: u32 = mat;\n        if (_e664 == 2u) {\n            local_37 = vec4<f32>(0.38f, 0.75f, 0f, 0f);\n        } else {\n            let _e672: u32 = mat;\n            if (_e672 == 3u) {\n                local_36 = vec4<f32>(0.7f, 0f, 0f, 0f);\n            } else {\n                let _e680: u32 = mat;\n                if (_e680 == 4u) {\n                    local_35 = vec4<f32>(0.1f, 0.5f, 0f, 0f);\n                } else {\n                    let _e688: u32 = mat;\n                    if (_e688 == 5u) {\n                        local_34 = vec4<f32>(0.5f, 0f, 1.6f, 0f);\n                    } else {\n                        local_34 = vec4<f32>(0.92f, 0f, 0f, 0f);\n                    }\n                    let _e702: vec4<f32> = local_34;\n                    local_35 = _e702;\n                }\n                let _e704: vec4<f32> = local_35;\n                local_36 = _e704;\n            }\n            let _e706: vec4<f32> = local_36;\n            local_37 = _e706;\n        }\n        let _e708: vec4<f32> = local_37;\n        local_38 = _e708;\n    }\n    let _e710: vec4<f32> = local_38;\n    vMatiere = _e710;\n    let _e712: vec4<u32> = aInfo_1;\n    vMatiere.w = f32((_e712.w & 31u));\n    let _e717: u32 = tt;\n    let _e720: u32 = tt;\n    if ((_e717 == 10u) || (_e720 == 9u)) {\n        let _e724: vec3<f32> = camp;\n        local_39 = _e724;\n    } else {\n        let _e725: vec3<f32> = camp;\n        local_39 = mix(_e725, vec3(1f), vec3(0.6f));\n    }\n    let _e732: vec3<f32> = local_39;\n    vMotif = _e732;\n    let _e733: u32 = mat;\n    if (_e733 != 5u) {\n        let _e736: vec3<f32> = b;\n        let _e741: Unite = u_8;\n        b = (_e736 * (0.5f + (0.5f * smoothstep(0f, 34f, f32(_e741.niveau)))));\n    }\n    let _e748: Unite = u_8;\n    let _e754: u32 = mat;\n    if (((_e748.marques & 1u) != 0u) && (_e754 != 5u)) {\n        let _e758: vec3<f32> = b;\n        let _e759: vec3<f32> = b;\n        b = mix(_e758, ((_e759 * 1.3f) + vec3(0.05f)), vec3(0.7f));\n    }\n    let _e768: Unite = u_8;\n    if ((_e768.drapeaux & 2u) != 0u) {\n        {\n            let _e779: vec4<f32> = ferroUniforms.data[7];\n            k_7 = (0.5f + (0.5f * sin((_e779.y * 38f))));\n            let _e788: vec3<f32> = b;\n            let _e794: f32 = k_7;\n            b = mix(_e788, vec3<f32>(1f, 0.97f, 0.9f), vec3((0.5f * _e794)));\n            let _e799: vec4<f32> = vMatiere;\n            let _e802: f32 = k_7;\n            vMatiere.z = (_e799.z + (0.45f * _e802));\n        }\n    }\n    let _e805: Unite = u_8;\n    let _e811: u32 = tt;\n    if (((_e805.drapeaux & 4u) != 0u) && (_e811 == 0u)) {\n        let _e815: vec3<f32> = b;\n        let _e825: vec4<f32> = ferroUniforms.data[7];\n        b = mix(_e815, vec3<f32>(0.9f, 0.2f, 0.12f), vec3((0.3f + (0.15f * sin((_e825.y * 6f))))));\n    }\n    let _e835: vec3<f32> = b;\n    vBase = _e835;\n    return;\n}\n\nfn main_1() {\n    ferro_main();\n    let _e40: vec4<f32> = gl_Position;\n    let _e42: vec4<f32> = gl_Position;\n    gl_Position.z = ((_e40.z + _e42.w) * 0.5f);\n    return;\n}\n\n@vertex \nfn main(@location(0) aPosition: vec3<f32>, @location(1) aNormale: vec3<f32>, @location(2) aUV: vec2<f32>, @location(3) aInfo: vec4<u32>, @location(4) aUnite: u32) -> VertexOutput {\n    aPosition_1 = aPosition;\n    aNormale_1 = aNormale;\n    aUV_1 = aUV;\n    aInfo_1 = aInfo;\n    aUnite_1 = aUnite;\n    main_1();\n    let _e84: vec3<f32> = vMonde;\n    let _e86: vec3<f32> = vNormale;\n    let _e88: vec2<f32> = vUV;\n    let _e90: vec3<f32> = vBase;\n    let _e92: vec4<f32> = vMatiere;\n    let _e94: vec3<f32> = vMotif;\n    let _e96: u32 = vFaction;\n    let _e98: vec4<f32> = gl_Position;\n    return VertexOutput(_e84, _e86, _e88, _e90, _e92, _e94, _e96, _e98);\n}\n","fragment":"diagnostic(off, derivative_uniformity);\nstruct FerroUniforms {\n    data: array<vec4<f32>, 88>,\n}\n\nstruct FragmentOutput {\n    @location(0) fragColor: vec4<f32>,\n}\n\n@group(0) @binding(0) \nvar<uniform> ferroUniforms: FerroUniforms;\n@group(0) @binding(1) \nvar uCour_texture: texture_2d<f32>;\n@group(0) @binding(2) \nvar uCour_sampler: sampler;\n@group(0) @binding(3) \nvar uPrec_texture: texture_2d<f32>;\n@group(0) @binding(4) \nvar uPrec_sampler: sampler;\n@group(0) @binding(5) \nvar uLocomotion_texture: texture_2d<f32>;\n@group(0) @binding(6) \nvar uLocomotion_sampler: sampler;\n@group(0) @binding(7) \nvar uMarques_texture: texture_2d<u32>;\n@group(0) @binding(8) \nvar uMarques_sampler: sampler;\n@group(0) @binding(9) \nvar uVoileF_texture: texture_2d<f32>;\n@group(0) @binding(10) \nvar uVoileF_sampler: sampler;\n@group(0) @binding(11) \nvar uSol_texture: texture_2d<f32>;\n@group(0) @binding(12) \nvar uSol_sampler: sampler;\n@group(0) @binding(13) \nvar uPdrOmbre_texture: texture_depth_2d;\n@group(0) @binding(14) \nvar uPdrOmbre_sampler: sampler;\nvar<private> gl_FragCoord_1: vec4<f32>;\nvar<private> vMonde_1: vec3<f32>;\nvar<private> vNormale_1: vec3<f32>;\nvar<private> vUV_1: vec2<f32>;\nvar<private> vBase_1: vec3<f32>;\nvar<private> vMatiere_1: vec4<f32>;\nvar<private> vMotif_1: vec3<f32>;\nvar<private> vFaction_1: u32;\nvar<private> fragColor: vec4<f32>;\n\nfn ferro_uFactions(index: i32) -> vec3<f32> {\n    var index_1: i32;\n\n    index_1 = index;\n    let _e6: i32 = index_1;\n    let _e12: vec4<f32> = ferroUniforms.data[(9i + (_e6 * 1i))];\n    return _e12.xyz;\n}\n\nfn ferro_uPdrLumierePosition(index_2: i32) -> vec3<f32> {\n    var index_3: i32;\n\n    index_3 = index_2;\n    let _e6: i32 = index_3;\n    let _e12: vec4<f32> = ferroUniforms.data[(26i + (_e6 * 1i))];\n    return _e12.xyz;\n}\n\nfn ferro_uPdrLumiereCouleur(index_4: i32) -> vec3<f32> {\n    var index_5: i32;\n\n    index_5 = index_4;\n    let _e6: i32 = index_5;\n    let _e12: vec4<f32> = ferroUniforms.data[(38i + (_e6 * 1i))];\n    return _e12.xyz;\n}\n\nfn ferro_uPdrLumierePortee(index_6: i32) -> f32 {\n    var index_7: i32;\n\n    index_7 = index_6;\n    let _e6: i32 = index_7;\n    let _e12: vec4<f32> = ferroUniforms.data[(50i + (_e6 * 1i))];\n    return _e12.x;\n}\n\nfn ferro_uPdrLumiereDirection(index_8: i32) -> vec3<f32> {\n    var index_9: i32;\n\n    index_9 = index_8;\n    let _e6: i32 = index_9;\n    let _e12: vec4<f32> = ferroUniforms.data[(62i + (_e6 * 1i))];\n    return _e12.xyz;\n}\n\nfn ferro_uPdrLumiereCone(index_10: i32) -> vec2<f32> {\n    var index_11: i32;\n\n    index_11 = index_10;\n    let _e6: i32 = index_11;\n    let _e12: vec4<f32> = ferroUniforms.data[(74i + (_e6 * 1i))];\n    return _e12.xy;\n}\n\nfn pdrEchantillon(uv: vec2<f32>, decalage: vec2<f32>, profondeur: f32, pente: vec2<f32>) -> f32 {\n    var uv_1: vec2<f32>;\n    var decalage_1: vec2<f32>;\n    var profondeur_1: f32;\n    var pente_1: vec2<f32>;\n    var texel: f32;\n    var tap: vec2<f32>;\n    var centre: vec2<f32>;\n\n    uv_1 = uv;\n    decalage_1 = decalage;\n    profondeur_1 = profondeur;\n    pente_1 = pente;\n    let _e28: vec4<f32> = ferroUniforms.data[16];\n    texel = _e28.y;\n    let _e32: vec2<f32> = uv_1;\n    let _e33: vec2<f32> = decalage_1;\n    let _e34: f32 = texel;\n    tap = (_e32 + (_e33 * _e34));\n    let _e38: vec2<f32> = tap;\n    let _e39: f32 = texel;\n    let _e46: f32 = texel;\n    centre = ((floor((_e38 / vec2(_e39))) + vec2(0.5f)) * _e46);\n    let _e49: f32 = profondeur_1;\n    let _e50: vec2<f32> = pente_1;\n    let _e51: vec2<f32> = centre;\n    let _e52: vec2<f32> = uv_1;\n    let _e56: vec2<f32> = tap;\n    let _e59: vec2<f32> = tap;\n    let _e64: vec4<f32> = vec4<f32>(textureSampleLevel(uPdrOmbre_texture, uPdrOmbre_sampler, vec2<f32>(_e56.x, (1f - _e59.y)),0),0.0,0.0,1.0);\n    return step((_e49 + dot(_e50, (_e51 - _e52))), _e64.x);\n}\n\nfn pdrOmbreSoleil(monde: vec3<f32>, n: vec3<f32>) -> f32 {\n    var monde_1: vec3<f32>;\n    var n_1: vec3<f32>;\n    var projete: vec4<f32>;\n    var p: vec3<f32>;\n    var dx: vec3<f32>;\n    var dy: vec3<f32>;\n    var determinant_: f32;\n    var local: vec2<f32>;\n    var pente_2: vec2<f32>;\n    var biais: f32;\n    var z: f32;\n    var local_1: vec2<f32>;\n    var uv_2: vec2<f32>;\n    var local_2: f32;\n    var texel_1: f32;\n    var cell: vec2<f32>;\n    var f: vec2<f32>;\n    var centre_1: vec2<f32>;\n    var wx: vec3<f32>;\n    var wy: vec3<f32>;\n    var v: f32 = 0f;\n    var y: i32 = 0i;\n    var x: i32;\n    var tap_1: vec2<f32>;\n    var bord: f32;\n\n    monde_1 = monde;\n    n_1 = n;\n    let _e24: vec4<f32> = ferroUniforms.data[16];\n    if (_e24.x < 0.5f) {\n        return 1f;\n    }\n    let _e33: vec4<f32> = ferroUniforms.data[12];\n    let _e39: vec4<f32> = ferroUniforms.data[13];\n    let _e45: vec4<f32> = ferroUniforms.data[14];\n    let _e51: vec4<f32> = ferroUniforms.data[15];\n    let _e73: vec3<f32> = monde_1;\n    let _e74: vec3<f32> = n_1;\n    let _e77: vec3<f32> = (_e73 + (_e74 * 0.014f));\n    projete = (mat4x4<f32>(vec4<f32>(_e33.x, _e33.y, _e33.z, _e33.w), vec4<f32>(_e39.x, _e39.y, _e39.z, _e39.w), vec4<f32>(_e45.x, _e45.y, _e45.z, _e45.w), vec4<f32>(_e51.x, _e51.y, _e51.z, _e51.w)) * vec4<f32>(_e77.x, _e77.y, _e77.z, 1f));\n    let _e85: vec4<f32> = projete;\n    let _e87: vec4<f32> = projete;\n    p = (((_e85.xyz / vec3(_e87.w)) * 0.5f) + vec3(0.5f));\n    let _e97: vec3<f32> = p;\n    let _e98: vec3<f32> = dpdx(_e97);\n    dx = _e98;\n    let _e100: vec3<f32> = p;\n    let _e101: vec3<f32> = dpdy(_e100);\n    dy = -(_e101);\n    let _e104: vec3<f32> = dx;\n    let _e106: vec3<f32> = dy;\n    let _e109: vec3<f32> = dx;\n    let _e111: vec3<f32> = dy;\n    determinant_ = ((_e104.x * _e106.y) - (_e109.y * _e111.x));\n    let _e116: f32 = determinant_;\n    if (abs(_e116) > 0.00000000001f) {\n        let _e120: vec3<f32> = dx;\n        let _e122: vec3<f32> = dy;\n        let _e125: vec3<f32> = dy;\n        let _e127: vec3<f32> = dx;\n        let _e131: vec3<f32> = dy;\n        let _e133: vec3<f32> = dx;\n        let _e136: vec3<f32> = dx;\n        let _e138: vec3<f32> = dy;\n        let _e143: f32 = determinant_;\n        local = (vec2<f32>(((_e120.z * _e122.y) - (_e125.z * _e127.y)), ((_e131.z * _e133.x) - (_e136.z * _e138.x))) / vec2(_e143));\n    } else {\n        local = vec2(0f);\n    }\n    let _e149: vec2<f32> = local;\n    pente_2 = _e149;\n    let _e151: vec4<f32> = projete;\n    let _e155: vec3<f32> = p;\n    let _e160: vec3<f32> = p;\n    let _e165: vec3<f32> = p;\n    let _e167: vec3<f32> = p;\n    let _e173: vec3<f32> = p;\n    let _e175: vec3<f32> = p;\n    if (((((_e151.w <= 0f) || (_e155.z <= 0f)) || (_e160.z >= 1f)) || (min(_e165.x, _e167.y) <= 0.001f)) || (max(_e173.x, _e175.y) >= 0.999f)) {\n        return 1f;\n    }\n    let _e185: vec3<f32> = n_1;\n    let _e189: vec4<f32> = ferroUniforms.data[18];\n    biais = (0.00014f + (0.00024f * (1f - max(dot(_e185, _e189.xyz), 0f))));\n    let _e198: vec3<f32> = p;\n    let _e200: f32 = biais;\n    z = (_e198.z - _e200);\n    let _e206: vec4<f32> = ferroUniforms.data[16];\n    if (_e206.z > 0.5f) {\n        let _e211: vec3<f32> = p;\n        local_1 = _e211.xy;\n    } else {\n        let _e213: vec3<f32> = p;\n        local_1 = ((_e213.xy * 0.5f) + vec2<f32>(0.5f, 0f));\n    }\n    let _e222: vec2<f32> = local_1;\n    uv_2 = _e222;\n    let _e224: vec2<f32> = pente_2;\n    let _e228: vec4<f32> = ferroUniforms.data[16];\n    if (_e228.z > 0.5f) {\n        local_2 = 1f;\n    } else {\n        local_2 = 2f;\n    }\n    let _e236: f32 = local_2;\n    pente_2 = (_e224 * _e236);\n    let _e241: vec4<f32> = ferroUniforms.data[16];\n    texel_1 = _e241.y;\n    let _e245: vec2<f32> = uv_2;\n    let _e246: f32 = texel_1;\n    cell = (_e245 / vec2(_e246));\n    let _e250: vec2<f32> = cell;\n    f = (fract(_e250) - vec2(0.5f));\n    let _e256: vec2<f32> = cell;\n    let _e261: f32 = texel_1;\n    centre_1 = ((floor(_e256) + vec2(0.5f)) * _e261);\n    let _e266: vec2<f32> = f;\n    let _e271: vec2<f32> = f;\n    let _e276: vec2<f32> = f;\n    let _e278: vec2<f32> = f;\n    let _e284: vec2<f32> = f;\n    let _e289: vec2<f32> = f;\n    wx = vec3<f32>(((0.5f * (0.5f - _e266.x)) * (0.5f - _e271.x)), (0.75f - (_e276.x * _e278.x)), ((0.5f * (0.5f + _e284.x)) * (0.5f + _e289.x)));\n    let _e297: vec2<f32> = f;\n    let _e302: vec2<f32> = f;\n    let _e307: vec2<f32> = f;\n    let _e309: vec2<f32> = f;\n    let _e315: vec2<f32> = f;\n    let _e320: vec2<f32> = f;\n    wy = vec3<f32>(((0.5f * (0.5f - _e297.y)) * (0.5f - _e302.y)), (0.75f - (_e307.y * _e309.y)), ((0.5f * (0.5f + _e315.y)) * (0.5f + _e320.y)));\n    loop {\n        let _e330: i32 = y;\n        if !((_e330 < 3i)) {\n            break;\n        }\n        x = 0i;\n        loop {\n            let _e339: i32 = x;\n            if !((_e339 < 3i)) {\n                break;\n            }\n            {\n                let _e346: vec2<f32> = centre_1;\n                let _e347: i32 = x;\n                let _e351: i32 = y;\n                let _e356: f32 = texel_1;\n                tap_1 = (_e346 + (vec2<f32>(f32((_e347 - 1i)), f32((_e351 - 1i))) * _e356));\n                let _e360: f32 = v;\n                let _e361: i32 = x;\n                let _e363: f32 = wx[_e361];\n                let _e364: i32 = y;\n                let _e366: f32 = wy[_e364];\n                let _e368: f32 = z;\n                let _e369: vec2<f32> = pente_2;\n                let _e370: vec2<f32> = tap_1;\n                let _e371: vec2<f32> = uv_2;\n                let _e375: vec2<f32> = tap_1;\n                let _e378: vec2<f32> = tap_1;\n                let _e383: vec4<f32> = vec4<f32>(textureSampleLevel(uPdrOmbre_texture, uPdrOmbre_sampler, vec2<f32>(_e375.x, (1f - _e378.y)),0),0.0,0.0,1.0);\n                v = (_e360 + ((_e363 * _e366) * step((_e368 + dot(_e369, (_e370 - _e371))), _e383.x)));\n            }\n            continuing {\n                let _e343: i32 = x;\n                x = (_e343 + 1i);\n            }\n        }\n        continuing {\n            let _e334: i32 = y;\n            y = (_e334 + 1i);\n        }\n    }\n    let _e388: vec3<f32> = p;\n    let _e390: vec3<f32> = p;\n    let _e394: vec3<f32> = p;\n    let _e398: vec3<f32> = p;\n    bord = min(min(_e388.x, _e390.y), min((1f - _e394.x), (1f - _e398.y)));\n    let _e407: f32 = v;\n    let _e411: f32 = bord;\n    return mix(1f, mix(0.055f, 1f, _e407), smoothstep(0.012f, 0.085f, _e411));\n}\n\nfn pdrFresnel(c: f32, f0_: vec3<f32>) -> vec3<f32> {\n    var c_1: f32;\n    var f0_1: vec3<f32>;\n    var q: f32;\n    var q2_: f32;\n\n    c_1 = c;\n    f0_1 = f0_;\n    let _e22: f32 = c_1;\n    q = (1f - clamp(_e22, 0f, 1f));\n    let _e28: f32 = q;\n    let _e29: f32 = q;\n    q2_ = (_e28 * _e29);\n    let _e32: vec3<f32> = f0_1;\n    let _e34: vec3<f32> = f0_1;\n    let _e37: f32 = q2_;\n    let _e39: f32 = q2_;\n    let _e41: f32 = q;\n    return (_e32 + ((((vec3(1f) - _e34) * _e37) * _e39) * _e41));\n}\n\nfn pdrReflet(n_2: vec3<f32>, vue: vec3<f32>, l: vec3<f32>, rugosite: f32, f0_2: vec3<f32>) -> vec3<f32> {\n    var n_3: vec3<f32>;\n    var vue_1: vec3<f32>;\n    var l_1: vec3<f32>;\n    var rugosite_1: f32;\n    var f0_3: vec3<f32>;\n    var h: vec3<f32>;\n    var nv: f32;\n    var nl: f32;\n    var nh: f32;\n    var a: f32;\n    var a2_: f32;\n    var d: f32;\n    var k: f32;\n\n    n_3 = n_2;\n    vue_1 = vue;\n    l_1 = l;\n    rugosite_1 = rugosite;\n    f0_3 = f0_2;\n    let _e27: vec3<f32> = vue_1;\n    let _e28: vec3<f32> = l_1;\n    h = normalize((_e27 + _e28));\n    let _e32: vec3<f32> = n_3;\n    let _e33: vec3<f32> = vue_1;\n    nv = max(dot(_e32, _e33), 0.001f);\n    let _e38: vec3<f32> = n_3;\n    let _e39: vec3<f32> = l_1;\n    nl = max(dot(_e38, _e39), 0f);\n    let _e44: vec3<f32> = n_3;\n    let _e45: vec3<f32> = h;\n    nh = max(dot(_e44, _e45), 0f);\n    let _e51: f32 = rugosite_1;\n    let _e52: f32 = rugosite_1;\n    a = max(0.055f, (_e51 * _e52));\n    let _e56: f32 = a;\n    let _e57: f32 = a;\n    a2_ = (_e56 * _e57);\n    let _e60: f32 = nh;\n    let _e61: f32 = nh;\n    let _e63: f32 = a2_;\n    d = (((_e60 * _e61) * (_e63 - 1f)) + 1f);\n    let _e70: f32 = rugosite_1;\n    let _e73: f32 = rugosite_1;\n    k = (((_e70 + 1f) * (_e73 + 1f)) * 0.125f);\n    let _e80: vec3<f32> = vue_1;\n    let _e81: vec3<f32> = h;\n    let _e85: vec3<f32> = f0_3;\n    let _e86: vec3<f32> = pdrFresnel(max(dot(_e80, _e81), 0f), _e85);\n    let _e87: f32 = a2_;\n    let _e89: f32 = d;\n    let _e91: f32 = d;\n    let _e97: f32 = nv;\n    let _e99: f32 = k;\n    let _e102: f32 = k;\n    let _e105: f32 = nl;\n    let _e107: f32 = k;\n    let _e110: f32 = k;\n    let _e119: f32 = nl;\n    return ((_e86 * min(((_e87 / max(((3.141593f * _e89) * _e91), 0.00001f)) / max(((4f * ((_e97 * (1f - _e99)) + _e102)) * ((_e105 * (1f - _e107)) + _e110)), 0.001f)), 12f)) * _e119);\n}\n\nfn pdrEclairer(base: vec3<f32>, n_4: vec3<f32>, monde_2: vec3<f32>, rugosite_2: f32, metal: f32, emission: f32, ombre: f32) -> vec3<f32> {\n    var base_1: vec3<f32>;\n    var n_5: vec3<f32>;\n    var monde_3: vec3<f32>;\n    var rugosite_3: f32;\n    var metal_1: f32;\n    var emission_1: f32;\n    var ombre_1: f32;\n    var vue_2: vec3<f32>;\n    var f0_4: vec3<f32>;\n    var lumiere: vec3<f32>;\n    var reflet: vec3<f32> = vec3(0f);\n    var i: i32 = 0i;\n    var versLumiere: vec3<f32>;\n    var d_1: f32;\n    var l_2: vec3<f32>;\n    var local_3: f32;\n    var attenuation: f32;\n    var couleur: vec3<f32>;\n    var r: vec3<f32>;\n    var ciel: vec3<f32>;\n    var milieu: vec3<f32>;\n    var rasant: f32;\n\n    base_1 = base;\n    n_5 = n_4;\n    monde_3 = monde_2;\n    rugosite_3 = rugosite_2;\n    metal_1 = metal;\n    emission_1 = emission;\n    ombre_1 = ombre;\n    let _e34: vec4<f32> = ferroUniforms.data[17];\n    let _e36: vec3<f32> = monde_3;\n    vue_2 = normalize((_e34.xyz - _e36));\n    let _e42: vec3<f32> = base_1;\n    let _e48: f32 = metal_1;\n    f0_4 = mix(vec3(0.04f), clamp(_e42, vec3(0.025f), vec3(0.92f)), vec3(_e48));\n    let _e55: vec4<f32> = ferroUniforms.data[20];\n    let _e59: vec3<f32> = n_5;\n    lumiere = (_e55.xyz * (0.72f + (0.28f * max(_e59.y, 0f))));\n    loop {\n        let _e72: i32 = i;\n        if !((_e72 < 12i)) {\n            break;\n        }\n        {\n            let _e79: i32 = i;\n            let _e83: vec4<f32> = ferroUniforms.data[86];\n            if (_e79 >= bitcast<i32>(_e83.x)) {\n                break;\n            }\n            let _e87: i32 = i;\n            let _e89: vec3<f32> = ferro_uPdrLumierePosition(i32(_e87));\n            let _e90: vec3<f32> = monde_3;\n            versLumiere = (_e89 - _e90);\n            let _e93: vec3<f32> = versLumiere;\n            d_1 = length(_e93);\n            let _e96: vec3<f32> = versLumiere;\n            let _e97: f32 = d_1;\n            l_2 = (_e96 / vec3(max(_e97, 0.001f)));\n            let _e103: i32 = i;\n            if (_e103 < 2i) {\n                local_3 = 0.27f;\n            } else {\n                local_3 = 0.13f;\n            }\n            let _e109: f32 = local_3;\n            let _e111: f32 = d_1;\n            let _e112: f32 = d_1;\n            attenuation = (_e109 / (1f + ((_e111 * _e112) * 0.26f)));\n            let _e119: i32 = i;\n            let _e121: f32 = ferro_uPdrLumierePortee(i32(_e119));\n            if (_e121 > 0f) {\n                let _e124: f32 = attenuation;\n                let _e126: i32 = i;\n                let _e128: f32 = ferro_uPdrLumierePortee(i32(_e126));\n                let _e131: i32 = i;\n                let _e133: f32 = ferro_uPdrLumierePortee(i32(_e131));\n                let _e134: f32 = d_1;\n                attenuation = (_e124 * (1f - smoothstep((_e128 * 0.35f), _e133, _e134)));\n            }\n            let _e138: i32 = i;\n            let _e140: vec2<f32> = ferro_uPdrLumiereCone(i32(_e138));\n            if (_e140.x > 0f) {\n                let _e144: f32 = attenuation;\n                let _e145: i32 = i;\n                let _e147: vec2<f32> = ferro_uPdrLumiereCone(i32(_e145));\n                let _e149: i32 = i;\n                let _e151: vec2<f32> = ferro_uPdrLumiereCone(i32(_e149));\n                let _e153: vec3<f32> = l_2;\n                let _e155: i32 = i;\n                let _e157: vec3<f32> = ferro_uPdrLumiereDirection(i32(_e155));\n                attenuation = (_e144 * smoothstep(_e147.x, _e151.y, dot(-(_e153), _e157)));\n            }\n            let _e161: vec3<f32> = lumiere;\n            let _e162: i32 = i;\n            let _e164: vec3<f32> = ferro_uPdrLumiereCouleur(i32(_e162));\n            let _e165: f32 = attenuation;\n            let _e167: vec3<f32> = n_5;\n            let _e168: vec3<f32> = l_2;\n            lumiere = (_e161 + ((_e164 * _e165) * (max(dot(_e167, _e168), 0f) + 0.035f)));\n            let _e176: vec3<f32> = reflet;\n            let _e177: i32 = i;\n            let _e179: vec3<f32> = ferro_uPdrLumiereCouleur(i32(_e177));\n            let _e180: f32 = attenuation;\n            let _e182: vec3<f32> = n_5;\n            let _e183: vec3<f32> = vue_2;\n            let _e184: vec3<f32> = l_2;\n            let _e185: f32 = rugosite_3;\n            let _e186: vec3<f32> = f0_4;\n            let _e187: vec3<f32> = pdrReflet(_e182, _e183, _e184, _e185, _e186);\n            reflet = (_e176 + (((_e179 * _e180) * _e187) * 2.4f));\n        }\n        continuing {\n            let _e76: i32 = i;\n            i = (_e76 + 1i);\n        }\n    }\n    let _e192: vec3<f32> = lumiere;\n    let _e196: vec4<f32> = ferroUniforms.data[19];\n    let _e198: vec3<f32> = n_5;\n    let _e202: vec4<f32> = ferroUniforms.data[18];\n    let _e208: f32 = ombre_1;\n    lumiere = (_e192 + ((_e196.xyz * max(dot(_e198, _e202.xyz), 0f)) * _e208));\n    let _e211: vec3<f32> = reflet;\n    let _e215: vec4<f32> = ferroUniforms.data[19];\n    let _e217: f32 = ombre_1;\n    let _e219: vec3<f32> = n_5;\n    let _e220: vec3<f32> = vue_2;\n    let _e224: vec4<f32> = ferroUniforms.data[18];\n    let _e226: f32 = rugosite_3;\n    let _e227: vec3<f32> = f0_4;\n    let _e228: vec3<f32> = pdrReflet(_e219, _e220, _e224.xyz, _e226, _e227);\n    reflet = (_e211 + ((_e215.xyz * _e217) * _e228));\n    let _e231: vec3<f32> = base_1;\n    let _e232: vec3<f32> = lumiere;\n    let _e234: vec3<f32> = reflet;\n    couleur = ((_e231 * _e232) + _e234);\n    let _e237: vec3<f32> = vue_2;\n    let _e239: vec3<f32> = n_5;\n    r = reflect(-(_e237), _e239);\n    let _e245: vec4<f32> = ferroUniforms.data[23];\n    let _e250: vec4<f32> = ferroUniforms.data[22];\n    let _e254: vec3<f32> = r;\n    ciel = mix(_e245.xyz, _e250.xyz, vec3(smoothstep(0f, 1f, _e254.y)));\n    let _e263: vec4<f32> = ferroUniforms.data[20];\n    let _e267: vec3<f32> = ciel;\n    let _e271: vec3<f32> = r;\n    let _e279: vec4<f32> = ferroUniforms.data[20];\n    let _e283: f32 = rugosite_3;\n    let _e284: f32 = rugosite_3;\n    milieu = mix(mix((_e263.xyz * 0.2f), _e267, vec3(smoothstep(-0.16f, 0.18f, _e271.y))), (_e279.xyz * 0.85f), vec3(((_e283 * _e284) * 0.8f)));\n    let _e292: vec3<f32> = n_5;\n    let _e293: vec3<f32> = vue_2;\n    rasant = pow((1f - max(dot(_e292, _e293), 0f)), 5f);\n    let _e301: vec3<f32> = couleur;\n    let _e302: vec3<f32> = milieu;\n    let _e303: vec3<f32> = f0_4;\n    let _e305: f32 = rugosite_3;\n    let _e308: vec3<f32> = f0_4;\n    let _e310: vec3<f32> = f0_4;\n    let _e312: f32 = rasant;\n    let _e319: f32 = rugosite_3;\n    let _e323: f32 = rugosite_3;\n    let _e329: f32 = metal_1;\n    couleur = (_e301 + (((_e302 * (_e303 + ((max(vec3((1f - _e305)), _e308) - _e310) * _e312))) * (0.18f + ((1.3f * (1f - _e319)) * (1f - _e323)))) * (0.5f + (_e329 * 2.5f))));\n    let _e335: vec3<f32> = couleur;\n    let _e336: vec3<f32> = base_1;\n    let _e337: f32 = emission_1;\n    let _e344: vec4<f32> = ferroUniforms.data[24];\n    let _e349: vec3<f32> = monde_3;\n    return (_e335 + (((_e336 * _e337) * (0.94f + (0.06f * sin(((_e344.z * 2.2f) + (_e349.y * 3f)))))) * 1.55f));\n}\n\nfn pdrFinir(couleur_1: vec3<f32>, monde_4: vec3<f32>) -> vec3<f32> {\n    var couleur_2: vec3<f32>;\n    var monde_5: vec3<f32>;\n    var brume: f32;\n    var ecran: vec2<f32>;\n\n    couleur_2 = couleur_1;\n    monde_5 = monde_4;\n    let _e25: vec4<f32> = ferroUniforms.data[17];\n    let _e27: vec3<f32> = monde_5;\n    let _e34: vec4<f32> = ferroUniforms.data[24];\n    brume = (1f - exp((-(length((_e25.xyz - _e27))) * _e34.y)));\n    let _e41: vec3<f32> = couleur_2;\n    let _e45: vec4<f32> = ferroUniforms.data[21];\n    let _e47: f32 = brume;\n    couleur_2 = mix(_e41, _e45.xyz, vec3(min(_e47, 0.86f)));\n    let _e52: vec3<f32> = couleur_2;\n    let _e53: vec3<f32> = couleur_2;\n    couleur_2 = pow(max((_e52 / (_e53 + vec3(0.76f))), vec3(0f)), vec3(0.4545f));\n    let _e65: vec4<f32> = gl_FragCoord_1;\n    let _e70: vec4<f32> = ferroUniforms.data[25];\n    ecran = (_e65.xy / _e70.xy);\n    let _e74: vec3<f32> = couleur_2;\n    let _e78: vec4<f32> = ferroUniforms.data[87];\n    let _e83: vec2<f32> = ecran;\n    let _e86: vec2<f32> = ecran;\n    let _e90: vec2<f32> = ecran;\n    let _e95: vec2<f32> = ecran;\n    return (_e74 * mix(_e78.x, 1f, pow(max(0f, ((((16f * _e83.x) * _e86.y) * (1f - _e90.x)) * (1f - _e95.y))), 0.13f)));\n}\n\nfn motif(uv_3: vec2<f32>, f_1: u32) -> f32 {\n    var uv_4: vec2<f32>;\n    var f_2: u32;\n    var q_1: vec2<f32>;\n    var d_2: f32;\n    var aa: f32;\n\n    uv_4 = uv_3;\n    f_2 = f_1;\n    let _e30: vec2<f32> = uv_4;\n    q_1 = ((_e30 * 2f) - vec2(1f));\n    let _e38: u32 = f_2;\n    if (_e38 == 0u) {\n        let _e41: vec2<f32> = q_1;\n        d_2 = (length(_e41) - 0.55f);\n    } else {\n        let _e45: u32 = f_2;\n        if (_e45 == 1u) {\n            let _e48: vec2<f32> = q_1;\n            let _e51: vec2<f32> = q_1;\n            d_2 = (max(abs(_e48.x), abs(_e51.y)) - 0.48f);\n        } else {\n            let _e57: vec2<f32> = q_1;\n            let _e61: vec2<f32> = q_1;\n            d_2 = (abs(((_e57.y - 0.35f) + (abs(_e61.x) * 0.9f))) - 0.2f);\n        }\n    }\n    let _e70: f32 = d_2;\n    let _e71: f32 = fwidth(_e70);\n    aa = max(_e71, 0.02f);\n    let _e76: f32 = aa;\n    let _e78: f32 = aa;\n    let _e79: f32 = d_2;\n    return (1f - smoothstep(-(_e76), _e78, _e79));\n}\n\nfn main_1() {\n    var n_6: vec3<f32>;\n    var base_2: vec3<f32>;\n    var ombre_2: f32;\n\n    let _e26: vec3<f32> = vNormale_1;\n    n_6 = normalize(_e26);\n    let _e29: vec3<f32> = vBase_1;\n    base_2 = _e29;\n    let _e31: vec4<f32> = vMatiere_1;\n    if (_e31.w > 0.5f) {\n        let _e35: vec3<f32> = base_2;\n        let _e36: vec3<f32> = vMotif_1;\n        let _e37: vec2<f32> = vUV_1;\n        let _e38: u32 = vFaction_1;\n        let _e39: f32 = motif(_e37, _e38);\n        base_2 = mix(_e35, _e36, vec3(_e39));\n    }\n    let _e42: vec3<f32> = vMonde_1;\n    let _e43: vec3<f32> = n_6;\n    let _e44: f32 = pdrOmbreSoleil(_e42, _e43);\n    ombre_2 = _e44;\n    let _e46: vec3<f32> = base_2;\n    let _e47: vec3<f32> = n_6;\n    let _e48: vec3<f32> = vMonde_1;\n    let _e49: vec4<f32> = vMatiere_1;\n    let _e51: vec4<f32> = vMatiere_1;\n    let _e53: vec4<f32> = vMatiere_1;\n    let _e55: f32 = ombre_2;\n    let _e56: vec3<f32> = pdrEclairer(_e46, _e47, _e48, _e49.x, _e51.y, _e53.z, _e55);\n    let _e57: vec3<f32> = vMonde_1;\n    let _e58: vec3<f32> = pdrFinir(_e56, _e57);\n    fragColor = vec4<f32>(_e58.x, _e58.y, _e58.z, 0f);\n    return;\n}\n\n@fragment \nfn main(@builtin(position) gl_FragCoord: vec4<f32>, @location(0) vMonde: vec3<f32>, @location(1) vNormale: vec3<f32>, @location(2) vUV: vec2<f32>, @location(3) @interpolate(flat) vBase: vec3<f32>, @location(4) @interpolate(flat) vMatiere: vec4<f32>, @location(5) @interpolate(flat) vMotif: vec3<f32>, @location(6) @interpolate(flat) vFaction: u32) -> FragmentOutput {\n    gl_FragCoord_1 = gl_FragCoord;\n    vMonde_1 = vMonde;\n    vNormale_1 = vNormale;\n    vUV_1 = vUV;\n    vBase_1 = vBase;\n    vMatiere_1 = vMatiere;\n    vMotif_1 = vMotif;\n    vFaction_1 = vFaction;\n    main_1();\n    let _e64: vec4<f32> = fragColor;\n    return FragmentOutput(_e64);\n}\n"},"crowdShadow":{"uniforms":{"byteLength":192,"fields":[{"name":"uVP","type":"mat4","offset":0,"count":1,"arrayStride":64,"matrixStride":16},{"name":"uDistanceGait","type":"float","offset":64,"count":1,"arrayStride":16,"matrixStride":0},{"name":"uVoileZoneF","type":"vec4","offset":80,"count":1,"arrayStride":16,"matrixStride":0},{"name":"uSolZone","type":"vec4","offset":96,"count":1,"arrayStride":16,"matrixStride":0},{"name":"uReglages","type":"vec4","offset":112,"count":1,"arrayStride":16,"matrixStride":0},{"name":"uCamps","type":"ivec4","offset":128,"count":1,"arrayStride":16,"matrixStride":0},{"name":"uFactions","type":"vec3","offset":144,"count":3,"arrayStride":16,"matrixStride":0}]},"textures":[{"name":"uCour","binding":1,"samplerBinding":2,"dimension":"2d","depth":false,"sampleType":"unfilterable-float","samplerType":"non-filtering","sourceType":"sampler2D","renderTarget":false},{"name":"uPrec","binding":3,"samplerBinding":4,"dimension":"2d","depth":false,"sampleType":"unfilterable-float","samplerType":"non-filtering","sourceType":"sampler2D","renderTarget":false},{"name":"uLocomotion","binding":5,"samplerBinding":6,"dimension":"2d","depth":false,"sampleType":"unfilterable-float","samplerType":"non-filtering","sourceType":"sampler2D","renderTarget":false},{"name":"uMarques","binding":7,"samplerBinding":8,"dimension":"2d","depth":false,"sampleType":"uint","samplerType":"non-filtering","sourceType":"usampler2D","renderTarget":false},{"name":"uVoileF","binding":9,"samplerBinding":10,"dimension":"2d","depth":false,"sampleType":"float","samplerType":"filtering","sourceType":"sampler2D","renderTarget":false},{"name":"uSol","binding":11,"samplerBinding":12,"dimension":"2d","depth":false,"sampleType":"float","samplerType":"filtering","sourceType":"sampler2D","renderTarget":false}],"entryPoint":"main","sourceSha256":"0c0fbf628f58290b72210ed452845eed9ea5ce804796748582780a6cf06a3340","vertex":"diagnostic(off, derivative_uniformity);\nstruct FerroUniforms {\n    data: array<vec4<f32>, 12>,\n}\n\nstruct Unite {\n    xz: vec2<f32>,\n    cap: f32,\n    faction: u32,\n    type_: u32,\n    etat: u32,\n    niveau: u32,\n    drapeaux: u32,\n    marques: u32,\n    vitesse: f32,\n    gait: vec2<f32>,\n    cachee: bool,\n    h: u32,\n}\n\nstruct Pose {\n    jg: f32,\n    jd: f32,\n    bg: f32,\n    bd: f32,\n    torse: f32,\n    tete: f32,\n    haut: f32,\n    roulis: f32,\n    tourelle: f32,\n    bouclier: f32,\n    banderole: f32,\n    poutre: f32,\n    kg: f32,\n    kd: f32,\n    fg: f32,\n    fd: f32,\n}\n\nstruct VertexOutput {\n    @builtin(position) gl_Position: vec4<f32>,\n}\n\nconst HAUTS: array<vec3<f32>, 16> = array<vec3<f32>, 16>(vec3<f32>(0.84f, 0.22f, 0.16f), vec3<f32>(0.2f, 0.2f, 0.22f), vec3<f32>(0.66f, 0.17f, 0.13f), vec3<f32>(0.34f, 0.31f, 0.33f), vec3<f32>(0.9f, 0.58f, 0.12f), vec3<f32>(0.3f, 0.29f, 0.27f), vec3<f32>(0.8f, 0.5f, 0.1f), vec3<f32>(0.42f, 0.4f, 0.36f), vec3<f32>(0.1f, 0.15f, 0.3f), vec3<f32>(0.12f, 0.17f, 0.33f), vec3<f32>(0.16f, 0.2f, 0.36f), vec3<f32>(0.09f, 0.12f, 0.24f), vec3<f32>(0.12f, 0.12f, 0.13f), vec3<f32>(0.18f, 0.17f, 0.18f), vec3<f32>(0.25f, 0.1f, 0.09f), vec3<f32>(0.14f, 0.14f, 0.16f));\nconst PIV_HANCHES: vec3<f32> = vec3<f32>(0f, 0.95f, 0f);\nconst PIV_COU: vec3<f32> = vec3<f32>(0f, 1.52f, 0f);\nconst PIV_JAMBE_G: vec3<f32> = vec3<f32>(-0.105f, 0.97f, 0f);\nconst PIV_JAMBE_D: vec3<f32> = vec3<f32>(0.105f, 0.97f, 0f);\nconst PIV_BRAS_G: vec3<f32> = vec3<f32>(-0.235f, 1.43f, 0f);\nconst PIV_BRAS_D: vec3<f32> = vec3<f32>(0.235f, 1.43f, 0f);\nconst PIV_BANDEROLE: vec3<f32> = vec3<f32>(0.27f, 1.85f, 0.05f);\nconst PIV_TOURELLE: vec3<f32> = vec3<f32>(0f, 3.12f, 0.6f);\n\n@group(0) @binding(0) \nvar<uniform> ferroUniforms: FerroUniforms;\n@group(0) @binding(1) \nvar uCour_texture: texture_2d<f32>;\n@group(0) @binding(2) \nvar uCour_sampler: sampler;\n@group(0) @binding(3) \nvar uPrec_texture: texture_2d<f32>;\n@group(0) @binding(4) \nvar uPrec_sampler: sampler;\n@group(0) @binding(5) \nvar uLocomotion_texture: texture_2d<f32>;\n@group(0) @binding(6) \nvar uLocomotion_sampler: sampler;\n@group(0) @binding(7) \nvar uMarques_texture: texture_2d<u32>;\n@group(0) @binding(8) \nvar uMarques_sampler: sampler;\n@group(0) @binding(9) \nvar uVoileF_texture: texture_2d<f32>;\n@group(0) @binding(10) \nvar uVoileF_sampler: sampler;\n@group(0) @binding(11) \nvar uSol_texture: texture_2d<f32>;\n@group(0) @binding(12) \nvar uSol_sampler: sampler;\nvar<private> aPosition_1: vec3<f32>;\nvar<private> aNormale_1: vec3<f32>;\nvar<private> aUV_1: vec2<f32>;\nvar<private> aInfo_1: vec4<u32>;\nvar<private> aUnite_1: u32;\nvar<private> gl_Position: vec4<f32>;\n\nfn ferro_uFactions(index: i32) -> vec3<f32> {\n    var index_1: i32;\n\n    index_1 = index;\n    let _e6: i32 = index_1;\n    let _e12: vec4<f32> = ferroUniforms.data[(9i + (_e6 * 1i))];\n    return _e12.xyz;\n}\n\nfn hache(x: u32) -> u32 {\n    var x_1: u32;\n\n    x_1 = x;\n    let _e22: u32 = x_1;\n    let _e23: u32 = x_1;\n    x_1 = (_e22 ^ (_e23 >> 16u));\n    let _e28: u32 = x_1;\n    x_1 = (_e28 * 2146121005u);\n    let _e31: u32 = x_1;\n    let _e32: u32 = x_1;\n    x_1 = (_e31 ^ (_e32 >> 15u));\n    let _e37: u32 = x_1;\n    x_1 = (_e37 * 2221713035u);\n    let _e40: u32 = x_1;\n    let _e41: u32 = x_1;\n    x_1 = (_e40 ^ (_e41 >> 16u));\n    let _e46: u32 = x_1;\n    return _e46;\n}\n\nfn lireUnite(id: i32) -> Unite {\n    var id_1: i32;\n    var u: Unite;\n    var t: vec2<i32>;\n    var c: vec4<f32>;\n    var code: u32;\n    var g: vec4<f32>;\n    var p: vec4<f32>;\n    var pc: u32;\n    var d: vec2<f32>;\n    var a: f32;\n\n    id_1 = id;\n    let _e23: i32 = id_1;\n    let _e26: i32 = id_1;\n    t = vec2<i32>((_e23 & 1023i), (_e26 >> 10u));\n    let _e32: vec2<i32> = t;\n    let _e34: vec4<f32> = textureLoad(uCour_texture, _e32, 0i);\n    c = _e34;\n    let _e36: vec4<f32> = c;\n    code = u32((_e36.w + 0.5f));\n    let _e43: u32 = code;\n    u.faction = (_e43 & 3u);\n    let _e47: u32 = code;\n    u.type_ = ((_e47 >> 2u) & 15u);\n    let _e54: u32 = code;\n    u.etat = ((_e54 >> 6u) & 15u);\n    let _e61: u32 = code;\n    u.niveau = ((_e61 >> 10u) & 63u);\n    let _e68: u32 = code;\n    u.drapeaux = ((_e68 >> 16u) & 255u);\n    u.gait = vec2<f32>(-1f, 0f);\n    let _e82: vec4<f32> = ferroUniforms.data[4];\n    if (_e82.x > 0.5f) {\n        {\n            let _e86: vec2<i32> = t;\n            let _e88: vec4<f32> = textureLoad(uLocomotion_texture, _e86, 0i);\n            g = _e88;\n            let _e91: vec4<f32> = g;\n            let _e93: vec4<f32> = g;\n            let _e98: vec4<f32> = ferroUniforms.data[7];\n            let _e102: vec4<f32> = g;\n            let _e104: vec4<f32> = g;\n            let _e109: vec4<f32> = ferroUniforms.data[7];\n            u.gait = vec2<f32>(mix(_e91.x, _e93.y, _e98.x), mix(_e102.z, _e104.w, _e109.x));\n        }\n    }\n    let _e115: vec2<i32> = t;\n    let _e117: vec4<u32> = textureLoad(uMarques_texture, _e115, 0i);\n    u.marques = _e117.x;\n    let _e120: vec4<f32> = c;\n    u.xz = _e120.xy;\n    let _e123: vec4<f32> = c;\n    u.cap = _e123.z;\n    u.vitesse = 0f;\n    let _e128: Unite = u;\n    u.cachee = (_e128.faction == 3u);\n    let _e133: i32 = id_1;\n    let _e135: u32 = hache(u32(_e133));\n    u.h = _e135;\n    let _e136: i32 = id_1;\n    let _e140: vec4<f32> = ferroUniforms.data[8];\n    if (_e136 < bitcast<vec4<i32>>(_e140.xyzw).z) {\n        {\n            let _e145: vec2<i32> = t;\n            let _e147: vec4<f32> = textureLoad(uPrec_texture, _e145, 0i);\n            p = _e147;\n            let _e149: vec4<f32> = p;\n            pc = u32((_e149.w + 0.5f));\n            let _e155: vec4<f32> = c;\n            let _e157: vec4<f32> = p;\n            d = (_e155.xy - _e157.xy);\n            let _e161: u32 = pc;\n            let _e164: u32 = code;\n            let _e168: vec2<f32> = d;\n            let _e169: vec2<f32> = d;\n            if (((_e161 & 63u) == (_e164 & 63u)) && (dot(_e168, _e169) < 64f)) {\n                {\n                    let _e175: vec4<f32> = p;\n                    let _e177: vec2<f32> = d;\n                    let _e181: vec4<f32> = ferroUniforms.data[7];\n                    u.xz = (_e175.xy + (_e177 * _e181.x));\n                    let _e186: vec4<f32> = c;\n                    let _e188: vec4<f32> = p;\n                    a = (_e186.z - _e188.z);\n                    let _e192: f32 = a;\n                    let _e194: f32 = a;\n                    a = (_e192 - (6.2831855f * floor(((_e194 + 3.1415927f) / 6.2831855f))));\n                    let _e203: vec4<f32> = p;\n                    let _e205: f32 = a;\n                    let _e209: vec4<f32> = ferroUniforms.data[7];\n                    u.cap = (_e203.z + (_e205 * _e209.x));\n                    let _e215: vec2<f32> = d;\n                    let _e220: vec4<f32> = ferroUniforms.data[7];\n                    u.vitesse = (length(_e215) * _e220.w);\n                }\n            }\n        }\n    }\n    let _e224: Unite = u;\n    let _e230: vec4<f32> = ferroUniforms.data[7];\n    let _e236: Unite = u;\n    let _e242: vec4<f32> = ferroUniforms.data[8];\n    let _e248: Unite = u;\n    let _e254: vec4<f32> = ferroUniforms.data[8];\n    if (((!(_e224.cachee) && (_e230.z > 0.5f)) && (i32(_e236.faction) != bitcast<vec4<i32>>(_e242.xyzw).x)) && (i32(_e248.faction) != bitcast<vec4<i32>>(_e254.xyzw).y)) {\n        let _e261: Unite = u;\n        let _e266: vec4<f32> = ferroUniforms.data[5];\n        let _e273: vec4<f32> = ferroUniforms.data[5];\n        let _e278: vec4<f32> = textureSampleLevel(uVoileF_texture, uVoileF_sampler, ((_e261.xz - _e266.xy) * _e273.zw), 0f);\n        u.cachee = (_e278.x < 0.35f);\n    }\n    let _e282: Unite = u;\n    return _e282;\n}\n\nfn solSous(xz: vec2<f32>) -> f32 {\n    var xz_1: vec2<f32>;\n\n    xz_1 = xz;\n    let _e22: vec2<f32> = xz_1;\n    let _e26: vec4<f32> = ferroUniforms.data[6];\n    let _e33: vec4<f32> = ferroUniforms.data[6];\n    let _e38: vec4<f32> = textureSampleLevel(uSol_texture, uSol_sampler, ((_e22 - _e26.xy) * _e33.zw), 0f);\n    return (_e38.x * 2.55f);\n}\n\nfn haut(u_1: Unite) -> vec3<f32> {\n    var u_2: Unite;\n    var k: u32;\n    var local: array<vec3<f32>, 16> = HAUTS;\n\n    u_2 = u_1;\n    let _e23: Unite = u_2;\n    k = ((_e23.h >> 4u) & 3u);\n    let _e31: Unite = u_2;\n    let _e41: vec3<f32> = local[((_e31.h >> 4u) & 15u)];\n    return _e41;\n}\n\nfn porteur(u_3: Unite) -> bool {\n    var u_4: Unite;\n\n    u_4 = u_3;\n    let _e23: Unite = u_4;\n    let _e27: Unite = u_4;\n    let _e32: Unite = u_4;\n    return (((_e23.type_ == 1u) || (_e27.type_ == 5u)) && (((_e32.h >> 20u) & 7u) == 0u));\n}\n\nfn humanGait(phase: f32, amount: f32) -> vec4<f32> {\n    var phase_1: f32;\n    var amount_1: f32;\n    var u_5: f32;\n    var local_1: f32;\n    var f: f32;\n    var t_1: f32;\n    var local_2: f32;\n    var z: f32;\n    var local_3: f32;\n    var lift: f32;\n    var root: f32;\n    var dy: f32;\n    var d_1: f32;\n    var knee: f32;\n    var hip: f32;\n\n    phase_1 = phase;\n    amount_1 = amount;\n    let _e33: f32 = amount_1;\n    amount_1 = clamp(_e33, 0f, 1.2f);\n    let _e37: f32 = phase_1;\n    u_5 = fract((_e37 / 6.2831855f));\n    let _e42: f32 = u_5;\n    if (_e42 < 0.52f) {\n        local_1 = 0f;\n    } else {\n        let _e46: f32 = u_5;\n        local_1 = ((_e46 - 0.52f) / 0.48f);\n    }\n    let _e52: f32 = local_1;\n    f = _e52;\n    let _e54: f32 = f;\n    let _e55: f32 = f;\n    let _e59: f32 = f;\n    t_1 = ((_e54 * _e55) * (3f - (2f * _e59)));\n    let _e65: f32 = amount_1;\n    let _e67: f32 = u_5;\n    if (_e67 < 0.52f) {\n        let _e72: f32 = u_5;\n        local_2 = (1f - ((2f * _e72) / 0.52f));\n    } else {\n        let _e80: f32 = t_1;\n        local_2 = (-1f + (2f * _e80));\n    }\n    let _e84: f32 = local_2;\n    z = ((0.3f * _e65) * _e84);\n    let _e87: f32 = u_5;\n    if (_e87 < 0.52f) {\n        local_3 = 0f;\n    } else {\n        let _e92: f32 = amount_1;\n        let _e95: f32 = f;\n        local_3 = ((0.09f * _e92) * pow(sin((3.1415927f * _e95)), 2f));\n    }\n    let _e102: f32 = local_3;\n    lift = _e102;\n    let _e106: f32 = amount_1;\n    let _e109: f32 = amount_1;\n    let _e111: f32 = phase_1;\n    root = ((-0.072f * _e106) + ((0.003f * _e109) * cos((_e111 * 2f))));\n    let _e119: f32 = root;\n    let _e123: f32 = lift;\n    dy = (((0.97f + _e119) - 0.145f) - _e123);\n    let _e126: f32 = dy;\n    let _e127: f32 = z;\n    d_1 = clamp(length(vec2<f32>(_e126, _e127)), 0.05f, 0.82499f);\n    let _e134: f32 = d_1;\n    let _e135: f32 = d_1;\n    knee = -(acos(clamp(((((_e134 * _e135) - 0.20249999f) - 0.140625f) / 0.33749998f), -1f, 1f)));\n    let _e158: f32 = z;\n    let _e159: f32 = dy;\n    let _e164: f32 = d_1;\n    let _e165: f32 = d_1;\n    let _e175: f32 = d_1;\n    hip = (atan2(_e158, _e159) + acos(clamp((((0.20249999f + (_e164 * _e165)) - 0.140625f) / (0.9f * _e175)), -1f, 1f)));\n    let _e185: f32 = hip;\n    let _e186: f32 = knee;\n    let _e187: f32 = hip;\n    let _e189: f32 = knee;\n    let _e191: f32 = root;\n    return vec4<f32>(_e185, _e186, (-(_e187) - _e189), _e191);\n}\n\nfn tourneX(v: vec3<f32>, a_1: f32) -> vec3<f32> {\n    var v_1: vec3<f32>;\n    var a_2: f32;\n    var c_1: f32;\n    var s: f32;\n\n    v_1 = v;\n    a_2 = a_1;\n    let _e33: f32 = a_2;\n    c_1 = cos(_e33);\n    let _e36: f32 = a_2;\n    s = sin(_e36);\n    let _e39: vec3<f32> = v_1;\n    let _e41: vec3<f32> = v_1;\n    let _e43: f32 = c_1;\n    let _e45: vec3<f32> = v_1;\n    let _e47: f32 = s;\n    let _e50: vec3<f32> = v_1;\n    let _e53: f32 = s;\n    let _e55: vec3<f32> = v_1;\n    let _e57: f32 = c_1;\n    return vec3<f32>(_e39.x, ((_e41.y * _e43) + (_e45.z * _e47)), ((-(_e50.y) * _e53) + (_e55.z * _e57)));\n}\n\nfn tourner(p_1: ptr<function, vec3<f32>>, n: ptr<function, vec3<f32>>, pivot: vec3<f32>, a_3: f32) {\n    var pivot_1: vec3<f32>;\n    var a_4: f32;\n\n    pivot_1 = pivot;\n    a_4 = a_3;\n    let _e35: vec3<f32> = pivot_1;\n    let _e36: vec3<f32> = (*p_1);\n    let _e37: vec3<f32> = pivot_1;\n    let _e39: f32 = a_4;\n    let _e40: vec3<f32> = tourneX((_e36 - _e37), _e39);\n    (*p_1) = (_e35 + _e40);\n    let _e42: vec3<f32> = (*n);\n    let _e43: f32 = a_4;\n    let _e44: vec3<f32> = tourneX(_e42, _e43);\n    (*n) = _e44;\n    return;\n}\n\nfn poser(u_6: Unite, cuivre: bool) -> Pose {\n    var u_7: Unite;\n    var cuivre_1: bool;\n    var q: Pose = Pose(0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f);\n    var t_2: f32;\n    var ph: f32;\n    var e: u32;\n    var court: bool;\n    var local_4: bool;\n    var marche: bool;\n    var local_5: f32;\n    var local_6: f32;\n    var amp: f32;\n    var local_7: f32;\n    var w: f32;\n    var s_1: f32;\n    var local_8: f32;\n    var cadence: f32;\n    var amount_2: f32;\n    var phase_2: f32;\n    var left: vec4<f32>;\n    var right: vec4<f32>;\n    var local_9: f32;\n    var k_1: f32;\n    var k_2: f32;\n    var k_3: f32;\n    var k_4: f32;\n    var k_5: f32;\n    var k_6: f32;\n    var local_10: f32;\n    var leve: bool;\n    var local_11: f32;\n    var local_12: f32;\n    var local_13: f32;\n    var local_14: f32;\n    var local_15: f32;\n    var local_16: f32;\n    var local_17: f32;\n\n    u_7 = u_6;\n    cuivre_1 = cuivre;\n    let _e54: vec4<f32> = ferroUniforms.data[7];\n    t_2 = _e54.y;\n    let _e58: Unite = u_7;\n    ph = (f32((_e58.h & 1023u)) * 0.0061419f);\n    let _e66: Unite = u_7;\n    e = _e66.etat;\n    let _e69: u32 = e;\n    court = (_e69 == 8u);\n    let _e73: Unite = u_7;\n    if (_e73.gait.x >= 0f) {\n        let _e78: Unite = u_7;\n        local_4 = (_e78.gait.y > 0.001f);\n    } else {\n        let _e83: Unite = u_7;\n        let _e87: u32 = e;\n        let _e91: bool = court;\n        local_4 = (((_e83.vitesse > 0.25f) || (_e87 == 1u)) || _e91);\n    }\n    let _e94: bool = local_4;\n    marche = _e94;\n    let _e96: bool = court;\n    if _e96 {\n        local_6 = 0.65f;\n    } else {\n        let _e99: Unite = u_7;\n        let _e101: u32 = e;\n        if (_e101 == 1u) {\n            local_5 = 1.1f;\n        } else {\n            local_5 = 0f;\n        }\n        let _e107: f32 = local_5;\n        local_6 = (0.32f * clamp((max(_e99.vitesse, _e107) / 1.4f), 0f, 1f));\n    }\n    let _e116: f32 = local_6;\n    amp = _e116;\n    let _e118: f32 = t_2;\n    let _e119: bool = court;\n    if _e119 {\n        local_7 = 1.55f;\n    } else {\n        local_7 = 0.85f;\n    }\n    let _e123: f32 = local_7;\n    let _e127: f32 = ph;\n    w = (((_e118 * _e123) * 6.2831855f) + _e127);\n    let _e130: f32 = w;\n    s_1 = sin(_e130);\n    let _e133: bool = marche;\n    let _e134: u32 = e;\n    let _e137: u32 = e;\n    if (_e133 && ((_e134 < 2u) || (_e137 == 8u))) {\n        {\n            let _e142: bool = court;\n            if _e142 {\n                local_8 = 2.2f;\n            } else {\n                local_8 = 1.1f;\n            }\n            let _e146: f32 = local_8;\n            cadence = _e146;\n            let _e148: Unite = u_7;\n            let _e151: f32 = cadence;\n            amount_2 = clamp((_e148.vitesse / (1.153846f * _e151)), 0f, 1.2f);\n            let _e158: f32 = t_2;\n            let _e159: f32 = cadence;\n            let _e163: f32 = ph;\n            phase_2 = (((_e158 * _e159) * 6.2831855f) + _e163);\n            let _e166: Unite = u_7;\n            if (_e166.gait.x >= 0f) {\n                {\n                    let _e171: Unite = u_7;\n                    phase_2 = _e171.gait.x;\n                    let _e174: Unite = u_7;\n                    amount_2 = _e174.gait.y;\n                }\n            }\n            let _e177: f32 = phase_2;\n            let _e178: f32 = amount_2;\n            let _e179: vec4<f32> = humanGait(_e177, _e178);\n            left = _e179;\n            let _e181: f32 = phase_2;\n            let _e184: f32 = amount_2;\n            let _e185: vec4<f32> = humanGait((_e181 + 3.1415927f), _e184);\n            right = _e185;\n            let _e188: vec4<f32> = left;\n            q.jg = _e188.x;\n            let _e191: vec4<f32> = right;\n            q.jd = _e191.x;\n            let _e194: vec4<f32> = left;\n            q.kg = _e194.y;\n            let _e197: vec4<f32> = right;\n            q.kd = _e197.y;\n            let _e200: vec4<f32> = left;\n            q.fg = _e200.z;\n            let _e203: vec4<f32> = right;\n            q.fd = _e203.z;\n            let _e206: vec4<f32> = left;\n            q.haut = _e206.w;\n            let _e209: f32 = phase_2;\n            let _e214: f32 = amount_2;\n            q.bg = ((-(sin(_e209)) * 0.23f) * _e214);\n            let _e217: Pose = q;\n            q.bd = -(_e217.bg);\n            let _e221: bool = court;\n            if _e221 {\n                local_9 = 0.12f;\n            } else {\n                let _e224: f32 = phase_2;\n                local_9 = (0.012f * sin(_e224));\n            }\n            let _e228: f32 = local_9;\n            q.torse = _e228;\n        }\n    } else {\n        let _e229: bool = marche;\n        if _e229 {\n            {\n                let _e231: f32 = amp;\n                let _e232: f32 = s_1;\n                q.jg = (_e231 * _e232);\n                let _e235: f32 = amp;\n                let _e237: f32 = s_1;\n                q.jd = (-(_e235) * _e237);\n                let _e240: f32 = amp;\n                let _e244: f32 = s_1;\n                q.bg = ((-(_e240) * 0.8f) * _e244);\n                let _e247: f32 = amp;\n                let _e250: f32 = s_1;\n                q.bd = ((_e247 * 0.8f) * _e250);\n            }\n        } else {\n            {\n                let _e254: f32 = t_2;\n                let _e257: f32 = ph;\n                q.torse = (0.025f * sin(((_e254 * 1.3f) + _e257)));\n                let _e263: f32 = t_2;\n                let _e266: f32 = ph;\n                q.bg = (0.05f * sin(((_e263 * 1.1f) + _e266)));\n                let _e271: Pose = q;\n                q.bd = -(_e271.bg);\n                let _e276: f32 = t_2;\n                let _e279: f32 = ph;\n                q.tete = (0.06f * sin(((_e276 * 0.7f) + (_e279 * 1.7f))));\n            }\n        }\n    }\n    let _e285: u32 = e;\n    if (_e285 == 2u) {\n        {\n            let _e290: f32 = t_2;\n            let _e293: f32 = ph;\n            k_1 = (0.5f + (0.5f * sin(((_e290 * 7.5f) + _e293))));\n            let _e302: f32 = k_1;\n            q.bd = (1.25f + (0.45f * _e302));\n            let _e309: f32 = k_1;\n            q.bg = (1.05f + (0.4f * (1f - _e309)));\n            let _e316: f32 = k_1;\n            q.torse = (0.1f + (0.18f * _e316));\n            let _e319: bool = marche;\n            if !(_e319) {\n                {\n                    q.jg = 0.3f;\n                    q.jd = -0.22f;\n                }\n            }\n        }\n    } else {\n        let _e326: u32 = e;\n        if (_e326 == 3u) {\n            {\n                let _e331: f32 = t_2;\n                let _e334: f32 = ph;\n                k_2 = (0.5f + (0.5f * sin(((_e331 * 5f) + _e334))));\n                q.torse = 0.78f;\n                let _e345: f32 = k_2;\n                q.bg = (0.55f + (0.5f * _e345));\n                let _e352: f32 = k_2;\n                q.bd = (0.55f + (0.5f * (1f - _e352)));\n                q.jd = 0.15f;\n                q.jg = 0.15f;\n                q.haut = -0.06f;\n                q.tete = -0.3f;\n            }\n        } else {\n            let _e365: u32 = e;\n            if (_e365 == 4u) {\n                {\n                    q.bd = 0.95f;\n                    q.bg = 0.95f;\n                }\n            } else {\n                let _e371: u32 = e;\n                if (_e371 == 5u) {\n                    {\n                        let _e376: f32 = t_2;\n                        let _e379: f32 = ph;\n                        k_3 = (0.5f + (0.5f * sin(((_e376 * 4.2f) + _e379))));\n                        let _e389: f32 = k_3;\n                        let _e391: f32 = (0.4f + (1.5f * _e389));\n                        q.bd = _e391;\n                        q.bg = _e391;\n                        let _e395: f32 = k_3;\n                        q.torse = (0.35f - (0.25f * _e395));\n                        let _e402: f32 = k_3;\n                        q.haut = (-0.05f * (1f - _e402));\n                    }\n                } else {\n                    let _e405: u32 = e;\n                    if (_e405 == 6u) {\n                        {\n                            let _e410: f32 = t_2;\n                            let _e413: f32 = ph;\n                            k_4 = (0.5f + (0.5f * sin(((_e410 * 3.6f) + _e413))));\n                            q.bd = 1.25f;\n                            q.bg = 1.25f;\n                            let _e426: f32 = k_4;\n                            q.torse = (-0.15f - (0.2f * _e426));\n                            q.jg = 0.35f;\n                            q.jd = -0.1f;\n                        }\n                    } else {\n                        let _e434: u32 = e;\n                        if (_e434 == 7u) {\n                            {\n                                let _e438: f32 = t_2;\n                                let _e441: f32 = ph;\n                                k_5 = max(0f, sin(((_e438 * 6.2f) + _e441)));\n                                let _e450: f32 = k_5;\n                                let _e452: f32 = k_5;\n                                q.jd = (-0.2f + ((1.35f * _e450) * _e452));\n                                q.jg = 0f;\n                                q.bg = -0.4f;\n                                q.bd = 0.5f;\n                                let _e465: f32 = k_5;\n                                q.torse = (-0.08f * _e465);\n                            }\n                        } else {\n                            let _e467: u32 = e;\n                            if (_e467 == 9u) {\n                                {\n                                    q.jg = 0.28f;\n                                    q.jd = -0.28f;\n                                    q.bd = 0.55f;\n                                    q.bg = 0.55f;\n                                    q.haut = -0.07f;\n                                    q.torse = 0.12f;\n                                }\n                            } else {\n                                let _e483: u32 = e;\n                                if (_e483 == 10u) {\n                                    {\n                                        q.jd = 1.5f;\n                                        q.jg = 1.5f;\n                                        q.haut = -0.62f;\n                                        let _e496: f32 = t_2;\n                                        let _e499: f32 = ph;\n                                        q.torse = (-0.22f + (0.05f * sin(((_e496 * 2f) + _e499))));\n                                        let _e508: f32 = t_2;\n                                        let _e511: f32 = ph;\n                                        let _e515: f32 = (0.8f + (0.08f * sin(((_e508 * 1.7f) + _e511))));\n                                        q.bd = _e515;\n                                        q.bg = _e515;\n                                        let _e519: f32 = t_2;\n                                        let _e522: f32 = ph;\n                                        q.tete = (0.3f + (0.1f * sin(((_e519 * 2.6f) + _e522))));\n                                    }\n                                } else {\n                                    let _e527: u32 = e;\n                                    if (_e527 == 11u) {\n                                        {\n                                            let _e532: f32 = t_2;\n                                            let _e535: f32 = ph;\n                                            k_6 = (0.5f + (0.5f * sin(((_e532 * 3f) + _e535))));\n                                            let _e544: f32 = k_6;\n                                            q.bd = (0.6f + (2.1f * _e544));\n                                            q.bg = 1f;\n                                        }\n                                    }\n                                }\n                            }\n                        }\n                    }\n                }\n            }\n        }\n    }\n    let _e549: Unite = u_7;\n    let _e555: u32 = e;\n    let _e558: u32 = e;\n    let _e562: u32 = e;\n    if (((_e549.drapeaux & 1u) != 0u) && (((_e555 < 2u) || (_e558 == 4u)) || (_e562 == 8u))) {\n        q.bd = 0.95f;\n        q.bg = 0.95f;\n    }\n    if false {\n        {\n            let _e571: Unite = u_7;\n            let _e572: bool = porteur(_e571);\n            if _e572 {\n                {\n                    let _e576: f32 = t_2;\n                    let _e579: f32 = ph;\n                    q.bd = (2.85f + (0.08f * sin(((_e576 * 1.7f) + _e579))));\n                    let _e586: f32 = t_2;\n                    let _e589: f32 = ph;\n                    q.banderole = (0.12f * sin(((_e586 * 2.3f) + _e589)));\n                    let _e593: Unite = u_7;\n                    if (_e593.type_ == 5u) {\n                        let _e598: bool = marche;\n                        if _e598 {\n                            let _e599: Pose = q;\n                            local_10 = _e599.bg;\n                        } else {\n                            local_10 = 0.3f;\n                        }\n                        let _e603: f32 = local_10;\n                        q.bg = _e603;\n                    }\n                }\n            }\n            let _e604: Unite = u_7;\n            let _e608: Unite = u_7;\n            if ((_e604.type_ == 6u) || (_e608.type_ == 10u)) {\n                {\n                    let _e613: Unite = u_7;\n                    let _e619: u32 = e;\n                    let _e623: u32 = e;\n                    leve = ((((_e613.drapeaux & 8u) != 0u) || (_e619 == 9u)) || (_e623 == 2u));\n                    let _e629: bool = leve;\n                    if _e629 {\n                        local_11 = 0f;\n                    } else {\n                        local_11 = -0.35f;\n                    }\n                    let _e634: f32 = local_11;\n                    q.bouclier = _e634;\n                    let _e636: bool = leve;\n                    if _e636 {\n                        local_12 = 1.05f;\n                    } else {\n                        local_12 = 0.3f;\n                    }\n                    let _e640: f32 = local_12;\n                    q.bg = _e640;\n                }\n            }\n            let _e641: Unite = u_7;\n            if (_e641.type_ == 7u) {\n                {\n                    q.bd = 0.95f;\n                    q.bg = 0.95f;\n                    let _e649: u32 = e;\n                    let _e652: u32 = e;\n                    let _e656: u32 = e;\n                    if (((_e649 == 6u) || (_e652 == 2u)) || (_e656 == 7u)) {\n                        let _e662: f32 = t_2;\n                        let _e665: f32 = ph;\n                        local_13 = (0.38f * max(0f, sin(((_e662 * 5f) + _e665))));\n                    } else {\n                        local_13 = 0f;\n                    }\n                    let _e672: f32 = local_13;\n                    q.poutre = _e672;\n                }\n            }\n            let _e673: Unite = u_7;\n            if (_e673.type_ == 3u) {\n                {\n                    let _e677: bool = cuivre_1;\n                    if _e677 {\n                        {\n                            q.bd = 1.35f;\n                            q.bg = 1.35f;\n                            let _e682: Pose = q;\n                            let _e685: f32 = t_2;\n                            let _e688: f32 = ph;\n                            q.torse = (_e682.torse + (0.05f * sin(((_e685 * 3f) + _e688))));\n                        }\n                    } else {\n                        {\n                            let _e696: f32 = t_2;\n                            let _e699: f32 = ph;\n                            q.bd = (1f + (0.5f * abs(sin(((_e696 * 8f) + _e699)))));\n                            let _e708: f32 = t_2;\n                            let _e711: f32 = ph;\n                            q.bg = (1f + (0.5f * abs(sin((((_e708 * 8f) + _e711) + 1.57f)))));\n                        }\n                    }\n                }\n            }\n        }\n    }\n    let _e719: Unite = u_7;\n    let _e723: Unite = u_7;\n    if ((_e719.type_ == 11u) || (_e723.type_ == 12u)) {\n        {\n            q.tete = 0f;\n            q.bd = 0f;\n            q.bg = 0f;\n            q.jd = 0f;\n            q.jg = 0f;\n            let _e735: Unite = u_7;\n            if (_e735.type_ == 11u) {\n                let _e740: Unite = u_7;\n                local_14 = (0.06f * clamp((_e740.vitesse / 8f), 0f, 1f));\n            } else {\n                local_14 = 0f;\n            }\n            let _e750: f32 = local_14;\n            q.torse = _e750;\n            let _e752: bool = marche;\n            if _e752 {\n                let _e754: f32 = t_2;\n                let _e757: f32 = ph;\n                local_15 = (0.015f * sin(((_e754 * 13f) + _e757)));\n            } else {\n                local_15 = 0f;\n            }\n            let _e763: f32 = local_15;\n            q.haut = _e763;\n            let _e764: Unite = u_7;\n            let _e768: u32 = e;\n            if ((_e764.type_ == 12u) && (_e768 == 11u)) {\n                let _e775: f32 = t_2;\n                let _e778: f32 = ph;\n                q.tourelle = (0.1f + (0.12f * sin(((_e775 * 2f) + _e778))));\n            }\n            let _e783: u32 = e;\n            if (_e783 == 10u) {\n                {\n                    let _e787: Unite = u_7;\n                    if (_e787.type_ == 11u) {\n                        local_16 = 1.25f;\n                    } else {\n                        local_16 = 0.05f;\n                    }\n                    let _e794: f32 = local_16;\n                    q.roulis = _e794;\n                    let _e796: Unite = u_7;\n                    if (_e796.type_ == 11u) {\n                        local_17 = -0.05f;\n                    } else {\n                        local_17 = -0.08f;\n                    }\n                    let _e805: f32 = local_17;\n                    q.haut = _e805;\n                }\n            }\n        }\n    }\n    let _e806: Unite = u_7;\n    if ((_e806.drapeaux & 2u) != 0u) {\n        let _e813: Pose = q;\n        q.torse = (_e813.torse - 0.22f);\n    }\n    let _e817: bool = marche;\n    let _e818: u32 = e;\n    let _e821: u32 = e;\n    if !((_e817 && ((_e818 < 2u) || (_e821 == 8u)))) {\n        {\n            let _e829: Pose = q;\n            q.kg = (-(max(0f, _e829.jg)) * 1.25f);\n            let _e837: Pose = q;\n            q.kd = (-(max(0f, _e837.jd)) * 1.25f);\n        }\n    }\n    let _e843: Pose = q;\n    return _e843;\n}\n\nfn poserOs(p_2: ptr<function, vec3<f32>>, n_1: ptr<function, vec3<f32>>, os: u32, q_1: Pose) {\n    var os_1: u32;\n    var q_2: Pose;\n    var left_1: bool;\n    var local_18: f32;\n    var a_5: f32;\n    var local_19: f32;\n    var x_2: f32;\n    var local_20: f32;\n    var local_21: f32;\n    var local_22: vec3<f32>;\n    var local_23: f32;\n    var a_6: f32;\n    var local_24: f32;\n    var knee_1: vec3<f32>;\n    var local_25: f32;\n    var local_26: vec3<f32>;\n    var local_27: f32;\n    var a_7: f32;\n    var local_28: f32;\n    var elbow: vec3<f32>;\n    var local_29: vec3<f32>;\n\n    os_1 = os;\n    q_2 = q_1;\n    let _e35: u32 = os_1;\n    let _e38: u32 = os_1;\n    if ((_e35 == 20u) || (_e38 == 21u)) {\n        {\n            let _e42: u32 = os_1;\n            left_1 = (_e42 == 20u);\n            let _e46: bool = left_1;\n            if _e46 {\n                let _e47: Pose = q_2;\n                local_18 = _e47.jg;\n            } else {\n                let _e49: Pose = q_2;\n                local_18 = _e49.jd;\n            }\n            let _e52: f32 = local_18;\n            a_5 = _e52;\n            let _e54: bool = left_1;\n            if _e54 {\n                local_19 = -0.105f;\n            } else {\n                local_19 = 0.105f;\n            }\n            let _e59: f32 = local_19;\n            x_2 = _e59;\n            let _e63: f32 = x_2;\n            let _e67: bool = left_1;\n            if _e67 {\n                let _e68: Pose = q_2;\n                local_20 = _e68.fg;\n            } else {\n                let _e70: Pose = q_2;\n                local_20 = _e70.fd;\n            }\n            let _e73: f32 = local_20;\n            tourner(p_2, n_1, vec3<f32>(_e63, 0.145f, 0f), _e73);\n            let _e78: f32 = x_2;\n            let _e82: bool = left_1;\n            if _e82 {\n                let _e83: Pose = q_2;\n                local_21 = _e83.kg;\n            } else {\n                let _e85: Pose = q_2;\n                local_21 = _e85.kd;\n            }\n            let _e88: f32 = local_21;\n            tourner(p_2, n_1, vec3<f32>(_e78, 0.52f, 0f), _e88);\n            let _e93: bool = left_1;\n            if _e93 {\n                local_22 = PIV_JAMBE_G;\n            } else {\n                local_22 = PIV_JAMBE_D;\n            }\n            let _e95: vec3<f32> = local_22;\n            let _e96: f32 = a_5;\n            tourner(p_2, n_1, _e95, _e96);\n        }\n    } else {\n        let _e99: u32 = os_1;\n        let _e102: u32 = os_1;\n        if ((_e99 == 16u) || (_e102 == 17u)) {\n            {\n                let _e106: u32 = os_1;\n                if (_e106 == 16u) {\n                    let _e109: Pose = q_2;\n                    local_23 = _e109.jg;\n                } else {\n                    let _e111: Pose = q_2;\n                    local_23 = _e111.jd;\n                }\n                let _e114: f32 = local_23;\n                a_6 = _e114;\n                let _e116: u32 = os_1;\n                if (_e116 == 16u) {\n                    local_24 = -0.105f;\n                } else {\n                    local_24 = 0.105f;\n                }\n                let _e123: f32 = local_24;\n                knee_1 = vec3<f32>(_e123, 0.52f, 0f);\n                let _e130: vec3<f32> = knee_1;\n                let _e131: u32 = os_1;\n                if (_e131 == 16u) {\n                    let _e134: Pose = q_2;\n                    local_25 = _e134.kg;\n                } else {\n                    let _e136: Pose = q_2;\n                    local_25 = _e136.kd;\n                }\n                let _e139: f32 = local_25;\n                tourner(p_2, n_1, _e130, _e139);\n                let _e144: u32 = os_1;\n                if (_e144 == 16u) {\n                    local_26 = PIV_JAMBE_G;\n                } else {\n                    local_26 = PIV_JAMBE_D;\n                }\n                let _e148: vec3<f32> = local_26;\n                let _e149: f32 = a_6;\n                tourner(p_2, n_1, _e148, _e149);\n            }\n        } else {\n            let _e152: u32 = os_1;\n            let _e155: u32 = os_1;\n            if ((_e152 == 18u) || (_e155 == 19u)) {\n                {\n                    let _e159: u32 = os_1;\n                    if (_e159 == 18u) {\n                        let _e162: Pose = q_2;\n                        local_27 = _e162.bg;\n                    } else {\n                        let _e164: Pose = q_2;\n                        local_27 = _e164.bd;\n                    }\n                    let _e167: f32 = local_27;\n                    a_7 = _e167;\n                    let _e169: u32 = os_1;\n                    if (_e169 == 18u) {\n                        local_28 = -0.255f;\n                    } else {\n                        local_28 = 0.255f;\n                    }\n                    let _e176: f32 = local_28;\n                    elbow = vec3<f32>(_e176, 1.19f, 0f);\n                    let _e183: vec3<f32> = elbow;\n                    let _e186: f32 = a_7;\n                    tourner(p_2, n_1, _e183, (0.13f + (max(0f, _e186) * 0.4f)));\n                    let _e195: u32 = os_1;\n                    if (_e195 == 18u) {\n                        local_29 = PIV_BRAS_G;\n                    } else {\n                        local_29 = PIV_BRAS_D;\n                    }\n                    let _e199: vec3<f32> = local_29;\n                    let _e200: f32 = a_7;\n                    tourner(p_2, n_1, _e199, _e200);\n                }\n            } else {\n                let _e203: u32 = os_1;\n                if (_e203 == 4u) {\n                    let _e208: Pose = q_2;\n                    tourner(p_2, n_1, PIV_JAMBE_G, _e208.jg);\n                } else {\n                    let _e212: u32 = os_1;\n                    if (_e212 == 5u) {\n                        let _e217: Pose = q_2;\n                        tourner(p_2, n_1, PIV_JAMBE_D, _e217.jd);\n                    } else {\n                        let _e221: u32 = os_1;\n                        if (_e221 == 2u) {\n                            let _e226: Pose = q_2;\n                            tourner(p_2, n_1, PIV_BRAS_G, _e226.bg);\n                        } else {\n                            let _e230: u32 = os_1;\n                            let _e233: u32 = os_1;\n                            if ((_e230 == 3u) || (_e233 == 7u)) {\n                                let _e239: Pose = q_2;\n                                tourner(p_2, n_1, PIV_BRAS_D, _e239.bd);\n                            } else {\n                                let _e243: u32 = os_1;\n                                if (_e243 == 8u) {\n                                    let _e248: Pose = q_2;\n                                    tourner(p_2, n_1, PIV_BRAS_G, _e248.bouclier);\n                                } else {\n                                    let _e252: u32 = os_1;\n                                    if (_e252 == 12u) {\n                                        let _e257: Pose = q_2;\n                                        tourner(p_2, n_1, PIV_BANDEROLE, -(_e257.banderole));\n                                    } else {\n                                        let _e262: u32 = os_1;\n                                        if (_e262 == 13u) {\n                                            let _e266: vec3<f32> = (*p_2);\n                                            let _e268: Pose = q_2;\n                                            (*p_2).z = (_e266.z + _e268.poutre);\n                                        } else {\n                                            let _e271: u32 = os_1;\n                                            let _e274: u32 = os_1;\n                                            if ((_e271 == 1u) || (_e274 == 14u)) {\n                                                let _e280: Pose = q_2;\n                                                tourner(p_2, n_1, PIV_COU, -(_e280.tete));\n                                            } else {\n                                                let _e285: u32 = os_1;\n                                                if (_e285 == 10u) {\n                                                    let _e290: Pose = q_2;\n                                                    tourner(p_2, n_1, PIV_TOURELLE, -(_e290.tourelle));\n                                                }\n                                            }\n                                        }\n                                    }\n                                }\n                            }\n                        }\n                    }\n                }\n            }\n        }\n    }\n    let _e295: u32 = os_1;\n    let _e298: u32 = os_1;\n    let _e302: u32 = os_1;\n    let _e306: u32 = os_1;\n    let _e310: u32 = os_1;\n    let _e314: u32 = os_1;\n    let _e318: u32 = os_1;\n    let _e322: u32 = os_1;\n    let _e326: u32 = os_1;\n    if (((((((((_e295 != 4u) && (_e298 != 5u)) && (_e302 != 16u)) && (_e306 != 17u)) && (_e310 != 20u)) && (_e314 != 21u)) && (_e318 != 9u)) && (_e322 != 10u)) && (_e326 != 11u)) {\n        let _e332: Pose = q_2;\n        tourner(p_2, n_1, PIV_HANCHES, -(_e332.torse));\n        return;\n    } else {\n        return;\n    }\n}\n\nfn ferro_main() {\n    var u_8: Unite;\n    var os_2: u32;\n    var cuivre_2: bool;\n    var cache: bool;\n    var local_30: bool;\n    var q_3: Pose;\n    var p_3: vec3<f32>;\n    var n_2: vec3<f32>;\n    var bp: vec3<f32>;\n    var bn: vec3<f32>;\n    var c_2: f32;\n    var s_2: f32;\n    var height: f32;\n    var width: f32;\n    var c_3: f32;\n    var s_3: f32;\n    var monde: vec3<f32>;\n\n    let _e29: u32 = aUnite_1;\n    let _e31: Unite = lireUnite(i32(_e29));\n    u_8 = _e31;\n    let _e33: vec4<u32> = aInfo_1;\n    os_2 = _e33.x;\n    let _e36: Unite = u_8;\n    cuivre_2 = ((_e36.h & 1u) == 1u);\n    let _e43: Unite = u_8;\n    cache = _e43.cachee;\n    let _e46: u32 = os_2;\n    let _e49: Unite = u_8;\n    let _e56: Unite = u_8;\n    if (((_e46 == 6u) && ((_e49.drapeaux & 1u) == 0u)) && (_e56.etat != 4u)) {\n        cache = true;\n    }\n    let _e62: u32 = os_2;\n    let _e65: Unite = u_8;\n    let _e66: bool = porteur(_e65);\n    if ((_e62 == 12u) && !(_e66)) {\n        cache = true;\n    }\n    let _e70: u32 = os_2;\n    if (_e70 == 11u) {\n        cache = true;\n    }\n    let _e74: Unite = u_8;\n    let _e78: u32 = os_2;\n    if (_e78 == 14u) {\n        let _e81: bool = cuivre_2;\n        local_30 = !(_e81);\n    } else {\n        let _e83: u32 = os_2;\n        let _e86: u32 = os_2;\n        let _e90: bool = cuivre_2;\n        local_30 = (((_e83 == 15u) || (_e86 == 7u)) && _e90);\n    }\n    let _e93: bool = local_30;\n    if ((_e74.type_ == 3u) && _e93) {\n        cache = true;\n    }\n    let _e96: bool = cache;\n    if _e96 {\n        {\n            gl_Position = vec4<f32>(0f, 0f, 3f, 1f);\n            return;\n        }\n    }\n    let _e103: Unite = u_8;\n    let _e104: bool = cuivre_2;\n    let _e105: Pose = poser(_e103, _e104);\n    q_3 = _e105;\n    let _e107: vec3<f32> = aPosition_1;\n    p_3 = _e107;\n    let _e109: vec3<f32> = aNormale_1;\n    n_2 = _e109;\n    let _e113: u32 = os_2;\n    let _e114: Pose = q_3;\n    poserOs((&p_3), (&n_2), _e113, _e114);\n    let _e117: vec4<u32> = aInfo_1;\n    if ((_e117.w & 32u) != 0u) {\n        {\n            let _e123: vec3<f32> = aPosition_1;\n            bp = _e123;\n            let _e125: vec3<f32> = aNormale_1;\n            bn = _e125;\n            let _e129: vec2<f32> = aUV_1;\n            let _e134: Pose = q_3;\n            poserOs((&bp), (&bn), u32((_e129.x + 0.5f)), _e134);\n            let _e137: vec3<f32> = p_3;\n            let _e138: vec3<f32> = bp;\n            let _e139: vec2<f32> = aUV_1;\n            p_3 = mix(_e137, _e138, vec3(_e139.y));\n            let _e143: vec3<f32> = n_2;\n            let _e144: vec3<f32> = bn;\n            let _e145: vec2<f32> = aUV_1;\n            n_2 = normalize(mix(_e143, _e144, vec3(_e145.y)));\n        }\n    }\n    let _e150: u32 = os_2;\n    if (_e150 != 11u) {\n        {\n            let _e153: Pose = q_3;\n            if (_e153.roulis != 0f) {\n                {\n                    let _e157: Pose = q_3;\n                    c_2 = cos(_e157.roulis);\n                    let _e161: Pose = q_3;\n                    s_2 = sin(_e161.roulis);\n                    let _e165: f32 = c_2;\n                    let _e166: vec3<f32> = p_3;\n                    let _e169: f32 = s_2;\n                    let _e170: vec3<f32> = p_3;\n                    let _e174: f32 = s_2;\n                    let _e175: vec3<f32> = p_3;\n                    let _e178: f32 = c_2;\n                    let _e179: vec3<f32> = p_3;\n                    let _e183: vec3<f32> = p_3;\n                    p_3 = vec3<f32>(((_e165 * _e166.x) - (_e169 * _e170.y)), ((_e174 * _e175.x) + (_e178 * _e179.y)), _e183.z);\n                    let _e186: f32 = c_2;\n                    let _e187: vec3<f32> = n_2;\n                    let _e190: f32 = s_2;\n                    let _e191: vec3<f32> = n_2;\n                    let _e195: f32 = s_2;\n                    let _e196: vec3<f32> = n_2;\n                    let _e199: f32 = c_2;\n                    let _e200: vec3<f32> = n_2;\n                    let _e204: vec3<f32> = n_2;\n                    n_2 = vec3<f32>(((_e186 * _e187.x) - (_e190 * _e191.y)), ((_e195 * _e196.x) + (_e199 * _e200.y)), _e204.z);\n                }\n            }\n            let _e208: vec3<f32> = p_3;\n            let _e210: Pose = q_3;\n            p_3.y = (_e208.y + _e210.haut);\n        }\n    }\n    let _e214: Unite = u_8;\n    height = (0.94f + (f32(((_e214.h >> 22u) & 7u)) * 0.017f));\n    let _e227: Unite = u_8;\n    width = (0.92f + (f32(((_e227.h >> 25u) & 7u)) * 0.022f));\n    let _e239: vec3<f32> = p_3;\n    let _e240: f32 = width;\n    let _e241: f32 = height;\n    p_3 = (_e239 * vec3<f32>(_e240, _e241, 1f));\n    let _e245: vec3<f32> = n_2;\n    let _e246: f32 = width;\n    let _e247: f32 = height;\n    n_2 = normalize((_e245 / vec3<f32>(_e246, _e247, 1f)));\n    let _e252: Unite = u_8;\n    c_3 = cos(_e252.cap);\n    let _e256: Unite = u_8;\n    s_3 = sin(_e256.cap);\n    let _e260: vec3<f32> = p_3;\n    p_3 = (_e260 * 1f);\n    let _e263: Unite = u_8;\n    let _e266: f32 = c_3;\n    let _e267: vec3<f32> = p_3;\n    let _e271: f32 = s_3;\n    let _e272: vec3<f32> = p_3;\n    let _e276: Unite = u_8;\n    let _e278: f32 = solSous(_e276.xz);\n    let _e279: vec3<f32> = p_3;\n    let _e282: Unite = u_8;\n    let _e285: f32 = s_3;\n    let _e286: vec3<f32> = p_3;\n    let _e290: f32 = c_3;\n    let _e291: vec3<f32> = p_3;\n    monde = vec3<f32>(((_e263.xz.x + (_e266 * _e267.x)) + (_e271 * _e272.z)), (_e278 + _e279.y), ((_e282.xz.y - (_e285 * _e286.x)) + (_e290 * _e291.z)));\n    let _e300: vec4<f32> = ferroUniforms.data[0];\n    let _e306: vec4<f32> = ferroUniforms.data[1];\n    let _e312: vec4<f32> = ferroUniforms.data[2];\n    let _e318: vec4<f32> = ferroUniforms.data[3];\n    let _e340: vec3<f32> = monde;\n    gl_Position = (mat4x4<f32>(vec4<f32>(_e300.x, _e300.y, _e300.z, _e300.w), vec4<f32>(_e306.x, _e306.y, _e306.z, _e306.w), vec4<f32>(_e312.x, _e312.y, _e312.z, _e312.w), vec4<f32>(_e318.x, _e318.y, _e318.z, _e318.w)) * vec4<f32>(_e340.x, _e340.y, _e340.z, 1f));\n    return;\n}\n\nfn main_1() {\n    ferro_main();\n    let _e31: vec4<f32> = gl_Position;\n    let _e33: vec4<f32> = gl_Position;\n    gl_Position.z = ((_e31.z + _e33.w) * 0.5f);\n    return;\n}\n\n@vertex \nfn main(@location(0) aPosition: vec3<f32>, @location(1) aNormale: vec3<f32>, @location(2) aUV: vec2<f32>, @location(3) aInfo: vec4<u32>, @location(4) aUnite: u32) -> VertexOutput {\n    aPosition_1 = aPosition;\n    aNormale_1 = aNormale;\n    aUV_1 = aUV;\n    aInfo_1 = aInfo;\n    aUnite_1 = aUnite;\n    main_1();\n    let _e66: vec4<f32> = gl_Position;\n    return VertexOutput(_e66);\n}\n","fragment":"diagnostic(off, derivative_uniformity);\nstruct FerroUniforms {\n    data: array<vec4<f32>, 12>,\n}\n\n@group(0) @binding(0) \nvar<uniform> ferroUniforms: FerroUniforms;\n@group(0) @binding(1) \nvar uCour_texture: texture_2d<f32>;\n@group(0) @binding(2) \nvar uCour_sampler: sampler;\n@group(0) @binding(3) \nvar uPrec_texture: texture_2d<f32>;\n@group(0) @binding(4) \nvar uPrec_sampler: sampler;\n@group(0) @binding(5) \nvar uLocomotion_texture: texture_2d<f32>;\n@group(0) @binding(6) \nvar uLocomotion_sampler: sampler;\n@group(0) @binding(7) \nvar uMarques_texture: texture_2d<u32>;\n@group(0) @binding(8) \nvar uMarques_sampler: sampler;\n@group(0) @binding(9) \nvar uVoileF_texture: texture_2d<f32>;\n@group(0) @binding(10) \nvar uVoileF_sampler: sampler;\n@group(0) @binding(11) \nvar uSol_texture: texture_2d<f32>;\n@group(0) @binding(12) \nvar uSol_sampler: sampler;\n\nfn ferro_uFactions(index: i32) -> vec3<f32> {\n    var index_1: i32;\n\n    index_1 = index;\n    let _e6: i32 = index_1;\n    let _e12: vec4<f32> = ferroUniforms.data[(9i + (_e6 * 1i))];\n    return _e12.xyz;\n}\n\nfn main_1() {\n    return;\n}\n\n@fragment \nfn main() {\n    main_1();\n    return;\n}\n"},"crowdPoint":{"uniforms":{"byteLength":1472,"fields":[{"name":"uVP","type":"mat4","offset":0,"count":1,"arrayStride":64,"matrixStride":16},{"name":"uPoints","type":"vec4","offset":64,"count":1,"arrayStride":16,"matrixStride":0},{"name":"uOeilF","type":"vec3","offset":80,"count":1,"arrayStride":16,"matrixStride":0},{"name":"uDistanceGait","type":"float","offset":96,"count":1,"arrayStride":16,"matrixStride":0},{"name":"uVoileZoneF","type":"vec4","offset":112,"count":1,"arrayStride":16,"matrixStride":0},{"name":"uSolZone","type":"vec4","offset":128,"count":1,"arrayStride":16,"matrixStride":0},{"name":"uReglages","type":"vec4","offset":144,"count":1,"arrayStride":16,"matrixStride":0},{"name":"uCamps","type":"ivec4","offset":160,"count":1,"arrayStride":16,"matrixStride":0},{"name":"uFactions","type":"vec3","offset":176,"count":3,"arrayStride":16,"matrixStride":0},{"name":"uPointResolution","type":"vec2","offset":224,"count":1,"arrayStride":16,"matrixStride":0},{"name":"uPdrMatriceOmbre","type":"mat4","offset":240,"count":1,"arrayStride":64,"matrixStride":16},{"name":"uPdrOmbreReglages","type":"vec4","offset":304,"count":1,"arrayStride":16,"matrixStride":0},{"name":"uPdrOeil","type":"vec3","offset":320,"count":1,"arrayStride":16,"matrixStride":0},{"name":"uPdrSoleil","type":"vec3","offset":336,"count":1,"arrayStride":16,"matrixStride":0},{"name":"uPdrCouleurSoleil","type":"vec3","offset":352,"count":1,"arrayStride":16,"matrixStride":0},{"name":"uPdrAmbiance","type":"vec3","offset":368,"count":1,"arrayStride":16,"matrixStride":0},{"name":"uPdrBrouillard","type":"vec3","offset":384,"count":1,"arrayStride":16,"matrixStride":0},{"name":"uPdrCielHaut","type":"vec3","offset":400,"count":1,"arrayStride":16,"matrixStride":0},{"name":"uPdrCielBas","type":"vec3","offset":416,"count":1,"arrayStride":16,"matrixStride":0},{"name":"uPdrEnvironnement","type":"vec4","offset":432,"count":1,"arrayStride":16,"matrixStride":0},{"name":"uPdrResolution","type":"vec2","offset":448,"count":1,"arrayStride":16,"matrixStride":0},{"name":"uPdrLumierePosition","type":"vec3","offset":464,"count":12,"arrayStride":16,"matrixStride":0},{"name":"uPdrLumiereCouleur","type":"vec3","offset":656,"count":12,"arrayStride":16,"matrixStride":0},{"name":"uPdrLumierePortee","type":"float","offset":848,"count":12,"arrayStride":16,"matrixStride":0},{"name":"uPdrLumiereDirection","type":"vec3","offset":1040,"count":12,"arrayStride":16,"matrixStride":0},{"name":"uPdrLumiereCone","type":"vec2","offset":1232,"count":12,"arrayStride":16,"matrixStride":0},{"name":"uPdrLumieres","type":"int","offset":1424,"count":1,"arrayStride":16,"matrixStride":0},{"name":"uDroiteF","type":"vec3","offset":1440,"count":1,"arrayStride":16,"matrixStride":0},{"name":"uVignette","type":"float","offset":1456,"count":1,"arrayStride":16,"matrixStride":0}]},"textures":[{"name":"uCour","binding":1,"samplerBinding":2,"dimension":"2d","depth":false,"sampleType":"unfilterable-float","samplerType":"non-filtering","sourceType":"sampler2D","renderTarget":false},{"name":"uPrec","binding":3,"samplerBinding":4,"dimension":"2d","depth":false,"sampleType":"unfilterable-float","samplerType":"non-filtering","sourceType":"sampler2D","renderTarget":false},{"name":"uLocomotion","binding":5,"samplerBinding":6,"dimension":"2d","depth":false,"sampleType":"unfilterable-float","samplerType":"non-filtering","sourceType":"sampler2D","renderTarget":false},{"name":"uMarques","binding":7,"samplerBinding":8,"dimension":"2d","depth":false,"sampleType":"uint","samplerType":"non-filtering","sourceType":"usampler2D","renderTarget":false},{"name":"uVoileF","binding":9,"samplerBinding":10,"dimension":"2d","depth":false,"sampleType":"float","samplerType":"filtering","sourceType":"sampler2D","renderTarget":false},{"name":"uSol","binding":11,"samplerBinding":12,"dimension":"2d","depth":false,"sampleType":"float","samplerType":"filtering","sourceType":"sampler2D","renderTarget":false},{"name":"uPdrOmbre","binding":13,"samplerBinding":14,"dimension":"2d","depth":true,"sampleType":"depth","samplerType":"non-filtering","sourceType":"sampler2D","renderTarget":true}],"entryPoint":"main","sourceSha256":"7ab14d57c03ef9d18edb6610c1aed33bf8c6eda7c49a8f321c6c0a586578f9b9","vertex":"diagnostic(off, derivative_uniformity);\nstruct FerroUniforms {\n    data: array<vec4<f32>, 92>,\n}\n\nstruct Unite {\n    xz: vec2<f32>,\n    cap: f32,\n    faction: u32,\n    type_: u32,\n    etat: u32,\n    niveau: u32,\n    drapeaux: u32,\n    marques: u32,\n    vitesse: f32,\n    gait: vec2<f32>,\n    cachee: bool,\n    h: u32,\n}\n\nstruct VertexOutput {\n    @location(0) vPointCoord: vec2<f32>,\n    @location(1) vMonde: vec3<f32>,\n    @location(2) @interpolate(flat) vBase: vec3<f32>,\n    @location(3) @interpolate(flat) vTaille: f32,\n    @location(4) @interpolate(flat) vSelection: f32,\n    @location(5) @interpolate(flat) vEmission: f32,\n    @location(6) @interpolate(flat) vVersOeil: vec3<f32>,\n    @builtin(position) gl_Position: vec4<f32>,\n}\n\nconst HAUTS: array<vec3<f32>, 16> = array<vec3<f32>, 16>(vec3<f32>(0.84f, 0.22f, 0.16f), vec3<f32>(0.2f, 0.2f, 0.22f), vec3<f32>(0.66f, 0.17f, 0.13f), vec3<f32>(0.34f, 0.31f, 0.33f), vec3<f32>(0.9f, 0.58f, 0.12f), vec3<f32>(0.3f, 0.29f, 0.27f), vec3<f32>(0.8f, 0.5f, 0.1f), vec3<f32>(0.42f, 0.4f, 0.36f), vec3<f32>(0.1f, 0.15f, 0.3f), vec3<f32>(0.12f, 0.17f, 0.33f), vec3<f32>(0.16f, 0.2f, 0.36f), vec3<f32>(0.09f, 0.12f, 0.24f), vec3<f32>(0.12f, 0.12f, 0.13f), vec3<f32>(0.18f, 0.17f, 0.18f), vec3<f32>(0.25f, 0.1f, 0.09f), vec3<f32>(0.14f, 0.14f, 0.16f));\nconst HAUTEURS: array<f32, 13> = array<f32, 13>(1.8f, 1.8f, 1.8f, 1.8f, 1.8f, 1.8f, 1.8f, 1.8f, 1.8f, 1.8f, 1.8f, 1.8f, 4.3f);\n\n@group(0) @binding(0) \nvar<uniform> ferroUniforms: FerroUniforms;\n@group(0) @binding(1) \nvar uCour_texture: texture_2d<f32>;\n@group(0) @binding(2) \nvar uCour_sampler: sampler;\n@group(0) @binding(3) \nvar uPrec_texture: texture_2d<f32>;\n@group(0) @binding(4) \nvar uPrec_sampler: sampler;\n@group(0) @binding(5) \nvar uLocomotion_texture: texture_2d<f32>;\n@group(0) @binding(6) \nvar uLocomotion_sampler: sampler;\n@group(0) @binding(7) \nvar uMarques_texture: texture_2d<u32>;\n@group(0) @binding(8) \nvar uMarques_sampler: sampler;\n@group(0) @binding(9) \nvar uVoileF_texture: texture_2d<f32>;\n@group(0) @binding(10) \nvar uVoileF_sampler: sampler;\n@group(0) @binding(11) \nvar uSol_texture: texture_2d<f32>;\n@group(0) @binding(12) \nvar uSol_sampler: sampler;\n@group(0) @binding(13) \nvar uPdrOmbre_texture: texture_depth_2d;\n@group(0) @binding(14) \nvar uPdrOmbre_sampler: sampler;\nvar<private> vPointCoord: vec2<f32>;\nvar<private> vMonde: vec3<f32>;\nvar<private> vBase: vec3<f32>;\nvar<private> vTaille: f32;\nvar<private> vSelection: f32;\nvar<private> vEmission: f32;\nvar<private> vVersOeil: vec3<f32>;\nvar<private> gl_InstanceIndex_1: u32;\nvar<private> gl_Position: vec4<f32>;\nvar<private> gl_VertexIndex_1: u32;\n\nfn ferro_uFactions(index: i32) -> vec3<f32> {\n    var index_1: i32;\n\n    index_1 = index;\n    let _e6: i32 = index_1;\n    let _e12: vec4<f32> = ferroUniforms.data[(11i + (_e6 * 1i))];\n    return _e12.xyz;\n}\n\nfn ferro_uPdrLumierePosition(index_2: i32) -> vec3<f32> {\n    var index_3: i32;\n\n    index_3 = index_2;\n    let _e6: i32 = index_3;\n    let _e12: vec4<f32> = ferroUniforms.data[(29i + (_e6 * 1i))];\n    return _e12.xyz;\n}\n\nfn ferro_uPdrLumiereCouleur(index_4: i32) -> vec3<f32> {\n    var index_5: i32;\n\n    index_5 = index_4;\n    let _e6: i32 = index_5;\n    let _e12: vec4<f32> = ferroUniforms.data[(41i + (_e6 * 1i))];\n    return _e12.xyz;\n}\n\nfn ferro_uPdrLumierePortee(index_6: i32) -> f32 {\n    var index_7: i32;\n\n    index_7 = index_6;\n    let _e6: i32 = index_7;\n    let _e12: vec4<f32> = ferroUniforms.data[(53i + (_e6 * 1i))];\n    return _e12.x;\n}\n\nfn ferro_uPdrLumiereDirection(index_8: i32) -> vec3<f32> {\n    var index_9: i32;\n\n    index_9 = index_8;\n    let _e6: i32 = index_9;\n    let _e12: vec4<f32> = ferroUniforms.data[(65i + (_e6 * 1i))];\n    return _e12.xyz;\n}\n\nfn ferro_uPdrLumiereCone(index_10: i32) -> vec2<f32> {\n    var index_11: i32;\n\n    index_11 = index_10;\n    let _e6: i32 = index_11;\n    let _e12: vec4<f32> = ferroUniforms.data[(77i + (_e6 * 1i))];\n    return _e12.xy;\n}\n\nfn hache(x: u32) -> u32 {\n    var x_1: u32;\n\n    x_1 = x;\n    let _e19: u32 = x_1;\n    let _e20: u32 = x_1;\n    x_1 = (_e19 ^ (_e20 >> 16u));\n    let _e25: u32 = x_1;\n    x_1 = (_e25 * 2146121005u);\n    let _e28: u32 = x_1;\n    let _e29: u32 = x_1;\n    x_1 = (_e28 ^ (_e29 >> 15u));\n    let _e34: u32 = x_1;\n    x_1 = (_e34 * 2221713035u);\n    let _e37: u32 = x_1;\n    let _e38: u32 = x_1;\n    x_1 = (_e37 ^ (_e38 >> 16u));\n    let _e43: u32 = x_1;\n    return _e43;\n}\n\nfn lireUnite(id: i32) -> Unite {\n    var id_1: i32;\n    var u: Unite;\n    var t: vec2<i32>;\n    var c: vec4<f32>;\n    var code: u32;\n    var g: vec4<f32>;\n    var p: vec4<f32>;\n    var pc: u32;\n    var d: vec2<f32>;\n    var a: f32;\n\n    id_1 = id;\n    let _e20: i32 = id_1;\n    let _e23: i32 = id_1;\n    t = vec2<i32>((_e20 & 1023i), (_e23 >> 10u));\n    let _e29: vec2<i32> = t;\n    let _e31: vec4<f32> = textureLoad(uCour_texture, _e29, 0i);\n    c = _e31;\n    let _e33: vec4<f32> = c;\n    code = u32((_e33.w + 0.5f));\n    let _e40: u32 = code;\n    u.faction = (_e40 & 3u);\n    let _e44: u32 = code;\n    u.type_ = ((_e44 >> 2u) & 15u);\n    let _e51: u32 = code;\n    u.etat = ((_e51 >> 6u) & 15u);\n    let _e58: u32 = code;\n    u.niveau = ((_e58 >> 10u) & 63u);\n    let _e65: u32 = code;\n    u.drapeaux = ((_e65 >> 16u) & 255u);\n    u.gait = vec2<f32>(-1f, 0f);\n    let _e79: vec4<f32> = ferroUniforms.data[6];\n    if (_e79.x > 0.5f) {\n        {\n            let _e83: vec2<i32> = t;\n            let _e85: vec4<f32> = textureLoad(uLocomotion_texture, _e83, 0i);\n            g = _e85;\n            let _e88: vec4<f32> = g;\n            let _e90: vec4<f32> = g;\n            let _e95: vec4<f32> = ferroUniforms.data[9];\n            let _e99: vec4<f32> = g;\n            let _e101: vec4<f32> = g;\n            let _e106: vec4<f32> = ferroUniforms.data[9];\n            u.gait = vec2<f32>(mix(_e88.x, _e90.y, _e95.x), mix(_e99.z, _e101.w, _e106.x));\n        }\n    }\n    let _e112: vec2<i32> = t;\n    let _e114: vec4<u32> = textureLoad(uMarques_texture, _e112, 0i);\n    u.marques = _e114.x;\n    let _e117: vec4<f32> = c;\n    u.xz = _e117.xy;\n    let _e120: vec4<f32> = c;\n    u.cap = _e120.z;\n    u.vitesse = 0f;\n    let _e125: Unite = u;\n    u.cachee = (_e125.faction == 3u);\n    let _e130: i32 = id_1;\n    let _e132: u32 = hache(u32(_e130));\n    u.h = _e132;\n    let _e133: i32 = id_1;\n    let _e137: vec4<f32> = ferroUniforms.data[10];\n    if (_e133 < bitcast<vec4<i32>>(_e137.xyzw).z) {\n        {\n            let _e142: vec2<i32> = t;\n            let _e144: vec4<f32> = textureLoad(uPrec_texture, _e142, 0i);\n            p = _e144;\n            let _e146: vec4<f32> = p;\n            pc = u32((_e146.w + 0.5f));\n            let _e152: vec4<f32> = c;\n            let _e154: vec4<f32> = p;\n            d = (_e152.xy - _e154.xy);\n            let _e158: u32 = pc;\n            let _e161: u32 = code;\n            let _e165: vec2<f32> = d;\n            let _e166: vec2<f32> = d;\n            if (((_e158 & 63u) == (_e161 & 63u)) && (dot(_e165, _e166) < 64f)) {\n                {\n                    let _e172: vec4<f32> = p;\n                    let _e174: vec2<f32> = d;\n                    let _e178: vec4<f32> = ferroUniforms.data[9];\n                    u.xz = (_e172.xy + (_e174 * _e178.x));\n                    let _e183: vec4<f32> = c;\n                    let _e185: vec4<f32> = p;\n                    a = (_e183.z - _e185.z);\n                    let _e189: f32 = a;\n                    let _e191: f32 = a;\n                    a = (_e189 - (6.2831855f * floor(((_e191 + 3.1415927f) / 6.2831855f))));\n                    let _e200: vec4<f32> = p;\n                    let _e202: f32 = a;\n                    let _e206: vec4<f32> = ferroUniforms.data[9];\n                    u.cap = (_e200.z + (_e202 * _e206.x));\n                    let _e212: vec2<f32> = d;\n                    let _e217: vec4<f32> = ferroUniforms.data[9];\n                    u.vitesse = (length(_e212) * _e217.w);\n                }\n            }\n        }\n    }\n    let _e221: Unite = u;\n    let _e227: vec4<f32> = ferroUniforms.data[9];\n    let _e233: Unite = u;\n    let _e239: vec4<f32> = ferroUniforms.data[10];\n    let _e245: Unite = u;\n    let _e251: vec4<f32> = ferroUniforms.data[10];\n    if (((!(_e221.cachee) && (_e227.z > 0.5f)) && (i32(_e233.faction) != bitcast<vec4<i32>>(_e239.xyzw).x)) && (i32(_e245.faction) != bitcast<vec4<i32>>(_e251.xyzw).y)) {\n        let _e258: Unite = u;\n        let _e263: vec4<f32> = ferroUniforms.data[7];\n        let _e270: vec4<f32> = ferroUniforms.data[7];\n        let _e275: vec4<f32> = textureSampleLevel(uVoileF_texture, uVoileF_sampler, ((_e258.xz - _e263.xy) * _e270.zw), 0f);\n        u.cachee = (_e275.x < 0.35f);\n    }\n    let _e279: Unite = u;\n    return _e279;\n}\n\nfn solSous(xz: vec2<f32>) -> f32 {\n    var xz_1: vec2<f32>;\n\n    xz_1 = xz;\n    let _e19: vec2<f32> = xz_1;\n    let _e23: vec4<f32> = ferroUniforms.data[8];\n    let _e30: vec4<f32> = ferroUniforms.data[8];\n    let _e35: vec4<f32> = textureSampleLevel(uSol_texture, uSol_sampler, ((_e19 - _e23.xy) * _e30.zw), 0f);\n    return (_e35.x * 2.55f);\n}\n\nfn haut(u_1: Unite) -> vec3<f32> {\n    var u_2: Unite;\n    var k: u32;\n    var local: array<vec3<f32>, 16> = HAUTS;\n\n    u_2 = u_1;\n    let _e20: Unite = u_2;\n    k = ((_e20.h >> 4u) & 3u);\n    let _e28: Unite = u_2;\n    let _e38: vec3<f32> = local[((_e28.h >> 4u) & 15u)];\n    return _e38;\n}\n\nfn porteur(u_3: Unite) -> bool {\n    var u_4: Unite;\n\n    u_4 = u_3;\n    let _e20: Unite = u_4;\n    let _e24: Unite = u_4;\n    let _e29: Unite = u_4;\n    return (((_e20.type_ == 1u) || (_e24.type_ == 5u)) && (((_e29.h >> 20u) & 7u) == 0u));\n}\n\nfn ferro_main() {\n    var u_5: Unite;\n    var local_1: array<f32, 13> = HAUTEURS;\n    var h: f32;\n    var monde: vec3<f32>;\n    var clip: vec4<f32>;\n    var taille: f32;\n    var corners: array<vec2<f32>, 6> = array<vec2<f32>, 6>(vec2<f32>(-1f, -1f), vec2<f32>(-1f, 1f), vec2<f32>(1f, -1f), vec2<f32>(1f, -1f), vec2<f32>(-1f, 1f), vec2<f32>(1f, 1f));\n    var corner: vec2<f32>;\n    var b: vec3<f32>;\n    var k_1: f32;\n\n    let _e27: u32 = gl_InstanceIndex_1;\n    let _e29: Unite = lireUnite(i32(_e27));\n    u_5 = _e29;\n    let _e31: Unite = u_5;\n    let _e33: Unite = u_5;\n    if (_e31.cachee || ((_e33.marques & 2u) != 0u)) {\n        {\n            gl_Position = vec4<f32>(2f, 2f, 2f, 1f);\n            vPointCoord = vec2(0f);\n            let _e49: vec3<f32> = vec3(0f);\n            vVersOeil = _e49;\n            vBase = _e49;\n            vMonde = _e49;\n            vEmission = 0f;\n            vSelection = 0f;\n            vTaille = 0f;\n            return;\n        }\n    }\n    let _e51: Unite = u_5;\n    let _e56: f32 = local_1[_e51.type_];\n    h = _e56;\n    let _e58: Unite = u_5;\n    if (_e58.etat == 10u) {\n        let _e62: f32 = h;\n        h = (_e62 * 0.55f);\n    }\n    let _e65: Unite = u_5;\n    let _e68: Unite = u_5;\n    let _e70: f32 = solSous(_e68.xz);\n    let _e71: f32 = h;\n    let _e75: Unite = u_5;\n    monde = vec3<f32>(_e65.xz.x, (_e70 + (_e71 * 0.5f)), _e75.xz.y);\n    let _e83: vec4<f32> = ferroUniforms.data[0];\n    let _e89: vec4<f32> = ferroUniforms.data[1];\n    let _e95: vec4<f32> = ferroUniforms.data[2];\n    let _e101: vec4<f32> = ferroUniforms.data[3];\n    let _e123: vec3<f32> = monde;\n    clip = (mat4x4<f32>(vec4<f32>(_e83.x, _e83.y, _e83.z, _e83.w), vec4<f32>(_e89.x, _e89.y, _e89.z, _e89.w), vec4<f32>(_e95.x, _e95.y, _e95.z, _e95.w), vec4<f32>(_e101.x, _e101.y, _e101.z, _e101.w)) * vec4<f32>(_e123.x, _e123.y, _e123.z, 1f));\n    let _e131: vec4<f32> = clip;\n    gl_Position = _e131;\n    let _e132: f32 = h;\n    let _e136: vec4<f32> = ferroUniforms.data[4];\n    let _e140: vec4<f32> = clip;\n    let _e150: vec4<f32> = ferroUniforms.data[4];\n    let _e156: vec4<f32> = ferroUniforms.data[4];\n    taille = clamp((((_e132 * _e136.x) / max(_e140.w, 0.1f)) * 1.08f), _e150.y, _e156.z);\n    let _e188: u32 = gl_VertexIndex_1;\n    let _e190: vec2<f32> = corners[_e188];\n    corner = _e190;\n    let _e192: vec2<f32> = corner;\n    vPointCoord = ((_e192 * 0.5f) + vec2(0.5f));\n    let _e198: vec4<f32> = gl_Position;\n    let _e200: vec4<f32> = gl_Position;\n    let _e202: vec2<f32> = corner;\n    let _e204: vec2<f32> = corner;\n    let _e208: f32 = taille;\n    let _e213: vec4<f32> = ferroUniforms.data[14];\n    let _e216: vec4<f32> = clip;\n    let _e219: vec2<f32> = (_e200.xy + (((vec2<f32>(_e202.x, -(_e204.y)) * _e208) / _e213.xy) * _e216.w));\n    gl_Position.x = _e219.x;\n    gl_Position.y = _e219.y;\n    let _e224: f32 = taille;\n    vTaille = _e224;\n    let _e225: vec3<f32> = monde;\n    vMonde = _e225;\n    let _e229: vec4<f32> = ferroUniforms.data[5];\n    let _e231: vec3<f32> = monde;\n    vVersOeil = normalize((_e229.xyz - _e231));\n    let _e234: Unite = u_5;\n    let _e237: vec3<f32> = ferro_uFactions(i32(_e234.faction));\n    let _e238: Unite = u_5;\n    let _e239: vec3<f32> = haut(_e238);\n    b = mix(_e237, _e239, vec3(0.28f));\n    let _e244: vec3<f32> = b;\n    let _e249: Unite = u_5;\n    b = (_e244 * (0.5f + (0.5f * smoothstep(0f, 34f, f32(_e249.niveau)))));\n    let _e256: Unite = u_5;\n    vSelection = f32((_e256.marques & 1u));\n    vEmission = 0.12f;\n    let _e262: Unite = u_5;\n    if ((_e262.drapeaux & 2u) != 0u) {\n        {\n            let _e273: vec4<f32> = ferroUniforms.data[9];\n            k_1 = (0.5f + (0.5f * sin((_e273.y * 38f))));\n            let _e282: vec3<f32> = b;\n            let _e288: f32 = k_1;\n            b = mix(_e282, vec3<f32>(1f, 0.97f, 0.9f), vec3((0.5f * _e288)));\n            let _e292: f32 = vEmission;\n            let _e294: f32 = k_1;\n            vEmission = (_e292 + (0.4f * _e294));\n        }\n    }\n    let _e297: vec3<f32> = b;\n    vBase = _e297;\n    return;\n}\n\nfn main_1() {\n    ferro_main();\n    let _e30: vec4<f32> = gl_Position;\n    let _e32: vec4<f32> = gl_Position;\n    gl_Position.z = ((_e30.z + _e32.w) * 0.5f);\n    return;\n}\n\n@vertex \nfn main(@builtin(instance_index) gl_InstanceIndex: u32, @builtin(vertex_index) gl_VertexIndex: u32) -> VertexOutput {\n    gl_InstanceIndex_1 = gl_InstanceIndex;\n    gl_VertexIndex_1 = gl_VertexIndex;\n    main_1();\n    let _e54: vec2<f32> = vPointCoord;\n    let _e56: vec3<f32> = vMonde;\n    let _e58: vec3<f32> = vBase;\n    let _e60: f32 = vTaille;\n    let _e62: f32 = vSelection;\n    let _e64: f32 = vEmission;\n    let _e66: vec3<f32> = vVersOeil;\n    let _e68: vec4<f32> = gl_Position;\n    return VertexOutput(_e54, _e56, _e58, _e60, _e62, _e64, _e66, _e68);\n}\n","fragment":"diagnostic(off, derivative_uniformity);\nstruct FerroUniforms {\n    data: array<vec4<f32>, 92>,\n}\n\nstruct FragmentOutput {\n    @location(0) fragColor: vec4<f32>,\n}\n\n@group(0) @binding(0) \nvar<uniform> ferroUniforms: FerroUniforms;\n@group(0) @binding(1) \nvar uCour_texture: texture_2d<f32>;\n@group(0) @binding(2) \nvar uCour_sampler: sampler;\n@group(0) @binding(3) \nvar uPrec_texture: texture_2d<f32>;\n@group(0) @binding(4) \nvar uPrec_sampler: sampler;\n@group(0) @binding(5) \nvar uLocomotion_texture: texture_2d<f32>;\n@group(0) @binding(6) \nvar uLocomotion_sampler: sampler;\n@group(0) @binding(7) \nvar uMarques_texture: texture_2d<u32>;\n@group(0) @binding(8) \nvar uMarques_sampler: sampler;\n@group(0) @binding(9) \nvar uVoileF_texture: texture_2d<f32>;\n@group(0) @binding(10) \nvar uVoileF_sampler: sampler;\n@group(0) @binding(11) \nvar uSol_texture: texture_2d<f32>;\n@group(0) @binding(12) \nvar uSol_sampler: sampler;\n@group(0) @binding(13) \nvar uPdrOmbre_texture: texture_depth_2d;\n@group(0) @binding(14) \nvar uPdrOmbre_sampler: sampler;\nvar<private> gl_FragCoord_1: vec4<f32>;\nvar<private> vPointCoord_1: vec2<f32>;\nvar<private> vMonde_1: vec3<f32>;\nvar<private> vBase_1: vec3<f32>;\nvar<private> vTaille_1: f32;\nvar<private> vSelection_1: f32;\nvar<private> vEmission_1: f32;\nvar<private> vVersOeil_1: vec3<f32>;\nvar<private> fragColor: vec4<f32>;\n\nfn ferro_uFactions(index: i32) -> vec3<f32> {\n    var index_1: i32;\n\n    index_1 = index;\n    let _e6: i32 = index_1;\n    let _e12: vec4<f32> = ferroUniforms.data[(11i + (_e6 * 1i))];\n    return _e12.xyz;\n}\n\nfn ferro_uPdrLumierePosition(index_2: i32) -> vec3<f32> {\n    var index_3: i32;\n\n    index_3 = index_2;\n    let _e6: i32 = index_3;\n    let _e12: vec4<f32> = ferroUniforms.data[(29i + (_e6 * 1i))];\n    return _e12.xyz;\n}\n\nfn ferro_uPdrLumiereCouleur(index_4: i32) -> vec3<f32> {\n    var index_5: i32;\n\n    index_5 = index_4;\n    let _e6: i32 = index_5;\n    let _e12: vec4<f32> = ferroUniforms.data[(41i + (_e6 * 1i))];\n    return _e12.xyz;\n}\n\nfn ferro_uPdrLumierePortee(index_6: i32) -> f32 {\n    var index_7: i32;\n\n    index_7 = index_6;\n    let _e6: i32 = index_7;\n    let _e12: vec4<f32> = ferroUniforms.data[(53i + (_e6 * 1i))];\n    return _e12.x;\n}\n\nfn ferro_uPdrLumiereDirection(index_8: i32) -> vec3<f32> {\n    var index_9: i32;\n\n    index_9 = index_8;\n    let _e6: i32 = index_9;\n    let _e12: vec4<f32> = ferroUniforms.data[(65i + (_e6 * 1i))];\n    return _e12.xyz;\n}\n\nfn ferro_uPdrLumiereCone(index_10: i32) -> vec2<f32> {\n    var index_11: i32;\n\n    index_11 = index_10;\n    let _e6: i32 = index_11;\n    let _e12: vec4<f32> = ferroUniforms.data[(77i + (_e6 * 1i))];\n    return _e12.xy;\n}\n\nfn pdrEchantillon(uv: vec2<f32>, decalage: vec2<f32>, profondeur: f32, pente: vec2<f32>) -> f32 {\n    var uv_1: vec2<f32>;\n    var decalage_1: vec2<f32>;\n    var profondeur_1: f32;\n    var pente_1: vec2<f32>;\n    var texel: f32;\n    var tap: vec2<f32>;\n    var centre: vec2<f32>;\n\n    uv_1 = uv;\n    decalage_1 = decalage;\n    profondeur_1 = profondeur;\n    pente_1 = pente;\n    let _e28: vec4<f32> = ferroUniforms.data[19];\n    texel = _e28.y;\n    let _e32: vec2<f32> = uv_1;\n    let _e33: vec2<f32> = decalage_1;\n    let _e34: f32 = texel;\n    tap = (_e32 + (_e33 * _e34));\n    let _e38: vec2<f32> = tap;\n    let _e39: f32 = texel;\n    let _e46: f32 = texel;\n    centre = ((floor((_e38 / vec2(_e39))) + vec2(0.5f)) * _e46);\n    let _e49: f32 = profondeur_1;\n    let _e50: vec2<f32> = pente_1;\n    let _e51: vec2<f32> = centre;\n    let _e52: vec2<f32> = uv_1;\n    let _e56: vec2<f32> = tap;\n    let _e59: vec2<f32> = tap;\n    let _e64: vec4<f32> = vec4<f32>(textureSampleLevel(uPdrOmbre_texture, uPdrOmbre_sampler, vec2<f32>(_e56.x, (1f - _e59.y)),0),0.0,0.0,1.0);\n    return step((_e49 + dot(_e50, (_e51 - _e52))), _e64.x);\n}\n\nfn pdrOmbreSoleil(monde: vec3<f32>, n: vec3<f32>) -> f32 {\n    var monde_1: vec3<f32>;\n    var n_1: vec3<f32>;\n    var projete: vec4<f32>;\n    var p: vec3<f32>;\n    var dx: vec3<f32>;\n    var dy: vec3<f32>;\n    var determinant_: f32;\n    var local: vec2<f32>;\n    var pente_2: vec2<f32>;\n    var biais: f32;\n    var z: f32;\n    var local_1: vec2<f32>;\n    var uv_2: vec2<f32>;\n    var local_2: f32;\n    var texel_1: f32;\n    var cell: vec2<f32>;\n    var f: vec2<f32>;\n    var centre_1: vec2<f32>;\n    var wx: vec3<f32>;\n    var wy: vec3<f32>;\n    var v: f32 = 0f;\n    var y: i32 = 0i;\n    var x: i32;\n    var tap_1: vec2<f32>;\n    var bord: f32;\n\n    monde_1 = monde;\n    n_1 = n;\n    let _e24: vec4<f32> = ferroUniforms.data[19];\n    if (_e24.x < 0.5f) {\n        return 1f;\n    }\n    let _e33: vec4<f32> = ferroUniforms.data[15];\n    let _e39: vec4<f32> = ferroUniforms.data[16];\n    let _e45: vec4<f32> = ferroUniforms.data[17];\n    let _e51: vec4<f32> = ferroUniforms.data[18];\n    let _e73: vec3<f32> = monde_1;\n    let _e74: vec3<f32> = n_1;\n    let _e77: vec3<f32> = (_e73 + (_e74 * 0.014f));\n    projete = (mat4x4<f32>(vec4<f32>(_e33.x, _e33.y, _e33.z, _e33.w), vec4<f32>(_e39.x, _e39.y, _e39.z, _e39.w), vec4<f32>(_e45.x, _e45.y, _e45.z, _e45.w), vec4<f32>(_e51.x, _e51.y, _e51.z, _e51.w)) * vec4<f32>(_e77.x, _e77.y, _e77.z, 1f));\n    let _e85: vec4<f32> = projete;\n    let _e87: vec4<f32> = projete;\n    p = (((_e85.xyz / vec3(_e87.w)) * 0.5f) + vec3(0.5f));\n    let _e97: vec3<f32> = p;\n    let _e98: vec3<f32> = dpdx(_e97);\n    dx = _e98;\n    let _e100: vec3<f32> = p;\n    let _e101: vec3<f32> = dpdy(_e100);\n    dy = -(_e101);\n    let _e104: vec3<f32> = dx;\n    let _e106: vec3<f32> = dy;\n    let _e109: vec3<f32> = dx;\n    let _e111: vec3<f32> = dy;\n    determinant_ = ((_e104.x * _e106.y) - (_e109.y * _e111.x));\n    let _e116: f32 = determinant_;\n    if (abs(_e116) > 0.00000000001f) {\n        let _e120: vec3<f32> = dx;\n        let _e122: vec3<f32> = dy;\n        let _e125: vec3<f32> = dy;\n        let _e127: vec3<f32> = dx;\n        let _e131: vec3<f32> = dy;\n        let _e133: vec3<f32> = dx;\n        let _e136: vec3<f32> = dx;\n        let _e138: vec3<f32> = dy;\n        let _e143: f32 = determinant_;\n        local = (vec2<f32>(((_e120.z * _e122.y) - (_e125.z * _e127.y)), ((_e131.z * _e133.x) - (_e136.z * _e138.x))) / vec2(_e143));\n    } else {\n        local = vec2(0f);\n    }\n    let _e149: vec2<f32> = local;\n    pente_2 = _e149;\n    let _e151: vec4<f32> = projete;\n    let _e155: vec3<f32> = p;\n    let _e160: vec3<f32> = p;\n    let _e165: vec3<f32> = p;\n    let _e167: vec3<f32> = p;\n    let _e173: vec3<f32> = p;\n    let _e175: vec3<f32> = p;\n    if (((((_e151.w <= 0f) || (_e155.z <= 0f)) || (_e160.z >= 1f)) || (min(_e165.x, _e167.y) <= 0.001f)) || (max(_e173.x, _e175.y) >= 0.999f)) {\n        return 1f;\n    }\n    let _e185: vec3<f32> = n_1;\n    let _e189: vec4<f32> = ferroUniforms.data[21];\n    biais = (0.00014f + (0.00024f * (1f - max(dot(_e185, _e189.xyz), 0f))));\n    let _e198: vec3<f32> = p;\n    let _e200: f32 = biais;\n    z = (_e198.z - _e200);\n    let _e206: vec4<f32> = ferroUniforms.data[19];\n    if (_e206.z > 0.5f) {\n        let _e211: vec3<f32> = p;\n        local_1 = _e211.xy;\n    } else {\n        let _e213: vec3<f32> = p;\n        local_1 = ((_e213.xy * 0.5f) + vec2<f32>(0.5f, 0f));\n    }\n    let _e222: vec2<f32> = local_1;\n    uv_2 = _e222;\n    let _e224: vec2<f32> = pente_2;\n    let _e228: vec4<f32> = ferroUniforms.data[19];\n    if (_e228.z > 0.5f) {\n        local_2 = 1f;\n    } else {\n        local_2 = 2f;\n    }\n    let _e236: f32 = local_2;\n    pente_2 = (_e224 * _e236);\n    let _e241: vec4<f32> = ferroUniforms.data[19];\n    texel_1 = _e241.y;\n    let _e245: vec2<f32> = uv_2;\n    let _e246: f32 = texel_1;\n    cell = (_e245 / vec2(_e246));\n    let _e250: vec2<f32> = cell;\n    f = (fract(_e250) - vec2(0.5f));\n    let _e256: vec2<f32> = cell;\n    let _e261: f32 = texel_1;\n    centre_1 = ((floor(_e256) + vec2(0.5f)) * _e261);\n    let _e266: vec2<f32> = f;\n    let _e271: vec2<f32> = f;\n    let _e276: vec2<f32> = f;\n    let _e278: vec2<f32> = f;\n    let _e284: vec2<f32> = f;\n    let _e289: vec2<f32> = f;\n    wx = vec3<f32>(((0.5f * (0.5f - _e266.x)) * (0.5f - _e271.x)), (0.75f - (_e276.x * _e278.x)), ((0.5f * (0.5f + _e284.x)) * (0.5f + _e289.x)));\n    let _e297: vec2<f32> = f;\n    let _e302: vec2<f32> = f;\n    let _e307: vec2<f32> = f;\n    let _e309: vec2<f32> = f;\n    let _e315: vec2<f32> = f;\n    let _e320: vec2<f32> = f;\n    wy = vec3<f32>(((0.5f * (0.5f - _e297.y)) * (0.5f - _e302.y)), (0.75f - (_e307.y * _e309.y)), ((0.5f * (0.5f + _e315.y)) * (0.5f + _e320.y)));\n    loop {\n        let _e330: i32 = y;\n        if !((_e330 < 3i)) {\n            break;\n        }\n        x = 0i;\n        loop {\n            let _e339: i32 = x;\n            if !((_e339 < 3i)) {\n                break;\n            }\n            {\n                let _e346: vec2<f32> = centre_1;\n                let _e347: i32 = x;\n                let _e351: i32 = y;\n                let _e356: f32 = texel_1;\n                tap_1 = (_e346 + (vec2<f32>(f32((_e347 - 1i)), f32((_e351 - 1i))) * _e356));\n                let _e360: f32 = v;\n                let _e361: i32 = x;\n                let _e363: f32 = wx[_e361];\n                let _e364: i32 = y;\n                let _e366: f32 = wy[_e364];\n                let _e368: f32 = z;\n                let _e369: vec2<f32> = pente_2;\n                let _e370: vec2<f32> = tap_1;\n                let _e371: vec2<f32> = uv_2;\n                let _e375: vec2<f32> = tap_1;\n                let _e378: vec2<f32> = tap_1;\n                let _e383: vec4<f32> = vec4<f32>(textureSampleLevel(uPdrOmbre_texture, uPdrOmbre_sampler, vec2<f32>(_e375.x, (1f - _e378.y)),0),0.0,0.0,1.0);\n                v = (_e360 + ((_e363 * _e366) * step((_e368 + dot(_e369, (_e370 - _e371))), _e383.x)));\n            }\n            continuing {\n                let _e343: i32 = x;\n                x = (_e343 + 1i);\n            }\n        }\n        continuing {\n            let _e334: i32 = y;\n            y = (_e334 + 1i);\n        }\n    }\n    let _e388: vec3<f32> = p;\n    let _e390: vec3<f32> = p;\n    let _e394: vec3<f32> = p;\n    let _e398: vec3<f32> = p;\n    bord = min(min(_e388.x, _e390.y), min((1f - _e394.x), (1f - _e398.y)));\n    let _e407: f32 = v;\n    let _e411: f32 = bord;\n    return mix(1f, mix(0.055f, 1f, _e407), smoothstep(0.012f, 0.085f, _e411));\n}\n\nfn pdrFresnel(c: f32, f0_: vec3<f32>) -> vec3<f32> {\n    var c_1: f32;\n    var f0_1: vec3<f32>;\n    var q: f32;\n    var q2_: f32;\n\n    c_1 = c;\n    f0_1 = f0_;\n    let _e22: f32 = c_1;\n    q = (1f - clamp(_e22, 0f, 1f));\n    let _e28: f32 = q;\n    let _e29: f32 = q;\n    q2_ = (_e28 * _e29);\n    let _e32: vec3<f32> = f0_1;\n    let _e34: vec3<f32> = f0_1;\n    let _e37: f32 = q2_;\n    let _e39: f32 = q2_;\n    let _e41: f32 = q;\n    return (_e32 + ((((vec3(1f) - _e34) * _e37) * _e39) * _e41));\n}\n\nfn pdrReflet(n_2: vec3<f32>, vue: vec3<f32>, l: vec3<f32>, rugosite: f32, f0_2: vec3<f32>) -> vec3<f32> {\n    var n_3: vec3<f32>;\n    var vue_1: vec3<f32>;\n    var l_1: vec3<f32>;\n    var rugosite_1: f32;\n    var f0_3: vec3<f32>;\n    var h: vec3<f32>;\n    var nv: f32;\n    var nl: f32;\n    var nh: f32;\n    var a: f32;\n    var a2_: f32;\n    var d: f32;\n    var k: f32;\n\n    n_3 = n_2;\n    vue_1 = vue;\n    l_1 = l;\n    rugosite_1 = rugosite;\n    f0_3 = f0_2;\n    let _e27: vec3<f32> = vue_1;\n    let _e28: vec3<f32> = l_1;\n    h = normalize((_e27 + _e28));\n    let _e32: vec3<f32> = n_3;\n    let _e33: vec3<f32> = vue_1;\n    nv = max(dot(_e32, _e33), 0.001f);\n    let _e38: vec3<f32> = n_3;\n    let _e39: vec3<f32> = l_1;\n    nl = max(dot(_e38, _e39), 0f);\n    let _e44: vec3<f32> = n_3;\n    let _e45: vec3<f32> = h;\n    nh = max(dot(_e44, _e45), 0f);\n    let _e51: f32 = rugosite_1;\n    let _e52: f32 = rugosite_1;\n    a = max(0.055f, (_e51 * _e52));\n    let _e56: f32 = a;\n    let _e57: f32 = a;\n    a2_ = (_e56 * _e57);\n    let _e60: f32 = nh;\n    let _e61: f32 = nh;\n    let _e63: f32 = a2_;\n    d = (((_e60 * _e61) * (_e63 - 1f)) + 1f);\n    let _e70: f32 = rugosite_1;\n    let _e73: f32 = rugosite_1;\n    k = (((_e70 + 1f) * (_e73 + 1f)) * 0.125f);\n    let _e80: vec3<f32> = vue_1;\n    let _e81: vec3<f32> = h;\n    let _e85: vec3<f32> = f0_3;\n    let _e86: vec3<f32> = pdrFresnel(max(dot(_e80, _e81), 0f), _e85);\n    let _e87: f32 = a2_;\n    let _e89: f32 = d;\n    let _e91: f32 = d;\n    let _e97: f32 = nv;\n    let _e99: f32 = k;\n    let _e102: f32 = k;\n    let _e105: f32 = nl;\n    let _e107: f32 = k;\n    let _e110: f32 = k;\n    let _e119: f32 = nl;\n    return ((_e86 * min(((_e87 / max(((3.141593f * _e89) * _e91), 0.00001f)) / max(((4f * ((_e97 * (1f - _e99)) + _e102)) * ((_e105 * (1f - _e107)) + _e110)), 0.001f)), 12f)) * _e119);\n}\n\nfn pdrEclairer(base: vec3<f32>, n_4: vec3<f32>, monde_2: vec3<f32>, rugosite_2: f32, metal: f32, emission: f32, ombre: f32) -> vec3<f32> {\n    var base_1: vec3<f32>;\n    var n_5: vec3<f32>;\n    var monde_3: vec3<f32>;\n    var rugosite_3: f32;\n    var metal_1: f32;\n    var emission_1: f32;\n    var ombre_1: f32;\n    var vue_2: vec3<f32>;\n    var f0_4: vec3<f32>;\n    var lumiere: vec3<f32>;\n    var reflet: vec3<f32> = vec3(0f);\n    var i: i32 = 0i;\n    var versLumiere: vec3<f32>;\n    var d_1: f32;\n    var l_2: vec3<f32>;\n    var local_3: f32;\n    var attenuation: f32;\n    var couleur: vec3<f32>;\n    var r: vec3<f32>;\n    var ciel: vec3<f32>;\n    var milieu: vec3<f32>;\n    var rasant: f32;\n\n    base_1 = base;\n    n_5 = n_4;\n    monde_3 = monde_2;\n    rugosite_3 = rugosite_2;\n    metal_1 = metal;\n    emission_1 = emission;\n    ombre_1 = ombre;\n    let _e34: vec4<f32> = ferroUniforms.data[20];\n    let _e36: vec3<f32> = monde_3;\n    vue_2 = normalize((_e34.xyz - _e36));\n    let _e42: vec3<f32> = base_1;\n    let _e48: f32 = metal_1;\n    f0_4 = mix(vec3(0.04f), clamp(_e42, vec3(0.025f), vec3(0.92f)), vec3(_e48));\n    let _e55: vec4<f32> = ferroUniforms.data[23];\n    let _e59: vec3<f32> = n_5;\n    lumiere = (_e55.xyz * (0.72f + (0.28f * max(_e59.y, 0f))));\n    loop {\n        let _e72: i32 = i;\n        if !((_e72 < 12i)) {\n            break;\n        }\n        {\n            let _e79: i32 = i;\n            let _e83: vec4<f32> = ferroUniforms.data[89];\n            if (_e79 >= bitcast<i32>(_e83.x)) {\n                break;\n            }\n            let _e87: i32 = i;\n            let _e89: vec3<f32> = ferro_uPdrLumierePosition(i32(_e87));\n            let _e90: vec3<f32> = monde_3;\n            versLumiere = (_e89 - _e90);\n            let _e93: vec3<f32> = versLumiere;\n            d_1 = length(_e93);\n            let _e96: vec3<f32> = versLumiere;\n            let _e97: f32 = d_1;\n            l_2 = (_e96 / vec3(max(_e97, 0.001f)));\n            let _e103: i32 = i;\n            if (_e103 < 2i) {\n                local_3 = 0.27f;\n            } else {\n                local_3 = 0.13f;\n            }\n            let _e109: f32 = local_3;\n            let _e111: f32 = d_1;\n            let _e112: f32 = d_1;\n            attenuation = (_e109 / (1f + ((_e111 * _e112) * 0.26f)));\n            let _e119: i32 = i;\n            let _e121: f32 = ferro_uPdrLumierePortee(i32(_e119));\n            if (_e121 > 0f) {\n                let _e124: f32 = attenuation;\n                let _e126: i32 = i;\n                let _e128: f32 = ferro_uPdrLumierePortee(i32(_e126));\n                let _e131: i32 = i;\n                let _e133: f32 = ferro_uPdrLumierePortee(i32(_e131));\n                let _e134: f32 = d_1;\n                attenuation = (_e124 * (1f - smoothstep((_e128 * 0.35f), _e133, _e134)));\n            }\n            let _e138: i32 = i;\n            let _e140: vec2<f32> = ferro_uPdrLumiereCone(i32(_e138));\n            if (_e140.x > 0f) {\n                let _e144: f32 = attenuation;\n                let _e145: i32 = i;\n                let _e147: vec2<f32> = ferro_uPdrLumiereCone(i32(_e145));\n                let _e149: i32 = i;\n                let _e151: vec2<f32> = ferro_uPdrLumiereCone(i32(_e149));\n                let _e153: vec3<f32> = l_2;\n                let _e155: i32 = i;\n                let _e157: vec3<f32> = ferro_uPdrLumiereDirection(i32(_e155));\n                attenuation = (_e144 * smoothstep(_e147.x, _e151.y, dot(-(_e153), _e157)));\n            }\n            let _e161: vec3<f32> = lumiere;\n            let _e162: i32 = i;\n            let _e164: vec3<f32> = ferro_uPdrLumiereCouleur(i32(_e162));\n            let _e165: f32 = attenuation;\n            let _e167: vec3<f32> = n_5;\n            let _e168: vec3<f32> = l_2;\n            lumiere = (_e161 + ((_e164 * _e165) * (max(dot(_e167, _e168), 0f) + 0.035f)));\n            let _e176: vec3<f32> = reflet;\n            let _e177: i32 = i;\n            let _e179: vec3<f32> = ferro_uPdrLumiereCouleur(i32(_e177));\n            let _e180: f32 = attenuation;\n            let _e182: vec3<f32> = n_5;\n            let _e183: vec3<f32> = vue_2;\n            let _e184: vec3<f32> = l_2;\n            let _e185: f32 = rugosite_3;\n            let _e186: vec3<f32> = f0_4;\n            let _e187: vec3<f32> = pdrReflet(_e182, _e183, _e184, _e185, _e186);\n            reflet = (_e176 + (((_e179 * _e180) * _e187) * 2.4f));\n        }\n        continuing {\n            let _e76: i32 = i;\n            i = (_e76 + 1i);\n        }\n    }\n    let _e192: vec3<f32> = lumiere;\n    let _e196: vec4<f32> = ferroUniforms.data[22];\n    let _e198: vec3<f32> = n_5;\n    let _e202: vec4<f32> = ferroUniforms.data[21];\n    let _e208: f32 = ombre_1;\n    lumiere = (_e192 + ((_e196.xyz * max(dot(_e198, _e202.xyz), 0f)) * _e208));\n    let _e211: vec3<f32> = reflet;\n    let _e215: vec4<f32> = ferroUniforms.data[22];\n    let _e217: f32 = ombre_1;\n    let _e219: vec3<f32> = n_5;\n    let _e220: vec3<f32> = vue_2;\n    let _e224: vec4<f32> = ferroUniforms.data[21];\n    let _e226: f32 = rugosite_3;\n    let _e227: vec3<f32> = f0_4;\n    let _e228: vec3<f32> = pdrReflet(_e219, _e220, _e224.xyz, _e226, _e227);\n    reflet = (_e211 + ((_e215.xyz * _e217) * _e228));\n    let _e231: vec3<f32> = base_1;\n    let _e232: vec3<f32> = lumiere;\n    let _e234: vec3<f32> = reflet;\n    couleur = ((_e231 * _e232) + _e234);\n    let _e237: vec3<f32> = vue_2;\n    let _e239: vec3<f32> = n_5;\n    r = reflect(-(_e237), _e239);\n    let _e245: vec4<f32> = ferroUniforms.data[26];\n    let _e250: vec4<f32> = ferroUniforms.data[25];\n    let _e254: vec3<f32> = r;\n    ciel = mix(_e245.xyz, _e250.xyz, vec3(smoothstep(0f, 1f, _e254.y)));\n    let _e263: vec4<f32> = ferroUniforms.data[23];\n    let _e267: vec3<f32> = ciel;\n    let _e271: vec3<f32> = r;\n    let _e279: vec4<f32> = ferroUniforms.data[23];\n    let _e283: f32 = rugosite_3;\n    let _e284: f32 = rugosite_3;\n    milieu = mix(mix((_e263.xyz * 0.2f), _e267, vec3(smoothstep(-0.16f, 0.18f, _e271.y))), (_e279.xyz * 0.85f), vec3(((_e283 * _e284) * 0.8f)));\n    let _e292: vec3<f32> = n_5;\n    let _e293: vec3<f32> = vue_2;\n    rasant = pow((1f - max(dot(_e292, _e293), 0f)), 5f);\n    let _e301: vec3<f32> = couleur;\n    let _e302: vec3<f32> = milieu;\n    let _e303: vec3<f32> = f0_4;\n    let _e305: f32 = rugosite_3;\n    let _e308: vec3<f32> = f0_4;\n    let _e310: vec3<f32> = f0_4;\n    let _e312: f32 = rasant;\n    let _e319: f32 = rugosite_3;\n    let _e323: f32 = rugosite_3;\n    let _e329: f32 = metal_1;\n    couleur = (_e301 + (((_e302 * (_e303 + ((max(vec3((1f - _e305)), _e308) - _e310) * _e312))) * (0.18f + ((1.3f * (1f - _e319)) * (1f - _e323)))) * (0.5f + (_e329 * 2.5f))));\n    let _e335: vec3<f32> = couleur;\n    let _e336: vec3<f32> = base_1;\n    let _e337: f32 = emission_1;\n    let _e344: vec4<f32> = ferroUniforms.data[27];\n    let _e349: vec3<f32> = monde_3;\n    return (_e335 + (((_e336 * _e337) * (0.94f + (0.06f * sin(((_e344.z * 2.2f) + (_e349.y * 3f)))))) * 1.55f));\n}\n\nfn pdrFinir(couleur_1: vec3<f32>, monde_4: vec3<f32>) -> vec3<f32> {\n    var couleur_2: vec3<f32>;\n    var monde_5: vec3<f32>;\n    var brume: f32;\n    var ecran: vec2<f32>;\n\n    couleur_2 = couleur_1;\n    monde_5 = monde_4;\n    let _e25: vec4<f32> = ferroUniforms.data[20];\n    let _e27: vec3<f32> = monde_5;\n    let _e34: vec4<f32> = ferroUniforms.data[27];\n    brume = (1f - exp((-(length((_e25.xyz - _e27))) * _e34.y)));\n    let _e41: vec3<f32> = couleur_2;\n    let _e45: vec4<f32> = ferroUniforms.data[24];\n    let _e47: f32 = brume;\n    couleur_2 = mix(_e41, _e45.xyz, vec3(min(_e47, 0.86f)));\n    let _e52: vec3<f32> = couleur_2;\n    let _e53: vec3<f32> = couleur_2;\n    couleur_2 = pow(max((_e52 / (_e53 + vec3(0.76f))), vec3(0f)), vec3(0.4545f));\n    let _e65: vec4<f32> = gl_FragCoord_1;\n    let _e70: vec4<f32> = ferroUniforms.data[28];\n    ecran = (_e65.xy / _e70.xy);\n    let _e74: vec3<f32> = couleur_2;\n    let _e78: vec4<f32> = ferroUniforms.data[91];\n    let _e83: vec2<f32> = ecran;\n    let _e86: vec2<f32> = ecran;\n    let _e90: vec2<f32> = ecran;\n    let _e95: vec2<f32> = ecran;\n    return (_e74 * mix(_e78.x, 1f, pow(max(0f, ((((16f * _e83.x) * _e86.y) * (1f - _e90.x)) * (1f - _e95.y))), 0.13f)));\n}\n\nfn main_1() {\n    var q_1: vec2<f32>;\n    var base_2: vec3<f32>;\n    var bord_1: f32 = 0f;\n    var tete: f32;\n    var corps: f32;\n    var d_2: f32;\n    var n_6: vec3<f32>;\n    var ombre_2: f32;\n\n    let _e26: vec2<f32> = vPointCoord_1;\n    q_1 = ((_e26 * 2f) - vec2(1f));\n    let _e33: vec3<f32> = vBase_1;\n    base_2 = _e33;\n    let _e37: f32 = vTaille_1;\n    if (_e37 > 3.5f) {\n        {\n            let _e40: vec2<f32> = q_1;\n            let _e42: vec2<f32> = q_1;\n            tete = (length(vec2<f32>(_e40.x, (_e42.y + 0.5f))) - 0.36f);\n            let _e51: vec2<f32> = q_1;\n            let _e56: vec2<f32> = q_1;\n            let _e68: vec2<f32> = q_1;\n            corps = max((abs(_e51.x) - (0.3f + (0.3f * clamp(((_e56.y + 0.1f) * 0.9f), 0f, 1f)))), (abs((_e68.y - 0.42f)) - 0.58f));\n            let _e77: f32 = tete;\n            let _e78: f32 = corps;\n            d_2 = min(_e77, _e78);\n            let _e81: f32 = d_2;\n            if (_e81 > 0f) {\n                discard;\n            }\n            let _e87: f32 = d_2;\n            bord_1 = smoothstep(-0.22f, 0f, _e87);\n            let _e89: vec3<f32> = base_2;\n            let _e91: f32 = bord_1;\n            base_2 = (_e89 * (1f - (_e91 * 0.35f)));\n            let _e96: f32 = vSelection_1;\n            let _e99: f32 = bord_1;\n            if ((_e96 > 0.5f) && (_e99 > 0.55f)) {\n                base_2 = vec3<f32>(1f, 0.98f, 0.9f);\n            }\n        }\n    } else {\n        let _e107: f32 = vSelection_1;\n        if (_e107 > 0.5f) {\n            let _e110: vec3<f32> = base_2;\n            base_2 = mix(_e110, vec3<f32>(1f, 0.98f, 0.9f), vec3(0.5f));\n        }\n    }\n    let _e121: vec4<f32> = ferroUniforms.data[90];\n    let _e123: vec2<f32> = q_1;\n    let _e130: vec2<f32> = q_1;\n    let _e138: vec3<f32> = vVersOeil_1;\n    n_6 = normalize(((((_e121.xyz * _e123.x) * 0.7f) + vec3<f32>(0f, (0.42f - (_e130.y * 0.35f)), 0f)) + (_e138 * 0.8f)));\n    let _e144: vec3<f32> = vMonde_1;\n    let _e149: f32 = pdrOmbreSoleil(_e144, vec3<f32>(0f, 1f, 0f));\n    ombre_2 = _e149;\n    let _e151: vec3<f32> = base_2;\n    let _e152: vec3<f32> = n_6;\n    let _e153: vec3<f32> = vMonde_1;\n    let _e156: f32 = vEmission_1;\n    let _e157: f32 = vSelection_1;\n    let _e161: f32 = ombre_2;\n    let _e162: vec3<f32> = pdrEclairer(_e151, _e152, _e153, 0.9f, 0f, (_e156 + (_e157 * 0.35f)), _e161);\n    let _e163: vec3<f32> = vMonde_1;\n    let _e164: vec3<f32> = pdrFinir(_e162, _e163);\n    fragColor = vec4<f32>(_e164.x, _e164.y, _e164.z, 1f);\n    return;\n}\n\n@fragment \nfn main(@builtin(position) gl_FragCoord: vec4<f32>, @location(0) vPointCoord: vec2<f32>, @location(1) vMonde: vec3<f32>, @location(2) @interpolate(flat) vBase: vec3<f32>, @location(3) @interpolate(flat) vTaille: f32, @location(4) @interpolate(flat) vSelection: f32, @location(5) @interpolate(flat) vEmission: f32, @location(6) @interpolate(flat) vVersOeil: vec3<f32>) -> FragmentOutput {\n    gl_FragCoord_1 = gl_FragCoord;\n    vPointCoord_1 = vPointCoord;\n    vMonde_1 = vMonde;\n    vBase_1 = vBase;\n    vTaille_1 = vTaille;\n    vSelection_1 = vSelection;\n    vEmission_1 = vEmission;\n    vVersOeil_1 = vVersOeil;\n    main_1();\n    let _e64: vec4<f32> = fragColor;\n    return FragmentOutput(_e64);\n}\n"}}};
+
+/* FERRO native WebGPU backend. Shared procedural geometry, independent GPU resources.
+ * The WebGL2 renderer remains the fallback; this file never obtains a GL context. */
+(function(G){'use strict';
+const ALIGN=256,align=n=>Math.ceil(n/ALIGN)*ALIGN;
+const GEOMETRY=[{arrayStride:24,attributes:[{shaderLocation:0,offset:0,format:'float32x3'},{shaderLocation:1,offset:12,format:'float32x3'}]},{arrayStride:64,stepMode:'instance',attributes:[{shaderLocation:2,offset:0,format:'float32x4'},{shaderLocation:3,offset:16,format:'float32x4'},{shaderLocation:4,offset:32,format:'float32x4'},{shaderLocation:5,offset:48,format:'float32x4'}]}];
+const FULLSCREEN=`struct V { @builtin(position) p:vec4f, @location(0) uv:vec2f }; @vertex fn vs(@builtin(vertex_index) i:u32)->V { let p=vec2f(f32((i<<1u)&2u),f32(i&2u)); var o:V;o.p=vec4f(p*2.-1.,0.,1.);o.uv=vec2f(p.x,1.-p.y);return o; }`;
+const COPY=FULLSCREEN+`@group(0) @binding(0) var t:texture_2d<f32>;@group(0) @binding(1) var s:sampler;@fragment fn fs(v:V)->@location(0) vec4f{return textureSample(t,s,v.uv);}`;
+const RESOLVE_DEPTH=`@group(0) @binding(0) var t:texture_depth_multisampled_2d;@vertex fn vs(@builtin(vertex_index) i:u32)->@builtin(position) vec4f{let p=vec2f(f32((i<<1u)&2u),f32(i&2u));return vec4f(p*2.-1.,0.,1.);}@fragment fn fs(@builtin(position) p:vec4f)->@builtin(frag_depth) f32{let q=vec2i(p.xy);return min(min(textureLoad(t,q,0),textureLoad(t,q,1)),min(textureLoad(t,q,2),textureLoad(t,q,3)));}`;
+// The shader manifest specifies every std140 offset; arrays and integers never
+// rely on JavaScript object order or WGSL's implicit padding.
+function writeUniforms(target,fields,values){
+ const floats=new Float32Array(target),ints=new Int32Array(target),uints=new Uint32Array(target);floats.fill(0);
+ const list=Array.isArray(fields)?fields:Object.entries(fields||{}).map(([name,f])=>({name,...f}));
+ for(const field of list){const value=values[field.name];if(value===undefined||value===null)continue;
+  const type=field.type||'float',count=field.count||1,components=type==='mat4'?16:/[234]$/.test(type)?Number(type.slice(-1)):1,valuesArray=typeof value==='number'||typeof value==='boolean'?[Number(value)]:value;
+  const arrayStride=(field.arrayStride||field.stride||components*4)/4,dst=(field.offset||0)/4,view=/^(i|int)/.test(type)?ints:/^(u|uint)/.test(type)?uints:floats;
+  for(let item=0;item<count;item++)for(let k=0;k<components;k++)view[dst+item*arrayStride+k]=Number(valuesArray[item*components+k])||0;
+ }
+ return target;
+}
+async function create(canvas,options={}){
+ if(!G.navigator?.gpu)throw Error('WebGPU indisponible');
+ const S=G.FRender?.shared,shaderSet=G.FRenderWebGPUShaders?.programs;if(!S||!shaderSet)throw Error('FERRO WebGPU modules incomplets');
+ const adapter=await navigator.gpu.requestAdapter({powerPreference:'high-performance'});if(!adapter)throw Error('Aucun adaptateur WebGPU');
+ const features=['timestamp-query','float32-filterable'].filter(f=>adapter.features.has(f));
+ const device=await adapter.requestDevice({requiredFeatures:features});let context,initializeCleanup=()=>device.destroy();
+ try{
+ context=canvas.getContext('webgpu');if(!context)throw Error('Canvas WebGPU indisponible');device.pushErrorScope('validation');
+ const canvasFormat=navigator.gpu.getPreferredCanvasFormat(),format='rgba8unorm',depthFormat='depth32float',config=S.settings(options),source=S.geometry(),governor=S.resolutionGovernor();
+ const stats={backend:'webgpu',webglVersion:0,webgpu:true,contextLost:false,deviceLost:false,drawCalls:0,triangles:0,instances:0,uploadBytes:0,errorEvents:[],gpuTimingAvailable:features.includes('timestamp-query')};
+ let disposed=false,quality='auto',autoScale=1,runtimeMsaa=true,environment=null,world=[],lights=[],worldRevision=0,partitionState=null,worldIndex=S.spatialIndex([]),backgroundIndex=S.spatialIndex([]),chunks=new Map(),targetKey='',shadowKey='',targets=null,shadowTarget=null,shadowLight=null,actorLightPlan=null;
+ const buffers=new Set(),textures=new Set(),pipelines=new Map(),programs=new Map(),bindings=new Map(),samplers=new Map(),ids=new WeakMap();let nextId=1;
+ initializeCleanup=()=>{disposed=true;try{context.unconfigure();}catch{}for(const b of buffers)b.destroy();for(const t of textures)t.destroy();buffers.clear();textures.clear();device.destroy();};
+ const id=o=>{if(!ids.has(o))ids.set(o,nextId++);return ids.get(o);};
+ const view=new Float32Array(16),projection=new Float32Array(16),vp=new Float32Array(16),overlayProjection=new Float32Array(16),overlayVP=new Float32Array(16),shadowMatrices=new Float32Array(48),shadowViewMatrix=new Float32Array(16),shadowProjection=new Float32Array(16),shadowMatrix=new Float32Array(16);
+ const lightPositions=new Float32Array(36),lightColors=new Float32Array(36),lightRanges=new Float32Array(12),lightDirections=new Float32Array(36),lightCones=new Float32Array(24);
+ const staticCaches=Array.from({length:5},()=>({entries:[],batch:S.pack([]),buffer:null,capacity:0})),dynamicSlot={},overlaySlot={},fxSlot={},overlayFxSlot={},crowdSlot={},pdrSlots=[];
+ const packDynamic=S.instancePacker(),packOverlay=S.instancePacker(),packFx=S.effectsPacker(),packOverlayFx=S.effectsPacker();
+ const ordinary=[],overlay=[],particles=[],overlayParticles=[];
+ let nappes=[],lots=[],lampCasters=[];const chunkCategories=new WeakMap(),chunkState={index:null,epoch:0};
+ const gpu={device,adapter,context,format,canvasFormat,depthFormat,samples:config.msaa?4:1,generation:1,shadowView:null,config,vignette:config.vignette};
+ device.addEventListener('uncapturederror',event=>{const message=event.error?.message||String(event.error);stats.errorEvents.push(message);if(stats.errorEvents.length>32)stats.errorEvents.shift();options.onError?.(event.error);});
+ device.lost.then(info=>{stats.contextLost=stats.deviceLost=true;if(!disposed)options.onDeviceLost?.(info);});
+ function buffer(data,usage,label){const size=Math.max(4,align(typeof data==='number'?data:data.byteLength)),b=device.createBuffer({label,size,usage:usage|GPUBufferUsage.COPY_DST});buffers.add(b);if(typeof data!=='number'&&data.byteLength)device.queue.writeBuffer(b,0,data);return b;}
+ function freeBuffer(b){if(b){buffers.delete(b);b.destroy();}}
+ function texture(width,height,texFormat=format,sampleCount=1,layers=1,mipLevelCount=1,label='FERRO texture'){
+  const t=device.createTexture({label,size:{width,height,depthOrArrayLayers:layers},format:texFormat,sampleCount,mipLevelCount,usage:GPUTextureUsage.RENDER_ATTACHMENT|GPUTextureUsage.TEXTURE_BINDING|(sampleCount===1?GPUTextureUsage.COPY_SRC|GPUTextureUsage.COPY_DST:0)});textures.add(t);return {texture:t,view:t.createView({dimension:layers>1?'2d-array':'2d'}),width,height,format:texFormat,sampleCount,layers,mipLevelCount};
+ }
+ function freeTexture(t){if(t){textures.delete(t.texture);t.texture.destroy();}}
+ function sampler(kind='linear'){if(!samplers.has(kind))samplers.set(kind,device.createSampler(kind==='pbr'?{addressModeU:'repeat',addressModeV:'repeat',magFilter:'linear',minFilter:'linear',mipmapFilter:'linear',maxAnisotropy:8}:kind==='nearest'?{magFilter:'nearest',minFilter:'nearest',mipmapFilter:'nearest'}:{magFilter:'linear',minFilter:'linear',mipmapFilter:'linear'}));return samplers.get(kind);}
+ const primitiveIndexing=options.indexPrimitives===true?S.indexPrimitiveVertices(source):null;
+ stats.primitiveIndexing=!!primitiveIndexing;stats.primitiveIndexStats=primitiveIndexing?.stats||null;
+ const vbo=buffer(source.vertices,GPUBufferUsage.VERTEX,'FERRO geometry'),ibo=buffer(primitiveIndexing?.indices||source.indices,GPUBufferUsage.INDEX,'FERRO indices');
+ const white=texture(1,1),whiteDepth=texture(1,1,depthFormat);device.queue.writeTexture({texture:white.texture},new Uint8Array([255,255,255,255]),{},[1,1]);
+ const clear=device.createCommandEncoder();clear.beginRenderPass({colorAttachments:[],depthStencilAttachment:{view:whiteDepth.view,depthClearValue:1,depthLoadOp:'clear',depthStoreOp:'store'}}).end();device.queue.submit([clear.finish()]);
+ const copyModule=device.createShaderModule({label:'FERRO texture copy/mipmap',code:COPY}),depthResolveModule=device.createShaderModule({label:'FERRO MSAA depth resolve',code:RESOLVE_DEPTH});
+ const copyLayout=device.createBindGroupLayout({entries:[{binding:0,visibility:GPUShaderStage.FRAGMENT,texture:{sampleType:'float'}},{binding:1,visibility:GPUShaderStage.FRAGMENT,sampler:{type:'filtering'}}]}),copyPipelineLayout=device.createPipelineLayout({bindGroupLayouts:[copyLayout]});
+ const copyPipelines=new Map(),copyBindings=new WeakMap();
+ function copyPipeline(targetFormat){if(!copyPipelines.has(targetFormat))copyPipelines.set(targetFormat,device.createRenderPipeline({label:'FERRO copy '+targetFormat,layout:copyPipelineLayout,vertex:{module:copyModule,entryPoint:'vs'},fragment:{module:copyModule,entryPoint:'fs',targets:[{format:targetFormat}]},primitive:{topology:'triangle-list'}}));return copyPipelines.get(targetFormat);}
+ function copyBind(view){let group=copyBindings.get(view);if(!group){group=device.createBindGroup({layout:copyLayout,entries:[{binding:0,resource:view},{binding:1,resource:sampler()}]});copyBindings.set(view,group);}return group;}
+ const depthResolvePipeline=device.createRenderPipeline({label:'FERRO MSAA depth resolve',layout:'auto',vertex:{module:depthResolveModule,entryPoint:'vs'},fragment:{module:depthResolveModule,entryPoint:'fs',targets:[]},primitive:{topology:'triangle-list'},depthStencil:{format:depthFormat,depthWriteEnabled:true,depthCompare:'always'}});
+ async function loadProgram(name){const d=shaderSet[name];if(!d)throw Error('Shader WebGPU absent : '+name);const vertex=device.createShaderModule({label:'FERRO '+name+' vertex',code:d.vertex}),fragment=d.fragment?device.createShaderModule({label:'FERRO '+name+' fragment',code:d.fragment}):null;
+  for(const module of [vertex,fragment].filter(Boolean)){const info=await module.getCompilationInfo();const errors=info.messages.filter(x=>x.type==='error');if(errors.length)throw Error(name+': '+errors.map(x=>x.lineNum+':'+x.message).join('\n'));}
+  const entries=[{binding:0,visibility:GPUShaderStage.VERTEX|GPUShaderStage.FRAGMENT,buffer:{type:'uniform',minBindingSize:d.uniforms.byteLength}}];
+  for(const t of d.textures||[]){entries.push({binding:t.binding,visibility:GPUShaderStage.VERTEX|GPUShaderStage.FRAGMENT,texture:{sampleType:t.sampleType||'float',viewDimension:t.dimension||'2d',multisampled:false}});if(t.samplerBinding!==undefined)entries.push({binding:t.samplerBinding,visibility:GPUShaderStage.VERTEX|GPUShaderStage.FRAGMENT,sampler:{type:t.samplerType|| (t.sampleType==='depth'?'non-filtering':'filtering')}});}
+  const layout=device.createBindGroupLayout({label:'FERRO '+name+' bindings',entries}),pipelineLayout=device.createPipelineLayout({bindGroupLayouts:[layout]});const p={name,descriptor:d,vertex,fragment,layout,pipelineLayout};programs.set(name,p);return p;
+ }
+ try{await Promise.all(['world','depth','sky','fx','post','ssr'].map(loadProgram));}catch(error){device.destroy();throw error;}
+ function pipeline(name,{samples=gpu.samples,background=false,overlay=false,nappe=false,target=format}={}){
+  const key=[name,samples,background,overlay,nappe,target].join(':');if(pipelines.has(key))return pipelines.get(key);const p=programs.get(name),mesh=name==='world'||name==='depth'||name==='fx',depth=name==='depth',blend=name==='fx'?{color:{srcFactor:'src-alpha',dstFactor:'one-minus-src-alpha',operation:'add'},alpha:{srcFactor:'src-alpha',dstFactor:'one-minus-src-alpha',operation:'add'}}:undefined;
+  const descriptor={label:'FERRO '+key,layout:p.pipelineLayout,vertex:{module:p.vertex,entryPoint:p.descriptor.vertexEntryPoint||'main',buffers:mesh?(nappe?[GEOMETRY[0],{...GEOMETRY[1],stepMode:'vertex'}]:GEOMETRY):[]},primitive:{topology:'triangle-list',frontFace:'ccw',cullMode:mesh?'back':'none'},multisample:{count:samples}};
+  if(p.fragment)descriptor.fragment={module:p.fragment,entryPoint:p.descriptor.fragmentEntryPoint||'main',targets:depth?[]:[{format:target,...(blend?{blend}:{})}]};
+  if(mesh||name==='sky')descriptor.depthStencil={format:depthFormat,depthWriteEnabled:mesh&&name!=='fx'&&!background,depthCompare:background||name==='sky'?'always':'less-equal',...(depth?{depthBias:2,depthBiasSlopeScale:1.1}:{})};
+  const result=device.createRenderPipeline(descriptor);pipelines.set(key,result);return result;
+ }
+ function bind(name,slot,values,textureValues={}){
+  const p=programs.get(name),d=p.descriptor,key=name+':'+slot;let b=bindings.get(key);
+  if(!b){const data=new ArrayBuffer(d.uniforms.byteLength),uniform=buffer(data,GPUBufferUsage.UNIFORM,key);b={data,uniform,group:null,textureKey:''};bindings.set(key,b);}
+  writeUniforms(b.data,d.uniforms.fields,values);device.queue.writeBuffer(b.uniform,0,b.data);stats.uniformUploadBytes=(stats.uniformUploadBytes||0)+b.data.byteLength;
+  const entries=[{binding:0,resource:{buffer:b.uniform,size:d.uniforms.byteLength}}],keys=[];
+  for(const t of d.textures||[]){const value=textureValues[t.name]||(t.sampleType==='depth'?whiteDepth:white),view=value.view||value;entries.push({binding:t.binding,resource:view});keys.push(id(view));if(t.samplerBinding!==undefined){const smp=value.sampler||sampler(t.samplerType==='non-filtering'||t.sampleType==='depth'?'nearest':t.name.startsWith('uPbr')?'pbr':'linear');entries.push({binding:t.samplerBinding,resource:smp});keys.push(id(smp));}}
+  const textureKey=keys.join(':');if(!b.group||textureKey!==b.textureKey){b.group=device.createBindGroup({label:key,layout:p.layout,entries});b.textureKey=textureKey;}
+  return b.group;
+ }
+ // Same mathematically generated texture layers as WebGL, including all mip levels.
+ const pbr=[];const layers=options.materials?.layers||G.RADE?.materials?.layers||[],pbrSize=layers[0]?.diff.width||1;
+ for(const [index,kind]of ['diff','nor_gl','rough'].entries()){
+  const levels=Math.floor(Math.log2(pbrSize))+1,t=texture(pbrSize,pbrSize,index===0?'rgba8unorm-srgb':'rgba8unorm',1,Math.max(1,layers.length),levels,'FERRO procedural PBR '+kind);t.view=t.texture.createView({dimension:'2d-array'});pbr.push(t);
+  if(layers.length){for(let layer=0;layer<layers.length;layer++)device.queue.copyExternalImageToTexture({source:layers[layer][kind]},{texture:t.texture,origin:[0,0,layer]},[pbrSize,pbrSize]);const enc=device.createCommandEncoder();for(let layer=0;layer<layers.length;layer++)for(let mip=1;mip<levels;mip++){const src=t.texture.createView({dimension:'2d',baseArrayLayer:layer,arrayLayerCount:1,baseMipLevel:mip-1,mipLevelCount:1}),dst=t.texture.createView({dimension:'2d',baseArrayLayer:layer,arrayLayerCount:1,baseMipLevel:mip,mipLevelCount:1});const pass=enc.beginRenderPass({colorAttachments:[{view:dst,loadOp:'clear',clearValue:[0,0,0,1],storeOp:'store'}]});pass.setPipeline(copyPipeline(t.format));pass.setBindGroup(0,copyBind(src));pass.draw(3);pass.end();}device.queue.submit([enc.finish()]);}
+  else device.queue.writeTexture({texture:t.texture},new Uint8Array([128,128,255,255]),{},[1,1]);
+ }
+ stats.pbrLayers=layers.length;
+ function ensureSlot(slot,batch,update=true){const required=Math.max(4,batch.values.byteLength);if(!slot.buffer||slot.capacity<required){freeBuffer(slot.buffer);slot.buffer=buffer(required,GPUBufferUsage.VERTEX,'FERRO instances');slot.capacity=align(required);update=true;}if(update&&batch.values.byteLength){device.queue.writeBuffer(slot.buffer,0,batch.values);stats.uploadBytes+=batch.values.byteLength;}slot.batch=batch;return slot;}
+ function renderBatch(pass,batch,storage,shadow=false){if(!batch?.groups?.length)return;pass.setVertexBuffer(0,vbo);pass.setIndexBuffer(ibo,'uint32');for(const group of batch.groups){const shape=source.ranges[group.name];if(!shape)throw Error('Forme WebGPU inconnue : '+group.name);pass.setVertexBuffer(1,storage.buffer,group.offset,group.count*64);pass.drawIndexed(shape.count,group.count,shape.offset/4,0,0);stats.drawCalls++;stats.triangles+=shape.count/3*group.count;if(!shadow)stats.instances+=group.count;}}
+ function renderStatic(pass,entries,slot,shadow=false){const cache=staticCaches[slot],same=cache.entries.length===entries.length&&entries.every((e,i)=>e===cache.entries[i]);if(!same){cache.entries=entries;cache.batch=S.packIndexed(entries);}ensureSlot(cache,cache.batch,!same);renderBatch(pass,cache.batch,cache,shadow);}
+ function rebuildChunks(){const next=S.planChunks(worldIndex,chunks,chunkCategories,chunkState);
+  let uploads=0;for(const [key,g]of next){if(!g.nextEntries&&g.nextCount===g.entries.length)continue;const c={range:g.range,entries:g.nextEntries||g.entries.slice(0,g.nextCount),min:[Infinity,Infinity,Infinity],max:[-Infinity,-Infinity,-Infinity]};for(const e of c.entries)for(let k=0;k<3;k++){c.min[k]=Math.min(c.min[k],e.p[k]-e.radius);c.max[k]=Math.max(c.max[k],e.p[k]+e.radius);}c.p=c.min.map((v,k)=>(v+c.max[k])/2);c.radius=Math.hypot(...c.max.map((v,k)=>(v-c.min[k])/2));c.batch=S.packIndexed(c.entries);ensureSlot(c,c.batch);uploads+=c.batch.values.byteLength;next.set(key,c);}for(const [key,c]of chunks)if(next.get(key)!==c)freeBuffer(c.buffer);chunks=next;stats.chunks=chunks.size;stats.chunkBuildBytes=uploads;stats.chunkUpdateIncremental=chunkState.incremental;stats.chunkEntriesVisited=chunkState.entriesVisited;
+ }
+ function drawChunks(pass,accept,shadow=false){let objects=0,count=0;for(const c of chunks.values())if(accept(c)){renderBatch(pass,c.batch,c,shadow);objects+=c.entries.length;count++;}if(shadow){stats.shadowChunks=count;stats.shadowStatic=objects;}else{stats.visibleChunks=count;stats.staticVisible=objects;stats.staticCulled=world.length-objects;}return count;}
+ function setWorld(meshes,points,atmosphere){const partition=partitionState=S.partitionWorld(meshes);environment=S.environmentInfo(atmosphere);world=partition.world;worldIndex=S.spatialIndex(world,environment);backgroundIndex=S.spatialIndex(partition.background,environment);lights=points||[];shadowLight=null;actorLightPlan=null;worldRevision=0;stats.worldRevision=0;stats.staticTotal=world.length+backgroundIndex.entries.length;stats.biome=environment?.biome||null;rebuildChunks();lampCasters=[];for(const cache of staticCaches){cache.entries=[];cache.batch=S.pack([]);}governor.reset();autoScale=1;}
+ function updateWorld(meshes,revision,points,updateOptions){if(disposed||revision===worldRevision)return false;if(Array.isArray(points)&&(points.length!==lights.length||points.some((l,i)=>l!==lights[i]))){lights=points;if(!lights.includes(shadowLight))shadowLight=null;}const partition=partitionState=S.partitionWorld(meshes,partitionState,updateOptions),indexOptions=partition.meshDelta?{...updateOptions,meshDelta:partition.meshDelta}:updateOptions;world=partition.world;worldIndex=S.spatialIndex(world,environment,worldIndex,indexOptions);if(!partition.meshDelta)backgroundIndex=S.spatialIndex(partition.background,environment,backgroundIndex,updateOptions);stats.meshDeltaApplied=!!worldIndex.delta.fast;rebuildChunks();lampCasters=[];actorLightPlan=null;for(const cache of staticCaches.slice(0,4)){cache.entries=[];cache.batch=S.pack([]);}worldRevision=revision===undefined?worldRevision+1:revision;stats.worldRevision=worldRevision;stats.staticTotal=world.length+backgroundIndex.entries.length;return true;}
+ function updateShape(name,vertices){const range=source.ranges[name];if(!range||vertices.length!==range.count*6)throw Error('Shape vertex count changed: '+name);const restored=primitiveIndexing?.restore(name);if(restored&&stats.primitiveIndexing&&!stats.contextLost)device.queue.writeBuffer(ibo,restored.offset,restored.indices);const start=source.indices[range.offset/4]*6;source.vertices.set(vertices,start);if(!stats.contextLost)device.queue.writeBuffer(vbo,start*4,vertices);}
+ // Diagnostic A/B on the same poses, uniforms and GPU resources. A primitive
+ // changed by updateShape stays expanded even when indexing is re-enabled.
+ function setPrimitiveIndexing(enabled){enabled=enabled===true;if(disposed||stats.contextLost||enabled===stats.primitiveIndexing)return stats.primitiveIndexing;device.queue.writeBuffer(ibo,0,enabled?primitiveIndexing.indices:source.indices);stats.primitiveIndexing=enabled;return enabled;}
+ function setNappes(list){for(const n of nappes){freeBuffer(n.vertex);freeBuffer(n.instance);freeBuffer(n.index);}nappes=[];for(const n of list||[]){if(!n.sommets||!n.indices?.length)continue;const count=n.sommets.length/13,vertices=new Float32Array(count*6),instances=new Float32Array(count*16);for(let i=0;i<count;i++){vertices.set(n.sommets.subarray? n.sommets.subarray(i*13,i*13+6):n.sommets.slice(i*13,i*13+6),i*6);instances.set([0,0,0,n.sommets[i*13+9],1,1,1,0,0,0,0,2,n.sommets[i*13+10],n.sommets[i*13+11],n.sommets[i*13+12],1],i*16);}nappes.push({...n,vertex:buffer(vertices,GPUBufferUsage.VERTEX,'FERRO terrain vertices'),instance:buffer(instances,GPUBufferUsage.VERTEX,'FERRO terrain materials'),index:buffer(new Uint32Array(n.indices),GPUBufferUsage.INDEX,'FERRO terrain indices')});}stats.nappeTriangles=nappes.reduce((sum,n)=>sum+n.indices.length/3,0);}
+ function setLots(list){for(const l of lots){freeBuffer(l.near?.buffer);freeBuffer(l.far?.buffer);}lots=(list||[]).filter(l=>l?.objets||l?.paquet?.values).map(l=>{const near=l.objets?S.pack(l.objets,environment):l.paquet,far=l.loin?.length?S.pack(l.loin,environment):l.paquetLoin;return {...l,near:ensureSlot({},near),far:far?ensureSlot({},far):null};});stats.lots=lots.length;}
+ function renderLots(pass,eye,axes,h,v,far,accept){let count=0;for(const l of lots){const distance=Math.hypot(...l.centre.map((x,i)=>x-eye[i]))-l.rayon;if(accept?!accept(l):distance>Math.min(far,l.portee||far)||!S.visible({p:l.centre,radius:l.rayon},eye,axes,h,v,far))continue;const slot=!l.far||distance<(l.bascule||240)?l.near:l.far;renderBatch(pass,slot.batch,slot,!!accept);count++;}return count;}
+ function freeTargets(){if(targets){for(const t of Object.values(targets))if(t?.texture)freeTexture(t);targets=null;}for(const entry of bindings.values()){entry.group=null;entry.textureKey='';}}
+ function resize(next){if(next!==undefined&&next!==quality){quality=next;governor.reset();autoScale=1;}const pixelRatio=G.devicePixelRatio||1;let ratio=typeof quality==='number'?quality:quality==='low'?.8:quality==='high'?Math.min(pixelRatio,2):Math.min(pixelRatio,1.5);const cssWidth=canvas.clientWidth||G.innerWidth||800,cssHeight=canvas.clientHeight||G.innerHeight||600;ratio=Math.max(.5,Math.min(2,ratio));if(quality==='auto')ratio=Math.min(ratio,Math.sqrt(1800000/(cssWidth*cssHeight)))*autoScale;const width=Math.max(1,Math.round(cssWidth*ratio)),height=Math.max(1,Math.round(cssHeight*ratio));if(canvas.width!==width||canvas.height!==height){canvas.width=width;canvas.height=height;}stats.renderScale=autoScale;stats.pixelRatio=ratio;stats.width=width;stats.height=height;
+  const samples=config.msaa&&runtimeMsaa&&quality!=='low'?4:1,key=width+'x'+height+':'+quality+':'+samples;if(key!==targetKey){targetKey=key;freeTargets();gpu.samples=samples;context.configure({device,format:canvasFormat,alphaMode:'opaque'});targets={scene:texture(width,height),pre:texture(width,height),depth:texture(width,height,depthFormat,samples),overlayDepth:texture(width,height,depthFormat,samples),resolvedDepth:samples>1?texture(width,height,depthFormat):null,msaa:samples>1?texture(width,height,format,samples):null,a:texture(Math.max(1,Math.ceil(width/4)),Math.max(1,Math.ceil(height/4))),b:texture(Math.max(1,Math.ceil(width/4)),Math.max(1,Math.ceil(height/4))),reflection:texture(Math.ceil(width/2),Math.ceil(height/2))};targets.depthResolveBind=samples>1?device.createBindGroup({layout:depthResolvePipeline.getBindGroupLayout(0),entries:[{binding:0,resource:targets.depth.view}]}):null;}
+  const size=(quality==='high'?1024:512)*config.shadowMapScale;if(shadowKey!==String(size)){shadowKey=String(size);freeTexture(shadowTarget);shadowTarget=texture(size*2,size*2,depthFormat);shadowTarget.size=size;gpu.shadowView=shadowTarget.view;}
+  stats.msaa=samples;return {width,height,ratio};
+ }
+ function lightPlan(eye){const distanceTo=l=>(l.p[0]-eye[0])**2+(l.p[1]-eye[1])**2+(l.p[2]-eye[2])**2,sorted=lights.map(light=>({light,d:distanceTo(light)})).sort((a,b)=>a.d-b.d),candidate=sorted.find(e=>e.light.p[1]>=2.5&&(e.light.power||1)>=7)||sorted.find(e=>e.light.p[1]>=2.5);let chosen=shadowLight;if(candidate&&(!chosen||distanceTo(chosen)>candidate.d*1.35+5))chosen=candidate.light;if(!candidate)chosen=null;const second=sorted.find(e=>e.light!==chosen&&e.light.p[1]>=2.5);return {sorted,distanceTo,chosen,shadowLights:chosen?[chosen,...(second&&!environment?[second.light]:[])]:[]};}
+ function actorFilter(camera,fx={}){stats.actorsConsidered=stats.actorsCulled=0;actorLightPlan=null;if(disposed||stats.contextLost){stats.actorFilterMode='inactive';return ()=>true;}const t=fx.time||0,shake=fx.shake||0,p=camera.pos||[0,1.6,0],axes=S.cameraAxes(camera),eye=[p[0]+Math.sin(t*57)*shake*.025,p[1]+Math.sin(t*71)*shake*.015,p[2]],cssWidth=canvas.clientWidth||G.innerWidth||800,cssHeight=canvas.clientHeight||G.innerHeight||600,aspect=Math.max(canvas.width/Math.max(1,canvas.height),cssWidth/cssHeight)+(1+cssWidth/cssHeight)/Math.max(1,cssHeight*.3),tangent=Math.tan(Math.max(10,Math.min(110,camera.fov||75))*Math.PI/360),views=[{eye,axes,h:aspect*tangent,v:tangent,far:camera.far||180}],shadows=quality!=='low'&&fx.shadows!==false;let sunVolume=null;if(shadows){const plan=lightPlan(eye);actorLightPlan={eye:eye.slice(),previous:shadowLight,plan};if(!fx.sunOnly){for(const l of plan.shadowLights)views.push({eye:l.p,axes:{right:[1,0,0],up:[0,0,-1],forward:[0,-1,0]},h:Math.tan(138*Math.PI/360),v:Math.tan(138*Math.PI/360),far:32});const torch=eye.map((v,i)=>v+axes.right[i]*.16-axes.up[i]*.08),tan=Math.tan(108*Math.PI/360);views.push({eye:torch,axes,h:tan,v:tan,far:32});}if(environment){const sun=environment.sunDirection,fw=sun.map(x=>-x),length=Math.hypot(fw[0],fw[2]),right=length>.0001?[-fw[2]/length,0,fw[0]/length]:[1,0,0],up=[right[1]*fw[2]-right[2]*fw[1],right[2]*fw[0]-right[0]*fw[2],right[0]*fw[1]-right[1]*fw[0]],a=camera.sun;sunVolume=a?{center:a.center,right,up,forward:fw,extent:a.extent+1,lift:a.depth*.5,depth:a.depth}:{center:[eye[0]+axes.forward[0]*8,eye[1]+1.4,eye[2]+axes.forward[2]*8],right,up,forward:fw,extent:(quality==='high'?36:28)+.25,lift:55,depth:115};}}
+  stats.actorFilterMode=shadows?'camera-and-shadow-frusta':'camera-frustum';stats.actorFilterVolumes=views.length+(sunVolume?1:0);return (x,y,z,radius)=>{stats.actorsConsidered++;if(![x,y,z,radius].every(Number.isFinite)||radius<0)return true;const e={p:[x,y,z],radius:radius+.002};for(const v of views)if(S.visible(e,v.eye,v.axes,v.h,v.v,v.far))return true;if(sunVolume){const q=sunVolume,dx=x-q.center[0],dy=y-q.center[1],dz=z-q.center[2],dot=a=>dx*a[0]+dy*a[1]+dz*a[2],depth=q.lift+dot(q.forward);if(Math.abs(dot(q.right))<=q.extent+e.radius&&Math.abs(dot(q.up))<=q.extent+e.radius&&depth+e.radius>=1&&depth-e.radius<=q.depth)return true;}stats.actorsCulled++;return false;};
+ }
+ const crowdSunMatrix=new Float32Array(16);
+ const crowdView={vp,vue:view,projection,ombre:{matrice:crowdSunMatrix,textureView:null,active:false,plein:false,texel:1},lumieres:{positions:lightPositions,couleurs:lightColors,portees:lightRanges,directions:lightDirections,cones:lightCones,nombre:0}};
+ function countCrowd(result,shadow=false){if(!result)return;stats.drawCalls+=result.appels||0;stats.triangles+=result.triangles||0;if(!shadow)stats.instances+=result.instances||0;}
+ function shadowPass(pass,light,dynamicBatch,slot,torchAxes,time){
+  const p=light.p,axes=torchAxes||{right:[1,0,0],up:[0,0,-1],forward:[0,-1,0]},{right:r,up:u,forward:fw}=axes;
+  shadowViewMatrix.set([r[0],u[0],-fw[0],0,r[1],u[1],-fw[1],0,r[2],u[2],-fw[2],0,-(r[0]*p[0]+r[1]*p[1]+r[2]*p[2]),-(u[0]*p[0]+u[1]*p[1]+u[2]*p[2]),fw[0]*p[0]+fw[1]*p[1]+fw[2]*p[2],1]);
+  const f=1/Math.tan((torchAxes?108:138)*Math.PI/360),near=torchAxes?.08:.15,far=32;
+  shadowProjection.fill(0);shadowProjection[0]=shadowProjection[5]=f;shadowProjection[10]=(far+near)/(near-far);shadowProjection[11]=-1;shadowProjection[14]=2*far*near/(near-far);
+  S.multiply(shadowProjection,shadowViewMatrix,shadowMatrix);shadowMatrices.set(shadowMatrix,slot*16);
+  const size=shadowTarget.size;pass.setViewport(slot%2*size,2*size-(Math.floor(slot/2)+1)*size,size,size,0,1);
+  pass.setPipeline(pipeline('depth',{samples:1}));pass.setBindGroup(0,bind('depth','lamp'+slot,{uViewProjection:shadowMatrix,uWindTime:[environment?.wind||0,time]}));
+  const previous=lampCasters[slot],stable=!torchAxes&&previous&&previous.light===light&&previous.p.every((v,k)=>v===p[k]);
+  const casters=stable?previous.entries:worldIndex.query(p,[32,18,0]).filter(e=>S.visible(e,p,axes,1/f,1/f,32));
+  if(!torchAxes&&!stable)lampCasters[slot]={light,p:p.slice(),entries:casters};
+  renderStatic(pass,casters,slot+1,true);renderBatch(pass,dynamicBatch,dynamicSlot,true);
+ }
+ function sunShadowPass(pass,eye,axes,dynamicBatch,time,camera,fx,crowd,pdrLots){
+  const sun=environment.sunDirection,fw=sun.map(v=>-v),length=Math.hypot(fw[0],fw[2]),r=length>.0001?[-fw[2]/length,0,fw[0]/length]:[1,0,0],u=[r[1]*fw[2]-r[2]*fw[1],r[2]*fw[0]-r[0]*fw[2],r[0]*fw[1]-r[1]*fw[0]];
+  const area=camera.sun,full=!!fx.sunOnly,tile=full?shadowTarget.size*2:shadowTarget.size,extent=area?area.extent:quality==='high'?36:28,texel=extent*2/tile;
+  const center=area?area.center.slice():[eye[0]+axes.forward[0]*8,eye[1]+1.4,eye[2]+axes.forward[2]*8],dot=a=>a[0]*center[0]+a[1]*center[1]+a[2]*center[2],dx=Math.round(dot(r)/texel)*texel-dot(r),dy=Math.round(dot(u)/texel)*texel-dot(u);
+  for(let k=0;k<3;k++)center[k]+=r[k]*dx+u[k]*dy;
+  const lift=area?area.depth*.5:55,p=center.map((v,k)=>v+sun[k]*lift),near=1,far=area?area.depth:115;
+  shadowViewMatrix.set([r[0],u[0],-fw[0],0,r[1],u[1],-fw[1],0,r[2],u[2],-fw[2],0,-(r[0]*p[0]+r[1]*p[1]+r[2]*p[2]),-(u[0]*p[0]+u[1]*p[1]+u[2]*p[2]),fw[0]*p[0]+fw[1]*p[1]+fw[2]*p[2],1]);
+  shadowProjection.fill(0);shadowProjection[0]=shadowProjection[5]=1/extent;shadowProjection[10]=-2/(far-near);shadowProjection[14]=-(far+near)/(far-near);shadowProjection[15]=1;
+  S.multiply(shadowProjection,shadowViewMatrix,shadowMatrix);shadowMatrices.set(shadowMatrix,16);crowdSunMatrix.set(shadowMatrix);
+  pass.setViewport(full?0:shadowTarget.size,full?0:shadowTarget.size,tile,tile,0,1);pass.setPipeline(pipeline('depth',{samples:1}));pass.setBindGroup(0,bind('depth','sun',{uViewProjection:shadowMatrix,uWindTime:[environment.wind,time]}));
+  const inside=e=>{const x=e.p[0]-p[0],y=e.p[1]-p[1],d=e.p[2]-p[2],z=x*fw[0]+y*fw[1]+d*fw[2];return Math.abs(x*r[0]+y*r[1]+d*r[2])<extent+e.radius&&Math.abs(x*u[0]+y*u[1]+d*u[2])<extent+e.radius&&z+e.radius>near&&z-e.radius<far;};
+  const casters=camera.chunked?[]:camera.allStatic?worldIndex.entries:worldIndex.query(center,[extent+24,26,0]).filter(inside);
+  renderStatic(pass,casters,2,true);if(camera.chunked)drawChunks(pass,inside,true);
+  renderLots(pass,eye,axes,0,0,0,l=>inside({p:l.centre,radius:l.rayon}));renderBatch(pass,dynamicBatch,dynamicSlot,true);if(crowd)renderBatch(pass,crowd,crowdSlot,true);
+  for(const entry of pdrLots)renderBatch(pass,entry.batch,entry,true);
+  if(typeof fx.foule?.gpuShadow==='function')countCrowd(fx.foule.gpuShadow(pass,{matrice:crowdSunMatrix,direction:sun,texel,plein:full,viewport:[full?0:shadowTarget.size,full?0:shadowTarget.size,tile,tile],centre:center,etendue:extent,profondeur:far}),true);
+ }
+ function renderEffects(pass,meshes,eye,time,clip=vp,overlay=false){
+  const batch=(overlay?packOverlayFx:packFx)(meshes,environment,eye);stats.fxInstances+=batch.values.length/16;if(!batch.groups.length)return;
+  const storage=overlay?overlayFxSlot:fxSlot;ensureSlot(storage,batch);
+  pass.setPipeline(pipeline('fx'));pass.setBindGroup(0,bind('fx',overlay?'overlay':'world',{uViewProjection:clip,uWindTime:[0,time],uSkyTop:environment?.skyTop||[.2,.3,.4],uSkyBottom:environment?.skyBottom||[.5,.6,.6],uEye:eye,uAmbient:environment?.ambient||[.12,.15,.16],uFogColor:environment?.fog||[.009,.018,.024],uEnvironment:[environment?1:0,environment?.fogDensity??.018],uTime:time}));renderBatch(pass,batch,storage);
+ }
+ function renderNappes(pass,eye,axes,horizontal,vertical,far,uniforms,textures){
+  let count=0;for(const n of nappes){if(!S.visible({p:n.centre,radius:n.rayon},eye,axes,horizontal,vertical,far))continue;if(!count++){pass.setPipeline(pipeline('world',{nappe:true}));pass.setBindGroup(0,uniforms);}pass.setVertexBuffer(0,n.vertex);pass.setVertexBuffer(1,n.instance);pass.setIndexBuffer(n.index,'uint32');pass.drawIndexed(n.indices.length);stats.drawCalls++;stats.triangles+=n.indices.length/3;}
+  if(count){pass.setPipeline(pipeline('world'));pass.setBindGroup(0,uniforms);}return count;
+ }
+ // A bounded ring records real GPU timestamps. Mapping is asynchronous; the game
+ // never waits for submitted GPU work. Only explicit benchmark stop drains it.
+ let profiling=false,timing=null,timingSamples=[],timingDropped=0;
+ function makeTiming(){
+  if(timing||!stats.gpuTimingAvailable)return;const query=device.createQuerySet({type:'timestamp',count:6}),resolve=buffer(768,GPUBufferUsage.QUERY_RESOLVE|GPUBufferUsage.COPY_SRC,'FERRO timestamp resolve');
+  timing={query,resolve,slots:Array.from({length:3},(_,index)=>({index,pending:false,promise:null,buffer:buffer(16,GPUBufferUsage.MAP_READ,'FERRO timestamp readback')}))};
+ }
+ async function setProfiling(enabled){
+  if(enabled){if(timing)await Promise.all(timing.slots.map(s=>s.promise).filter(Boolean));timingSamples=[];timingDropped=0;makeTiming();profiling=!!timing;}
+  else{profiling=false;if(timing)await Promise.all(timing.slots.map(s=>s.promise).filter(Boolean));}
+  return {available:stats.gpuTimingAvailable,enabled:profiling,samples:timingSamples.slice(),dropped:timingDropped};
+ }
+ function startTiming(){if(!profiling||!timing)return null;const slot=timing.slots.find(s=>!s.pending);if(!slot){timingDropped++;return null;}slot.pending=true;return slot;}
+ function finishTiming(encoder,slot){if(!slot)return;encoder.resolveQuerySet(timing.query,slot.index*2,2,timing.resolve,slot.index*256);encoder.copyBufferToBuffer(timing.resolve,slot.index*256,slot.buffer,0,16);}
+ function readTiming(slot){if(!slot)return;slot.promise=slot.buffer.mapAsync(GPUMapMode.READ,0,16).then(()=>{const data=new BigUint64Array(slot.buffer.getMappedRange(0,16)),ms=Number(data[1]-data[0])/1e6;slot.buffer.unmap();if(Number.isFinite(ms)&&ms>=0){stats.gpuTimeMs=ms;if(timingSamples.length<4096)timingSamples.push(ms);}}).catch(error=>{if(!disposed&&!stats.contextLost)stats.gpuTimingError=error.message;}).finally(()=>{slot.pending=false;slot.promise=null;});}
+ function draw(camera,dynamic,fx={}){
+  if(disposed||stats.contextLost)return;fx=fx||{};autoScale=governor.update(fx,quality);runtimeMsaa=fx.msaa!==false&&fx.bloom!==false;resize();
+  const t=fx.time||0,shake=fx.shake||0,p=camera.pos||[0,1.6,0],axes=S.cameraAxes(camera),{right,up,forward}=axes,eye=[p[0]+Math.sin(t*57)*shake*.025,p[1]+Math.sin(t*71)*shake*.015,p[2]];
+  view.set([right[0],up[0],-forward[0],0,right[1],up[1],-forward[1],0,right[2],up[2],-forward[2],0,-(right[0]*eye[0]+right[1]*eye[1]+right[2]*eye[2]),-(up[0]*eye[0]+up[1]*eye[1]+up[2]*eye[2]),forward[0]*eye[0]+forward[1]*eye[1]+forward[2]*eye[2],1]);
+  const fov=Math.max(10,Math.min(110,camera.fov||75))*Math.PI/180,f=1/Math.tan(fov*.5),near=camera.near||.045,far=camera.far||180,horizontal=canvas.width/canvas.height/f;
+  projection.fill(0);projection[0]=f/(canvas.width/canvas.height);projection[5]=f;projection[10]=(far+near)/(near-far);projection[11]=-1;projection[14]=2*far*near/(near-far);S.multiply(projection,view,vp);
+  const ranges=S.detailRanges(quality);ranges[0]=S.extendedDistance(ranges[0],environment,eye);stats.viewDistance=ranges[0];
+  const shown=camera.chunked?[]:camera.allStatic?worldIndex.entries:worldIndex.query(eye,ranges).filter(e=>S.visible(e,eye,axes,horizontal,1/f,ranges[0]));stats.staticVisible=shown.length;stats.staticCulled=world.length-shown.length;
+  const planned=actorLightPlan&&actorLightPlan.previous===shadowLight&&eye.every((v,k)=>v===actorLightPlan.eye[k])?actorLightPlan.plan:lightPlan(eye);actorLightPlan=null;
+  const {sorted,distanceTo,chosen}=planned,shadowLights=fx.headlight?[fx.headlight]:planned.shadowLights;shadowLight=chosen;
+  const transient=S.transientLights(fx.lights,eye,quality==='low'?4:8);stats.dynamicLights=transient.length;
+  const selected=shadowLights.map(light=>({light,d:distanceTo(light)})).concat(transient.map(light=>({light,d:distanceTo(light)})),sorted.filter(e=>!shadowLights.includes(e.light)).slice(0,Math.max(0,(quality==='low'?6:12)-shadowLights.length-transient.length))).slice(0,12);
+  const blackout=S.horrorLights(fx.horror,lights);stats.blackoutLights=blackout?.size||0;lightPositions.fill(0);lightColors.fill(0);lightRanges.fill(0);lightDirections.fill(0);lightCones.fill(0);
+  selected.forEach(({light},i)=>{if(light.dir){lightDirections.set(light.dir,i*3);lightCones.set(light.cone||[.75,.94],i*2);}lightPositions.set(light.p,i*3);lightRanges[i]=light.range||0;const color=light.color||[1,1,1],power=(light.power===undefined?1:light.power)*(blackout?.get(light)??1);lightColors.set(color.map(c=>c*power),i*3);});
+  ordinary.length=overlay.length=particles.length=overlayParticles.length=0;for(const mesh of dynamic||[])(mesh.overlay?(mesh.fx?overlayParticles:overlay):mesh.fx?particles:ordinary).push(mesh);
+  const dynamicBatch=packDynamic(ordinary,environment,true),torchPosition=eye.map((v,i)=>v+right[i]*.16-up[i]*.08),sunOnly=!!fx.sunOnly,hasOverlay=overlay.length>0||overlayParticles.length>0;
+  stats.drawCalls=stats.triangles=stats.instances=stats.uploadBytes=stats.uniformUploadBytes=stats.fxInstances=0;stats.bloom=quality!=='low'&&fx.bloom!==false;stats.shadows=quality!=='low'&&fx.shadows!==false;stats.shadowMode=environment?'sun-atlas':'atlas';stats.shadowMaps=stats.shadows?(sunOnly?0:shadowLights.length+(fx.torch!==false?1:0))+(environment?1:0):0;
+  ensureSlot(dynamicSlot,dynamicBatch);const crowd=fx.instances?.groups?.length?fx.instances:null;stats.crowdInstances=crowd?crowd.values.length/16:0;if(crowd)ensureSlot(crowdSlot,crowd);
+  const pdrLots=[];stats.pdrLotInstances=0;if(Array.isArray(fx.lots))for(let i=0;i<fx.lots.length;i++){const lot=fx.lots[i];if(!lot?.values||!lot?.groups?.length)continue;const slot=pdrSlots[i]||(pdrSlots[i]={lot:null,version:NaN});ensureSlot(slot,lot,slot.lot!==lot||slot.version!==lot.version);slot.lot=lot;slot.version=lot.version;pdrLots.push(slot);stats.pdrLotInstances+=lot.values.length/16;}
+  // Slot count follows the active stream rather than growing with every world.
+  const activeLots=Array.isArray(fx.lots)?fx.lots.length:0;for(let i=activeLots;i<pdrSlots.length;i++)freeBuffer(pdrSlots[i]?.buffer);pdrSlots.length=activeLots;
+  const encoder=device.createCommandEncoder({label:'FERRO frame'}),timed=startTiming();let firstPass=true;
+  const begin=(descriptor,last=false)=>{if(timed&&(firstPass||last))descriptor.timestampWrites={querySet:timing.query,...(firstPass?{beginningOfPassWriteIndex:timed.index*2}:{}),...(last?{endOfPassWriteIndex:timed.index*2+1}:{})};firstPass=false;return encoder.beginRenderPass(descriptor);};
+  if(stats.shadows){const pass=begin({label:'FERRO shadow atlas',colorAttachments:[],depthStencilAttachment:{view:shadowTarget.view,depthLoadOp:'clear',depthClearValue:1,depthStoreOp:'store'}});if(!sunOnly)shadowLights.forEach((light,i)=>{const fw=light.dir,lightAxes=fw?{forward:fw,right:[-fw[2],0,fw[0]],up:[0,1,0]}:null;shadowPass(pass,light,dynamicBatch,i,lightAxes,t);});if(environment)sunShadowPass(pass,eye,axes,dynamicBatch,t,camera,fx,crowd,pdrLots);if(!sunOnly&&fx.torch!==false)shadowPass(pass,{p:torchPosition},dynamicBatch,2,axes,t);pass.end();}
+  const voile=fx.voile&&fx.voile.force>0&&(fx.voile.textureView||fx.voile.texture?.createView)?fx.voile:null;
+  if(voile&&!voile.textureView)voile.textureView=voile.texture.createView();
+  const worldTextures={uPbrAlbedo:pbr[0],uPbrNormal:pbr[1],uPbrRough:pbr[2],uShadowMap:stats.shadows?shadowTarget:whiteDepth,uVoile:voile?{view:voile.textureView}:white};
+  const worldValues={uSeaOrigin:fx.sea?.origin||[0,0,0,0],uSeaMotion:fx.sea?.motion||[0,0,-1.25,0],uViewProjection:vp,uEye:eye,uForward:forward,uCloudOffset:fx.cloudOffset||[t*.0018,0],uWindTime:[environment?.wind||0,t],uSunDirection:environment?.sunDirection||[.4,.8,.3],uSunColor:environment?.sunColor||[0,0,0],uAmbient:environment?.ambient||[.075,.10,.12],uFogColor:environment?.fog||[.009,.018,.024],uEnvironment:[environment?1:0,environment?.fogDensity??.014],uNightHour:[environment?.night||0,environment?.hour??14],uSkyTop:environment?.skyTop||[.05,.08,.10],uSkyBottom:environment?.skyBottom||[.16,.20,.22],uWeather:fx.weather||[0,.4,0,0],uLightDirection:lightDirections,uLightCone:lightCones,uLightPosition:lightPositions,uLightColor:lightColors,uLightRange:lightRanges,uLightCount:selected.length,uResolution:[canvas.width,canvas.height],uEffects:[t,fx.flash||0,fx.damage||0,Math.max(0,Math.min(1,fx.pulse||0))],uShadowMatrix:shadowMatrices,uShadowSettings:[stats.shadows&&!sunOnly?shadowLights.length:0,1/(shadowTarget.size*2),stats.shadows&&!sunOnly&&fx.torch!==false?1:0,stats.shadows&&environment?(sunOnly?2:1):0],uTorchPosition:fx.torch===false?[0,-1e5,0]:torchPosition,uVoileZone:voile?[voile.origine[0],voile.origine[1],1/Math.max(.001,voile.taille[0]),1/Math.max(.001,voile.taille[1])]:[0,0,0,0],uVoileForce:voile?Math.min(1,voile.force):0,uPbrReady:layers.length?1:0,uVignette:config.vignette};
+  const mainUniforms=bind('world','main',worldValues,worldTextures),sceneBeforeOverlay=hasOverlay?targets.pre:targets.scene,mainColor=targets.msaa?targets.msaa.view:sceneBeforeOverlay.view;
+  const pass=begin({label:'FERRO scene',colorAttachments:[{view:mainColor,...(targets.msaa?{resolveTarget:sceneBeforeOverlay.view}:{}),loadOp:'clear',clearValue:[.035,.06,.073,1],storeOp:'store'}],depthStencilAttachment:{view:targets.depth.view,depthLoadOp:'clear',depthClearValue:1,depthStoreOp:'store'}});
+  if(environment){pass.setPipeline(pipeline('sky'));pass.setBindGroup(0,bind('sky','main',{uSkyRight:right,uSkyUp:up,uSkyForward:forward,uSkyTop:environment.skyTop,uSkyBottom:environment.skyBottom,uSkyFog:environment.fog,uSunDirection:environment.sunDirection,uSunColor:environment.sunColor,uSkyFov:[horizontal,1/f],uWeather:fx.weather||[0,.4,0,0],uSkyMotion:[t,environment.wind],uCloudOffset:fx.cloudOffset||[0,0]}));pass.draw(3);stats.drawCalls++;}
+  stats.backgroundWater=backgroundIndex.entries.length;stats.backgroundDrawCalls=0;
+  if(backgroundIndex.entries.length){const before=stats.drawCalls;pass.setPipeline(pipeline('world',{background:true}));pass.setBindGroup(0,mainUniforms);renderStatic(pass,backgroundIndex.entries,4);stats.backgroundDrawCalls=stats.drawCalls-before;}
+  pass.setPipeline(pipeline('world'));pass.setBindGroup(0,mainUniforms);renderStatic(pass,shown,0);if(camera.chunked)drawChunks(pass,c=>S.visible(c,eye,axes,horizontal,1/f,Math.min(far,c.range)));
+  renderNappes(pass,eye,axes,horizontal,1/f,far,mainUniforms);stats.lotsVisibles=renderLots(pass,eye,axes,horizontal,1/f,far);renderBatch(pass,dynamicBatch,dynamicSlot);if(crowd)renderBatch(pass,crowd,crowdSlot);for(const entry of pdrLots)renderBatch(pass,entry.batch,entry);
+  if(typeof fx.foule?.gpuColor==='function'){
+   const env=environment||S.indoor;Object.assign(crowdView,{oeil:eye,avant:forward,droite:right,haut:up,fov,tangente:1/f,focale:canvas.height*f*.5,largeur:canvas.width,hauteur:canvas.height,near,far,temps:t,qualite:quality,msaa:gpu.samples>1?gpu.samples:0,soleil:env.sunDirection,couleurSoleil:env.sunColor,ambiance:env.ambient,brouillard:env.fog,densiteBrouillard:env.fogDensity,cielHaut:env.skyTop,cielBas:env.skyBottom});
+   Object.assign(crowdView.ombre,{textureView:stats.shadows?shadowTarget.view:whiteDepth.view,active:!!(stats.shadows&&environment),plein:sunOnly,texel:1/(shadowTarget.size*2)});crowdView.lumieres.nombre=selected.length;countCrowd(fx.foule.gpuColor(pass,crowdView));
+  }
+  if(particles.length)renderEffects(pass,particles,eye,t);pass.end();
+  stats.reflections=stats.bloom&&fx.reflections!==false;stats.reflectionSteps=stats.reflections?48:0;
+  if(stats.reflections&&targets.msaa){const depthPass=begin({label:'FERRO SSR depth resolve',colorAttachments:[],depthStencilAttachment:{view:targets.resolvedDepth.view,depthLoadOp:'clear',depthClearValue:1,depthStoreOp:'store'}});depthPass.setPipeline(depthResolvePipeline);depthPass.setBindGroup(0,targets.depthResolveBind);depthPass.draw(3);depthPass.end();stats.drawCalls++;}
+  if(hasOverlay){
+   if(!targets.msaa)encoder.copyTextureToTexture({texture:targets.pre.texture},{texture:targets.scene.texture},[canvas.width,canvas.height]);
+   const overlayPass=begin({label:'FERRO close weapon',colorAttachments:[{view:targets.msaa?targets.msaa.view:targets.scene.view,...(targets.msaa?{resolveTarget:targets.scene.view}:{}),loadOp:'load',storeOp:'store'}],depthStencilAttachment:{view:targets.overlayDepth.view,depthLoadOp:'clear',depthClearValue:1,depthStoreOp:'discard'}});
+   const overlayNear=Math.min(near,Math.max(.005,Number(camera.overlayNear)||near));let clip=vp;if(overlayNear!==near){overlayProjection.set(projection);overlayProjection[10]=(far+overlayNear)/(overlayNear-far);overlayProjection[14]=2*far*overlayNear/(overlayNear-far);S.multiply(overlayProjection,view,overlayVP);clip=overlayVP;}
+   if(blackout)selected.forEach(({light},i)=>{const c=light.color||[1,1,1],power=light.power===undefined?1:light.power;lightColors.set(c.map(v=>v*power),i*3);});
+   if(overlay.length){const batch=packOverlay(overlay,environment,true);ensureSlot(overlaySlot,batch);overlayPass.setPipeline(pipeline('world',{overlay:true}));overlayPass.setBindGroup(0,bind('world','overlay',{...worldValues,uViewProjection:clip},worldTextures));renderBatch(overlayPass,batch,overlaySlot);}
+   if(overlayParticles.length)renderEffects(overlayPass,overlayParticles,eye,t,clip,true);overlayPass.end();
+  }
+  if(stats.reflections){const reflectionPass=begin({label:'FERRO screen space reflections',colorAttachments:[{view:targets.reflection.view,loadOp:'clear',clearValue:[0,0,0,0],storeOp:'store'}]});reflectionPass.setPipeline(pipeline('ssr',{samples:1}));reflectionPass.setBindGroup(0,bind('ssr','main',{uProjection:[1/projection[0],1/projection[5],projection[10],projection[14]],uPixel:[1/canvas.width,1/canvas.height]},{uColor:sceneBeforeOverlay,uDepth:targets.resolvedDepth||targets.depth}));reflectionPass.draw(3);reflectionPass.end();stats.drawCalls++;}
+  const output=context.getCurrentTexture().createView();
+  if(stats.bloom){for(let stage=0;stage<3;stage++){const target=stage===0?targets.a.view:stage===1?targets.b.view:output,postPass=begin({label:'FERRO bloom '+stage,colorAttachments:[{view:target,loadOp:'clear',clearValue:[0,0,0,1],storeOp:'store'}]},stage===2);postPass.setPipeline(pipeline('post',{samples:1,target:stage===2?canvasFormat:format}));postPass.setBindGroup(0,bind('post',stage,{uReflections:stats.reflections?1:0,uPass:stage,uTexel:stage===0?[1/canvas.width,1/canvas.height]:[1/targets.a.width,1/targets.a.height],uBloomThreshold:config.bloom},{uScene:targets.scene,uBloom:stage===1?targets.a:targets.b,uReflection:stats.reflections?targets.reflection:white}));postPass.draw(3);postPass.end();stats.drawCalls++;}}
+  else{const copyPass=begin({label:'FERRO present',colorAttachments:[{view:output,loadOp:'clear',clearValue:[0,0,0,1],storeOp:'store'}]},true);copyPass.setPipeline(copyPipeline(canvasFormat));copyPass.setBindGroup(0,copyBind(targets.scene.view));copyPass.draw(3);copyPass.end();stats.drawCalls++;}
+  finishTiming(encoder,timed);device.queue.submit([encoder.finish()]);readTiming(timed);stats.gpuBuffers=buffers.size;stats.gpuTextures=textures.size;stats.pipelineCount=pipelines.size;stats.uniformSlots=bindings.size;
+ }
+ function dispose(){if(disposed)return;disposed=true;profiling=false;try{context.unconfigure();}catch{}for(const b of buffers)b.destroy();for(const t of textures)t.destroy();buffers.clear();textures.clear();timing?.query.destroy();bindings.clear();pipelines.clear();copyPipelines.clear();chunks.clear();programs.clear();device.destroy();}
+ // Resolve expensive shader/pipeline compilation before the title screen or a
+ // measured gameplay frame. Validation errors fail creation and permit fallback.
+ for(const samples of config.msaa?[1,4]:[1]){pipeline('world',{samples});pipeline('world',{samples,background:true});pipeline('world',{samples,overlay:true});pipeline('world',{samples,nappe:true});pipeline('fx',{samples});pipeline('sky',{samples});}
+ pipeline('depth',{samples:1});pipeline('ssr',{samples:1});pipeline('post',{samples:1});pipeline('post',{samples:1,target:canvasFormat});copyPipeline(canvasFormat);
+ resize();const validation=await device.popErrorScope();if(validation){dispose();throw Error('WebGPU initialization: '+validation.message);}
+ return {setEnvironment(value){environment=S.environmentInfo(value);},setWorld,updateWorld,draw,resize,dispose,stats,actorFilter,setNappes,setLots,updateShape,gpu,...(primitiveIndexing?{setPrimitiveIndexing}:{}),setProfiling,getProfiling(){return {available:stats.gpuTimingAvailable,enabled:profiling,samples:timingSamples.slice(),dropped:timingDropped};}};
+ }catch(error){initializeCleanup();throw error;}
+}
+G.FRenderWebGPU={create,writeUniforms};
+})(globalThis);
+
+/* FERRO — native backend selection. A canvas can own only one context type. */
+(function(root){'use strict';
+ const preference=value=>['auto','webgpu','webgl2'].includes(value)?value:'auto';
+ function replaceCanvas(canvas){const fresh=canvas.cloneNode(false);canvas.replaceWith(fresh);return fresh;}
+ const reason=error=>String(error?.message||error||'Erreur WebGPU inconnue.').slice(0,500);
+ // Cleanup must not prevent fallback or create an unhandled rejection when a
+ // timed-out adapter eventually finishes. A rejected GPU is never reactivated.
+ function release(renderer){try{renderer?.dispose?.();}catch{}}
+ async function create(canvas,options={},providers={}){
+  const requested=preference(options.backend),gpu=providers.webgpu||root.FRenderWebGPU?.create,gl=providers.webgl2||root.FRender?.create;
+  const supported=providers.supported??!!root.navigator?.gpu,replace=providers.replaceCanvas||replaceCanvas;
+  let fallbackReason=null,phase='initializing',failure=null,timedOut=false,timer=null,activationResult;
+  function deliver(){
+   if(phase!=='active'||!failure)return activationResult;
+   phase='failed';
+   const callback=failure.kind==='lost'?options.onDeviceLost:options.onError;
+   activationResult=callback?.(failure.info);return activationResult;
+  }
+  function incident(kind,info){
+   if(phase==='failed'||phase==='abandoned')return;
+   failure??={kind,info};
+   if(phase==='active')return deliver();
+  }
+  // The caller owns the canvas, installs its scene and publishes its renderer
+  // before activation. Loss/errors in that handoff interval cannot be dropped.
+  function activate(){
+   if(phase==='pending'){phase='active';return deliver();}
+   return activationResult;
+  }
+  if(requested!=='webgl2'){
+   if(supported&&gpu){
+    let candidate=null;
+    try{
+     const pending=Promise.resolve().then(()=>gpu(canvas,{...options,onDeviceLost:info=>incident('lost',info),onError:error=>incident('error',error)}));
+     pending.then(renderer=>{if(timedOut)release(renderer);},()=>{});
+     const deadline=new Promise((_,reject)=>{timer=setTimeout(()=>{timedOut=true;reject(new Error('Initialisation WebGPU trop longue.'));},options.initTimeoutMs??30000);});
+     candidate=await Promise.race([pending,deadline]);clearTimeout(timer);
+     if(failure)throw new Error(failure.kind==='lost'?'Périphérique WebGPU perdu pendant son initialisation.':'Erreur WebGPU pendant son initialisation : '+reason(failure.info));
+     if(candidate?.stats?.backend!=='webgpu')throw new Error('Backend WebGPU natif indisponible.');
+     candidate.stats.requestedBackend=requested;candidate.stats.fallbackReason=null;phase='pending';
+     return {renderer:candidate,canvas,requested,backend:'webgpu',fallbackReason:null,activate};
+    }catch(error){
+     clearTimeout(timer);phase='abandoned';release(candidate);
+     fallbackReason=reason(error);canvas=replace(canvas);
+    }
+   }else fallbackReason=supported?'Backend WebGPU non chargé.':'WebGPU indisponible dans ce navigateur.';
+  }
+  if(!gl)throw new Error('Backend WebGL2 indisponible.');
+  const renderer=gl(canvas,options);
+  if(!renderer?.gl||renderer.stats?.backend!=='webgl2'){release(renderer);throw new Error('Un navigateur avec WebGPU ou WebGL2 est nécessaire.');}
+  renderer.stats.requestedBackend=requested;renderer.stats.fallbackReason=fallbackReason;
+  return {renderer,canvas,requested,backend:'webgl2',fallbackReason,activate(){}};
+ }
+ root.FRenderBackends={create,replaceCanvas,preference};
+})(globalThis);
+
+/* BITUME — carènes et tubes : volumes courbes et lisses, construits en triangles pour les formes libres du moteur
+   (window.FRender.forme). Module pur, sans dépendance au navigateur : il tourne aussi dans Node pour les tests.
+   Un triangle s'écrit [p0, p1, p2, n0, n1, n2] : trois sommets puis leurs normales unitaires, tournées vers dehors.
+   Repère : x vers l'avant (sens du balayage d'une carène), y vers le haut, z vers la droite. */
+(function (B) {
+  'use strict';
+
+  const sous = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
+  const plus = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
+  const fois = (a, f) => [a[0] * f, a[1] * f, a[2] * f];
+  const scal = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+  const croix = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+  const longueur = a => Math.hypot(a[0], a[1], a[2]);
+  const unitaire = a => { const l = longueur(a) || 1; return [a[0] / l, a[1] / l, a[2] / l]; };
+  const puiss = (c, e) => Math.sign(c) * Math.pow(Math.abs(c), e);
+
+  // Interpolation cubique monotone (Fritsch et Carlson) de valeurs données aux indices 0, 1, … : ni bosse ni creux
+  // entre deux sections, la peau passe exactement par chacune.
+  function monotone(v) {
+    const n = v.length, d = [], m = new Array(n).fill(0);
+    for (let i = 0; i < n - 1; i++) d.push(v[i + 1] - v[i]);
+    if (n === 2) { m[0] = m[1] = d[0]; }
+    for (let i = 1; i < n - 1; i++) m[i] = d[i - 1] * d[i] <= 0 ? 0 : 2 / (1 / d[i - 1] + 1 / d[i]);
+    if (n > 2) { m[0] = d[0]; m[n - 1] = d[n - 2]; }
+    return t => {
+      const i = Math.min(n - 2, Math.max(0, Math.floor(t))), s = t - i, s2 = s * s, s3 = s2 * s;
+      return (2 * s3 - 3 * s2 + 1) * v[i] + (s3 - 2 * s2 + s) * m[i] + (-2 * s3 + 3 * s2) * v[i + 1] + (s3 - s2) * m[i + 1];
+    };
+  }
+
+  // Normales lisses : pour chaque coin, moyenne (pondérée par l'aire) des faces qui partagent ce sommet, soudé à
+  // 1e-6 près, sauf celles qui font plus de `vif` degrés avec la face du coin : l'arête reste vive.
+  // Entrée : triangles [p0, p1, p2] déjà orientés vers dehors ; les triangles dégénérés sont retirés.
+  function lisser(faces, vif = 50) {
+    const seuil = Math.cos(vif * Math.PI / 180), cle = p => p.map(v => Math.round(v * 1e6)).join(',');
+    const garde = [], normalesFace = [], aires = [], parSommet = new Map();
+    for (const f of faces) {
+      const c = croix(sous(f[1], f[0]), sous(f[2], f[0])), a = longueur(c);
+      if (!(a > 1e-14)) continue;
+      const i = garde.length;
+      garde.push(f); normalesFace.push(fois(c, 1 / a)); aires.push(a);
+      for (const p of f) { const k = cle(p); if (!parSommet.has(k)) parSommet.set(k, []); parSommet.get(k).push(i); }
+    }
+    return garde.map((f, i) => {
+      const nf = normalesFace[i];
+      const normales = f.map(p => {
+        let s = [0, 0, 0];
+        for (const j of parSommet.get(cle(p))) if (scal(normalesFace[j], nf) >= seuil) s = plus(s, fois(normalesFace[j], aires[j]));
+        return unitaire(s);
+      });
+      return [f[0], f[1], f[2], normales[0], normales[1], normales[2]];
+    });
+  }
+
+  // Oriente un triangle vers dehors : `dedans` est un point intérieur de référence (axe de la section ou du tube).
+  function orienter(a, b, c, dedans) {
+    const n = croix(sous(b, a), sous(c, a)), centre = fois(plus(plus(a, b), c), 1 / 3);
+    return scal(n, sous(centre, dedans)) < 0 ? [a, c, b] : [a, b, c];
+  }
+
+  // ------------------------------------------------------------------ carène
+  // Peau tendue entre des sections en superellipse, dans l'ordre du balayage. Une section :
+  // { x, y0, y1, l, n, z = 0 } — abscisse, bas, haut, demi-largeur, exposant (2 : ellipse ; 4 à 6 : coins ronds).
+  // Point d'angle a : z + l·sgn(cos a)·|cos a|^(2/n), (y0 + y1)/2 + (y1 − y0)/2·sgn(sin a)·|sin a|^(2/n).
+  // Options : cotes (points par section), pas (subdivisions entre deux sections), bouts (fermer les deux extrémités),
+  // ouverture { de, a, angle } : entre les abscisses de et a, le haut reste ouvert sur l'arc `angle` (radians),
+  // centré sur le sommet ; interieur : double la peau de l'ouverture vers dedans pour qu'elle se voie de l'intérieur
+  // ('tout' : toute la peau) ; vif : angle des arêtes vives, en degrés (50).
+  function carene(sections, options = {}) {
+    const cotes = options.cotes || 20, pas = options.pas || 4, bouts = options.bouts !== false, ouv = options.ouverture;
+    if (!Array.isArray(sections) || sections.length < 2) throw new Error('carene : deux sections au moins');
+    const champ = k => monotone(sections.map(s => k === 'z' ? (s.z || 0) : s[k]));
+    const X = champ('x'), Y0 = champ('y0'), Y1 = champ('y1'), L = champ('l'), N = champ('n'), Z = champ('z');
+    const fin = sections.length - 1;
+    // abscisses des anneaux : `pas` par intervalle, plus les bords exacts de l'ouverture
+    const ts = [];
+    for (let i = 0; i < fin; i++) for (let j = 0; j < pas; j++) ts.push(i + j / pas);
+    ts.push(fin);
+    let xmin = Infinity, xmax = -Infinity;
+    if (ouv) {
+      xmin = Math.min(ouv.de, ouv.a); xmax = Math.max(ouv.de, ouv.a);
+      for (const cible of [xmin, xmax]) {
+        for (let i = 0; i < fin; i++) {
+          const a = X(i), b = X(i + 1);
+          if ((cible - a) * (cible - b) > 0) continue;
+          let lo = i, hi = i + 1;
+          for (let k = 0; k < 50; k++) { const mi = (lo + hi) / 2; if ((X(mi) - cible) * (a - cible) > 0) lo = mi; else hi = mi; }
+          const t = (lo + hi) / 2;
+          if (!ts.some(u => Math.abs(u - t) < 1e-9)) ts.push(t);
+          break;
+        }
+      }
+      ts.sort((a, b) => a - b);
+    }
+    // angles d'un anneau : avec une ouverture, l'arc du haut est découpé à part pour que son bord soit net
+    const angles = [];
+    if (ouv) {
+      const w = ouv.angle / 2, q = Math.max(2, Math.round(cotes * ouv.angle / (2 * Math.PI))), m = cotes - q;
+      for (let j = 0; j < m; j++) angles.push(Math.PI / 2 + w + (2 * Math.PI - 2 * w) * j / m);
+      for (let j = 0; j < q; j++) angles.push(Math.PI / 2 - w + 2 * w * j / q);
+    } else for (let j = 0; j < cotes; j++) angles.push(Math.PI / 2 + 2 * Math.PI * j / cotes);
+    const ouvert = j => ouv && j >= angles.length - Math.max(2, Math.round(cotes * ouv.angle / (2 * Math.PI)));
+    const anneaux = ts.map(t => {
+      const x = X(t), y0 = Y0(t), y1 = Y1(t), l = Math.max(0, L(t)), e = 2 / Math.max(.5, N(t)), z = Z(t);
+      const yc = (y0 + y1) / 2, h = Math.max(0, (y1 - y0) / 2);
+      return { x, axe: [x, yc, z], points: angles.map(a => [x, yc + h * puiss(Math.sin(a), e), z + l * puiss(Math.cos(a), e)]) };
+    });
+    const faces = [], doublure = [], dansOuverture = x => x >= xmin - 1e-9 && x <= xmax + 1e-9;
+    for (let i = 0; i < anneaux.length - 1; i++) {
+      const A = anneaux[i], Bn = anneaux[i + 1], dedans = fois(plus(A.axe, Bn.axe), .5);
+      const trou = ouv && dansOuverture(A.x) && dansOuverture(Bn.x);
+      for (let j = 0; j < angles.length; j++) {
+        const k = (j + 1) % angles.length;
+        if (trou && ouvert(j)) continue;
+        const t1 = orienter(A.points[j], A.points[k], Bn.points[k], dedans), t2 = orienter(A.points[j], Bn.points[k], Bn.points[j], dedans);
+        faces.push(t1, t2);
+        if (options.interieur === 'tout' || (options.interieur && trou)) doublure.push([t1[0], t1[2], t1[1]], [t2[0], t2[2], t2[1]]);
+      }
+    }
+    // carene-2 : par l'ouverture on voit aussi l'envers de la peau au-delà des bords, éliminé en simple face ;
+    // deux cloisons en éventail sur les anneaux de xmin et xmax, tournées vers l'ouverture, bouchent la cavité
+    if (ouv && options.interieur && options.interieur !== 'tout') {
+      for (const [cible, sens] of [[xmax, 1], [xmin, -1]]) {
+        const A = anneaux.find(a => Math.abs(a.x - cible) < 1e-9);
+        if (!A) continue;
+        const c = A.axe, dedans = [c[0] + sens, c[1], c[2]];
+        for (let j = 0; j < angles.length; j++) doublure.push(orienter(c, A.points[j], A.points[(j + 1) % angles.length], dedans));
+      }
+    }
+    if (bouts) for (const [A, sens] of [[anneaux[0], Math.sign(anneaux[0].x - anneaux[1].x) || -1], [anneaux[anneaux.length - 1], Math.sign(anneaux[anneaux.length - 1].x - anneaux[anneaux.length - 2].x) || 1]]) {
+      const c = A.axe, dedans = [c[0] - sens, c[1], c[2]];
+      for (let j = 0; j < angles.length; j++) faces.push(orienter(c, A.points[j], A.points[(j + 1) % angles.length], dedans));
+    }
+    return lisser(faces, options.vif).concat(lisser(doublure, options.vif));
+  }
+
+  // Profil d'une carène : rend x → section interpolée { x, y0, y1, l, n, z } (la même que celle de la peau), pour poser
+  // un filet, un numéro ou un jonc sur la surface. Hors des sections, la section du bout le plus proche.
+  function profil(sections) {
+    const champ = k => monotone(sections.map(s => k === 'z' ? (s.z || 0) : s[k]));
+    const X = champ('x'), Y0 = champ('y0'), Y1 = champ('y1'), L = champ('l'), N = champ('n'), Z = champ('z'), fin = sections.length - 1;
+    const sens = Math.sign(X(fin) - X(0)) || 1;
+    return x => {
+      let lo = 0, hi = fin;
+      if ((x - X(0)) * sens <= 0) hi = 0; else if ((x - X(fin)) * sens >= 0) lo = fin;
+      else for (let k = 0; k < 60; k++) { const mi = (lo + hi) / 2; if ((X(mi) - x) * sens < 0) lo = mi; else hi = mi; }
+      const t = (lo + hi) / 2;
+      return { x: X(t), y0: Y0(t), y1: Y1(t), l: Math.max(0, L(t)), n: N(t), z: Z(t) };
+    };
+  }
+  // Point d'angle a d'une section (a = π/2 : le sommet ; a = 0 : le flanc droit).
+  function pointSection(s, a) {
+    const e = 2 / Math.max(.5, s.n), h = Math.max(0, (s.y1 - s.y0) / 2);
+    return [s.x, (s.y0 + s.y1) / 2 + h * puiss(Math.sin(a), e), (s.z || 0) + s.l * puiss(Math.cos(a), e)];
+  }
+
+  // ------------------------------------------------------------------ tube
+  // Cercle balayé le long d'une ligne brisée lissée (Catmull-Rom), rayon donné à chaque point (un nombre : rayon
+  // constant), bouts en demi-sphère. Le repère du cercle suit la ligne sans vriller (transport parallèle).
+  // Options : cotes, pas (subdivisions entre deux points), bouts (false : bouts ouverts), ferme (boucle fermée).
+  function tube(points, rayons, options = {}) {
+    const cotes = options.cotes || 10, ferme = !!options.ferme, pas = options.pas || (points.length > 2 ? 4 : 1);
+    const bouts = options.bouts !== false && !ferme;
+    const rs = typeof rayons === 'number' ? points.map(() => rayons) : rayons;
+    const n = points.length, P = i => ferme ? points[(i + n) % n] : points[Math.max(0, Math.min(n - 1, i))];
+    const R = i => ferme ? rs[(i + n) % n] : rs[Math.max(0, Math.min(n - 1, i))];
+    // échantillons de la ligne lissée
+    const ligne = [], ray = [], segs = ferme ? n : n - 1;
+    for (let i = 0; i < segs; i++) for (let j = 0; j < pas; j++) {
+      const s = j / pas, p0 = P(i - 1), p1 = P(i), p2 = P(i + 1), p3 = P(i + 2), s2 = s * s, s3 = s2 * s;
+      ligne.push([0, 1, 2].map(k => .5 * (2 * p1[k] + (-p0[k] + p2[k]) * s + (2 * p0[k] - 5 * p1[k] + 4 * p2[k] - p3[k]) * s2 + (-p0[k] + 3 * p1[k] - 3 * p2[k] + p3[k]) * s3)));
+      ray.push(R(i) + (R(i + 1) - R(i)) * s);
+    }
+    if (!ferme) { ligne.push(points[n - 1]); ray.push(rs[n - 1]); }
+    const m = ligne.length, T = [];
+    for (let i = 0; i < m; i++) {
+      const a = ferme ? ligne[(i - 1 + m) % m] : ligne[Math.max(0, i - 1)], b = ferme ? ligne[(i + 1) % m] : ligne[Math.min(m - 1, i + 1)];
+      T.push(unitaire(sous(b, a)));
+    }
+    // transport parallèle du premier repère
+    let u = Math.abs(T[0][1]) < .9 ? unitaire(croix(T[0], [0, 1, 0])) : unitaire(croix(T[0], [1, 0, 0]));
+    const U = [u];
+    for (let i = 1; i < m; i++) { u = unitaire(sous(u, fois(T[i], scal(u, T[i])))); U.push(u); }
+    if (ferme) {
+      // répartir l'écart de torsion de la boucle sur tout le tour
+      const uf = unitaire(sous(U[m - 1], fois(T[0], scal(U[m - 1], T[0])))), v0 = croix(T[0], U[0]);
+      const ecart = Math.atan2(scal(uf, v0), scal(uf, U[0]));
+      for (let i = 0; i < m; i++) {
+        const a = -ecart * i / m, v = croix(T[i], U[i]);
+        U[i] = plus(fois(U[i], Math.cos(a)), fois(v, Math.sin(a)));
+      }
+    }
+    const cercle = (i, r) => { const v = croix(T[i], U[i]); return Array.from({ length: cotes }, (_, j) => { const a = 2 * Math.PI * j / cotes; return plus(ligne[i], plus(fois(U[i], r * Math.cos(a)), fois(v, r * Math.sin(a)))); }); };
+    const anneaux = ligne.map((_, i) => cercle(i, ray[i]));
+    const faces = [];
+    for (let i = 0; i < (ferme ? m : m - 1); i++) {
+      const i2 = (i + 1) % m, A = anneaux[i], Bn = anneaux[i2], dedans = fois(plus(ligne[i], ligne[i2]), .5);
+      for (let j = 0; j < cotes; j++) {
+        const k = (j + 1) % cotes;
+        faces.push(orienter(A[j], A[k], Bn[k], dedans), orienter(A[j], Bn[k], Bn[j], dedans));
+      }
+    }
+    if (bouts) for (const [i, sens] of [[0, -1], [m - 1, 1]]) {
+      // demi-sphère : anneaux de latitude du bord du tube jusqu'au pôle
+      const c = ligne[i], t = fois(T[i], sens), r = ray[i], lat = Math.max(2, Math.round(cotes / 4));
+      const v = croix(T[i], U[i]);
+      let avant = anneaux[i];
+      for (let q = 1; q <= lat; q++) {
+        const b = q / lat * Math.PI / 2, rr = r * Math.cos(b), h = r * Math.sin(b);
+        const ici = q === lat ? null : Array.from({ length: cotes }, (_, j) => { const a = 2 * Math.PI * j / cotes; return plus(c, plus(fois(t, h), plus(fois(U[i], rr * Math.cos(a)), fois(v, rr * Math.sin(a))))); });
+        const pole = plus(c, fois(t, r));
+        for (let j = 0; j < cotes; j++) {
+          const k = (j + 1) % cotes;
+          if (ici) faces.push(orienter(avant[j], avant[k], ici[k], c), orienter(avant[j], ici[k], ici[j], c));
+          else faces.push(orienter(avant[j], avant[k], pole, c));
+        }
+        avant = ici;
+      }
+    }
+    // peu de côtés : deux faces voisines du tour dépassent le vif de 50° et chaque génératrice resterait vive ;
+    // on adapte le seuil pour que le cercle balayé reste lisse (75° pour 6 côtés)
+    return lisser(faces, options.vif ?? Math.max(50, 360 / cotes + 15));
+  }
+
+  // ------------------------------------------------------------------ outils
+  // Boîte englobante de triangles.
+  function boite(triangles) {
+    const lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity];
+    for (const t of triangles) for (let i = 0; i < 3; i++) for (let k = 0; k < 3; k++) { lo[k] = Math.min(lo[k], t[i][k]); hi[k] = Math.max(hi[k], t[i][k]); }
+    return { lo, hi };
+  }
+  // Ramène des triangles dans le cube unité (−0,5 à 0,5) : rend { triangles, centre, taille }. L'instance se pose avec
+  // p = centre (dans le repère de construction) et s = taille. Les normales sont multipliées par la taille puis
+  // renormalisées (inverse transposée de la mise à l'échelle) : le nuanceur, qui les divise par s, retrouve celles du
+  // volume à sa vraie taille.
+  function normaliser(triangles) {
+    const { lo, hi } = boite(triangles), centre = [0, 1, 2].map(k => (lo[k] + hi[k]) / 2), taille = [0, 1, 2].map(k => Math.max(1e-4, hi[k] - lo[k]));
+    const p = q => [0, 1, 2].map(k => (q[k] - centre[k]) / taille[k]), n = q => unitaire([0, 1, 2].map(k => q[k] * taille[k]));
+    return { triangles: triangles.map(t => [p(t[0]), p(t[1]), p(t[2]), n(t[3]), n(t[4]), n(t[5])]), centre, taille };
+  }
+  // Applique une rotation (matrice 3×3 orthonormée en colonnes m), puis une translation o, à des triangles.
+  function transformer(triangles, m, o = [0, 0, 0]) {
+    const mul = v => [m[0][0] * v[0] + m[1][0] * v[1] + m[2][0] * v[2], m[0][1] * v[0] + m[1][1] * v[1] + m[2][1] * v[2], m[0][2] * v[0] + m[1][2] * v[1] + m[2][2] * v[2]];
+    return triangles.map(t => [plus(mul(t[0]), o), plus(mul(t[1]), o), plus(mul(t[2]), o), unitaire(mul(t[3])), unitaire(mul(t[4])), unitaire(mul(t[5]))]);
+  }
+  // Miroir gauche-droite (z → −z) : sommets et normales ; l'ordre des sommets est inversé pour garder l'orientation.
+  function miroir(triangles) {
+    const z = v => [v[0], v[1], -v[2]];
+    return triangles.map(t => [z(t[0]), z(t[2]), z(t[1]), z(t[3]), z(t[5]), z(t[4])]);
+  }
+
+  B.carene = { carene, tube, normaliser, lisser, boite, transformer, miroir, monotone, profil, pointSection };
+})(globalThis.BITUME = globalThis.BITUME || {});
+
+// Stable FERRO API; legacy namespace remains an alias of the same implementation.
+globalThis.FGeometry=globalThis.BITUME.carene;
+
+/* EMPRISE — original seeded materials, generated in memory. No bitmap assets. */
+(function(G){'use strict';
+const SIZE=256,clamp=(v,a=0,b=1)=>Math.max(a,Math.min(b,v));
+function hash(x,y,seed){let n=Math.imul(x+seed,374761393)^Math.imul(y+seed,668265263);n=Math.imul(n^(n>>>13),1274126177);return ((n^(n>>>16))>>>0)/4294967295;}
+function noise(x,y,period,seed){const ix=Math.floor(x),iy=Math.floor(y),u=x-ix,v=y-iy,s=u*u*(3-2*u),t=v*v*(3-2*v),h=(a,b)=>hash((a+period)%period,(b+period)%period,seed);return (h(ix,iy)*(1-s)+h(ix+1,iy)*s)*(1-t)+(h(ix,iy+1)*(1-s)+h(ix+1,iy+1)*s)*t;}
+function layer(kind){const h=new Float32Array(SIZE*SIZE),seed=kind?731:135;
+ for(let y=0;y<SIZE;y++)for(let x=0;x<SIZE;x++){const broad=noise(x/32,y/32,8,seed),grain=hash(x,y,seed);h[y*SIZE+x]=kind?broad*.45+noise(x/4,y/4,64,seed+2)*.35+grain*.2:noise(x/2,y/2,128,seed+3)*.62+grain*.25+broad*.13;}
+ const images={};for(const key of ['diff','nor_gl','rough']){const canvas=document.createElement('canvas');canvas.width=canvas.height=SIZE;const ctx=canvas.getContext('2d'),data=ctx.createImageData(SIZE,SIZE);
+  for(let y=0;y<SIZE;y++)for(let x=0;x<SIZE;x++){const i=y*SIZE+x,v=h[i],at=(a,b)=>h[((b+SIZE)%SIZE)*SIZE+(a+SIZE)%SIZE];let rgb;
+   if(key==='nor_gl'){const dx=(at(x-1,y)-at(x+1,y))*(kind?.65:1.2),dy=(at(x,y-1)-at(x,y+1))*(kind?.65:1.2),n=Math.hypot(dx,dy,1);rgb=[dx/n*.5+.5,dy/n*.5+.5,1/n*.5+.5];}
+   else if(key==='rough')rgb=Array(3).fill(clamp((kind?.86:.88)+(v-.5)*.12));
+   else {const c=kind?.46+v*.20:.105+v*.14;rgb=kind?[c*1.05,c*1.015,c*.94]:[c*.94,c*.98,c];}
+   for(let j=0;j<3;j++)data.data[i*4+j]=Math.round(clamp(rgb[j])*255);data.data[i*4+3]=255;
+  }ctx.putImageData(data,0,0);images[key]=canvas;
+ }return images;
+}
+G.FMaterials=Object.freeze({create(){return {layers:[],async load(){this.layers=[layer(0),layer(1)];return this.layers;}};}});
+})(globalThis);
+
+/* FERRO — collision geometry for new physical worlds. No DOM or rendering.
+   Exact rectangular unions remove tiled seams; old snapshots retain the original geometry.
+   Capsule sweeps use convex distance and conservative advancement, never time samples. */
+(function(G){'use strict';
+function merge(a,n){
+  const alive=new Uint8Array(n).fill(1);let changed=true;
+  while(changed){changed=false;for(let axis=0;axis<3;axis++){
+    const groups=new Map(),u=(axis+1)%3,v=(axis+2)%3;
+    for(let i=0;i<n;i++)if(alive[i]&&!a.O[i]){const b=i*6,key=a.F[i]+'|'+a.E[i]+'|'+a.M[i]+'|'+a.A[b+u]+'|'+a.A[b+u+3]+'|'+a.A[b+v]+'|'+a.A[b+v+3];let list=groups.get(key);if(!list)groups.set(key,list=[]);list.push(i);}
+    for(const list of groups.values()){list.sort((i,j)=>a.A[i*6+axis]-a.A[j*6+axis]||i-j);let prev=list[0];for(let k=1;k<list.length;k++){const i=list[k],b=i*6,p=prev*6;if(a.A[b+axis]>a.A[p+axis+3]+1e-9){prev=i;continue;}a.A[p+axis+3]=Math.max(a.A[p+axis+3],a.A[b+axis+3]);a.P[prev*3+axis]=(a.A[p+axis]+a.A[p+axis+3])*.5;a.H[prev*3+axis]=(a.A[p+axis+3]-a.A[p+axis])*.5;alive[i]=0;changed=true;}}
+  }}
+  let count=0;for(const [key,width] of [['P',3],['H',3],['R',9],['A',6],['F',1],['E',1],['O',1],['M',1]]){count=0;for(let i=0;i<n;i++)if(alive[i]){if(i!==count)a[key].copyWithin(count*width,i*width,(i+1)*width);count++;}}return count;
+}
+function attach(w,d){
+  const {P,H,HR,R,BB,SH,FL,GRP,GEN,V}=d,pa=new Float64Array(3),pb=new Float64Array(3),cuts=new Float64Array(8),a0=new Float64Array(3),a1=new Float64Array(3),b0=new Float64Array(3),b1=new Float64Array(3),closest=new Float64Array(7);
+  let st=null,neighbors=[],identities=new Map();
+  let faceHeads=new Int32Array(w.config.maxStatics*6),nextHeads=new Int32Array(w.config.maxStatics*6);
+  const heads=new Int32Array(w.config.maxStatics*4),links=new Int32Array(w.config.maxStatics*2),oldToNew=new Int32Array(w.config.maxStatics),newToOld=new Int32Array(w.config.maxStatics);
+  const roots=new Int32Array(FL.length),members=new Int32Array(FL.length),anchored=new Uint8Array(FL.length),speed=new Float64Array(FL.length);
+  w.stats.governedSleep=0;w.stats.overBudget=0;
+  function setStatics(a){
+    const next=[],keys=new Map();nextHeads.fill(-1,0,a.count*6);oldToNew.fill(-1);newToOld.fill(-1);
+    for(let i=0;i<a.count;i++)if(!a.O[i]){const b=i*6,key=a.A[b]+'|'+a.A[b+1]+'|'+a.A[b+2]+'|'+a.A[b+3]+'|'+a.A[b+4]+'|'+a.A[b+5];let list=keys.get(key);if(!list)keys.set(key,list=[]);const previous=identities.get(key),old=previous?.[list.length];list.push(i);if(old!==undefined){oldToNew[old]=i;newToOld[i]=old;}}
+    const link=(face,neighbor)=>{next.push(neighbor,nextHeads[face]);nextHeads[face]=next.length-2;};
+    // Remap unchanged faces and drop removed neighbours. Only newly shaped boxes
+    // need geometric comparisons, including both sides of each new seam.
+    if(st&&st.count){
+      for(let i=0;i<a.count;i++){const old=newToOld[i];if(old<0)continue;for(let face=0;face<6;face++)for(let j=faceHeads[old*6+face];j>=0;j=neighbors[j+1]){const mapped=oldToNew[neighbors[j]];if(mapped>=0)link(i*6+face,mapped);}}
+      for(let i=0;i<a.count;i++)if(!a.O[i]&&newToOld[i]<0)for(let j=0;j<a.count;j++)if(i!==j&&!a.O[j]&&(newToOld[j]>=0||j>i))for(let axis=0;axis<3;axis++){
+        const b=i*6,c=j*6,u=(axis+1)%3,v=(axis+2)%3;
+        if(Math.min(a.A[b+u+3],a.A[c+u+3])<=Math.max(a.A[b+u],a.A[c+u])+1e-9||Math.min(a.A[b+v+3],a.A[c+v+3])<=Math.max(a.A[b+v],a.A[c+v])+1e-9)continue;
+        for(let side=0;side<2;side++){const left=a.A[b+axis+side*3],right=a.A[c+axis+(1-side)*3];if(Math.round(left*1e6)!==Math.round(right*1e6)||Math.abs(left-right)>1e-6)continue;link(i*6+axis*2+side,j);link(j*6+axis*2+1-side,i);}
+      }
+    }else for(let axis=0;axis<3;axis++){
+      const planes=new Map(),u=(axis+1)%3,v=(axis+2)%3;let count=0;
+      for(let i=0;i<a.count;i++)if(!a.O[i])for(let side=0;side<2;side++){const key=Math.round(a.A[i*6+axis+side*3]*1e6);let bucket=planes.get(key);if(bucket===undefined){bucket=count++;planes.set(key,bucket);heads[bucket*2]=heads[bucket*2+1]=-1;}links[i*2+side]=heads[bucket*2+side];heads[bucket*2+side]=i;}
+      for(let bucket=0;bucket<count;bucket++)for(let i=heads[bucket*2];i>=0;i=links[i*2])for(let j=heads[bucket*2+1];j>=0;j=links[j*2+1]){
+        if(i===j)continue;const b=i*6,c=j*6;if(Math.abs(a.A[b+axis]-a.A[c+axis+3])>1e-6||Math.min(a.A[b+u+3],a.A[c+u+3])<=Math.max(a.A[b+u],a.A[c+u])+1e-9||Math.min(a.A[b+v+3],a.A[c+v+3])<=Math.max(a.A[b+v],a.A[c+v])+1e-9)continue;
+        link(i*6+axis*2,j);link(j*6+axis*2+1,i);
+      }
+    }
+    let masked=0;for(let i=0;i<a.count*6;i++)if(nextHeads[i]>=0)masked++;const previousHeads=faceHeads;faceHeads=nextHeads;nextHeads=previousHeads;st=a;neighbors=next;identities=keys;w.stats.internalFaces=masked;return masked;
+  }
+  function filter(index,n,N,P,S,I){let count=0;for(let k=0;k<n;k++){const p=k*3;let internal=false;for(let axis=0;axis<3;axis++){if(Math.abs(N[p+axis])<.999)continue;const side=N[p+axis]>0?0:1,head=faceHeads[index*6+axis*2+side];if(head<0)break;const u=(axis+1)%3,v=(axis+2)%3,plane=st.A[index*6+axis+side*3];if(S[k]<0&&Math.abs(P[p+axis]-plane)>.03)break;for(let j=head;j>=0;j=neighbors[j+1]){const b=neighbors[j]*6;if(P[p+u]>=st.A[b+u]-.006&&P[p+u]<=st.A[b+u+3]+.006&&P[p+v]>=st.A[b+v]-.006&&P[p+v]<=st.A[b+v+3]+.006){internal=true;break;}}break;}if(!internal){for(let j=0;j<3;j++){N[count*3+j]=N[p+j];P[count*3+j]=P[p+j];}S[count]=S[k];I[count]=I[k];count++;}}return count;}
+  // Only slow, supported contact islands may be sacrificed to the awake budget.
+  // An airborne body is never frozen; overBudget reports an unavoidable excess.
+  function govern(AL,ACT,UF,na,cA,cB,cN,cS,nc,limit){
+    let awake=0;for(let i=1;i<d.count();i++)if((FL[i]&31)===1)awake++;if(awake<=limit){w.stats.overBudget=0;return 0;}
+    members.fill(0);anchored.fill(0);speed.fill(0);for(let k=0;k<na;k++){const i=AL[k];if(ACT[i]!==1||FL[i]&2)continue;let root=i;while(UF[root]!==root)root=UF[root];roots[i]=root;members[root]++;const v=i*6,energy=V[v]*V[v]+V[v+1]*V[v+1]+V[v+2]*V[v+2]+.25*(V[v+3]*V[v+3]+V[v+4]*V[v+4]+V[v+5]*V[v+5]);speed[root]=Math.max(speed[root],energy);}
+    for(let k=0;k<nc;k++)if(cS[k]<=.005){const a=cA[k],b=cB[k],ny=cN[k*3+1];if(ACT[a]===1&&!(FL[a]&2)&&(!b||FL[b]&6)&&ny<-.5)anchored[roots[a]]=1;if(b&&ACT[b]===1&&!(FL[b]&2)&&(FL[a]&6)&&ny>.5)anchored[roots[b]]=1;}
+    let slept=0;while(awake>limit){let best=0,value=Infinity;for(let i=1;i<d.count();i++)if(members[i]&&anchored[i]&&speed[i]<.04&&speed[i]<value){best=i;value=speed[i];}if(!best)break;for(let k=0;k<na;k++){const i=AL[k];if(ACT[i]===1&&!(FL[i]&2)&&roots[i]===best){FL[i]|=2;V.fill(0,i*6,i*6+6);slept++;awake--;}}members[best]=0;}
+    w.stats.governedSleep+=slept;w.stats.overBudget=Math.max(0,awake-limit);return slept;
+  }
+  const validVector=v=>v&&v.length===3&&Number.isFinite(v[0])&&Number.isFinite(v[1])&&Number.isFinite(v[2]);
+  const dot=(a,b)=>a[0]*b[0]+a[1]*b[1]+a[2]*b[2];
+  function boxDistance(x,y,z,radius,height,cp,ch,cr,i){
+    const p=i*3,rot=i*9,dx=x-cp[p],dy=y+radius-cp[p+1],dz=z-cp[p+2],length=height-2*radius;
+    for(let k=0;k<3;k++){pa[k]=dx*cr[rot+k]+dy*cr[rot+3+k]+dz*cr[rot+6+k];pb[k]=cr[rot+3+k]*length;}
+    let nc=2;cuts[0]=0;cuts[1]=1;for(let k=0;k<3;k++)if(Math.abs(pb[k])>1e-14)for(let sign=-1;sign<=1;sign+=2){const t=(sign*ch[p+k]-pa[k])/pb[k];if(t>0&&t<1)cuts[nc++]=t;}
+    for(let i=1;i<nc;i++){const t=cuts[i];let j=i;while(j&&cuts[j-1]>t){cuts[j]=cuts[j-1];j--;}cuts[j]=t;}
+    let best=Infinity,bt=0;
+    for(let j=0;j<nc-1;j++){const lo=cuts[j],hi=cuts[j+1],mid=(lo+hi)*.5;let aa=0,ab=0;for(let k=0;k<3;k++){const q=pa[k]+pb[k]*mid,h=ch[p+k];if(q>h||q<-h){const c=pa[k]-(q>h?h:-h);aa+=pb[k]*pb[k];ab+=pb[k]*c;}}const t=aa?Math.max(lo,Math.min(hi,-ab/aa)):lo;let ds=0;for(let k=0;k<3;k++){const q=pa[k]+pb[k]*t,h=ch[p+k],v=q>h?q-h:q<-h?q+h:0;ds+=v*v;}if(ds<best){best=ds;bt=t;}}
+    let sep;for(let k=0;k<3;k++){a0[k]=pa[k]+pb[k]*bt;b0[k]=Math.max(-ch[p+k],Math.min(ch[p+k],a0[k]));a1[k]=a0[k]-b0[k];}
+    if(best>1e-20){const len=Math.sqrt(best);for(let k=0;k<3;k++)a1[k]/=len;sep=len-radius;}else{let depth=Infinity,axis=1,sign=1;for(let k=0;k<3;k++){const lo=Math.min(pa[k],pa[k]+pb[k]),hi=Math.max(pa[k],pa[k]+pb[k]),up=ch[p+k]+radius-lo,down=ch[p+k]+radius+hi;if(up<depth){depth=up;axis=k;sign=1;}if(down<depth){depth=down;axis=k;sign=-1;}}a1.fill(0);a1[axis]=sign;b0[axis]=sign*ch[p+axis];sep=-depth;}
+    closest[0]=sep;for(let k=0;k<3;k++){closest[1+k]=cr[rot+3*k]*a1[0]+cr[rot+3*k+1]*a1[1]+cr[rot+3*k+2]*a1[2];closest[4+k]=cp[p+k]+cr[rot+3*k]*b0[0]+cr[rot+3*k+1]*b0[1]+cr[rot+3*k+2]*b0[2];}
+  }
+  function roundDistance(x,y,z,radius,height,i){
+    const p=i*3,t=i*9,extent=HR[p+1]-HR[p],other=H[p];a0[0]=x;a0[1]=y+radius;a0[2]=z;a1[0]=0;a1[1]=height-2*radius;a1[2]=0;
+    for(let k=0;k<3;k++){b0[k]=P[p+k]-R[t+3*k+1]*extent;b1[k]=2*R[t+3*k+1]*extent;pa[k]=a0[k]-b0[k];}
+    const aa=dot(a1,a1),bb=dot(b1,b1),ab=dot(a1,b1),ar=dot(a1,pa),br=dot(b1,pa),den=aa*bb-ab*ab;let s=aa>1e-16?(den>1e-16?Math.max(0,Math.min(1,(ab*br-bb*ar)/den)):0):0,t0=bb>1e-16?(ab*s+br)/bb:0;
+    if(t0<0){t0=0;s=aa>1e-16?Math.max(0,Math.min(1,-ar/aa)):0;}else if(t0>1){t0=1;s=aa>1e-16?Math.max(0,Math.min(1,(ab-ar)/aa)):0;}else if(bb<1e-16)s=aa>1e-16?Math.max(0,Math.min(1,-ar/aa)):0;
+    let ds=0;for(let k=0;k<3;k++){pb[k]=b0[k]+b1[k]*t0;pa[k]=a0[k]+a1[k]*s-pb[k];ds+=pa[k]*pa[k];}const len=Math.sqrt(ds);closest[0]=len-radius-other;for(let k=0;k<3;k++){const normal=len>1e-12?pa[k]/len:k===1?1:0;closest[1+k]=normal;closest[4+k]=pb[k]+normal*other;}
+  }
+  function sweepCapsule(pos,delta,options={},out={}){
+    const radius=options.radius??.28,height=options.height??1.8,mask=options.mask??65535,ignore=options.ignore??0,skin=options.skin??.001;
+    if(!validVector(pos)||!validVector(delta)||!Number.isFinite(radius)||radius<=0||!Number.isFinite(height)||height<2*radius||!Number.isFinite(skin)||skin<0)throw TypeError('FPhysics.sweepCapsule: finite capsule and displacement required');
+    out.hit=false;out.fraction=1;out.handle=0;out.staticIndex=-1;out.depth=0;out.nx=out.ny=out.nz=0;
+    const x0=Math.min(pos[0],pos[0]+delta[0])-radius-skin,x1=Math.max(pos[0],pos[0]+delta[0])+radius+skin,y0=Math.min(pos[1],pos[1]+delta[1])-skin,y1=Math.max(pos[1],pos[1]+delta[1])+height+skin,z0=Math.min(pos[2],pos[2]+delta[2])-radius-skin,z1=Math.max(pos[2],pos[2]+delta[2])+radius+skin;
+    const ns=options.statics===false||!(mask&1)?0:st?.count||0,nb=d.count();
+    for(let j=0;j<ns+nb-1;j++){
+      const isStatic=j<ns,i=isStatic?j:j-ns+1,handle=isStatic?0:GEN[i]*4096+i;
+      if(!isStatic&&((FL[i]&(1|8|16))!==1||!(GRP[i]&mask)||handle===ignore))continue;
+      const bounds=isStatic?st.A:BB,b=i*6;if(bounds[b]>x1||bounds[b+3]<x0||bounds[b+1]>y1||bounds[b+4]<y0||bounds[b+2]>z1||bounds[b+5]<z0)continue;
+      let t=0;for(let it=0;it<24;it++){
+        const x=pos[0]+delta[0]*t,y=pos[1]+delta[1]*t,z=pos[2]+delta[2]*t;if(isStatic)boxDistance(x,y,z,radius,height,st.P,st.H,st.R,i);else if(SH[i])roundDistance(x,y,z,radius,height,i);else boxDistance(x,y,z,radius,height,P,H,R,i);
+        const sep=closest[0],closing=-(delta[0]*closest[1]+delta[1]*closest[2]+delta[2]*closest[3]);
+        if(t===0&&sep<skin&&options.ignoreInitial)break;
+        if(t===0&&sep< -1e-6&&options.allowExit&&closing<=1e-10)break;
+        if(sep<=skin+1e-7){if(t===0&&sep>=-1e-6&&closing<=1e-10)break;if(t<=out.fraction){out.hit=true;out.fraction=t;out.handle=handle;out.staticIndex=isStatic?i:-1;out.depth=Math.max(0,-sep);out.nx=closest[1];out.ny=closest[2];out.nz=closest[3];out.x=closest[4];out.y=closest[5];out.z=closest[6];}break;}
+        if(closing<=1e-12)break;t+=(sep-skin)/closing;if(t>out.fraction||t>1)break;
+      }
+    }return out;
+  }
+  function character(options={}){
+    const opt={radius:options.radius??.28,height:options.height??1.8,skin:options.skin??.002,mask:options.mask??65535,ignore:options.ignore??0,statics:options.statics!==false},step=options.step??.42,slope=options.slope??.7;
+    if(!Number.isFinite(step)||step<0||!Number.isFinite(slope)||slope<0||slope>1)throw TypeError('FPhysics.character: invalid step or slope');
+    const p=new Float64Array(3),v=new Float64Array(3),up=new Float64Array(3),candidate=new Float64Array(3),h={},landing={},support={};
+    function move(pos,delta,out={}){
+      if(!validVector(pos)||!validVector(delta))throw TypeError('FPhysics.character.move: finite vectors required');p.set(pos);v.set(delta);out.grounded=false;out.handle=0;out.nx=out.ny=out.nz=0;
+      for(let pass=0;pass<4;pass++){
+        sweepCapsule(p,v,opt,h);if(!h.hit){for(let k=0;k<3;k++)p[k]+=v[k];break;}
+        if(h.depth>1e-6){const lift=Math.min(.5,h.depth+opt.skin);p[0]+=h.nx*lift;p[1]+=h.ny*lift;p[2]+=h.nz*lift;continue;}
+        if(step>0&&h.ny<slope&&(v[0]*v[0]+v[2]*v[2])>1e-12&&delta[1]<=.001){
+          up[0]=0;up[1]=-.06;up[2]=0;sweepCapsule(p,up,opt,support);
+          if(support.hit&&support.ny>=slope){up[1]=step;sweepCapsule(p,up,opt,landing);if(!landing.hit){candidate.set(p);candidate[1]+=step;up[0]=v[0];up[1]=0;up[2]=v[2];sweepCapsule(candidate,up,opt,landing);if(!landing.hit){candidate[0]+=v[0];candidate[2]+=v[2];up[0]=0;up[1]=-step-.06;up[2]=0;sweepCapsule(candidate,up,opt,landing);if(landing.hit&&landing.ny>=slope){candidate[1]+=up[1]*landing.fraction;p.set(candidate);out.grounded=true;out.handle=landing.handle;out.nx=landing.nx;out.ny=landing.ny;out.nz=landing.nz;break;}}}}
+        }
+        for(let k=0;k<3;k++){p[k]+=v[k]*h.fraction;v[k]*=1-h.fraction;}const normal=v[0]*h.nx+v[1]*h.ny+v[2]*h.nz;if(normal<0){v[0]-=h.nx*normal;v[1]-=h.ny*normal;v[2]-=h.nz*normal;}out.nx=h.nx;out.ny=h.ny;out.nz=h.nz;if(h.ny>=slope){out.grounded=true;out.handle=h.handle;}if(v[0]*v[0]+v[1]*v[1]+v[2]*v[2]<1e-16)break;
+      }
+      if(delta[1]<=.001&&!out.grounded){up[0]=0;up[1]=-.06;up[2]=0;sweepCapsule(p,up,opt,h);if(h.hit&&h.ny>=slope){p[1]+=up[1]*h.fraction;out.grounded=true;out.handle=h.handle;out.nx=h.nx;out.ny=h.ny;out.nz=h.nz;}}
+      out.x=p[0];out.y=p[1];out.z=p[2];out.vx=out.vy=out.vz=0;if(out.handle){const i=out.handle&4095;out.vx=V[i*6];out.vy=V[i*6+1];out.vz=V[i*6+2];}return out;
+    }return {move};
+  }
+  w.sweepCapsule=sweepCapsule;w.character=character;return {setStatics,filter,govern};
+}
+G.FPhysicsGeometry={merge,attach};
+})(typeof window!=='undefined'?window:globalThis);
+
+/* FERRO — FPhysics: deterministic rigid bodies (oriented boxes, spheres, capsules) against static boxes.
+   Rules: no clock, no random source; Math.sqrt/abs/floor/imul/min/max only (trig only in TRIG blocks);
+   fixed iteration order; typed arrays; no allocation per step; canonical derived values; -0 normalised.
+   Determinism, the five writing rules:
+   1. Math: sqrt, abs, floor, imul, min, max and PI only; sin, cos, atan2 and asin only between the TRIG
+      markers (angle conversions, joint limits), never in the solver; no exponent operator.
+   2. Fixed order: bodies by increasing index, grid cells z then x, statics by index, contacts in emission
+      order, joints by slot; no Map, Set, sort or key enumeration inside step().
+   3. Canonical derived values: inertia, rotation, bounds and tolerance come from one function each, called
+      at creation, at the end of a sub-step and on restore, from saved values only (inverse mass, never 1/(1/m)).
+   4. The fingerprint covers every setting; a snapshot carries it.
+   5. -0 is normalised by x+0 at the end of each sub-step, in the impulse cache and in joints.
+   Time only enters through dt: the same calls with the same arguments give the same bits.
+   Inside step(): no new object, array literal, closure or string; floats never cross a call (SCR scratch). */
+(function(G){
+  'use strict';
+  const MATERIALS=Object.freeze([
+    Object.freeze({name:'metal',friction:.45,restitution:.24,density:65}),
+    Object.freeze({name:'stone',friction:.7,restitution:.16,density:28}),
+    Object.freeze({name:'wood',friction:.55,restitution:.22,density:8}),
+    Object.freeze({name:'glass',friction:.35,restitution:.16,density:25}),
+    Object.freeze({name:'dirt',friction:.8,restitution:.05,density:12})
+  ]);
+  const I32=2147483647;
+  const SETTINGS=[
+    ['cell',2,'p'],['gravity',-12,'f'],['ground',null,'g'],['floorThickness',.5,'p'],['minY',-60,'f'],['tick',1/120,'p'],
+    ['maxSubsteps',8,'i',1,I32],['capacity',384,'i',1,4095],['maxStatics',4096,'i',1,65535],['maxContacts',16384,'i',1,1048576],
+    ['maxJoints',128,'i',0,4095],['iterations',2,'i',1,I32],['relaxIterations',1,'i',0,I32],['hardIterations',4,'i',0,I32],
+    ['hardRelaxIterations',2,'i',0,I32],['hardRatio',8,'z'],['contactHertz',30,'p'],['dampingRatio',10,'z'],['pushout',3,'z'],
+    ['restitutionThreshold',1,'z'],['jointHertz',60,'p'],['jointDampingRatio',2,'z'],['linearDamping',.02,'z'],
+    ['angularDamping',.06,'z'],['rollingDamping',2,'z'],['maxLinear',40,'p'],['maxAngular',30,'p'],['margin',.02,'z'],
+    ['slop',.005,'z'],['slopRatio',.12,'z'],['minHalf',.02,'z'],['sleepLinear',.08,'z'],['sleepAngular',.12,'z'],
+    ['sleepTime',.5,'z'],['splitTime',1,'z'],['fallbackTime',6,'z'],['fallbackDistance',.002,'z'],['wakeSpeed',.25,'z'],
+    ['supportSpeed',.08,'z'],['massMin',3,'p'],['massMax',120,'p'],['maxAwake',160,'i',0,I32],['spawnBudget',24,'i',1,I32],
+    ['eventSpeed',1.2,'z'],['maxEvents',16,'i',0,I32]
+  ];
+  const MAX_CELLS=1048576;
+  const fail=text=>{throw new TypeError('FPhysics.create: '+text);};
+  const wrong=(where,text)=>{throw new TypeError('FPhysics.'+where+': '+text);};
+  const finite=v=>typeof v==='number'&&Number.isFinite(v);
+  const fnv=(h,u)=>Math.imul(h^u,16777619);
+  function textHash(text){
+    let h=2166136261;
+    for(let i=0;i<text.length;i++)h=fnv(h,text.charCodeAt(i));
+    return (h>>>0).toString(16).padStart(8,'0');
+  }
+  function settings(o){
+    if(!o||typeof o!=='object')fail('options object with bounds required');
+    const b=o.bounds;
+    if(!b||typeof b!=='object')fail('bounds {minX, maxX, minZ, maxZ} required');
+    for(const k of ['minX','maxX','minZ','maxZ'])if(!finite(b[k]))fail('bounds.'+k+' must be a finite number');
+    if(!(b.minX<b.maxX&&b.minZ<b.maxZ))fail('bounds need minX < maxX and minZ < maxZ');
+    const c={bounds:Object.freeze({minX:b.minX+0,maxX:b.maxX+0,minZ:b.minZ+0,maxZ:b.maxZ+0})};
+    for(const [name,def,kind,low,high] of SETTINGS){
+      let v=o[name];
+      if(v===undefined||kind==='g'&&v===null)v=def;
+      else if(!finite(v))fail(name+' must be a finite number'+(kind==='g'?' or null':''));
+      else if(kind==='p'&&!(v>0))fail(name+' must be > 0');
+      else if(kind==='z'&&!(v>=0))fail(name+' must be >= 0');
+      else if(kind==='i'&&!(Number.isInteger(v)&&v>=low&&v<=high))fail(name+' must be an integer from '+low+' to '+high);
+      c[name]=v===null?null:v+0;
+    }
+    if(c.massMin>c.massMax)fail('massMin must not exceed massMax');
+    const cells=(Math.floor((c.bounds.maxX-c.bounds.minX)/c.cell)+1)*(Math.floor((c.bounds.maxZ-c.bounds.minZ)/c.cell)+1);
+    if(!(cells<=MAX_CELLS))fail('bounds and cell give '+cells+' grid cells (at most '+MAX_CELLS+')');
+    const t=c.tick,steps=d=>Math.floor(d/t+.5);
+    c.sleepSteps=steps(c.sleepTime);c.splitSteps=steps(c.splitTime);c.fallbackSteps=steps(c.fallbackTime);c.windowSteps=steps(1);
+    if(o.clock!==undefined&&o.clock!==null&&typeof o.clock!=='function')fail('clock must be a function or null');
+    return Object.freeze(c);
+  }
+  function fingerprintOf(c){
+    const b=c.bounds,values=[b.minX,b.maxX,b.minZ,b.maxZ];
+    for(const s of SETTINGS)values.push(c[s[0]]===null?'none':c[s[0]]);
+    return textHash('FPhysics2|'+values.join('|'));
+  }
+  const ALIVE=1,ASLEEP=2,KINEMATIC=4,PENDING=8,LOST=16,HARD=32,MOVING=64,SHAPES=['box','sphere','capsule'];
+  const GENS=524288;
+  function vec(where,name,v,n){
+    if(!(Array.isArray(v)||ArrayBuffer.isView(v))||v.length!==n)wrong(where,name+' must be an array of '+n+' numbers');
+    const out=new Array(n);
+    for(let k=0;k<n;k++){if(!finite(v[k]))wrong(where,name+' must hold finite numbers');out[k]=v[k]+0;}
+    return out;
+  }
+  function inRange(where,name,v,def,low,high){
+    if(v===undefined)return def;
+    if(!finite(v)||v<low||v>high)wrong(where,name+' must be a number from '+low+' to '+high);
+    return v+0;
+  }
+  function materialOf(where,m){
+    if(m===undefined||m===-1)return -1;
+    if(Number.isInteger(m)&&m>=0&&m<MATERIALS.length)return m;
+    for(let k=0;k<MATERIALS.length;k++)if(MATERIALS[k].name===m)return k;
+    return wrong(where,'material must be a name or an index of MATERIALS');
+  }
+  function create(o){
+    const C=settings(o),bounded=o.bounded===true,geometry=o.geometry===true,fp=fingerprintOf(C)+(bounded?'/B1':'')+(geometry?'/G1':''),clock=typeof o.clock==='function'?o.clock:null;
+    if(o.bounded!==undefined&&typeof o.bounded!=='boolean')fail('bounded must be a boolean');
+    if(geometry&&!G.FPhysicsGeometry)fail('geometry module required');
+    let geometryApi=null;
+    const NB=C.capacity+1,MS=C.maxStatics,MC=C.maxContacts,KM=NB+MS+1;
+    const minX=C.bounds.minX,maxX=C.bounds.maxX,minZ=C.bounds.minZ,maxZ=C.bounds.maxZ,cell=C.cell;
+    const GW=Math.floor((maxX-minX)/cell)+1,GD=Math.floor((maxZ-minZ)/cell)+1,CELLS=GW*GD;
+    // ---- Bodies: columns of NB = capacity + 1 rows; row 0 is the world (immovable: zero inverse mass and inertia).
+    const SH=new Uint8Array(NB),FL=new Uint8Array(NB),GEN=new Int32Array(NB),GRP=new Int32Array(NB),MSK=new Int32Array(NB),MAT=new Int32Array(NB).fill(-1);
+    const P=new Float64Array(NB*3),Q=new Float64Array(NB*4),V=new Float64Array(NB*6),H=new Float64Array(NB*3),HR=new Float64Array(NB*3);
+    const IM=new Float64Array(NB),MO=new Float64Array(NB),FR=new Float64Array(NB),RE=new Float64Array(NB);
+    const ST=new Int32Array(NB),AT=new Int32Array(NB),FN=new Int32Array(NB),RP=new Float64Array(NB*3),KT=new Float64Array(NB*7),KN=new Uint8Array(NB);
+    const R=new Float64Array(NB*9),IL=new Float64Array(NB*3),IW=new Float64Array(NB*6),BB=new Float64Array(NB*6),FB=new Float64Array(NB*6);
+    const SL=new Float64Array(NB),PP=new Float64Array(NB*3),PQ=new Float64Array(NB*4);
+    const AL=new Int32Array(NB),ACT=new Uint8Array(NB),WK=new Uint8Array(NB),UF=new Int32Array(NB),IMIN=new Int32Array(NB),TOUCH=new Uint8Array(NB);
+    Q[3]=1;R[0]=R[4]=R[8]=1;SL[0]=C.slop;
+    const FIELDS=[['SH',SH,1,0,2],['FL',FL,1,0,127],['GEN',GEN,1,0,GENS-1],['GRP',GRP,1,0,65535],['MSK',MSK,1,0,65535],['MAT',MAT,1,-1,MATERIALS.length-1],
+      ['P',P,3],['Q',Q,4],['V',V,6],['H',H,3],['HR',HR,3],['IM',IM,1],['MO',MO,1],['FR',FR,1],['RE',RE,1],
+      ['ST',ST,1,0,I32],['AT',AT,1,0,I32],['FN',FN,1,0,I32],['RP',RP,3],['KT',KT,7],['KN',KN,1,0,1]];
+    const VIEWS=FIELDS.map(f=>f[1] instanceof Float64Array?new Uint32Array(f[1].buffer):null),WORLD=FIELDS.map(f=>Array.from(f[1].subarray(0,f[2])));
+    // ---- Statics (setStatics): centre sP, half-size sH, rotation sR (identity for a box), OBB flag sO, bounds sA
+    let NS=0,sP=new Float64Array(0),sH=sP,sR=sP,sA=sP,sF=sP,sE=sP,sO=new Uint8Array(0),sM=new Int32Array(0),sT=sM,sItems=sM,stamp=0,decor=false;
+    const sStart=new Int32Array(CELLS+1);
+    // ---- Contacts of the sub-step (prototype columns): bodies cA cB (cB = 0, the world, for a static), pair key cK,
+    const cA=new Int32Array(MC),cB=new Int32Array(MC),cK=new Int32Array(MC),cI=new Int32Array(MC),prF=new Int32Array(MC),prN=new Int32Array(MC);
+    const cN=new Float64Array(MC*3),cT1=new Float64Array(MC*3),cT2=new Float64Array(MC*3),cRA=new Float64Array(MC*3),cRB=new Float64Array(MC*3);
+    const cAN=new Float64Array(MC*6),cA1=new Float64Array(MC*6),cA2=new Float64Array(MC*6);
+    const cS=new Float64Array(MC),cMn=new Float64Array(MC),cM1=new Float64Array(MC),cM2=new Float64Array(MC),cJn=new Float64Array(MC),cJ1=new Float64Array(MC),cJ2=new Float64Array(MC);
+    const cFr=new Float64Array(MC),cRe=new Float64Array(MC),cV0=new Float64Array(MC),cMax=new Float64Array(MC),cIa=new Float64Array(MC),cIb=new Float64Array(MC),cSl=new Float64Array(MC),cSR=new Float64Array(MC);
+    // ---- Impulse cache (warm start of the next sub-step): pn entries of key pK, point id pI, impulses pJn pJ1 pJ2,
+    let TS=1;while(TS<2*MC)TS*=2;
+    const pK=new Int32Array(MC),pI=new Int32Array(MC),pJn=new Float64Array(MC),pJ1=new Float64Array(MC),pJ2=new Float64Array(MC);
+    const TB=new Int32Array(TS),TC=new Int32Array(TS),TU=new Int32Array(MC),CU=[pJn,pJ1,pJ2].map(a=>new Uint32Array(a.buffer));
+    // ---- Narrow-phase scratch (prototype): box-box axes tt cc qq; point k: normal mN[3k..] (A to B), point mP[3k..],
+    const tt=new Float64Array(3),cc=new Float64Array(9),qq=new Float64Array(9),mN=new Float64Array(24),mP=new Float64Array(24),mS=new Float64Array(8),mI=new Int32Array(8);
+    const clipA=new Float64Array(48),clipB=new Float64Array(48),idA=new Int32Array(16),idB=new Int32Array(16),pick=new Int32Array(4);
+    const SCR=new Float64Array(37),ITER=C.iterations,RELAX=C.relaxIterations,MAXSUB=C.maxSubsteps;
+    const ISCR=new Int32Array(8);
+    const WS=new Float64Array(1),WSU=new Uint32Array(WS.buffer);
+    {
+      const h=C.tick,hz=Math.min(C.contactHertz,.25*(1/h)),om=6.283185307179586*hz,a1=2*C.dampingRatio+h*om,a2=h*om*a1,a3=1/(1+a2);
+      SCR[5]=1/h;SCR[6]=om/a1;SCR[7]=a2*a3;SCR[8]=a3;SCR[9]=h;SCR[10]=1/(1+h*C.linearDamping);SCR[11]=1/(1+h*C.angularDamping);SCR[12]=C.gravity*h;
+      SCR[14]=C.margin;SCR[15]=C.maxLinear;SCR[16]=C.maxAngular;SCR[17]=C.pushout;SCR[18]=C.restitutionThreshold;
+      SCR[19]=C.sleepLinear*C.sleepLinear;SCR[20]=C.sleepAngular*C.sleepAngular;SCR[21]=C.sleepSteps;SCR[28]=1/(1+h*C.rollingDamping);
+    }
+    // Joint columns: endpoints, anchors, axes, rest tangents, limits, break impulse, last impulse.
+    const NJ=C.maxJoints+1,JT=new Uint8Array(NJ),JG=new Int32Array(NJ),JA=new Int32Array(NJ),JB=new Int32Array(NJ),JD=new Float64Array(NJ*26),JU=new Uint32Array(JD.buffer),JX=new Float64Array(24);
+    let jtop=1;
+    const joints={count:0,broken:new Int32Array(C.maxJoints),brokenCount:0};
+    function jointSlot(h){const i=h&4095;return Number.isInteger(h)&&i>0&&i<jtop&&JT[i]&&JG[i]*4096+i===h?i:0;}
+    function removeJoint(h){const j=jointSlot(h);if(!j)return false;JT[j]=0;JG[j]=(JG[j]+1)%GENS;joints.count--;stats.joints=joints.count;return true;}
+    function jointWorld(i,d,k){const r=i*9,x=JD[d+k],y=JD[d+k+1],z=JD[d+k+2];JX[k]=R[r]*x+R[r+1]*y+R[r+2]*z;JX[k+1]=R[r+3]*x+R[r+4]*y+R[r+5]*z;JX[k+2]=R[r+6]*x+R[r+7]*y+R[r+8]*z;}
+    function addJoint(o){
+      const type=['','ball','hinge','cable','weld'].indexOf(o?.type||'ball'),a=o?.a===0?0:slot(o?.a),b=o?.b===0?0:slot(o?.b);
+      if(type<1||a===b||o.a!==0&&!a||o.b!==0&&!b||!(IM[a]+IM[b]>0))wrong('addJoint','type and live endpoints required');
+      const aa=vec('addJoint','anchorA',o.anchorA||[0,0,0],3),bb=vec('addJoint','anchorB',o.anchorB||[0,0,0],3),ax=vec('addJoint','axisA',o.axisA||[0,1,0],3),bx=vec('addJoint','axisB',o.axisB||[0,1,0],3);
+      if(o.worldAnchor){const point=vec('addJoint','worldAnchor',o.worldAnchor,3);for(const [i,v] of [[a,aa],[b,bb]]){const r=i*9,x=point[0]-P[i*3],y=point[1]-P[i*3+1],z=point[2]-P[i*3+2];for(let k=0;k<3;k++)v[k]=R[r+k]*x+R[r+3+k]*y+R[r+6+k]*z;}}
+      for(const v of [ax,bx]){const l=Math.sqrt(v[0]*v[0]+v[1]*v[1]+v[2]*v[2]);if(l<1e-8)wrong('addJoint','axis must be nonzero');for(let k=0;k<3;k++)v[k]/=l;}
+      const low=inRange('addJoint','min',o.min,0,0,100),high=inRange('addJoint','max',o.max,2,low,100),limit=inRange('addJoint','limit',o.limit,95*Math.PI/180,0,Math.PI),br=inRange('addJoint','breakImpulse',o.breakImpulse,1e12,0,1e12);
+      let j=1;while(j<jtop&&JT[j])j++;if(j>=NJ)return -1;if(j===jtop)jtop++;const d=j*26;JD.fill(0,d,d+26);JT[j]=type;JA[j]=a;JB[j]=b;JD.set(aa,d);JD.set(bb,d+3);JD.set(ax,d+6);JD.set(bx,d+9);
+      // Orthogonal reference in A, expressed in B at creation: a zero-angle reference.
+      let x=0,y=0,z=0;if(Math.abs(ax[0])<.7){y=-ax[2];z=ax[1];}else{x=-ax[1];y=ax[0];}const l=Math.sqrt(x*x+y*y+z*z);JD[d+12]=x/l;JD[d+13]=y/l;JD[d+14]=z/l;jointWorld(a,d,12);
+      const r=b*9;for(let k=0;k<3;k++)JD[d+15+k]=R[r+k]*JX[12]+R[r+3+k]*JX[13]+R[r+6+k]*JX[14];
+      JD[d+18]=low;JD[d+19]=high;JD[d+20]=jointCos(limit);JD[d+21]=br;for(let k=0;k<26;k++)JD[d+k]+=0;joints.count++;stats.joints=joints.count;if(a)rouse(a);if(b)rouse(b);return JG[j]*4096+j;
+    }
+    function wakeJoints(){for(let pass=0;pass<6;pass++)for(let j=1;j<jtop;j++)if(JT[j]){const a=JA[j],b=JB[j];if((a&&!(FL[a]&(ASLEEP|PENDING))||b&&!(FL[b]&(ASLEEP|PENDING)))&&((FL[a]|FL[b])&ASLEEP)){if(a&&(FL[a]&ASLEEP))wake(a);if(b&&(FL[b]&ASLEEP))wake(b);}}}
+    function jointAnchors(j){const d=j*26,a=JA[j],b=JB[j];jointWorld(a,d,0);jointWorld(b,d,3);for(let k=0;k<3;k++)JX[18+k]=P[b*3+k]+JX[3+k]-P[a*3+k]-JX[k];}
+    // JX[21..23]: row axis, JX[20]: error. Rows apply equal opposite impulses.
+    function jointRow(j,angular,limit=0){
+      const a=JA[j],b=JB[j],av=a*6,bv=b*6,ima=IM[a],imb=IM[b],nx=JX[21],ny=JX[22],nz=JX[23],rax=JX[0],ray=JX[1],raz=JX[2],rbx=JX[3],rby=JX[4],rbz=JX[5];
+      const ux=angular?nx:ray*nz-raz*ny,uy=angular?ny:raz*nx-rax*nz,uz=angular?nz:rax*ny-ray*nx,wx=angular?nx:rby*nz-rbz*ny,wy=angular?ny:rbz*nx-rbx*nz,wz=angular?nz:rbx*ny-rby*nx;
+      const ax=IW[av]*ux+IW[av+1]*uy+IW[av+2]*uz,ay=IW[av+1]*ux+IW[av+3]*uy+IW[av+4]*uz,az=IW[av+2]*ux+IW[av+4]*uy+IW[av+5]*uz,bx=IW[bv]*wx+IW[bv+1]*wy+IW[bv+2]*wz,by=IW[bv+1]*wx+IW[bv+3]*wy+IW[bv+4]*wz,bz=IW[bv+2]*wx+IW[bv+4]*wy+IW[bv+5]*wz;
+      const mass=(angular?0:ima+imb)+ux*ax+uy*ay+uz*az+wx*bx+wy*by+wz*bz;if(mass<1e-12)return;
+      const rel=(angular?0:(V[bv]-V[av])*nx+(V[bv+1]-V[av+1])*ny+(V[bv+2]-V[av+2])*nz)+V[bv+3]*wx+V[bv+4]*wy+V[bv+5]*wz-V[av+3]*ux-V[av+4]*uy-V[av+5]*uz;
+      let impulse=-(rel+Math.max(-3,Math.min(3,JX[20]*24)))/mass;const d=j*26;if(limit>0)impulse=Math.min(0,impulse);else if(limit<0)impulse=Math.max(0,impulse);JD[d+22]+=Math.abs(impulse);
+      if(JD[d+22]>JD[d+21]){if(joints.brokenCount<joints.broken.length)joints.broken[joints.brokenCount++]=JG[j]*4096+j;removeJoint(JG[j]*4096+j);stats.broken++;return;}
+      if(!angular){V[av]-=nx*impulse*ima;V[av+1]-=ny*impulse*ima;V[av+2]-=nz*impulse*ima;V[bv]+=nx*impulse*imb;V[bv+1]+=ny*impulse*imb;V[bv+2]+=nz*impulse*imb;}
+      V[av+3]-=ax*impulse;V[av+4]-=ay*impulse;V[av+5]-=az*impulse;V[bv+3]+=bx*impulse;V[bv+4]+=by*impulse;V[bv+5]+=bz*impulse;
+    }
+    function solveJoints(){
+      for(let j=1;j<jtop;j++)if(JT[j]){
+        const a=JA[j],b=JB[j],d=j*26;if(!(ACT[a]||ACT[b])||(FL[a]|FL[b])&PENDING)continue;jointAnchors(j);
+        const dx=JX[18],dy=JX[19],dz=JX[20];
+        if(JT[j]===3){const length=Math.sqrt(dx*dx+dy*dy+dz*dz),target=length>=JD[d+19]-1e-7?JD[d+19]:length<=JD[d+18]+1e-7?JD[d+18]:-1;if(length<1e-10||target<0)continue;JX[21]=dx/length;JX[22]=dy/length;JX[23]=dz/length;JX[20]=length-target;jointRow(j,false,target===JD[d+19]?1:-1);continue;}
+        for(let k=0;k<3&&JT[j];k++){JX[21]=k===0?1:0;JX[22]=k===1?1:0;JX[23]=k===2?1:0;JX[20]=k===0?dx:k===1?dy:dz;jointRow(j,false);}
+        if(JT[j]!==2&&JT[j]!==4)continue;jointWorld(a,d,6);jointWorld(b,d,9);jointWorld(a,d,12);jointWorld(b,d,15);
+        const ax=JX[6],ay=JX[7],az=JX[8],bx=JX[9],by=JX[10],bz=JX[11],ex=by*az-bz*ay,ey=bz*ax-bx*az,ez=bx*ay-by*ax;
+        // Axis alignment is constrained perpendicular to the hinge; weld adds twist.
+        for(let k=0;k<2&&JT[j];k++){const nx=k===0?JX[12]:ay*JX[14]-az*JX[13],ny=k===0?JX[13]:az*JX[12]-ax*JX[14],nz=k===0?JX[14]:ax*JX[13]-ay*JX[12];JX[21]=nx;JX[22]=ny;JX[23]=nz;JX[20]=-(ex*nx+ey*ny+ez*nz);jointRow(j,true);}
+        const dot=JX[12]*JX[15]+JX[13]*JX[16]+JX[14]*JX[17],sin=ax*(JX[13]*JX[17]-JX[14]*JX[16])+ay*(JX[14]*JX[15]-JX[12]*JX[17])+az*(JX[12]*JX[16]-JX[13]*JX[15]);
+        if(JT[j]===4||JT[j]===2&&dot<JD[d+20]){JX[21]=ax;JX[22]=ay;JX[23]=az;JX[20]=JT[j]===4?sin:(sin<0?-1:1)*(JD[d+20]-dot);jointRow(j,true);}
+      }
+    }
+    function projectJoints(){
+      // Projection removes accumulated stretch without injecting velocity or energy.
+      for(let it=0;it<6;it++)for(let j=1;j<jtop;j++)if(JT[j]){const a=JA[j],b=JB[j],d=j*26,m=IM[a]+IM[b];if(!(ACT[a]||ACT[b])||(FL[a]|FL[b])&PENDING||m<=0)continue;jointAnchors(j);let dx=JX[18],dy=JX[19],dz=JX[20];if(JT[j]===3){const len=Math.sqrt(dx*dx+dy*dy+dz*dz),target=Math.max(JD[d+18],Math.min(JD[d+19],len));if(len<1e-10||target===len)continue;const f=(len-target)/len;dx*=f;dy*=f;dz*=f;}const cap=Math.max(1,Math.sqrt(dx*dx+dy*dy+dz*dz)/.1),f=1/(m*cap);P[a*3]+=dx*IM[a]*f;P[a*3+1]+=dy*IM[a]*f;P[a*3+2]+=dz*IM[a]*f;P[b*3]-=dx*IM[b]*f;P[b*3+1]-=dy*IM[b]*f;P[b*3+2]-=dz*IM[b]*f;}
+    }
+    // ---- Body grids, one linked list per cell: 0 = active bodies with FB, rebuilt each sub-step; 1 = resting bodies
+    const GH=[new Int32Array(CELLS).fill(-1),new Int32Array(CELLS).fill(-1)],GU=[new Int32Array(CELLS),new Int32Array(CELLS)],GN=[null,null],GI=[null,null];
+    let GE=0,need=0,restDirty=true,nc=0,nm=0,pn=0,tu=0,top=1,nwake=0,birthLeft=0;
+    function entries(n){GE=n;for(let g=0;g<2;g++){GN[g]=new Int32Array(n);GI[g]=new Int32Array(n);}restDirty=true;}
+    entries(64);
+    const stats={bodies:0,awake:0,sleeping:0,pending:0,kinematic:0,lost:0,statics:0,joints:0,contacts:0,manifolds:0,tests:0,
+      substeps:0,events:0,refused:0,dropContacts:0,forcedSleep:0,fallbackSleep:0,wakes:0,droppedSteps:0,broken:0};
+    const PH=new Float64Array(4);
+    const EV=C.maxEvents,events={count:0,a:new Int32Array(EV),b:new Int32Array(EV),point:new Float64Array(EV*3),normal:new Float64Array(EV*3),energy:new Float64Array(EV),impulse:new Float64Array(EV),materialA:new Int32Array(EV),materialB:new Int32Array(EV)};
+    function contactEvents(){
+      for(let c=0;c<nc;c++){
+        const speed=-cV0[c];if(speed<C.eventSpeed||cMax[c]<=0||cSR[c]>cSl[c]*2+1e-6)continue;
+        const a=cA[c],b=cB[c],mass=IM[a]+IM[b];if(mass<=0)continue;const energy=.5*speed*speed/mass,ha=GEN[a]*4096+a,hb=b?GEN[b]*4096+b:0;
+        let at=-1,low=-1;for(let j=0;j<events.count;j++){if(events.a[j]===ha&&events.b[j]===hb){at=j;break;}if(low<0||events.energy[j]<events.energy[low])low=j;}
+        if(at>=0&&events.energy[at]>=energy)continue;
+        if(at<0){if(events.count<EV)at=events.count++;else if(low>=0&&energy>events.energy[low])at=low;else continue;}
+        events.a[at]=ha;events.b[at]=hb;events.energy[at]=energy;events.impulse[at]=cMax[c];events.materialA[at]=MAT[a];events.materialB[at]=b?MAT[b]:sM[cK[c]%KM-NB];
+        for(let k=0;k<3;k++){events.point[at*3+k]=P[a*3+k]+cRA[c*3+k];events.normal[at*3+k]=cN[c*3+k];}
+      }
+    }
+
+    // ---- Canonical derived values. Sizes: a box has H = max(size/2, minHalf) and HR = size/2; a sphere H = (rc, rc, rc)
+    function inertia(i){
+      const p=i*3,im=IM[i],hx=H[p],hy=H[p+1],hz=H[p+2];
+      if(SH[i]===0){IL[p]=3*im/(hy*hy+hz*hz);IL[p+1]=3*im/(hx*hx+hz*hz);IL[p+2]=3*im/(hx*hx+hy*hy);}
+      else if(SH[i]===1)IL[p]=IL[p+1]=IL[p+2]=2.5*im/(hx*hx);
+      else{const L=2*hy;IL[p]=IL[p+2]=12*im/(3*hx*hx+L*L);IL[p+1]=2*im/(hx*hx);}
+    }
+    function tolerance(i){const p=i*3;SL[i]=Math.min(C.slop,C.slopRatio*(SH[i]?H[p]:Math.min(H[p],H[p+1],H[p+2])));}
+    function derive(i){
+      const q=i*4,x=Q[q],y=Q[q+1],z=Q[q+2],w=Q[q+3],xx=x*x,yy=y*y,zz=z*z,xy=x*y,xz=x*z,yz=y*z,wx=w*x,wy=w*y,wz=w*z,r=i*9;
+      const r0=1-2*(yy+zz),r1=2*(xy-wz),r2=2*(xz+wy),r3=2*(xy+wz),r4=1-2*(xx+zz),r5=2*(yz-wx),r6=2*(xz-wy),r7=2*(yz+wx),r8=1-2*(xx+yy);
+      R[r]=r0;R[r+1]=r1;R[r+2]=r2;R[r+3]=r3;R[r+4]=r4;R[r+5]=r5;R[r+6]=r6;R[r+7]=r7;R[r+8]=r8;
+      const h=i*3,hx=H[h],hy=H[h+1],hz=H[h+2],b=i*6;
+      let ex,ey,ez;
+      if(SH[i]===0){ex=Math.abs(r0)*hx+Math.abs(r1)*hy+Math.abs(r2)*hz;ey=Math.abs(r3)*hx+Math.abs(r4)*hy+Math.abs(r5)*hz;ez=Math.abs(r6)*hx+Math.abs(r7)*hy+Math.abs(r8)*hz;}
+      else{const s=HR[h+1]-HR[h];ex=Math.abs(r1)*s+hx;ey=Math.abs(r4)*s+hx;ez=Math.abs(r7)*s+hx;}
+      BB[b]=P[h]-ex;BB[b+1]=P[h+1]-ey;BB[b+2]=P[h+2]-ez;BB[b+3]=P[h]+ex;BB[b+4]=P[h+1]+ey;BB[b+5]=P[h+2]+ez;
+      const ix=IL[h],iy=IL[h+1],iz=IL[h+2];
+      IW[b]=r0*r0*ix+r1*r1*iy+r2*r2*iz;IW[b+1]=r0*r3*ix+r1*r4*iy+r2*r5*iz;IW[b+2]=r0*r6*ix+r1*r7*iy+r2*r8*iz;
+      IW[b+3]=r3*r3*ix+r4*r4*iy+r5*r5*iz;IW[b+4]=r3*r6*ix+r4*r7*iy+r5*r8*iz;IW[b+5]=r6*r6*ix+r7*r7*iy+r8*r8*iz;
+    }
+    function cellsOf(i){
+      const p=i*3,e=Math.sqrt(H[p]*H[p]+H[p+1]*H[p+1]+H[p+2]*H[p+2]),n=Math.floor(2*(e+C.maxLinear*C.tick+C.margin)/cell)+3;
+      return Math.min(GW,n)*Math.min(GD,n);
+    }
+
+    // ---- Grids.
+    const cx=(A,k)=>{const c=Math.floor((A[k]-minX)/cell);return c<0?0:c>=GW?GW-1:c;};
+    const cz=(A,k)=>{const c=Math.floor((A[k]-minZ)/cell);return c<0?0:c>=GD?GD-1:c;};
+    function cellRange(A,b){ISCR[0]=cx(A,b);ISCR[1]=cx(A,b+3);ISCR[2]=cz(A,b+2);ISCR[3]=cz(A,b+5);}
+    function gridClear(g){const head=GH[g],used=GU[g];for(let k=ISCR[4+g]-1;k>=0;k--)head[used[k]]=-1;ISCR[4+g]=0;ISCR[6+g]=0;}
+    function gridAdd(g,i){
+      const head=GH[g],used=GU[g],next=GN[g],item=GI[g];cellRange(FB,i*6);
+      const x0=ISCR[0],x1=ISCR[1],z0=ISCR[2],z1=ISCR[3];let u=ISCR[4+g],e=ISCR[6+g];
+      for(let z=z0;z<=z1;z++)for(let x=x0;x<=x1;x++){const c=z*GW+x;if(head[c]<0)used[u++]=c;next[e]=head[c];item[e]=i;head[c]=e++;}
+      ISCR[4+g]=u;ISCR[6+g]=e;
+    }
+
+    // ---- Impulse cache table.
+    function lookup(key){let h=(Math.imul(key,0x9E3779B1)>>>0)&(TS-1);for(;;){const e=TB[h];if(e===0)return -1;if(pK[e-1]===key)return h;h=(h+1)&(TS-1);}}
+    function tableBuild(){
+      for(let k=0;k<tu;k++){TB[TU[k]]=0;TC[TU[k]]=0;}tu=0;
+      for(let c=0;c<pn;){const key=pK[c];let e=c+1;while(e<pn&&pK[e]===key)e++;let h=(Math.imul(key,0x9E3779B1)>>>0)&(TS-1);while(TB[h]!==0)h=(h+1)&(TS-1);TB[h]=c+1;TC[h]=e-c;TU[tu++]=h;c=e;}
+    }
+
+    // ---- Static decor. Outside the step, may allocate. Boxes {minX, maxX, minY, maxY, minZ, maxZ} and floors {x, z, w, d,
+    function setStatics(boxes,floors,changedBounds){
+      const where='setStatics';
+      if(boxes===undefined||boxes===null)boxes=[];
+      if(floors===undefined||floors===null)floors=[];
+      if(!Array.isArray(boxes))wrong(where,'boxes must be an array');
+      if(!Array.isArray(floors))wrong(where,'floors must be an array');
+      let n=(C.ground===null?0:1)+boxes.length+floors.length,merged=0;
+      if(n>MS)wrong(where,n+' statics exceed maxStatics ('+MS+')');
+      let nP=new Float64Array(n*3),nH=new Float64Array(n*3),nR=new Float64Array(n*9),nA=new Float64Array(n*6),nF=new Float64Array(n),nE=new Float64Array(n),nO=new Uint8Array(n),nM=new Int32Array(n);
+      const put=(s,x0,y0,z0,x1,y1,z1,f,e,m)=>{
+        const p=s*3,b=s*6;nP[p]=(x0+x1)/2;nP[p+1]=(y0+y1)/2;nP[p+2]=(z0+z1)/2;nH[p]=(x1-x0)/2;nH[p+1]=(y1-y0)/2;nH[p+2]=(z1-z0)/2;
+        nR[s*9]=nR[s*9+4]=nR[s*9+8]=1;for(let k=0;k<3;k++){nA[b+k]=nP[p+k]-nH[p+k];nA[b+3+k]=nP[p+k]+nH[p+k];}nF[s]=f;nE[s]=e;nM[s]=m;
+      };
+      const obb=(s,c,hs,r,f,e,m)=>{
+        const p=s*3,b=s*6;nO[s]=1;nF[s]=f;nE[s]=e;nM[s]=m;
+        for(let k=0;k<9;k++)nR[s*9+k]=r[k]+0;
+        for(let k=0;k<3;k++){nP[p+k]=c[k]+0;nH[p+k]=hs[k];const x=Math.abs(r[3*k])*hs[0]+Math.abs(r[3*k+1])*hs[1]+Math.abs(r[3*k+2])*hs[2];nA[b+k]=c[k]-x;nA[b+3+k]=c[k]+x;}
+      };
+      const surface=(o,name)=>{const m=materialOf(where,o.material);return [inRange(where,name+'.friction',o.friction,m<0?.7:MATERIALS[m].friction,0,2),
+        inRange(where,name+'.restitution',o.restitution,m<0?.05:MATERIALS[m].restitution,0,1),m];};
+      let s=0;
+      if(C.ground!==null)put(s++,minX,C.ground-C.floorThickness,minZ,maxX,C.ground,maxZ,.8,.05,-1);
+      for(let k=0;k<boxes.length;k++){
+        const b=boxes[k],name='boxes['+k+']';
+        if(!b||typeof b!=='object')wrong(where,name+' must be an object');
+        // RADE: retain urban box orientation instead of filling its enclosing AABB.
+        if(b.center||b.half||b.rotation){
+          if(!Array.isArray(b.center)||b.center.length!==3||!b.center.every(finite)||!Array.isArray(b.half)||b.half.length!==3||!b.half.every(v=>finite(v)&&v>0)||!Array.isArray(b.rotation)||b.rotation.length!==9||!b.rotation.every(finite))wrong(where,name+' invalid oriented box');
+          const r=b.rotation;for(let i=0;i<3;i++)for(let j=i;j<3;j++){let dot=0;for(let k=0;k<3;k++)dot+=r[k*3+i]*r[k*3+j];if(Math.abs(dot-(i===j?1:0))>1e-5)wrong(where,name+' rotation must be orthonormal');}
+          obb(s++,b.center,b.half,r,...surface(b,name));continue;
+        }
+        for(const a of ['X','Y','Z']){
+          if(!finite(b['min'+a])||!finite(b['max'+a]))wrong(where,name+'.min'+a+' and max'+a+' must be finite numbers');
+          if(!(b['min'+a]<=b['max'+a]))wrong(where,name+' needs min'+a+' <= max'+a);
+        }
+        put(s++,b.minX+0,b.minY+0,b.minZ+0,b.maxX+0,b.maxY+0,b.maxZ+0,...surface(b,name));
+      }
+      const slopes=[],T=C.floorThickness;
+      for(let k=0;k<floors.length;k++){
+        const f=floors[k],name='floors['+k+']',opt=v=>v===undefined?0:v;
+        if(!f||typeof f!=='object')wrong(where,name+' must be an object');
+        const v=[f.x,f.z,f.w,f.d,opt(f.y),opt(f.slopeX),opt(f.slopeZ)];
+        if(!v.every(finite))wrong(where,name+': x, z, w, d, y, slopeX and slopeZ must be finite numbers');
+        if(!(v[2]>0&&v[3]>0))wrong(where,name+' needs w > 0 and d > 0');
+        if(v[5]!==0&&v[6]!==0)wrong(where,name+' slopes on two axes (one at most)');
+        const [x,z,fw,fd,y]=v.map(u=>u+0),sf=surface(f,name);
+        if(v[5]===0&&v[6]===0)put(s++,x-fw/2,y-T,z-fd/2,x+fw/2,y,z+fd/2,...sf);else slopes.push([x,z,fw,fd,y,v[5]+0,v[6]+0,sf]);
+      }
+      for(const [x,z,fw,fd,y,a,c,sf] of slopes){
+        const t=a||c,L=Math.sqrt(1+t*t),u=1/L,g=T/2*u;
+        if(a)obb(s++,[x+a*g,y-g,z],[fw/2*L,T/2,fd/2],[u,-a*u,0,a*u,u,0,0,0,1],...sf);
+        else obb(s++,[x,y-g,z+c*g],[fw/2,T/2,fd/2*L],[1,0,0,0,u,c*u,0,-c*u,u],...sf);
+      }
+      if(geometry){const a={P:nP,H:nH,R:nR,A:nA,F:nF,E:nE,O:nO,M:nM},count=G.FPhysicsGeometry.merge(a,n);merged=n-count;n=count;nP=nP.subarray(0,n*3);nH=nH.subarray(0,n*3);nR=nR.subarray(0,n*9);nA=nA.subarray(0,n*6);nF=nF.subarray(0,n);nE=nE.subarray(0,n);nO=nO.subarray(0,n);nM=nM.subarray(0,n);}
+      const same=(a,b)=>{for(let k=0;k<a.length;k++)if(!Object.is(a[k],b[k]))return false;return true;};
+      if(decor&&n===NS&&same(nP,sP)&&same(nH,sH)&&same(nR,sR)&&same(nO,sO)&&same(nF,sF)&&same(nE,sE)&&same(nM,sM))return {statics:NS,merged:0,masked:0,woken:0};
+      decor=true;NS=n;sP=nP;sH=nH;sR=nR;sA=nA;sF=nF;sE=nE;sO=nO;sM=nM;sT=new Int32Array(n);stamp=0;
+      sStart.fill(0);
+      for(let t=0;t<n;t++){cellRange(sA,t*6);for(let z=ISCR[2];z<=ISCR[3];z++)for(let x=ISCR[0];x<=ISCR[1];x++)sStart[z*GW+x+1]++;}
+      for(let c=0;c<CELLS;c++)sStart[c+1]+=sStart[c];
+      sItems=new Int32Array(sStart[CELLS]);
+      const at=sStart.slice(0,CELLS);
+      for(let t=0;t<n;t++){cellRange(sA,t*6);for(let z=ISCR[2];z<=ISCR[3];z++)for(let x=ISCR[0];x<=ISCR[1];x++)sItems[at[z*GW+x]++]=t;}
+      let kept=0;
+      for(let c=0;c<pn;c++){if(pK[c]-Math.floor(pK[c]/KM)*KM>=NB)continue;pK[kept]=pK[c];pI[kept]=pI[c];pJn[kept]=pJn[c];pJ1[kept]=pJ1[c];pJ2[kept]=pJ2[c];kept++;}
+      pn=kept;tableBuild();
+      let woken=0;
+      const local=changedBounds&&['minX','maxX','minY','maxY','minZ','maxZ'].every(k=>finite(changedBounds[k]))?changedBounds:null;
+      for(let i=1;i<top;i++)if((FL[i]&(ALIVE|ASLEEP|PENDING))===(ALIVE|ASLEEP)){
+        const b=i*6;if(local&&(BB[b]>local.maxX+.12||BB[b+3]<local.minX-.12||BB[b+1]>local.maxY+.12||BB[b+4]<local.minY-.12||BB[b+2]>local.maxZ+.12||BB[b+5]<local.minZ-.12))continue;wake(i);woken++;
+      }
+      let h=fnv(2166136261,n);
+      const words=a=>{const u=new Uint32Array(a.buffer,a.byteOffset,a.byteLength/4);for(let k=0;k<u.length;k++)h=fnv(h,u[k]);};
+      words(sP);words(sH);words(sR);for(let k=0;k<n;k++)h=fnv(h,sO[k]);words(sF);words(sE);for(let k=0;k<n;k++)h=fnv(h,sM[k]>>>0);
+      w.staticsHash=(h>>>0).toString(16).padStart(8,'0');stats.statics=n;geometryApi?.setStatics({count:n,P:sP,H:sH,R:sR,A:sA,O:sO});
+      return {statics:n,merged,masked:geometry?stats.internalFaces:0,woken};
+    }
+
+    // ---- Bodies (outside the step; may allocate): boxes, spheres and capsules, dynamic (awake, asleep or pending) or
+    function addBody(d){
+      const where='addBody';
+      if(!d||typeof d!=='object')wrong(where,'description object required');
+      const shape=d.shape===undefined?'box':d.shape,sh=SHAPES.indexOf(shape);
+      if(sh<0)wrong(where,'shape must be box, sphere or capsule');
+      let size=null,hr,vol=0;
+      if(sh===0){
+        size=vec(where,'size',d.size,3);
+        if(!(size[0]>0&&size[1]>0&&size[2]>0))wrong(where,'size must be > 0 on each axis');
+        hr=[size[0]/2,size[1]/2,size[2]/2];
+      }else{
+        const r=d.radius,ht=sh===2?d.height:2*r;
+        if(!finite(r)||!(r>0))wrong(where,'radius must be a number > 0');
+        if(!finite(ht)||!(ht>=2*r))wrong(where,'height must be a number >= 2 radius');
+        hr=[r+0,ht/2,r+0];vol=Math.PI*r*r*(ht-2*r)+4/3*Math.PI*r*r*r;
+      }
+      const pos=vec(where,'pos',d.pos,3);
+      if(d.quat!==undefined&&d.rot!==undefined)wrong(where,'give quat or rot, not both');
+      const q=d.rot!==undefined?(r=>eulerToQuat(r[0],r[1],r[2]))(vec(where,'rot',d.rot,3)):d.quat!==undefined?vec(where,'quat',d.quat,4):[0,0,0,1];
+      const ql=Math.sqrt(q[0]*q[0]+q[1]*q[1]+q[2]*q[2]+q[3]*q[3]);
+      if(!(ql>=1e-9))wrong(where,'quat must not be null');
+      const vel=d.vel===undefined?[0,0,0]:vec(where,'vel',d.vel,3),ang=d.ang===undefined?[0,0,0]:vec(where,'ang',d.ang,3);
+      const mat=materialOf(where,d.material);
+      if(d.kinematic!==undefined&&typeof d.kinematic!=='boolean')wrong(where,'kinematic must be a boolean');
+      const kin=d.kinematic===true;
+      let mass=d.mass;
+      if(mass===undefined){if(mat>=0){const D=MATERIALS[mat].density;mass=sh?D*vol:D*size[0]*size[1]*size[2];}else if(kin)mass=0;else wrong(where,'mass or material required');}
+      else if(!finite(mass)||!(mass>0))wrong(where,'mass must be a number > 0');
+      const fr=inRange(where,'friction',d.friction,mat<0?.6:MATERIALS[mat].friction,0,2),re=inRange(where,'restitution',d.restitution,mat<0?.1:MATERIALS[mat].restitution,0,1);
+      const bits=(name,v,def)=>{if(v===undefined)return def;if(!Number.isInteger(v)||v<0||v>65535)wrong(where,name+' must be an integer from 0 to 65535');return v;};
+      const grp=bits('group',d.group,2),msk=bits('mask',d.mask,65535);
+      if(d.asleep!==undefined&&typeof d.asleep!=='boolean')wrong(where,'asleep must be a boolean');
+      let i=1;while(i<NB&&(FL[i]&ALIVE))i++;
+      if(i>=NB){stats.refused++;return -1;}
+      const p=i*3,v=i*6,qi=i*4,rc=Math.max(hr[0],C.minHalf);
+      SH[i]=sh;GRP[i]=grp;MSK[i]=msk;MAT[i]=mat;MO[i]=mass+0;IM[i]=kin?0:1/Math.min(Math.max(mass,C.massMin),C.massMax);FR[i]=fr;RE[i]=re;
+      for(let k=0;k<3;k++){P[p+k]=pos[k];RP[p+k]=pos[k];HR[p+k]=hr[k];H[p+k]=sh?k===1?hr[1]-hr[0]+rc:rc:Math.max(hr[k],C.minHalf);}
+      for(let k=0;k<4;k++){Q[qi+k]=q[k]/ql+0;PQ[qi+k]=Q[qi+k];}
+      PP[p]=P[p];PP[p+1]=P[p+1];PP[p+2]=P[p+2];
+      const l=Math.sqrt(vel[0]*vel[0]+vel[1]*vel[1]+vel[2]*vel[2]),a=Math.sqrt(ang[0]*ang[0]+ang[1]*ang[1]+ang[2]*ang[2]);
+      const kl=kin?0:l>C.maxLinear?C.maxLinear/l:1,ka=kin?0:a>C.maxAngular?C.maxAngular/a:1;
+      for(let k=0;k<3;k++){V[v+k]=vel[k]*kl+0;V[v+3+k]=ang[k]*ka+0;}
+      ST[i]=0;AT[i]=0;FN[i]=0;KN[i]=0;for(let k=0;k<7;k++)KT[i*7+k]=0;
+      inertia(i);tolerance(i);derive(i);
+      need+=cellsOf(i);if(need>GE)entries(Math.max(need,2*GE));
+      if(kin){FL[i]=ALIVE|KINEMATIC;stats.kinematic++;restDirty=true;}
+      else if(d.asleep){FL[i]=ALIVE|ASLEEP;stats.sleeping++;restDirty=true;}else{FL[i]=ALIVE|PENDING;stats.pending++;}
+      stats.bodies++;if(i+1>top)top=i+1;
+      return GEN[i]*4096+i;
+    }
+    function slot(h){
+      if(typeof h!=='number'||!(h>=1&&h<=I32)||h!==Math.floor(h))return 0;
+      const i=h&4095;
+      return i<NB&&(FL[i]&ALIVE)&&GEN[i]===(h-i)/4096?i:0;
+    }
+    const valid=h=>slot(h)>0;
+    const isAsleep=h=>{const i=slot(h);return i>0&&(FL[i]&ASLEEP)!==0;};
+    const isLost=h=>{const i=slot(h);return i>0&&(FL[i]&LOST)!==0;};
+    function removeBody(h){
+      const i=slot(h);if(!i)return false;
+      if(FL[i]&ASLEEP)stats.sleeping--;if(FL[i]&PENDING)stats.pending--;if(FL[i]&KINEMATIC)stats.kinematic--;
+      for(let j=1;j<jtop;j++)if(JT[j]&&(JA[j]===i||JB[j]===i))removeJoint(JG[j]*4096+j);
+      need-=cellsOf(i);FL[i]=0;GEN[i]=(GEN[i]+1)%GENS;stats.bodies--;restDirty=true;
+      let n=0;for(let k=0;k<pn;k++){const a=Math.floor(pK[k]/KM),b=pK[k]-a*KM;if(a===i||b===i)continue;pK[n]=pK[k];pI[n]=pI[k];pJn[n]=pJn[k];pJ1[n]=pJ1[k];pJ2[n++]=pJ2[k];}pn=n;tableBuild();return true;
+    }
+    function teleport(h,x,y,z){
+      const i=slot(h);if(!i||!finite(x)||!finite(y)||!finite(z))return false;
+      const p=i*3,q=i*4,v=i*6;P[p]=PP[p]=RP[p]=x;P[p+1]=PP[p+1]=RP[p+1]=y;P[p+2]=PP[p+2]=RP[p+2]=z;for(let k=0;k<4;k++)PQ[q+k]=Q[q+k];V.fill(0,v,v+6);KN[i]=0;ST[i]=AT[i]=FN[i]=0;derive(i);restDirty=true;
+      let n=0;for(let k=0;k<pn;k++){const a=Math.floor(pK[k]/KM),b=pK[k]-a*KM;if(a===i||b===i)continue;pK[n]=pK[k];pI[n]=pI[k];pJn[n]=pJn[k];pJ1[n]=pJ1[k];pJ2[n++]=pJ2[k];}pn=n;tableBuild();return true;
+    }
+    function queryBox(box,out,mask=65535){
+      let n=0;for(let i=1;i<top;i++){if(!(FL[i]&ALIVE)||!(GRP[i]&mask)||FL[i]&LOST)continue;const b=i*6;
+        if(BB[b]>box.maxX||BB[b+3]<box.minX||BB[b+1]>box.maxY||BB[b+4]<box.minY||BB[b+2]>box.maxZ||BB[b+5]<box.minZ)continue;
+        if(n<out.length)out[n++]=GEN[i]*4096+i;
+      }return n;
+    }
+    function wakeBox(box){let n=0;for(let i=1;i<top;i++){if((FL[i]&(ALIVE|ASLEEP))!==(ALIVE|ASLEEP))continue;const b=i*6;if(BB[b]>box.maxX||BB[b+3]<box.minX||BB[b+1]>box.maxY||BB[b+4]<box.minY||BB[b+2]>box.maxZ||BB[b+5]<box.minZ)continue;wake(i);n++;}return n;}
+    function ray(origin,direction,limit=Infinity,out={},mask=65535){
+      const ox=origin[0],oy=origin[1],oz=origin[2],length=Math.sqrt(direction[0]*direction[0]+direction[1]*direction[1]+direction[2]*direction[2]);
+      if(!(length>0)||!(limit>=0)){out.handle=0;out.distance=limit;return out;}
+      const dx=direction[0]/length,dy=direction[1]/length,dz=direction[2]/length;let hit=0,near=limit,nx=0,ny=0,nz=0;
+      for(let i=1;i<top;i++){
+        if(!(FL[i]&ALIVE)||FL[i]&LOST||!(GRP[i]&mask))continue;
+        const p=i*3,r=i*9,x=ox-P[p],y=oy-P[p+1],z=oz-P[p+2];
+        const lx=x*R[r]+y*R[r+3]+z*R[r+6],ly=x*R[r+1]+y*R[r+4]+z*R[r+7],lz=x*R[r+2]+y*R[r+5]+z*R[r+8];
+        const vx=dx*R[r]+dy*R[r+3]+dz*R[r+6],vy=dx*R[r+1]+dy*R[r+4]+dz*R[r+7],vz=dx*R[r+2]+dy*R[r+5]+dz*R[r+8];
+        let t=Infinity,ax=0,ay=0,az=0;
+        if(SH[i]===0){
+          let lo=0,hi=near,axis=-1,sign=0,ok=true;
+          for(let k=0;k<3;k++){const o=k===0?lx:k===1?ly:lz,d=k===0?vx:k===1?vy:vz,h=H[p+k];if(Math.abs(d)<1e-12){if(o<-h||o>h){ok=false;break;}continue;}let a=(-h-o)/d,b=(h-o)/d,sg=-1;if(a>b){const q=a;a=b;b=q;sg=1;}if(a>lo){lo=a;axis=k;sign=sg;}if(b<hi)hi=b;if(lo>hi){ok=false;break;}}
+          if(ok){t=lo;if(axis===0)ax=sign;else if(axis===1)ay=sign;else if(axis===2)az=sign;}
+        }else{
+          const radius=H[p],half=HR[p+1]-HR[p],a=vx*vx+vz*vz,b=lx*vx+lz*vz,c=lx*lx+lz*lz-radius*radius;
+          if(half>0&&Math.abs(ly)<=half&&c<=0)t=0;
+          else if(half>0&&a>1e-12){const h=b*b-a*c;if(h>=0){const q=(-b-Math.sqrt(h))/a,at=ly+q*vy;if(q>=0&&at>=-half&&at<=half){t=q;ax=(lx+vx*t)/radius;az=(lz+vz*t)/radius;}}}
+          for(let side=-1;side<=1;side+=2){const cy=ly-half*side,b=lx*vx+cy*vy+lz*vz,c=lx*lx+cy*cy+lz*lz-radius*radius,h=b*b-c;if(h<0)continue;const q=c<=0?0:-b-Math.sqrt(h);if(q>=0&&q<t){const at=ly+q*vy;if(half>0&&at*side<half)continue;t=q;ax=(lx+vx*t)/radius;ay=(cy+vy*t)/radius;az=(lz+vz*t)/radius;}}
+        }
+        if(t<near){near=t;hit=GEN[i]*4096+i;nx=R[r]*ax+R[r+1]*ay+R[r+2]*az;ny=R[r+3]*ax+R[r+4]*ay+R[r+5]*az;nz=R[r+6]*ax+R[r+7]*ay+R[r+8]*az;}
+      }
+      out.handle=hit;out.distance=near;out.x=hit?ox+dx*near:ox;out.y=hit?oy+dy*near:oy;out.z=hit?oz+dz*near:oz;out.nx=nx;out.ny=ny;out.nz=nz;return out;
+    }
+    function sample(h,out){const i=slot(h);if(!i)return false;const b=i*6,p=i*3;for(let k=0;k<6;k++){out[k]=BB[b+k];out[6+k]=V[b+k];}out[12]=P[p];out[13]=P[p+1];out[14]=P[p+2];out[15]=IM[i]>0?1/IM[i]:Infinity;out[16]=FL[i];out[17]=MAT[i];return true;}
+    // Plain description of a body (tests, debugging; allocates). size = collision size (bounding box of a round body in
+    // its frame), realSize = given size; radius and height as given (null for a box, height null for a sphere).
+    function body(h){return bodyInto(h);}
+    // Optional caller-owned snapshot storage. No internal typed-array view is
+    // exposed; repeated reads reuse only this output and its six plain vectors.
+    // Callers retaining a pose across another read must keep their own output.
+    function bodyInto(h,out){
+      const i=slot(h);if(!i)return null;
+      if(!out)out={};
+      const p=i*3,v=i*6,q=i*4,f=FL[i];
+      // Preserve body()'s property order as well as every numeric value: saved
+      // descriptions and deterministic JSON evidence remain byte-for-byte equal.
+      out.handle=h;out.shape=SHAPES[SH[i]];
+      const size=out.size||(out.size=[0,0,0]);size[0]=2*H[p];size[1]=2*H[p+1];size[2]=2*H[p+2];
+      out.radius=SH[i]?HR[p]:null;out.height=SH[i]===2?2*HR[p+1]:null;
+      const realSize=out.realSize||(out.realSize=[0,0,0]);realSize[0]=2*HR[p];realSize[1]=2*HR[p+1];realSize[2]=2*HR[p+2];
+      const pos=out.pos||(out.pos=[0,0,0]);pos[0]=P[p];pos[1]=P[p+1];pos[2]=P[p+2];
+      const quat=out.quat||(out.quat=[0,0,0,0]);quat[0]=Q[q];quat[1]=Q[q+1];quat[2]=Q[q+2];quat[3]=Q[q+3];
+      const vel=out.vel||(out.vel=[0,0,0]);vel[0]=V[v];vel[1]=V[v+1];vel[2]=V[v+2];
+      const ang=out.ang||(out.ang=[0,0,0]);ang[0]=V[v+3];ang[1]=V[v+4];ang[2]=V[v+5];
+      out.mass=f&KINEMATIC?Infinity:Math.min(Math.max(MO[i],C.massMin),C.massMax);out.originalMass=MO[i];out.material=MAT[i];
+      out.friction=FR[i];out.restitution=RE[i];out.group=GRP[i];out.mask=MSK[i];out.kinematic=(f&KINEMATIC)!==0;out.asleep=(f&ASLEEP)!==0;out.pending=(f&PENDING)!==0;
+      out.lost=(f&LOST)!==0;out.hard=(f&HARD)!==0;return out;
+    }
+    function pose(h,alpha,out){
+      const i=slot(h);if(!i)return null;
+      if(!out)out=new Array(7);
+      const a=alpha>0?(alpha<1?alpha:1):0,b=1-a,p=i*3,q=i*4;
+      let x=PP[p]*b+P[p]*a,y=PP[p+1]*b+P[p+1]*a,z=PP[p+2]*b+P[p+2]*a;
+      const t=PQ[q]*Q[q]+PQ[q+1]*Q[q+1]+PQ[q+2]*Q[q+2]+PQ[q+3]*Q[q+3]<0?-a:a;
+      let qx=PQ[q]*b+Q[q]*t,qy=PQ[q+1]*b+Q[q+1]*t,qz=PQ[q+2]*b+Q[q+2]*t,qw=PQ[q+3]*b+Q[q+3]*t;
+      const l=1/Math.sqrt(qx*qx+qy*qy+qz*qz+qw*qw);qx*=l;qy*=l;qz*=l;qw*=l;
+      y+=SL[i]/2;
+      if(SH[i]===0){
+        const c0x=1-2*(qy*qy+qz*qz),c0y=2*(qx*qy+qw*qz),c0z=2*(qx*qz-qw*qy),c1x=2*(qx*qy-qw*qz),c1y=1-2*(qx*qx+qz*qz),c1z=2*(qy*qz+qw*qx);
+        const c2x=2*(qx*qz+qw*qy),c2y=2*(qy*qz-qw*qx),c2z=1-2*(qx*qx+qy*qy),d0=(H[p]-HR[p])*c0y,d1=(H[p+1]-HR[p+1])*c1y,d2=(H[p+2]-HR[p+2])*c2y;
+        x-=c0x*d0+c1x*d1+c2x*d2;y-=c0y*d0+c1y*d1+c2y*d2;z-=c0z*d0+c1z*d1+c2z*d2;
+      }
+      out[0]=x;out[1]=y;out[2]=z;out[3]=qx;out[4]=qy;out[5]=qz;out[6]=qw;
+      return out;
+    }
+    function matrix(h,out){
+      const i=slot(h);if(!i)return null;
+      if(!out)out=new Array(9);
+      for(let k=0;k<9;k++)out[k]=R[i*9+k];
+      return out;
+    }
+    function wake(i){FL[i]&=~ASLEEP;ST[i]=0;AT[i]=0;FN[i]=0;const p=i*3;RP[p]=P[p];RP[p+1]=P[p+1];RP[p+2]=P[p+2];stats.wakes++;stats.sleeping--;restDirty=true;}
+
+    // ---- Actions (outside the step, no allocation). A pending body only has its kept velocity changed.
+    function cap(i){
+      const v=i*6,ml=SCR[15],ma=SCR[16],l2=V[v]*V[v]+V[v+1]*V[v+1]+V[v+2]*V[v+2],w2=V[v+3]*V[v+3]+V[v+4]*V[v+4]+V[v+5]*V[v+5];
+      if(l2>ml*ml){const k=ml/Math.sqrt(l2);V[v]*=k;V[v+1]*=k;V[v+2]*=k;}
+      if(w2>ma*ma){const k=ma/Math.sqrt(w2);V[v+3]*=k;V[v+4]*=k;V[v+5]*=k;}
+    }
+    function push(i){
+      const p=i*3,v=i*6,im=IM[i],jx=SCR[25],jy=SCR[26],jz=SCR[27],rx=SCR[22]-P[p],ry=SCR[23]-P[p+1],rz=SCR[24]-P[p+2];
+      const tx=ry*jz-rz*jy,ty=rz*jx-rx*jz,tz=rx*jy-ry*jx;
+      V[v]+=jx*im;V[v+1]+=jy*im;V[v+2]+=jz*im;
+      V[v+3]+=IW[v]*tx+IW[v+1]*ty+IW[v+2]*tz;V[v+4]+=IW[v+1]*tx+IW[v+3]*ty+IW[v+4]*tz;V[v+5]+=IW[v+2]*tx+IW[v+4]*ty+IW[v+5]*tz;
+      cap(i);
+    }
+    function rouse(i){if(FL[i]&ASLEEP)wake(i);else ST[i]=0;}
+    const finite6=(a,b,c,d,e,f)=>finite(a)&&finite(b)&&finite(c)&&finite(d)&&finite(e)&&finite(f);
+    function target(where,h,a,b,c,d,e,f){
+      if(!finite6(a,b,c,d,e,f))wrong(where,'the six numbers after the handle must be finite');
+      const i=slot(h);return i&&!(FL[i]&(KINEMATIC|LOST))?i:0;
+    }
+    function impulse(h,px,py,pz,jx,jy,jz){
+      const i=target('impulse',h,px,py,pz,jx,jy,jz);if(!i)return false;
+      SCR[22]=px;SCR[23]=py;SCR[24]=pz;SCR[25]=jx;SCR[26]=jy;SCR[27]=jz;push(i);rouse(i);return true;
+    }
+    function setVelocity(h,vx,vy,vz,wx,wy,wz){
+      const i=target('setVelocity',h,vx,vy,vz,wx,wy,wz);if(!i)return false;
+      const v=i*6;V[v]=vx+0;V[v+1]=vy+0;V[v+2]=vz+0;V[v+3]=wx+0;V[v+4]=wy+0;V[v+5]=wz+0;cap(i);rouse(i);return true;
+    }
+    function setKinematic(h,x,y,z,qx,qy,qz,qw){
+      if(!finite6(x,y,z,qx,qy,qz)||!finite(qw))wrong('setKinematic','the seven numbers after the handle must be finite');
+      const l=Math.sqrt(qx*qx+qy*qy+qz*qz+qw*qw);
+      if(!(l>=1e-9))wrong('setKinematic','quaternion must not be null');
+      const i=slot(h);if(!i||!(FL[i]&KINEMATIC))return false;
+      const k=i*7;KT[k]=x+0;KT[k+1]=y+0;KT[k+2]=z+0;KT[k+3]=qx/l+0;KT[k+4]=qy/l+0;KT[k+5]=qz/l+0;KT[k+6]=qw/l+0;KN[i]=1;
+      return true;
+    }
+    function blast(x,y,z,radius,strength,maxDv=14,occlude=true){
+      if(!finite6(x,y,z,radius,strength,maxDv)||radius<0||strength<0||maxDv<0)wrong('blast','centre, radius, strength and maxDv must be finite, the last three >= 0');
+      if(typeof occlude!=='boolean')wrong('blast','occlude must be a boolean');
+      let n=0;
+      for(let i=1;i<top;i++){
+        if((FL[i]&(ALIVE|PENDING|KINEMATIC|LOST))!==ALIVE)continue;
+        const p=i*3,r=i*9,hx=H[p],hy=H[p+1],hz=H[p+2],dx=x-P[p],dy=y-P[p+1],dz=z-P[p+2];
+        let ax,ay,az;
+        if(SH[i]===0){
+          let lx=dx*R[r]+dy*R[r+3]+dz*R[r+6],ly=dx*R[r+1]+dy*R[r+4]+dz*R[r+7],lz=dx*R[r+2]+dy*R[r+5]+dz*R[r+8];
+          lx=lx>hx?hx:lx<-hx?-hx:lx;ly=ly>hy?hy:ly<-hy?-hy:ly;lz=lz>hz?hz:lz<-hz?-hz:lz;
+          ax=P[p]+R[r]*lx+R[r+1]*ly+R[r+2]*lz;ay=P[p+1]+R[r+3]*lx+R[r+4]*ly+R[r+5]*lz;az=P[p+2]+R[r+6]*lx+R[r+7]*ly+R[r+8]*lz;
+        }else{
+          const e=HR[p+1]-HR[p],t0=dx*R[r+1]+dy*R[r+4]+dz*R[r+7],t=t0>e?e:t0<-e?-e:t0,sx=P[p]+R[r+1]*t,sy=P[p+1]+R[r+4]*t,sz=P[p+2]+R[r+7]*t;
+          const ux=x-sx,uy=y-sy,uz=z-sz,l=Math.sqrt(ux*ux+uy*uy+uz*uz),f=l>hx?hx/l:0;
+          ax=sx+ux*f;ay=sy+uy*f;az=sz+uz*f;
+        }
+        const d=Math.sqrt((ax-x)*(ax-x)+(ay-y)*(ay-y)+(az-z)*(az-z));if(d>=radius)continue;
+        let ex=P[p]-x,ey=P[p+1]-y+.35,ez=P[p+2]-z;const l=Math.sqrt(ex*ex+ey*ey+ez*ez);
+        if(l<1e-6){ex=0;ey=1;ez=0;}else{ex/=l;ey/=l;ez/=l;}
+        let j=strength*(1-d/radius);const c=maxDv/IM[i];if(j>c)j=c;
+        SCR[22]=ax;SCR[23]=ay;SCR[24]=az;SCR[25]=ex*j;SCR[26]=ey*j;SCR[27]=ez*j;push(i);rouse(i);n++;
+      }
+      return n;
+    }
+
+    // ---- Step: whole sub-steps of tick seconds through an accumulator.
+    function step(dt){
+      if(typeof dt!=='number'||!(dt>=0)||dt===Infinity)wrong('step','dt must be a finite number >= 0');
+      events.count=0;joints.brokenCount=0;
+      birthLeft=bounded?C.spawnBudget:I32;
+      for(let i=1;i<top;i++)if(FL[i]&ALIVE){const p=i*3,q=i*4;PP[p]=P[p];PP[p+1]=P[p+1];PP[p+2]=P[p+2];PQ[q]=Q[q];PQ[q+1]=Q[q+1];PQ[q+2]=Q[q+2];PQ[q+3]=Q[q+3];}
+      const t=SCR[9],e=t*1e-9;let a=WS[0]+dt,n=0;
+      while(a>=t-e&&n<MAXSUB){a-=t;n++;}
+      if(a>=t-e){const k=Math.floor(a/t+1e-9);stats.droppedSteps+=k;a-=k*t;}
+      if(a<e)a=0;
+      WS[0]=a;stats.substeps=n;
+      if(n>0&&stats.kinematic>0)for(let i=1;i<top;i++)if((FL[i]&(ALIVE|KINEMATIC))===(ALIVE|KINEMATIC))steer(i,n);
+      for(let s=0;s<n;s++)substep(s===n-1);
+      stats.events=events.count;
+      return n;
+    }
+    function steer(i,n){
+      const v=i*6,moving=FL[i]&MOVING;
+      if(!KN[i]){if(moving){FL[i]&=~MOVING;V.fill(0,v,v+6);restDirty=true;}return;}
+      KN[i]=0;if(!moving){FL[i]|=MOVING;restDirty=true;}
+      const p=i*3,q=i*4,k=i*7,T=n*SCR[9],tx=KT[k+3],ty=KT[k+4],tz=KT[k+5],tw=KT[k+6],qx=Q[q],qy=Q[q+1],qz=Q[q+2],qw=Q[q+3];
+      V[v]=(KT[k]-P[p])/T;V[v+1]=(KT[k+1]-P[p+1])/T;V[v+2]=(KT[k+2]-P[p+2])/T;
+      const g=(tw*qw+tx*qx+ty*qy+tz*qz<0?-2:2)/T;
+      V[v+3]=(tx*qw-tw*qx-ty*qz+tz*qy)*g;V[v+4]=(ty*qw-tw*qy+tx*qz-tz*qx)*g;V[v+5]=(tz*qw-tw*qz-tx*qy+ty*qx)*g;
+      cap(i);
+    }
+    function phase(k){const t=clock();PH[k]+=t-SCR[13];SCR[13]=t;}
+    function substep(last){
+      if(clock)SCR[13]=clock();
+      let available=I32;
+      if(bounded){available=C.maxAwake;for(let i=1;i<top;i++)if((FL[i]&(ALIVE|ASLEEP|PENDING|KINEMATIC|LOST))===ALIVE)available--;}
+      if(stats.pending>0)for(let i=1;i<top&&birthLeft>0&&available>0;i++)if(FL[i]&PENDING){
+        birthLeft--;available--;
+        FL[i]&=~PENDING;ST[i]=0;AT[i]=0;FN[i]=0;const p=i*3;RP[p]=P[p];RP[p+1]=P[p+1];RP[p+2]=P[p+2];stats.pending--;if(FL[i]&ASLEEP)restDirty=true;
+      }
+      if(joints.count){wakeJoints();for(let j=1;j<jtop;j++)JD[j*26+22]=0;}
+      let na=0,nk=0;
+      for(let i=1;i<top;i++){
+        const f=FL[i];
+        if((f&(ALIVE|ASLEEP|PENDING|KINEMATIC|LOST))===ALIVE){AL[na++]=i;ACT[i]=1;}
+        else if((f&(ALIVE|KINEMATIC|MOVING|LOST))===(ALIVE|KINEMATIC|MOVING)){AL[na++]=i;ACT[i]=2;nk++;}
+      }
+      if(na===0){stats.awake=0;stats.contacts=0;stats.manifolds=0;stats.tests=0;if(clock)phase(3);return;}
+      if(clock)phase(3);
+      collide(na);                                        // 3. broad and narrow phases
+      if(clock)phase(0);
+      prepare();                                          // 4.
+      const ld=SCR[10],ad=SCR[11],gh=SCR[12],rd=SCR[28];
+      for(let n=0;n<na;n++){
+        const i=AL[n],v=i*6;if(ACT[i]!==1)continue;
+        V[v]*=ld;V[v+1]=(V[v+1]+gh)*ld;V[v+2]*=ld;V[v+3]*=ad;V[v+4]*=ad;V[v+5]*=ad;
+        if(SH[i]&&TOUCH[i]){V[v+3]*=rd;V[v+4]*=rd;V[v+5]*=rd;}
+      }
+      warm();                                             // 6.
+      for(let it=0;it<ITER;it++){solve(true);if(joints.count)solveJoints();}if(joints.count)for(let it=ITER;it<C.hardIterations;it++)solveJoints();      // 7.
+      integrate(na,last);
+      if(joints.count){for(let n=0;n<na;n++)derive(AL[n]);projectJoints();}                                 // 8.
+      relaxSeparation();
+      for(let it=0;it<RELAX;it++)solve(false);// 9.
+      restitution();                                      // 10.
+      if(EV)contactEvents();
+      clamp(na);
+      if(clock)phase(1);
+      if(geometry)for(let c=0;c<nc;c++){const a=cA[c],b=cB[c];if(FL[a]&ASLEEP&&!WK[a]&&cMax[c]*IM[a]>C.wakeSpeed){WK[a]=1;nwake++;}if(FL[b]&ASLEEP&&!WK[b]&&cMax[c]*IM[b]>C.wakeSpeed){WK[b]=1;nwake++;}}
+      cacheStore();                                       // 14.
+      if(nwake>0){for(let i=1;i<top;i++)if(WK[i]){WK[i]=0;if(FL[i]&ASLEEP){wake(i);TOUCH[i]=1;}}nwake=0;}   // 15. deferred wakes
+      const slept=islands(na);                            // 17.
+      if(clock)phase(2);
+      for(let n=0;n<na;n++){                              // 20. -0 normalised, derived values
+        const i=AL[n],p=i*3,q=i*4,v=i*6;
+        P[p]+=0;P[p+1]+=0;P[p+2]+=0;Q[q]+=0;Q[q+1]+=0;Q[q+2]+=0;Q[q+3]+=0;V[v]+=0;V[v+1]+=0;V[v+2]+=0;V[v+3]+=0;V[v+4]+=0;V[v+5]+=0;
+        derive(i);ACT[i]=0;
+      }
+      stats.awake=na-nk-slept;if(geometry){stats.awake=0;for(let i=1;i<top;i++)if((FL[i]&31)===ALIVE)stats.awake++;}stats.contacts=nc;stats.manifolds=nm;
+      if(clock)phase(3);
+    }
+
+    // ---- Broad phase: for each active body a, by increasing index, the cells of FB_a, z then x: statics (stamped; a
+    function collide(na){
+      nc=0;nm=0;let tests=0;
+      const h=SCR[9],mg=SCR[14],lim=SCR[15];
+      TOUCH.fill(0,0,top);
+      for(let n=0;n<na;n++){
+        const b=AL[n]*6,vx=Math.abs(V[b]),vy=Math.abs(V[b+1]),vz=Math.abs(V[b+2]);
+        const ex=(vx<lim?vx:lim)*h+mg,ey=(vy<lim?vy:lim)*h+mg,ez=(vz<lim?vz:lim)*h+mg;
+        FB[b]=BB[b]-ex;FB[b+1]=BB[b+1]-ey;FB[b+2]=BB[b+2]-ez;FB[b+3]=BB[b+3]+ex;FB[b+4]=BB[b+4]+ey;FB[b+5]=BB[b+5]+ez;
+      }
+      if(restDirty){
+        gridClear(1);
+        for(let i=top-1;i>=1;i--){
+          const f=FL[i];
+          if((f&(ALIVE|ASLEEP|PENDING|LOST))===(ALIVE|ASLEEP)||(f&(ALIVE|KINEMATIC|MOVING|LOST))===(ALIVE|KINEMATIC)){const b=i*6;for(let k=0;k<6;k++)FB[b+k]=BB[b+k];gridAdd(1,i);}
+        }
+        restDirty=false;
+      }
+      gridClear(0);for(let n=na-1;n>=0;n--)gridAdd(0,AL[n]);
+      for(let n=0;n<na;n++){
+        const a=AL[n],a6=a*6,a3=a*3,a9=a*9,kin=ACT[a]===2,speedA=Math.sqrt(V[a6]*V[a6]+V[a6+1]*V[a6+1]+V[a6+2]*V[a6+2]),marginA=mg+speedA*h;
+        cellRange(FB,a6);const x0=ISCR[0],x1=ISCR[1],z0=ISCR[2],z1=ISCR[3];
+        if(!kin&&MSK[a]&1){
+          if(++stamp>1073741823){sT.fill(0);stamp=1;}
+          for(let z=z0;z<=z1;z++)for(let x=x0;x<=x1;x++){
+            const c=z*GW+x;
+            for(let q=sStart[c],e=sStart[c+1];q<e;q++){
+              const s=sItems[q];if(sT[s]===stamp)continue;sT[s]=stamp;const s6=s*6;
+              if(FB[a6]>sA[s6+3]||FB[a6+3]<sA[s6]||FB[a6+1]>sA[s6+4]||FB[a6+4]<sA[s6+1]||FB[a6+2]>sA[s6+5]||FB[a6+5]<sA[s6+2])continue;
+              tests++;SCR[0]=marginA;let k=SH[a]?turn(boxRound(sP,sH,s*3,sR,s*9,a)):boxBox(P,H,a3,R,a9,sP,sH,s*3,sR,s*9);
+              if(k&&geometryApi)k=geometryApi.filter(s,k,mN,mP,mS,mI);
+              if(k){SCR[3]=Math.sqrt(FR[a]*sF[s]);SCR[4]=RE[a]>sE[s]?RE[a]:sE[s];emit(a,0,a*KM+NB+s,k);}
+            }
+          }
+        }
+        for(let g=0;g<2;g++){
+          const head=GH[g],next=GN[g],item=GI[g];
+          for(let z=z0;z<=z1;z++)for(let x=x0;x<=x1;x++)for(let e=head[z*GW+x];e>=0;e=next[e]){
+            const b=item[e];if(g===0&&b<=a)continue;const b6=b*6;
+            if(FB[a6]>FB[b6+3]||FB[a6+3]<FB[b6]||FB[a6+1]>FB[b6+4]||FB[a6+4]<FB[b6+1]||FB[a6+2]>FB[b6+5]||FB[a6+5]<FB[b6+2])continue;
+            if(cx(FB,FB[a6]>FB[b6]?a6:b6)!==x||cz(FB,FB[a6+2]>FB[b6+2]?a6+2:b6+2)!==z)continue;
+            if(!(GRP[a]&MSK[b])||!(GRP[b]&MSK[a]))continue;
+            if(kin&&(g||FL[b]&KINEMATIC)){if(g&&!(FL[b]&KINEMATIC)&&!WK[b]){WK[b]=1;nwake++;}continue;}
+            tests++;const lo=a<b?a:b,hi=a<b?b:a,sb=Math.sqrt(V[b6]*V[b6]+V[b6+1]*V[b6+1]+V[b6+2]*V[b6+2]);
+            SCR[0]=marginA+sb*h;const k=SH[lo]|SH[hi]?bodies(lo,hi):boxBox(P,H,lo*3,R,lo*9,P,H,hi*3,R,hi*9);
+            if(k){SCR[3]=Math.sqrt(FR[a]*FR[b]);SCR[4]=RE[a]>RE[b]?RE[a]:RE[b];emit(lo,hi,lo*KM+hi,k);if(!geometry&&g===1&&!WK[b]&&!(FL[b]&KINEMATIC)){WK[b]=1;nwake++;}}
+          }
+        }
+      }
+      stats.tests=tests;
+    }
+
+    // ---- Narrow phase (prototype boxBox, face and clip, unchanged but for one normal per point): writes, for point k,
+    function clip(src,sid,n,dst,did,co,sg,li,plane){
+      if(n===0)return 0;const lim=SCR[li];let m=0,pi=n-1,pd=sg*src[pi*3+co]-lim;
+      for(let i=0;i<n;i++){
+        const cd=sg*src[i*3+co]-lim;
+        if(cd<=0){
+          if(pd>0){const t=pd/(pd-cd),a=pi*3,b=i*3,d=m*3;dst[d]=src[a]+(src[b]-src[a])*t;dst[d+1]=src[a+1]+(src[b+1]-src[a+1])*t;dst[d+2]=src[a+2]+(src[b+2]-src[a+2])*t;did[m++]=64+((sid[pi]*31+sid[i]*17+plane*7)%191);}
+          const b=i*3,d=m*3;dst[d]=src[b];dst[d+1]=src[b+1];dst[d+2]=src[b+2];did[m++]=sid[i];
+        }else if(pd<=0){const t=pd/(pd-cd),a=pi*3,b=i*3,d=m*3;dst[d]=src[a]+(src[b]-src[a])*t;dst[d+1]=src[a+1]+(src[b+1]-src[a+1])*t;dst[d+2]=src[a+2]+(src[b+2]-src[a+2])*t;did[m++]=64+((sid[pi]*31+sid[i]*17+plane*7)%191);}
+        pi=i;pd=cd;
+      }
+      return m;
+    }
+    function face(PR,HF,r3,RR,r9,PI,HI,i3,RI,i9,axis,flip){
+      const margin=SCR[0];
+      let nx=RR[r9+axis],ny=RR[r9+3+axis],nz=RR[r9+6+axis];
+      const dx=PI[i3]-PR[r3],dy=PI[i3+1]-PR[r3+1],dz=PI[i3+2]-PR[r3+2],sgn=dx*nx+dy*ny+dz*nz>=0?1:-1;nx*=sgn;ny*=sgn;nz*=sgn;
+      let jb=0,best=-1,sj=1;
+      for(let j=0;j<3;j++){const d=nx*RI[i9+j]+ny*RI[i9+3+j]+nz*RI[i9+6+j],ad=Math.abs(d);if(ad>best){best=ad;jb=j;sj=d>0?-1:1;}}
+      const j1=(jb+1)%3,j2=(jb+2)%3,e=HI[i3+jb]*sj,fx=dx+RI[i9+jb]*e,fy=dy+RI[i9+3+jb]*e,fz=dz+RI[i9+6+jb]*e;
+      const h1=HI[i3+j1],h2=HI[i3+j2],ux=RI[i9+j1]*h1,uy=RI[i9+3+j1]*h1,uz=RI[i9+6+j1]*h1,wx=RI[i9+j2]*h2,wy=RI[i9+3+j2]*h2,wz=RI[i9+6+j2]*h2;
+      const a1=(axis+1)%3,a2=(axis+2)%3,t1x=RR[r9+a1],t1y=RR[r9+3+a1],t1z=RR[r9+6+a1],t2x=RR[r9+a2],t2y=RR[r9+3+a2],t2z=RR[r9+6+a2],e1=HF[r3+a1],e2=HF[r3+a2],hn=HF[r3+axis];
+      for(let k=0;k<4;k++){const s1=k===0||k===3?1:-1,s2=k<2?1:-1,vx=fx+s1*ux+s2*wx,vy=fy+s1*uy+s2*wy,vz=fz+s1*uz+s2*wz;clipA[k*3]=vx*t1x+vy*t1y+vz*t1z;clipA[k*3+1]=vx*t2x+vy*t2y+vz*t2z;clipA[k*3+2]=vx*nx+vy*ny+vz*nz-hn;idA[k]=jb*8+(sj>0?4:0)+k;}
+      SCR[1]=e1;SCR[2]=e2;let n=clip(clipA,idA,4,clipB,idB,0,1,1,0);n=clip(clipB,idB,n,clipA,idA,0,-1,1,1);n=clip(clipA,idA,n,clipB,idB,1,1,2,2);n=clip(clipB,idB,n,clipA,idA,1,-1,2,3);
+      let m=0;for(let i=0;i<n;i++)if(clipA[i*3+2]<=margin){clipB[m*3]=clipA[i*3];clipB[m*3+1]=clipA[i*3+1];clipB[m*3+2]=clipA[i*3+2];idB[m++]=idA[i];}
+      if(m===0)return 0;
+      let outCount=m;
+      if(m>4){
+        let a=0;for(let i=1;i<m;i++)if(clipB[i*3+2]<clipB[a*3+2])a=i;
+        let b=-1,bd=-1;for(let i=0;i<m;i++){if(i===a)continue;const du=clipB[i*3]-clipB[a*3],dw=clipB[i*3+1]-clipB[a*3+1],d=du*du+dw*dw;if(d>bd){bd=d;b=i;}}
+        const eu=clipB[b*3]-clipB[a*3],ew=clipB[b*3+1]-clipB[a*3+1];
+        let c=-1,cd=0,d2=-1,dd=0;
+        for(let i=0;i<m;i++){if(i===a||i===b)continue;const ar=eu*(clipB[i*3+1]-clipB[a*3+1])-ew*(clipB[i*3]-clipB[a*3]);if(ar>cd){cd=ar;c=i;}if(ar<dd){dd=ar;d2=i;}}
+        pick[0]=a;pick[1]=b;outCount=2;if(c>=0)pick[outCount++]=c;if(d2>=0)pick[outCount++]=d2;
+      }else for(let i=0;i<m;i++)pick[i]=i;
+      const code=((flip?6:0)+axis*2+(sgn>0?1:0))*256,px=PR[r3],py=PR[r3+1],pz=PR[r3+2],gx=flip?-nx:nx,gy=flip?-ny:ny,gz=flip?-nz:nz;
+      for(let k=0;k<outCount;k++){const i=pick[k],u=clipB[i*3],w=clipB[i*3+1],d=clipB[i*3+2],hgt=hn+d/2;mP[k*3]=px+u*t1x+w*t2x+hgt*nx;mP[k*3+1]=py+u*t1y+w*t2y+hgt*ny;mP[k*3+2]=pz+u*t1z+w*t2z+hgt*nz;mN[k*3]=gx;mN[k*3+1]=gy;mN[k*3+2]=gz;mS[k]=d;mI[k]=code+idB[i];}
+      return outCount;
+    }
+    function boxBox(PA,HA,a3,RA,a9,PB,HB,b3,RB,b9){
+      const margin=SCR[0];
+      const dx=PB[b3]-PA[a3],dy=PB[b3+1]-PA[a3+1],dz=PB[b3+2]-PA[a3+2];
+      for(let i=0;i<3;i++){const ax=RA[a9+i],ay=RA[a9+3+i],az=RA[a9+6+i];tt[i]=dx*ax+dy*ay+dz*az;for(let j=0;j<3;j++){const v=ax*RB[b9+j]+ay*RB[b9+3+j]+az*RB[b9+6+j];cc[i*3+j]=v;qq[i*3+j]=Math.abs(v)+1e-9;}}
+      const ha0=HA[a3],ha1=HA[a3+1],ha2=HA[a3+2],hb0=HB[b3],hb1=HB[b3+1],hb2=HB[b3+2];
+      let bestA=-1e30,axisA=0,bestB=-1e30,axisB=0,bestE=-1e30,axisE=-1;
+      for(let i=0;i<3;i++){const s=Math.abs(tt[i])-(HA[a3+i]+hb0*qq[i*3]+hb1*qq[i*3+1]+hb2*qq[i*3+2]);if(s>margin)return 0;if(s>bestA){bestA=s;axisA=i;}}
+      for(let j=0;j<3;j++){const s=Math.abs(tt[0]*cc[j]+tt[1]*cc[3+j]+tt[2]*cc[6+j])-(HB[b3+j]+ha0*qq[j]+ha1*qq[3+j]+ha2*qq[6+j]);if(s>margin)return 0;if(s>bestB){bestB=s;axisB=j;}}
+      for(let i=0;i<3;i++){
+        const i1=(i+1)%3,i2=(i+2)%3;
+        for(let j=0;j<3;j++){
+          const c=cc[i*3+j],l2=1-c*c;if(l2<1e-6)continue;const j1=(j+1)%3,j2=(j+2)%3;
+          const s=(Math.abs(tt[i2]*cc[i1*3+j]-tt[i1]*cc[i2*3+j])-(HA[a3+i1]*qq[i2*3+j]+HA[a3+i2]*qq[i1*3+j]+HB[b3+j1]*qq[i*3+j2]+HB[b3+j2]*qq[i*3+j1]))/Math.sqrt(l2);
+          if(s>margin)return 0;if(s>bestE){bestE=s;axisE=i*3+j;}
+        }
+      }
+      const useB=bestB>0.95*bestA+0.002,bestF=useB?bestB:bestA;
+      if(axisE>=0&&bestE>0.95*bestF+0.01){
+        const i=(axisE/3)|0,j=axisE-i*3,aix=RA[a9+i],aiy=RA[a9+3+i],aiz=RA[a9+6+i],bjx=RB[b9+j],bjy=RB[b9+3+j],bjz=RB[b9+6+j];
+        let lx=aiy*bjz-aiz*bjy,ly=aiz*bjx-aix*bjz,lz=aix*bjy-aiy*bjx;const inv=1/Math.sqrt(lx*lx+ly*ly+lz*lz),sg=lx*dx+ly*dy+lz*dz<0?-inv:inv;lx*=sg;ly*=sg;lz*=sg;
+        let ax=PA[a3],ay=PA[a3+1],az=PA[a3+2],bx=PB[b3],by=PB[b3+1],bz=PB[b3+2],bits=0;
+        for(let k=0;k<3;k++){if(k!==i){const kx=RA[a9+k],ky=RA[a9+3+k],kz=RA[a9+6+k],s=lx*kx+ly*ky+lz*kz>0?HA[a3+k]:-HA[a3+k];ax+=kx*s;ay+=ky*s;az+=kz*s;bits=bits*2+(s>0?1:0);}}
+        for(let k=0;k<3;k++){if(k!==j){const kx=RB[b9+k],ky=RB[b9+3+k],kz=RB[b9+6+k],s=lx*kx+ly*ky+lz*kz>0?-HB[b3+k]:HB[b3+k];bx+=kx*s;by+=ky*s;bz+=kz*s;bits=bits*2+(s>0?1:0);}}
+        const rx=ax-bx,ry=ay-by,rz=az-bz,bq=cc[i*3+j],c=aix*rx+aiy*ry+aiz*rz,f=bjx*rx+bjy*ry+bjz*rz,den=1-bq*bq;
+        let s=(bq*f-c)/den,u=(f-bq*c)/den;const la=HA[a3+i],lb=HB[b3+j];s=s>la?la:s<-la?-la:s;u=u>lb?lb:u<-lb?-lb:u;
+        const p1x=ax+aix*s,p1y=ay+aiy*s,p1z=az+aiz*s,p2x=bx+bjx*u,p2y=by+bjy*u,p2z=bz+bjz*u;
+        mP[0]=(p1x+p2x)/2;mP[1]=(p1y+p2y)/2;mP[2]=(p1z+p2z)/2;mS[0]=(p2x-p1x)*lx+(p2y-p1y)*ly+(p2z-p1z)*lz;mI[0]=4096+axisE*16+bits;mN[0]=lx;mN[1]=ly;mN[2]=lz;return 1;
+      }
+      return useB?face(PB,HB,b3,RB,b9,PA,HA,a3,RA,a9,axisB,true):face(PA,HA,a3,RA,a9,PB,HB,b3,RB,b9,axisA,false);
+    }
+    function ball(PA,HA,a3,RA,a9,k,id){
+      const r=SCR[36],cx=SCR[33],cy=SCR[34],cz=SCR[35],dx=cx-PA[a3],dy=cy-PA[a3+1],dz=cz-PA[a3+2],hx=HA[a3],hy=HA[a3+1],hz=HA[a3+2];
+      const lx=dx*RA[a9]+dy*RA[a9+3]+dz*RA[a9+6],ly=dx*RA[a9+1]+dy*RA[a9+4]+dz*RA[a9+7],lz=dx*RA[a9+2]+dy*RA[a9+5]+dz*RA[a9+8];
+      let qx=lx>hx?hx:lx<-hx?-hx:lx,qy=ly>hy?hy:ly<-hy?-hy:ly,qz=lz>hz?hz:lz<-hz?-hz:lz,nx=lx-qx,ny=ly-qy,nz=lz-qz,s;
+      if(nx!==0||ny!==0||nz!==0){const d=Math.sqrt(nx*nx+ny*ny+nz*nz);nx/=d;ny/=d;nz/=d;s=d-r;}
+      else{
+        const ex=hx-Math.abs(lx),ey=hy-Math.abs(ly),ez=hz-Math.abs(lz);
+        if(ex<=ey&&ex<=ez){nx=lx<0?-1:1;qx=nx*hx;s=-ex-r;}else if(ey<=ez){ny=ly<0?-1:1;qy=ny*hy;s=-ey-r;}else{nz=lz<0?-1:1;qz=nz*hz;s=-ez-r;}
+      }
+      if(s>SCR[0])return 0;
+      const wx=RA[a9]*nx+RA[a9+1]*ny+RA[a9+2]*nz,wy=RA[a9+3]*nx+RA[a9+4]*ny+RA[a9+5]*nz,wz=RA[a9+6]*nx+RA[a9+7]*ny+RA[a9+8]*nz,m=k*3;
+      mN[m]=wx;mN[m+1]=wy;mN[m+2]=wz;mS[k]=s;mI[k]=id;
+      mP[m]=(PA[a3]+RA[a9]*qx+RA[a9+1]*qy+RA[a9+2]*qz+cx-wx*r)/2;
+      mP[m+1]=(PA[a3+1]+RA[a9+3]*qx+RA[a9+4]*qy+RA[a9+5]*qz+cy-wy*r)/2;
+      mP[m+2]=(PA[a3+2]+RA[a9+6]*qx+RA[a9+7]*qy+RA[a9+8]*qz+cz-wz*r)/2;
+      return 1;
+    }
+    function boxRound(PA,HA,a3,RA,a9,b){
+      const p=b*3,r9=b*9,e=HR[p+1]-HR[p],ux=R[r9+1],uy=R[r9+4],uz=R[r9+7];SCR[36]=H[p];
+      let n=0;
+      for(let j=0;j<2;j++){
+        const t=j?-e:e;SCR[33]=P[p]+ux*t;SCR[34]=P[p+1]+uy*t;SCR[35]=P[p+2]+uz*t;n+=ball(PA,HA,a3,RA,a9,n,j+1);
+        if(e===0)return n;
+      }
+      if(n===2)return 2;
+      const dx=P[p]-PA[a3],dy=P[p+1]-PA[a3+1],dz=P[p+2]-PA[a3+2],hx=HA[a3],hy=HA[a3+1],hz=HA[a3+2];
+      const cx=dx*RA[a9]+dy*RA[a9+3]+dz*RA[a9+6],cy=dx*RA[a9+1]+dy*RA[a9+4]+dz*RA[a9+7],cz=dx*RA[a9+2]+dy*RA[a9+5]+dz*RA[a9+8];
+      const vx=ux*RA[a9]+uy*RA[a9+3]+uz*RA[a9+6],vy=ux*RA[a9+1]+uy*RA[a9+4]+uz*RA[a9+7],vz=ux*RA[a9+2]+uy*RA[a9+5]+uz*RA[a9+8];
+      let t=0;
+      for(let it=0;it<3;it++){
+        let x=cx+vx*t,y=cy+vy*t,z=cz+vz*t;x=x>hx?hx:x<-hx?-hx:x;y=y>hy?hy:y<-hy?-hy:y;z=z>hz?hz:z<-hz?-hz:z;
+        t=(x-cx)*vx+(y-cy)*vy+(z-cz)*vz;t=t>e?e:t<-e?-e:t;
+      }
+      if(t===e||t===-e)return n;
+      SCR[33]=P[p]+ux*t;SCR[34]=P[p+1]+uy*t;SCR[35]=P[p+2]+uz*t;return n+ball(PA,HA,a3,RA,a9,n,3);
+    }
+    function ballBall(k,id){
+      const ax=SCR[29],ay=SCR[30],az=SCR[31],ra=SCR[32];let nx=SCR[33]-ax,ny=SCR[34]-ay,nz=SCR[35]-az;
+      const d=Math.sqrt(nx*nx+ny*ny+nz*nz),s=d-ra-SCR[36];if(s>SCR[0])return 0;
+      if(d<1e-9){nx=0;ny=1;nz=0;}else{nx/=d;ny/=d;nz/=d;}
+      const m=k*3,g=ra+s/2;mN[m]=nx;mN[m+1]=ny;mN[m+2]=nz;mP[m]=ax+nx*g;mP[m+1]=ay+ny*g;mP[m+2]=az+nz*g;mS[k]=s;mI[k]=id;return 1;
+    }
+    function roundRound(a,b){
+      const p=a*3,q=b*3,ea=HR[p+1]-HR[p],eb=HR[q+1]-HR[q],ux=R[a*9+1],uy=R[a*9+4],uz=R[a*9+7],vx=R[b*9+1],vy=R[b*9+4],vz=R[b*9+7];
+      const wx=P[p]-P[q],wy=P[p+1]-P[q+1],wz=P[p+2]-P[q+2],k=ux*vx+uy*vy+uz*vz,c=ux*wx+uy*wy+uz*wz,f=vx*wx+vy*wy+vz*wz,den=1-k*k;
+      SCR[32]=H[p];SCR[36]=H[q];
+      let s0,s1;
+      if(den<1e-3){const g=Math.abs(k)*eb;s0=-c-g;s1=-c+g;s0=s0>ea?ea:s0<-ea?-ea:s0;s1=s1>ea?ea:s1<-ea?-ea:s1;}
+      else{s0=(k*f-c)/den;s0=s0>ea?ea:s0<-ea?-ea:s0;const t=k*s0+f;if(t>eb||t<-eb){s0=k*(t>eb?eb:-eb)-c;s0=s0>ea?ea:s0<-ea?-ea:s0;}s1=s0;}
+      let n=0;
+      for(let j=0;j<2;j++){
+        const s=j?s1:s0;if(j&&s1===s0)break;
+        let t=k*s+f;t=t>eb?eb:t<-eb?-eb:t;
+        SCR[29]=P[p]+ux*s;SCR[30]=P[p+1]+uy*s;SCR[31]=P[p+2]+uz*s;SCR[33]=P[q]+vx*t;SCR[34]=P[q+1]+vy*t;SCR[35]=P[q+2]+vz*t;
+        n+=ballBall(n,j+1);
+      }
+      return n;
+    }
+    function bodies(lo,hi){
+      const a=SH[lo],b=SH[hi];
+      if(a===0)return boxRound(P,H,lo*3,R,lo*9,hi);
+      if(b===0)return turn(boxRound(P,H,hi*3,R,hi*9,lo));
+      return a<=b?roundRound(lo,hi):turn(roundRound(hi,lo));
+    }
+    function turn(n){for(let k=0;k<3*n;k++)mN[k]=-mN[k];return n;}
+    function emit(a,b,key,n){
+      TOUCH[a]=1;TOUCH[b]=1;
+      if(nc+n>MC){stats.dropContacts+=n;return;}
+      prF[nm]=nc;prN[nm]=n;nm++;
+      const friction=SCR[3],restitution=SCR[4],hit=pn?lookup(key):-1,from=hit>=0?TB[hit]-1:0,old=hit>=0?TC[hit]:0,a3=a*3,b3=b*3;
+      const ima=ACT[a]?IM[a]:0,imb=ACT[b]?IM[b]:0,tol=SL[a]<SL[b]?SL[a]:SL[b];
+      for(let k=0;k<n;k++){
+        const c=nc++,c3=c*3,k3=k*3,id=mI[k];cA[c]=a;cB[c]=b;cK[c]=key;cI[c]=id;cN[c3]=mN[k3];cN[c3+1]=mN[k3+1];cN[c3+2]=mN[k3+2];
+        cRA[c3]=mP[k3]-P[a3];cRA[c3+1]=mP[k3+1]-P[a3+1];cRA[c3+2]=mP[k3+2]-P[a3+2];cRB[c3]=mP[k3]-P[b3];cRB[c3+1]=mP[k3+1]-P[b3+1];cRB[c3+2]=mP[k3+2]-P[b3+2];
+        cS[c]=mS[k];cFr[c]=friction;cRe[c]=restitution;cIa[c]=ima;cIb[c]=imb;cSl[c]=tol;cJn[c]=cJ1[c]=cJ2[c]=0;
+        for(let m=0;m<old;m++)if(pI[from+m]===id){cJn[c]=pJn[from+m];cJ1[c]=pJ1[from+m];cJ2[c]=pJ2[from+m];break;}
+      }
+    }
+
+    // ---- Solver (prototype, soft contact). An immovable side has zero inverse mass and zero angular response
+    function prepare(){
+      for(let c=0;c<nc;c++){
+        const a6=cA[c]*6,b6=cB[c]*6,c3=c*3,c6=c*6,ima=cIa[c],imb=cIb[c],ia=ima>0?a6:0,ib=imb>0?b6:0;
+        const nx=cN[c3],ny=cN[c3+1],nz=cN[c3+2];
+        let t1x,t1y,t1z;if(Math.abs(nx)<0.57735){const l=1/Math.sqrt(ny*ny+nz*nz);t1x=0;t1y=-nz*l;t1z=ny*l;}else{const l=1/Math.sqrt(nx*nx+nz*nz);t1x=nz*l;t1y=0;t1z=-nx*l;}
+        const t2x=ny*t1z-nz*t1y,t2y=nz*t1x-nx*t1z,t2z=nx*t1y-ny*t1x;
+        cT1[c3]=t1x;cT1[c3+1]=t1y;cT1[c3+2]=t1z;cT2[c3]=t2x;cT2[c3+1]=t2y;cT2[c3+2]=t2z;
+        const rax=cRA[c3],ray=cRA[c3+1],raz=cRA[c3+2],rbx=cRB[c3],rby=cRB[c3+1],rbz=cRB[c3+2];
+        for(let d=0;d<3;d++){
+          const dx=d===0?nx:d===1?t1x:t2x,dy=d===0?ny:d===1?t1y:t2y,dz=d===0?nz:d===1?t1z:t2z,out=d===0?cAN:d===1?cA1:cA2;
+          const ux=ray*dz-raz*dy,uy=raz*dx-rax*dz,uz=rax*dy-ray*dx,wx=rby*dz-rbz*dy,wy=rbz*dx-rbx*dz,wz=rbx*dy-rby*dx;
+          const ax=IW[ia]*ux+IW[ia+1]*uy+IW[ia+2]*uz,ay=IW[ia+1]*ux+IW[ia+3]*uy+IW[ia+4]*uz,az=IW[ia+2]*ux+IW[ia+4]*uy+IW[ia+5]*uz;
+          const bx=IW[ib]*wx+IW[ib+1]*wy+IW[ib+2]*wz,by=IW[ib+1]*wx+IW[ib+3]*wy+IW[ib+4]*wz,bz=IW[ib+2]*wx+IW[ib+4]*wy+IW[ib+5]*wz;
+          out[c6]=ax;out[c6+1]=ay;out[c6+2]=az;out[c6+3]=bx;out[c6+4]=by;out[c6+5]=bz;
+          const k=ima+imb+ux*ax+uy*ay+uz*az+wx*bx+wy*by+wz*bz,m=k>0?1/k:0;if(d===0)cMn[c]=m;else if(d===1)cM1[c]=m;else cM2[c]=m;
+        }
+        const dvx=V[b6]+V[b6+4]*rbz-V[b6+5]*rby-V[a6]-(V[a6+4]*raz-V[a6+5]*ray),dvy=V[b6+1]+V[b6+5]*rbx-V[b6+3]*rbz-V[a6+1]-(V[a6+5]*rax-V[a6+3]*raz),dvz=V[b6+2]+V[b6+3]*rby-V[b6+4]*rbx-V[a6+2]-(V[a6+3]*ray-V[a6+4]*rax);
+        cV0[c]=dvx*nx+dvy*ny+dvz*nz;cMax[c]=0;
+        if(geometry&&cV0[c]<-C.wakeSpeed){const a=cA[c],b=cB[c];if(FL[a]&ASLEEP&&!WK[a]){WK[a]=1;nwake++;}if(FL[b]&ASLEEP&&!WK[b]){WK[b]=1;nwake++;}}
+      }
+    }
+    function warm(){
+      for(let c=0;c<nc;c++){
+        const a6=cA[c]*6,b6=cB[c]*6,c3=c*3,c6=c*6,ima=cIa[c],imb=cIb[c],jn=cJn[c],j1=cJ1[c],j2=cJ2[c];
+        const px=cN[c3]*jn+cT1[c3]*j1+cT2[c3]*j2,py=cN[c3+1]*jn+cT1[c3+1]*j1+cT2[c3+1]*j2,pz=cN[c3+2]*jn+cT1[c3+2]*j1+cT2[c3+2]*j2;
+        V[a6]-=px*ima;V[a6+1]-=py*ima;V[a6+2]-=pz*ima;V[b6]+=px*imb;V[b6+1]+=py*imb;V[b6+2]+=pz*imb;
+        V[a6+3]-=cAN[c6]*jn+cA1[c6]*j1+cA2[c6]*j2;V[a6+4]-=cAN[c6+1]*jn+cA1[c6+1]*j1+cA2[c6+1]*j2;V[a6+5]-=cAN[c6+2]*jn+cA1[c6+2]*j1+cA2[c6+2]*j2;
+        V[b6+3]+=cAN[c6+3]*jn+cA1[c6+3]*j1+cA2[c6+3]*j2;V[b6+4]+=cAN[c6+4]*jn+cA1[c6+4]*j1+cA2[c6+4]*j2;V[b6+5]+=cAN[c6+5]*jn+cA1[c6+5]*j1+cA2[c6+5]*j2;
+      }
+    }
+    function solve(useBias){
+      const invH=SCR[5],biasRate=SCR[6],massScale=SCR[7],impulseScale=SCR[8],pushout=SCR[17];
+      for(let c=0;c<nc;c++){
+        const a6=cA[c]*6,b6=cB[c]*6,c3=c*3,c6=c*6,ima=cIa[c],imb=cIb[c];
+        let vax=V[a6],vay=V[a6+1],vaz=V[a6+2],wax=V[a6+3],way=V[a6+4],waz=V[a6+5],vbx=V[b6],vby=V[b6+1],vbz=V[b6+2],wbx=V[b6+3],wby=V[b6+4],wbz=V[b6+5];
+        const rax=cRA[c3],ray=cRA[c3+1],raz=cRA[c3+2],rbx=cRB[c3],rby=cRB[c3+1],rbz=cRB[c3+2],maxF=cFr[c]*cJn[c];
+        for(let d=0;d<2;d++){
+          const T=d?cT2:cT1,AR=d?cA2:cA1,tx=T[c3],ty=T[c3+1],tz=T[c3+2];
+          const dvx=vbx+wby*rbz-wbz*rby-vax-(way*raz-waz*ray),dvy=vby+wbz*rbx-wbx*rbz-vay-(waz*rax-wax*raz),dvz=vbz+wbx*rby-wby*rbx-vaz-(wax*ray-way*rax);
+          const old=d?cJ2[c]:cJ1[c];let nj=old-(d?cM2[c]:cM1[c])*(dvx*tx+dvy*ty+dvz*tz);nj=nj>maxF?maxF:nj<-maxF?-maxF:nj;const j=nj-old;if(d)cJ2[c]=nj;else cJ1[c]=nj;
+          vax-=tx*j*ima;vay-=ty*j*ima;vaz-=tz*j*ima;wax-=AR[c6]*j;way-=AR[c6+1]*j;waz-=AR[c6+2]*j;vbx+=tx*j*imb;vby+=ty*j*imb;vbz+=tz*j*imb;wbx+=AR[c6+3]*j;wby+=AR[c6+4]*j;wbz+=AR[c6+5]*j;
+        }
+        const nx=cN[c3],ny=cN[c3+1],nz=cN[c3+2],s=useBias?cS[c]+cSl[c]:cSR[c];
+        let bias=0,ms=1,is=0;if(s>0)bias=s*invH;else if(useBias){bias=biasRate*s;if(bias<-pushout)bias=-pushout;ms=massScale;is=impulseScale;}
+        const dvx=vbx+wby*rbz-wbz*rby-vax-(way*raz-waz*ray),dvy=vby+wbz*rbx-wbx*rbz-vay-(waz*rax-wax*raz),dvz=vbz+wbx*rby-wby*rbx-vaz-(wax*ray-way*rax);
+        const old=cJn[c];let nj=old-cMn[c]*ms*(dvx*nx+dvy*ny+dvz*nz+bias)-is*old;if(nj<0)nj=0;const j=nj-old;cJn[c]=nj;if(nj>cMax[c])cMax[c]=nj;
+        V[a6]=vax-nx*j*ima;V[a6+1]=vay-ny*j*ima;V[a6+2]=vaz-nz*j*ima;V[a6+3]=wax-cAN[c6]*j;V[a6+4]=way-cAN[c6+1]*j;V[a6+5]=waz-cAN[c6+2]*j;
+        V[b6]=vbx+nx*j*imb;V[b6+1]=vby+ny*j*imb;V[b6+2]=vbz+nz*j*imb;V[b6+3]=wbx+cAN[c6+3]*j;V[b6+4]=wby+cAN[c6+4]*j;V[b6+5]=wbz+cAN[c6+5]*j;
+      }
+    }
+    function integrate(na,last){
+      const h=SCR[9],ml=SCR[15],ma=SCR[16],ml2=ml*ml,ma2=ma*ma;
+      for(let n=0;n<na;n++){
+        const i=AL[n],v=i*6,p=i*3,q=i*4;
+        if(last&&ACT[i]===2){const k=i*7;for(let j=0;j<3;j++)P[p+j]=KT[k+j];for(let j=0;j<4;j++)Q[q+j]=KT[k+3+j];continue;}
+        let vx=V[v],vy=V[v+1],vz=V[v+2],wx=V[v+3],wy=V[v+4],wz=V[v+5];
+        const l2=vx*vx+vy*vy+vz*vz;if(l2>ml2){const k=ml/Math.sqrt(l2);vx*=k;vy*=k;vz*=k;V[v]=vx;V[v+1]=vy;V[v+2]=vz;}
+        const w2=wx*wx+wy*wy+wz*wz;if(w2>ma2){const k=ma/Math.sqrt(w2);wx*=k;wy*=k;wz*=k;V[v+3]=wx;V[v+4]=wy;V[v+5]=wz;}
+        P[p]+=vx*h;P[p+1]+=vy*h;P[p+2]+=vz*h;
+        const qx=Q[q],qy=Q[q+1],qz=Q[q+2],qw=Q[q+3],k=0.5*h;
+        const nx=qx+k*(wx*qw+wy*qz-wz*qy),ny=qy+k*(wy*qw+wz*qx-wx*qz),nz=qz+k*(wz*qw+wx*qy-wy*qx),nw=qw-k*(wx*qx+wy*qy+wz*qz),inv=1/Math.sqrt(nx*nx+ny*ny+nz*nz+nw*nw);
+        Q[q]=nx*inv;Q[q+1]=ny*inv;Q[q+2]=nz*inv;Q[q+3]=nw*inv;
+      }
+    }
+    function relaxSeparation(){
+      const h=SCR[9];
+      for(let c=0;c<nc;c++){
+        const a=cA[c],b=cB[c],c3=c*3,rax=cRA[c3],ray=cRA[c3+1],raz=cRA[c3+2],rbx=cRB[c3],rby=cRB[c3+1],rbz=cRB[c3+2];
+        let dax=0,day=0,daz=0,dbx=0,dby=0,dbz=0;
+        if(ACT[a]){const v=a*6,lx=V[v]*h,ly=V[v+1]*h,lz=V[v+2]*h,wx=V[v+3]*h,wy=V[v+4]*h,wz=V[v+5]*h;dax=lx+wy*raz-wz*ray;day=ly+wz*rax-wx*raz;daz=lz+wx*ray-wy*rax;}
+        if(ACT[b]){const v=b*6,lx=V[v]*h,ly=V[v+1]*h,lz=V[v+2]*h,wx=V[v+3]*h,wy=V[v+4]*h,wz=V[v+5]*h;dbx=lx+wy*rbz-wz*rby;dby=ly+wz*rbx-wx*rbz;dbz=lz+wx*rby-wy*rbx;}
+        cSR[c]=cS[c]+(dbx-dax)*cN[c3]+(dby-day)*cN[c3+1]+(dbz-daz)*cN[c3+2]+cSl[c];
+      }
+    }
+    function restitution(){
+      const threshold=SCR[18];
+      for(let c=0;c<nc;c++){
+        if(cRe[c]===0||cV0[c]>-threshold||cMax[c]===0)continue;
+        const a6=cA[c]*6,b6=cB[c]*6,c3=c*3,c6=c*6,ima=cIa[c],imb=cIb[c],nx=cN[c3],ny=cN[c3+1],nz=cN[c3+2],rax=cRA[c3],ray=cRA[c3+1],raz=cRA[c3+2],rbx=cRB[c3],rby=cRB[c3+1],rbz=cRB[c3+2];
+        const dvx=V[b6]+V[b6+4]*rbz-V[b6+5]*rby-V[a6]-(V[a6+4]*raz-V[a6+5]*ray),dvy=V[b6+1]+V[b6+5]*rbx-V[b6+3]*rbz-V[a6+1]-(V[a6+5]*rax-V[a6+3]*raz),dvz=V[b6+2]+V[b6+3]*rby-V[b6+4]*rbx-V[a6+2]-(V[a6+3]*ray-V[a6+4]*rax);
+        const old=cJn[c];let nj=old-cMn[c]*(dvx*nx+dvy*ny+dvz*nz+cRe[c]*cV0[c]);if(nj<0)nj=0;const j=nj-old;cJn[c]=nj;
+        V[a6]-=nx*j*ima;V[a6+1]-=ny*j*ima;V[a6+2]-=nz*j*ima;V[a6+3]-=cAN[c6]*j;V[a6+4]-=cAN[c6+1]*j;V[a6+5]-=cAN[c6+2]*j;V[b6]+=nx*j*imb;V[b6+1]+=ny*j*imb;V[b6+2]+=nz*j*imb;V[b6+3]+=cAN[c6+3]*j;V[b6+4]+=cAN[c6+4]*j;V[b6+5]+=cAN[c6+5]*j;
+      }
+    }
+    function clamp(na){for(let n=0;n<na;n++)cap(AL[n]);}
+    function cacheStore(){
+      pn=nc;
+      for(let c=0;c<nc;c++){pK[c]=cK[c];pI[c]=cI[c];pJn[c]=cJn[c]+0;pJ1[c]=cJ1[c]+0;pJ2[c]=cJ2[c]+0;}
+      tableBuild();
+    }
+    function find(i){while(UF[i]!==i){UF[i]=UF[UF[i]];i=UF[i];}return i;}
+    function islands(na){
+      for(let n=0;n<na;n++){const i=AL[n];UF[i]=i;}
+      for(let m=0;m<nm;m++){const c=prF[m],a=cA[c],b=cB[c];if(ACT[a]!==1||ACT[b]!==1)continue;const ra=find(a),rb=find(b);if(ra!==rb){if(ra<rb)UF[rb]=ra;else UF[ra]=rb;}}
+      for(let j=1;j<jtop;j++)if(JT[j]){const a=JA[j],b=JB[j];if(ACT[a]!==1||ACT[b]!==1)continue;const ra=find(a),rb=find(b);if(ra!==rb){if(ra<rb)UF[rb]=ra;else UF[ra]=rb;}}
+      const l2=SCR[19],a2=SCR[20];
+      for(let n=0;n<na;n++){
+        const i=AL[n],v=i*6;if(ACT[i]!==1)continue;
+        if(V[v]*V[v]+V[v+1]*V[v+1]+V[v+2]*V[v+2]<l2&&V[v+3]*V[v+3]+V[v+4]*V[v+4]+V[v+5]*V[v+5]<a2){if(ST[i]<I32)ST[i]++;}else ST[i]=0;
+        if(AT[i]<I32)AT[i]++;IMIN[i]=I32;
+        if(bounded){const p=i*3,dx=P[p]-RP[p],dy=P[p+1]-RP[p+1],dz=P[p+2]-RP[p+2],quiet=dx*dx+dy*dy+dz*dz<C.fallbackDistance*C.fallbackDistance;
+          if(quiet&&TOUCH[i])FN[i]++;else{FN[i]=0;RP[p]=P[p];RP[p+1]=P[p+1];RP[p+2]=P[p+2];}
+        }
+      }
+      for(let n=0;n<na;n++){const i=AL[n];if(ACT[i]!==1)continue;const r=find(i);if(ST[i]<IMIN[r])IMIN[r]=ST[i];}
+      let slept=0;
+      for(let n=0;n<na;n++){const i=AL[n],fallback=bounded&&TOUCH[i]&&AT[i]>=C.fallbackSteps&&FN[i]>=C.windowSteps;if(ACT[i]===1&&(IMIN[find(i)]>=SCR[21]||fallback)){FL[i]|=ASLEEP;const v=i*6;V[v]=V[v+1]=V[v+2]=V[v+3]=V[v+4]=V[v+5]=0;slept++;if(fallback)stats.fallbackSleep++;}}
+      if(bounded&&geometryApi)slept+=geometryApi.govern(AL,ACT,UF,na,cA,cB,cN,cS,nc,C.maxAwake);
+      if(slept>0){stats.sleeping+=slept;restDirty=true;}
+      return slept;
+    }
+
+    // ---- Save, restore, hash.
+    function snapshot(){
+      const n=top,b={},copy=(a,m)=>{const out=new Array(m);for(let k=0;k<m;k++)out[k]=a[k]+0;return out;};
+      for(let f=0;f<FIELDS.length;f++)b[FIELDS[f][0]]=copy(FIELDS[f][1],n*FIELDS[f][2]);
+      return {v:2,fp,statics:w.staticsHash,acc:WS[0]+0,n,b,...(jtop>1?{j:{n:jtop,T:copy(JT,jtop),G:copy(JG,jtop),A:copy(JA,jtop),B:copy(JB,jtop),D:copy(JD,jtop*26)}}:{}),c:{n:pn,K:copy(pK,pn),I:copy(pI,pn),Jn:copy(pJn,pn),J1:copy(pJ1,pn),J2:copy(pJ2,pn)}};
+    }
+    function restore(snap,opts){
+      const no=text=>{throw new Error('FPhysics.restore: '+text);};
+      if(!snap||typeof snap!=='object')no('snapshot object required');
+      if(snap.v!==2)no('version '+snap.v+', expected 2');
+      if(snap.fp!==fp)no('settings fingerprint '+snap.fp+' differs from '+fp);
+      if(!(opts&&opts.ignoreStatics)&&snap.statics!==w.staticsHash)no('statics hash '+snap.statics+' differs from '+w.staticsHash);
+      const n=snap.n;
+      if(!Number.isInteger(n)||n<1||n>NB)no('n must be an integer from 1 to '+NB);
+      if(!finite(snap.acc)||snap.acc<0||snap.acc>=C.tick)no('acc must be a number in [0, tick)');
+      const b=snap.b;
+      if(!b||typeof b!=='object')no('body arrays missing');
+      for(let f=0;f<FIELDS.length;f++){
+        const [name,,wd,low,high]=FIELDS[f],a=b[name];
+        if(!Array.isArray(a)||a.length!==n*wd)no(name+' must be an array of '+n*wd+' numbers');
+        for(let k=0;k<a.length;k++){
+          const x=a[k];if(!finite(x))no(name+'['+k+'] is not a finite number');
+          if(low!==undefined&&!(Number.isInteger(x)&&x>=low&&x<=high))no(name+'['+k+'] = '+x+' is not an integer from '+low+' to '+high);
+        }
+        for(let k=0;k<wd;k++)if(a[k]!==WORLD[f][k])no(name+' changes row 0, the world');
+      }
+      const live=j=>j>=1&&j<n&&(b.FL[j]&ALIVE)!==0;
+      for(let i=1;i<n;i++){
+        const fl=b.FL[i],p=i*3,q=i*4,v=i*6;
+        if(!(fl&ALIVE)){if(fl!==0)no('free row '+i+' has flags '+fl);continue;}
+        const kin=(fl&KINEMATIC)!==0,hr=b.HR,t=b.KT,k7=i*7;
+        if(fl&(LOST|HARD))no('body '+i+' flags '+fl+' are not available yet');
+        if(kin?fl&(ASLEEP|PENDING):fl&MOVING||b.KN[i])no('body '+i+' flags '+fl+' or target do not fit a '+(kin?'kinematic':'dynamic')+' body');
+        for(let k=0;k<3;k++)if(!(b.H[p+k]>0&&b.H[p+k]>=C.minHalf-1e-12&&hr[p+k]>0))no('body '+i+' half-sizes out of range');
+        if(b.SH[i]&&!(hr[p]===hr[p+2]&&hr[p+1]>=hr[p]&&b.H[p]===b.H[p+2]&&(b.SH[i]===2||hr[p+1]===hr[p])))no('body '+i+' sizes do not fit its shape');
+        if(kin?b.IM[i]!==0:!(b.IM[i]>=1/C.massMax-1e-12&&b.IM[i]<=1/C.massMin+1e-12))no('body '+i+' inverse mass out of range');
+        if(!((kin?b.MO[i]>=0:b.MO[i]>0)&&b.FR[i]>=0&&b.FR[i]<=2&&b.RE[i]>=0&&b.RE[i]<=1))no('body '+i+' mass, friction or restitution out of range');
+        const qq=b.Q[q]*b.Q[q]+b.Q[q+1]*b.Q[q+1]+b.Q[q+2]*b.Q[q+2]+b.Q[q+3]*b.Q[q+3],tq=t[k7+3]*t[k7+3]+t[k7+4]*t[k7+4]+t[k7+5]*t[k7+5]+t[k7+6]*t[k7+6];
+        if(!(qq>=1-2e-6&&qq<=1+2e-6))no('body '+i+' quaternion is not unit');
+        if(b.KN[i]&&!(tq>=1-2e-6&&tq<=1+2e-6))no('body '+i+' target quaternion is not unit');
+        const x=b.P[p],y=b.P[p+1],z=b.P[p+2];
+        if(!(x>=minX-80&&x<=maxX+80&&z>=minZ-80&&z<=maxZ+80&&y>=C.minY-80&&y<=10000))no('body '+i+' position out of range');
+        const l2=b.V[v]*b.V[v]+b.V[v+1]*b.V[v+1]+b.V[v+2]*b.V[v+2],w2=b.V[v+3]*b.V[v+3]+b.V[v+4]*b.V[v+4]+b.V[v+5]*b.V[v+5],ml=C.maxLinear*(1+1e-6),ma=C.maxAngular*(1+1e-6);
+        if(!(l2<=ml*ml&&w2<=ma*ma))no('body '+i+' velocity out of range');
+      }
+      const c=snap.c;
+      if(!c||typeof c!=='object')no('impulse cache missing');
+      const m=c.n;
+      if(!Number.isInteger(m)||m<0||m>MC)no('cache n must be an integer from 0 to '+MC);
+      for(const name of ['K','I','Jn','J1','J2']){
+        const a=c[name];if(!Array.isArray(a)||a.length!==m)no('cache '+name+' must be an array of '+m+' numbers');
+        for(let k=0;k<m;k++)if(!finite(a[k]))no('cache '+name+'['+k+'] is not a finite number');
+      }
+      const keys=new Set();
+      for(let k=0;k<m;k++){
+        const key=c.K[k];
+        if(!Number.isInteger(key)||key<0||key>I32)no('cache key '+key+' is not a pair key');
+        if(k===0||key!==c.K[k-1]){
+          if(keys.has(key))no('cache entries of key '+key+' are not contiguous');keys.add(key);
+          const lo=Math.floor(key/KM),r=key-lo*KM;
+          if(!live(lo)||(r<NB?!(r>lo&&live(r)):r-NB>=NS))no('cache key '+key+' names no live pair');
+        }
+        if(!Number.isInteger(c.I[k])||c.I[k]<0||c.I[k]>I32)no('cache point id '+c.I[k]+' out of range');
+        if(!(c.Jn[k]>=0))no('cache normal impulse '+c.Jn[k]+' is negative');
+      }
+      const jj=snap.j;
+      if(jj){if(!Number.isInteger(jj.n)||jj.n<1||jj.n>NJ)no('joint count');for(const key of ['T','G','A','B','D']){const arr=jj[key],width=key==='D'?26:1;if(!Array.isArray(arr)||arr.length!==jj.n*width||!arr.every(finite))no('joint columns');}
+        for(let i=0;i<jj.n;i++){const d=i*26,t=jj.T[i];if(!Number.isInteger(t)||t<0||t>4||!Number.isInteger(jj.G[i])||jj.G[i]<0||jj.G[i]>=GENS)no('joint type/generation');if(!t)continue;
+          if(!Number.isInteger(jj.A[i])||!Number.isInteger(jj.B[i])||jj.A[i]===jj.B[i]||jj.A[i]!==0&&!live(jj.A[i])||jj.B[i]!==0&&!live(jj.B[i])||!(b.IM[jj.A[i]]+b.IM[jj.B[i]]>0))no('joint endpoints');
+          if(jj.D[d+18]<0||jj.D[d+19]<jj.D[d+18]||jj.D[d+19]>100||Math.abs(jj.D[d+20])>1||jj.D[d+21]<0||jj.D[d+22]<0)no('joint limits');for(let k=6;k<18;k+=3){const len=jj.D[d+k]*jj.D[d+k]+jj.D[d+k+1]*jj.D[d+k+1]+jj.D[d+k+2]*jj.D[d+k+2];if(Math.abs(len-1)>1e-6)no('joint axis');}}
+        if(jj.T[0]!==0)no('joint world row');
+      }
+      for(let f=0;f<FIELDS.length;f++){const a=FIELDS[f][1],src=b[FIELDS[f][0]];a.fill(a===MAT?-1:0);for(let k=0;k<src.length;k++)a[k]=src[k]+0;}
+      for(const a of [R,IL,IW,BB,FB,SL,PP,PQ])a.fill(0);
+      R[0]=R[4]=R[8]=1;SL[0]=C.slop;PQ[3]=1;
+      top=n;need=0;stats.bodies=0;stats.sleeping=0;stats.pending=0;stats.kinematic=0;
+      for(let i=1;i<n;i++)if(FL[i]&ALIVE){
+        inertia(i);tolerance(i);derive(i);need+=cellsOf(i);stats.bodies++;
+        if(FL[i]&KINEMATIC)stats.kinematic++;else if(FL[i]&PENDING)stats.pending++;else if(FL[i]&ASLEEP)stats.sleeping++;
+        const p=i*3,q=i*4;PP[p]=P[p];PP[p+1]=P[p+1];PP[p+2]=P[p+2];PQ[q]=Q[q];PQ[q+1]=Q[q+1];PQ[q+2]=Q[q+2];PQ[q+3]=Q[q+3];
+      }
+      if(need>GE)entries(Math.max(need,2*GE));
+      pn=m;for(let k=0;k<m;k++){pK[k]=c.K[k];pI[k]=c.I[k];pJn[k]=c.Jn[k]+0;pJ1[k]=c.J1[k]+0;pJ2[k]=c.J2[k]+0;}
+      tableBuild();
+      for(const a of [JT,JG,JA,JB,JD])a.fill(0);jtop=jj?jj.n:1;joints.count=0;joints.brokenCount=0;if(jj){JT.set(jj.T);JG.set(jj.G);JA.set(jj.A);JB.set(jj.B);JD.set(jj.D);for(let j=1;j<jtop;j++)if(JT[j])joints.count++;}stats.joints=joints.count;
+      WS[0]=snap.acc+0;restDirty=true;
+    }
+    function hash(){
+      let h=fnv(2166136261,top);h=fnv(h,WSU[0]);h=fnv(h,WSU[1]);
+      for(let f=0;f<FIELDS.length;f++){
+        const a=FIELDS[f][1],u=VIEWS[f],m=top*FIELDS[f][2];
+        if(u)for(let k=0;k<2*m;k++)h=fnv(h,u[k]);else for(let k=0;k<m;k++)h=fnv(h,a[k]>>>0);
+      }
+      h=fnv(h,pn);
+      for(let k=0;k<pn;k++)h=fnv(h,pK[k]>>>0);
+      for(let k=0;k<pn;k++)h=fnv(h,pI[k]>>>0);
+      for(let j=0;j<3;j++){const u=CU[j];for(let k=0;k<2*pn;k++)h=fnv(h,u[k]);}
+      if(jtop>1){h=fnv(h,jtop);for(let j=0;j<jtop;j++){h=fnv(h,JT[j]);h=fnv(h,JG[j]);h=fnv(h,JA[j]);h=fnv(h,JB[j]);}for(let k=0;k<jtop*52;k++)h=fnv(h,JU[k]);}
+      return (h>>>0).toString(16).padStart(8,'0');
+    }
+
+    const w={config:C,fingerprint:fp,staticsHash:'',stats,events,joints,addJoint,removeJoint,validJoint:h=>jointSlot(h)>0,phaseMs:PH,setStatics,updateStatics:setStatics,addBody,removeBody,teleport,queryBox,wakeBox,ray,sample,valid,isAsleep,isLost,body,bodyInto,
+      impulse,setVelocity,setKinematic,blast,pose,matrix,step,snapshot,restore,hash};
+    if(geometry)geometryApi=G.FPhysicsGeometry.attach(w,{P,H,HR,R,BB,SH,FL,GRP,GEN,V,count:()=>top});
+    setStatics([],[]);
+    return w;
+  }
+  // TRIG-BEGIN
+  function jointCos(angle){return Math.cos(angle);}
+  function eulerToQuat(rx,ry,rz,out=[0,0,0,0]){
+    const cx=Math.cos(rx/2),sx=Math.sin(rx/2),cy=Math.cos(ry/2),sy=Math.sin(ry/2),cz=Math.cos(rz/2),sz=Math.sin(rz/2);
+    out[0]=cz*cy*sx-sz*sy*cx;out[1]=cz*sy*cx+sz*cy*sx;out[2]=sz*cy*cx-cz*sy*sx;out[3]=cz*cy*cx+sz*sy*sx;
+    return out;
+  }
+  function quatToEuler(x,y,z,w,out=[0,0,0]){
+    const r0=1-2*(y*y+z*z),r1=2*(x*y-w*z),r3=2*(x*y+w*z),r4=1-2*(x*x+z*z),r6=2*(x*z-w*y),r7=2*(y*z+w*x),r8=1-2*(x*x+y*y);
+    const m=Math.max(-1,Math.min(1,-r6));
+    out[1]=Math.asin(m);
+    if(Math.abs(m)<.9999999){out[0]=Math.atan2(r7,r8);out[2]=Math.atan2(r3,r0);}
+    else{out[0]=0;out[2]=Math.atan2(-r1,r4);}
+    return out;
+  }
+  // TRIG-END
+  G.FPhysics={VERSION:2,MATERIALS,create,eulerToQuat,quatToEuler};
+})(typeof window!=='undefined'?window:globalThis);
+
+/* FERRO — persistent local demolition, without a voxel world or imported assets. */
+(function(G){
+  'use strict';
+  const EPS=1e-6,MAX_PARTS=12,MAX_CUTS=12,MAX_DEBRIS=48,KEYS=['minX','maxX','minY','maxY','minZ','maxZ'];
+  const finite=Number.isFinite,clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+  const validPoint=p=>Array.isArray(p)&&p.length===3&&p.every(finite);
+  const volume=b=>Math.max(0,b.maxX-b.minX)*Math.max(0,b.maxY-b.minY)*Math.max(0,b.maxZ-b.minZ);
+  const copyBox=b=>Object.fromEntries(KEYS.map(k=>[k,b[k]]));
+  const overlaps=(a,b)=>a.minX<b.maxX-EPS&&a.maxX>b.minX+EPS&&a.minY<b.maxY-EPS&&a.maxY>b.minY+EPS&&a.minZ<b.maxZ-EPS&&a.maxZ>b.minZ+EPS;
+  const distance=(p,b)=>Math.hypot(Math.max(b.minX-p[0],0,p[0]-b.maxX),Math.max(b.minY-p[1],0,p[1]-b.maxY),Math.max(b.minZ-p[2],0,p[2]-b.maxZ));
+  let foliageSource,foliageFaces;
+  function sharedFoliage(){
+    const triangles=G.FRender?.foliageTriangles?.();
+    if(!Array.isArray(triangles)||!triangles.length)throw new Error('Foliage destruction requires the shared FRender geometry.');
+    if(triangles===foliageSource)return foliageFaces;
+    foliageSource=triangles;
+    // One shared set of edges for the whole scene, not 72 copied triangles per
+    // tree. The renderer and shots use exactly the same irregular silhouette.
+    foliageFaces=triangles.map(([a,b,c])=>{
+      const ab=b.map((v,i)=>v-a[i]),ac=c.map((v,i)=>v-a[i]);
+      return {a,ab,ac,n:[ab[1]*ac[2]-ab[2]*ac[1],ab[2]*ac[0]-ab[0]*ac[2],ab[0]*ac[1]-ab[1]*ac[0]]};
+    });
+    return foliageFaces;
+  }
+  function rotation(r=[0,0,0]){
+    const [x,y,z]=r,a=Math.cos(x),b=Math.sin(x),c=Math.cos(y),d=Math.sin(y),e=Math.cos(z),f=Math.sin(z);
+    return [e*c,e*d*b-f*a,e*d*a+f*b,f*c,f*d*b+e*a,f*d*a-e*b,-d,c*b,c*a];
+  }
+  // Bounded local cells, sampled only after their dimensions are fixed. Missing
+  // volume is explicit crumble, never a giant rigid plate kept to save slots.
+  function fragment(mesh,limit=40,maxEdge=1.4){
+    const size=mesh.s,counts=size.map(n=>Math.max(1,Math.ceil(n/maxEdge))),total=counts.reduce((a,b)=>a*b,1),count=Math.min(Math.max(0,Math.floor(limit)),total),shape=mesh.shape||'box',factor=({sphere:Math.PI/6,cylinder:Math.PI/4,octa:1/6,ring:2*Math.PI*Math.PI*.435*.065*.065,foliage:.55}[shape]||1),volume=size.reduce((a,b)=>a*b,1)*factor,a=rotation(mesh.r),pieces=[];
+    for(let i=0;i<count;i++){let cell=Math.min(total-1,Math.floor((i+.5)*total/count));const local=[];for(let k=0;k<3;k++){const at=cell%counts[k];cell=Math.floor(cell/counts[k]);local[k]=-size[k]/2+(at+.5)*size[k]/counts[k];}pieces.push({mesh:{...mesh,shape:total>1&&!['box','bevel','foliage'].includes(shape)?'bevel':shape,p:mesh.p.map((v,k)=>v+a[k*3]*local[0]+a[k*3+1]*local[1]+a[k*3+2]*local[2]),s:size.map((v,k)=>v/counts[k]),structural:true,fragment:true},volume:volume/total});}
+    return {pieces,total,volume,crumbleVolume:Math.max(0,volume-volume*count/total)};
+  }
+  function bounds(m){
+    const a=rotation(m.r),p=m.p||[0,0,0],s=m.s||[1,1,1],h=[0,1,2].map(i=>(Math.abs(a[i*3]*s[0])+Math.abs(a[i*3+1]*s[1])+Math.abs(a[i*3+2]*s[2]))/2);
+    return {minX:p[0]-h[0],maxX:p[0]+h[0],minY:p[1]-h[1],maxY:p[1]+h[1],minZ:p[2]-h[2],maxZ:p[2]+h[2]};
+  }
+  function union(boxes){return Object.fromEntries(KEYS.map(k=>[k,Math[k.startsWith('min')?'min':'max'](...boxes.map(b=>b[k]))]));}
+  // A box minus one box is at most six disjoint solids. Keeping the exact same
+  // bounds for render pieces and collision pieces makes the breach physical.
+  function subtract(a,b,minimum=EPS){
+    if(!overlaps(a,b))return [a];
+    const lo=[Math.max(a.minX,b.minX),Math.max(a.minY,b.minY),Math.max(a.minZ,b.minZ)],hi=[Math.min(a.maxX,b.maxX),Math.min(a.maxY,b.maxY),Math.min(a.maxZ,b.maxZ)];
+    // Thin rails, sheet metal and cladding are real geometry too. A fixed .035 m
+    // minimum used to erase the entire sheet as soon as one small cut touched it.
+    const pieces=[],push=(x0,x1,y0,y1,z0,z1)=>{if(x1-x0>minimum&&y1-y0>minimum&&z1-z0>minimum)pieces.push({minX:x0,maxX:x1,minY:y0,maxY:y1,minZ:z0,maxZ:z1});};
+    push(a.minX,lo[0],a.minY,a.maxY,a.minZ,a.maxZ);push(hi[0],a.maxX,a.minY,a.maxY,a.minZ,a.maxZ);
+    push(lo[0],hi[0],a.minY,lo[1],a.minZ,a.maxZ);push(lo[0],hi[0],hi[1],a.maxY,a.minZ,a.maxZ);
+    push(lo[0],hi[0],lo[1],hi[1],a.minZ,lo[2]);push(lo[0],hi[0],lo[1],hi[1],hi[2],a.maxZ);
+    return pieces;
+  }
+  function meshBox(m,b,id){return {...m,shape:'box',p:[(b.minX+b.maxX)/2,(b.minY+b.maxY)/2,(b.minZ+b.maxZ)/2],s:[b.maxX-b.minX,b.maxY-b.minY,b.maxZ-b.minZ],r:[0,0,0],destructibleId:id,fragment:true};}
+  function rayBox(origin,dir,b,limit=Infinity){
+    let enter=0,leave=limit,normal=[0,0,0];
+    for(let i=0;i<3;i++){
+      const lo=b[KEYS[i*2]],hi=b[KEYS[i*2+1]],v=dir[i];
+      if(Math.abs(v)<1e-10){if(origin[i]<lo||origin[i]>hi)return null;continue;}
+      let a=(lo-origin[i])/v,c=(hi-origin[i])/v,sign=-1;if(a>c){[a,c]=[c,a];sign=1;}
+      if(a>enter){enter=a;normal=[0,0,0];normal[i]=sign;}leave=Math.min(leave,c);if(enter>leave)return null;
+    }
+    return leave>=0&&enter<=limit?{distance:Math.max(0,enter),normal,leave}:null;
+  }
+  function rayMesh(o,d,e,limit){
+    const hit=rayBox(o,d,e.bounds,limit);if(!hit)return null;
+    const m=e.mesh,a=e.rotation,p=m.p,s=m.s,offset=o.map((v,i)=>v-p[i]);
+    const local=v=>[0,1,2].map(i=>(a[i]*v[0]+a[i+3]*v[1]+a[i+6]*v[2])/s[i]),q=local(offset),v=local(d),shape=m.shape||'box';
+    const point=t=>q.map((x,i)=>x+v[i]*t),normal=t=>{
+      const p=point(t),n=shape==='sphere'?p:shape==='cylinder'?(Math.abs(Math.abs(p[1])-.5)<.002?[0,Math.sign(p[1]),0]:[p[0],0,p[2]]):p.map(Math.sign);
+      const scaled=n.map((x,i)=>x/s[i]),world=[0,1,2].map(i=>a[i*3]*scaled[0]+a[i*3+1]*scaled[1]+a[i*3+2]*scaled[2]),length=Math.hypot(...world)||1;return world.map(x=>x/length);
+    };
+    let t=null;
+    if(shape==='box'||shape==='bevel'){
+      const b=rayBox(q,v,{minX:-.5,maxX:.5,minY:-.5,maxY:.5,minZ:-.5,maxZ:.5},limit);
+      if(!b)return null;const n=b.normal,t=b.distance;return {distance:t,normal:[0,1,2].map(i=>a[i*3]*n[0]+a[i*3+1]*n[1]+a[i*3+2]*n[2])};
+    }
+    if(shape==='foliage'){
+      let nearest=limit,face=null;
+      // Two-sided Möller–Trumbore in local coordinates. Keeping v unnormalised
+      // preserves world-space distances under rotation and non-uniform scale.
+      for(const f of e.triangles){
+        const u=f.ab,w=f.ac,h=[v[1]*w[2]-v[2]*w[1],v[2]*w[0]-v[0]*w[2],v[0]*w[1]-v[1]*w[0]],det=u[0]*h[0]+u[1]*h[1]+u[2]*h[2];
+        if(Math.abs(det)<1e-10)continue;
+        const iq=1/det,dx=q[0]-f.a[0],dy=q[1]-f.a[1],dz=q[2]-f.a[2],b=(dx*h[0]+dy*h[1]+dz*h[2])*iq;
+        if(b< -1e-8||b>1+1e-8)continue;
+        const cross=[dy*u[2]-dz*u[1],dz*u[0]-dx*u[2],dx*u[1]-dy*u[0]],c=(v[0]*cross[0]+v[1]*cross[1]+v[2]*cross[2])*iq;
+        if(c< -1e-8||b+c>1+1e-8)continue;
+        const at=(w[0]*cross[0]+w[1]*cross[1]+w[2]*cross[2])*iq;
+        if(at>=0&&at<=nearest){nearest=at;face=f;}
+      }
+      if(!face)return null;
+      const n=face.n.map((v,i)=>v/s[i]),out=[0,1,2].map(i=>a[i*3]*n[0]+a[i*3+1]*n[1]+a[i*3+2]*n[2]),length=Math.hypot(...out)||1;
+      return {distance:nearest,normal:out.map(v=>v/length)};
+    }
+    if(shape==='sphere'||shape==='cylinder'){
+      const axes=shape==='sphere'?[0,1,2]:[0,2],aa=axes.reduce((n,i)=>n+v[i]*v[i],0),bb=axes.reduce((n,i)=>n+q[i]*v[i],0),cc=axes.reduce((n,i)=>n+q[i]*q[i],0)-.25,disc=bb*bb-aa*cc;
+      const roots=[];if(aa>EPS&&disc>=0)roots.push((-bb-Math.sqrt(disc))/aa,(-bb+Math.sqrt(disc))/aa);
+      if(shape==='cylinder'&&Math.abs(v[1])>EPS)for(const sign of [-1,1]){const at=(sign*.5-q[1])/v[1],p=point(at);if(p[0]*p[0]+p[2]*p[2]<=.25+EPS)roots.push(at);}
+      t=roots.filter(t=>t>=0&&t<=limit&&(shape==='sphere'||Math.abs(point(t)[1])<=.5+EPS)).sort((a,b)=>a-b)[0];
+    }else if(shape==='octa'){
+      let enter=0,leave=limit;
+      for(const x of [-1,1])for(const y of [-1,1])for(const z of [-1,1]){
+        const start=x*q[0]+y*q[1]+z*q[2]-.5,speed=x*v[0]+y*v[1]+z*v[2];
+        if(Math.abs(speed)<EPS){if(start>0)return null;}else if(speed<0)enter=Math.max(enter,-start/speed);else leave=Math.min(leave,-start/speed);
+      }
+      if(enter<=leave)t=enter;
+    }else if(shape==='ring'){
+      // The hollow torus remains hollow to shots; never use its filled AABB.
+      const speed=Math.hypot(...v);let at=hit.distance;
+      for(let i=0;i<72&&at<=Math.min(limit,hit.leave);i++){
+        const p=point(at),sd=Math.hypot(Math.hypot(p[0],p[2])-.435,p[1])-.065;
+        if(sd<.0015){t=at;break;}at+=Math.max(.0002,sd*.85/(speed||1));
+      }
+    }
+    return finite(t)&&t>=0&&t<=limit?{distance:t,normal:normal(t)}:null;
+  }
+  function anchored(parts,base){
+    const keep=new Set(),queue=[];
+    parts.forEach((p,i)=>{if(p.minY<=base+.04){keep.add(i);queue.push(i);}});
+    for(let k=0;k<queue.length;k++)for(let i=0;i<parts.length;i++)if(!keep.has(i)){
+      const a=parts[queue[k]],b=parts[i],touch=[Math.min(a.maxX,b.maxX)-Math.max(a.minX,b.minX),Math.min(a.maxY,b.maxY)-Math.max(a.minY,b.minY),Math.min(a.maxZ,b.maxZ)-Math.max(a.minZ,b.minZ)];
+      if(touch.every(v=>v>=-EPS)&&touch.filter(v=>v>.01).length>=2){keep.add(i);queue.push(i);}
+    }
+    return parts.filter((_,i)=>keep.has(i));
+  }
+  function create(world){
+    const originalMeshes=world.meshes||[],originalColliders=world.colliders||[],groups=new Map(),meshOwner=new Map(),states=new Map(),leaked=new Set();
+    let meshes=originalMeshes.slice(),colliders=null,unclaimedBoxes=[],lights=(world.lights||[]).slice(),revision=0,meshGeneration=0,meshDelta=null;
+    const definitions=world.destructibles||originalMeshes.map((m,i)=>m.ground||m.terrain?null:{id:'mesh-'+i,kind:'prop',strength:5,meshes:[i],colliders:originalColliders.flatMap((c,j)=>c.mesh===i?[j]:[])}).filter(Boolean);
+    const foliage=originalMeshes.some(m=>m.shape==='foliage')?sharedFoliage():null;
+    const entries=originalMeshes.map((mesh,source)=>({mesh,source,bounds:bounds(mesh),rotation:rotation(mesh.r),triangles:mesh.shape==='foliage'?foliage:null}));
+    for(const d of definitions){
+      const members=d.meshes.filter(i=>entries[i]);if(!members.length)continue;
+      const g={...d,id:String(d.id),strength:d.strength||6,meshes:members,colliders:(d.colliders||[]).filter(i=>originalColliders[i]),bounds:d.bounds||union(members.map(i=>entries[i].bounds)),active:members.map(i=>entries[i]),solids:[],originalVolume:0,rebuildOrder:groups.size};
+      g.originalVolume=g.colliders.reduce((v,i)=>v+volume(originalColliders[i]),0);groups.set(g.id,g);for(const i of members)meshOwner.set(i,g.id);
+    }
+    // Support relationships are immutable. Keep their order and cache each
+    // group's exact volume when its solids change, instead of rebuilding the
+    // support graph and summing every unchanged fragment after every blast.
+    const supported=[...groups.values()].filter(g=>g.supports?.length);
+    for(let i=0;i<supported.length;i++){const g=supported[i];g.supportNodes=g.supports.map(id=>groups.get(String(id))).filter(Boolean);g.supportVolume=g.supportNodes.reduce((n,q)=>n+q.originalVolume,0);for(const node of g.supportNodes)(node.supportedBy||(node.supportedBy=[])).push(i);}
+    const supportPending=new Set(),supportQueued=new Uint8Array(supported.length);let supportQueue=null,supportCursor=-1;
+    function dirtySupport(i){
+      // The old pass visits each roof once in definition order. A dependency
+      // changed after that visit belongs to the next changed damage operation.
+      if(!supportQueue||i<=supportCursor){supportPending.add(i);return;}
+      if(supportQueued[i])return;supportQueued[i]=1;let at=supportQueue.length;supportQueue.push(i);
+      while(at){const parent=(at-1)>>1;if(supportQueue[parent]<=i)break;supportQueue[at]=supportQueue[parent];at=parent;}supportQueue[at]=i;
+    }
+    function nextSupported(){
+      const i=supportQueue[0],last=supportQueue.pop();supportQueued[i]=0;
+      if(supportQueue.length){let at=0;while(at*2+1<supportQueue.length){let child=at*2+1;if(child+1<supportQueue.length&&supportQueue[child+1]<supportQueue[child])child++;if(supportQueue[child]>=last)break;supportQueue[at]=supportQueue[child];at=child;}supportQueue[at]=last;}
+      supportCursor=i;return supported[i];
+    }
+    function supportFails(g){return g.supportVolume>0&&g.supportNodes.reduce((n,q)=>n+q.solidVolume,0)/g.supportVolume<(g.supportRatio||.38);}
+    function seedSupports(){
+      // Initialization/restoration may contain already unsupported roofs or a
+      // ratio above one. Record them now, without eagerly collapsing anything.
+      supportPending.clear();for(let i=0;i<supported.length;i++)if(isAlive(supported[i].id)&&supportFails(supported[i]))supportPending.add(i);
+    }
+    let solidCount=0;
+    function geometryFor(g,built){geometryDirty.add(g);solidCount+=built.solids.length-g.solids.length;g.active=built.active;g.solids=built.solids;const before=g.solidVolume;g.solidVolume=g.solids.reduce((n,q)=>n+volume(q.bounds),0);if(!Object.is(before,g.solidVolume))for(const i of g.supportedBy||[])dirtySupport(i);g.pendingBuilt=built;g.pendingRecord=states.get(g.id);}
+    const cells=new Map(),size=8;
+    for(const g of groups.values())for(let x=Math.floor(g.bounds.minX/size);x<=Math.floor(g.bounds.maxX/size);x++)for(let z=Math.floor(g.bounds.minZ/size);z<=Math.floor(g.bounds.maxZ/size);z++){
+      const key=x+','+z;if(!cells.has(key))cells.set(key,[]);cells.get(key).push(g);
+    }
+    let signature=2166136261;for(const c of JSON.stringify([world.seed,world.stage,world.generation,definitions.map(d=>[d.id,d.bounds,d.meshes,d.colliders]),world.pipes||[]]))signature=Math.imul(signature^c.charCodeAt(0),16777619);signature=(signature>>>0).toString(36);
+    const query=b=>{const found=new Set();for(let x=Math.floor(b.minX/size);x<=Math.floor(b.maxX/size);x++)for(let z=Math.floor(b.minZ/size);z<=Math.floor(b.maxZ/size);z++)for(const g of cells.get(x+','+z)||[])found.add(g);return Array.from(found);};
+    const isAlive=id=>id===undefined||id===null||!states.get(String(id))?.removed;
+    function compile(g,record){
+      if(record?.removed)return {active:[],solids:[]};
+      const cuts=record?.cuts||[],active=[],solids=[];
+      for(const ci of g.colliders){
+        const c=originalColliders[ci],source=originalMeshes[c.mesh];
+        if(cuts.length&&source?.shape==='box'&&source.r?.some(v=>Math.abs(v)>EPS)){
+          const a=rotation(source.r),local={minX:-source.s[0]/2,maxX:source.s[0]/2,minY:-source.s[1]/2,maxY:source.s[1]/2,minZ:-source.s[2]/2,maxZ:source.s[2]/2};let pieces=[local];
+          for(const cut of cuts){const ps=[];for(const x of [cut.minX,cut.maxX])for(const y of [cut.minY,cut.maxY])for(const z of [cut.minZ,cut.maxZ]){const d=[x-source.p[0],y-source.p[1],z-source.p[2]];ps.push([0,1,2].map(k=>a[k]*d[0]+a[k+3]*d[1]+a[k+6]*d[2]));}const clip={minX:Math.min(...ps.map(p=>p[0])),maxX:Math.max(...ps.map(p=>p[0])),minY:Math.min(...ps.map(p=>p[1])),maxY:Math.max(...ps.map(p=>p[1])),minZ:Math.min(...ps.map(p=>p[2])),maxZ:Math.max(...ps.map(p=>p[2]))};pieces=pieces.flatMap(p=>subtract(p,clip,.035));}
+          if(g.kind!=='roof'&&g.kind!=='decor')pieces=anchored(pieces,local.minY);
+          for(const q of pieces){const center=[(q.minX+q.maxX)/2,(q.minY+q.maxY)/2,(q.minZ+q.maxZ)/2],mesh={...source,p:source.p.map((v,k)=>v+a[k*3]*center[0]+a[k*3+1]*center[1]+a[k*3+2]*center[2]),s:[q.maxX-q.minX,q.maxY-q.minY,q.maxZ-q.minZ],fragment:true,destructibleId:g.id};solids.push({bounds:bounds(mesh),source:ci,meshIndex:c.mesh,mesh});}continue;
+        }
+        let pieces=[copyBox(c)];for(const cut of cuts)pieces=pieces.flatMap(p=>subtract(p,cut,.035));
+        if(g.kind!=='roof'&&g.kind!=='decor')pieces=anchored(pieces,c.minY);
+        for(const b of pieces)solids.push({bounds:b,source:ci,meshIndex:c.mesh});
+      }
+      for(const i of g.meshes){
+        const e=entries[i],m=e.mesh,solidParts=solids.filter(q=>q.meshIndex===i);
+        if(g.colliders.some(ci=>originalColliders[ci].mesh===i)){
+          for(const p of solidParts){const mesh=cuts.length?(p.mesh||meshBox(m,p.bounds,g.id)):m;active.push({mesh,source:i,bounds:p.bounds,rotation:rotation(mesh.r),solid:p});}continue;
+        }
+        if(!cuts.length){active.push(e);continue;}
+        const axisBox=(m.shape||'box')==='box'&&(!m.r||m.r.every(x=>Math.abs(x)<1e-8));
+        if(axisBox){let boxes=[e.bounds];for(const c of cuts)boxes=boxes.flatMap(p=>subtract(p,c));if(g.kind==='decor'&&m.s[1]>Math.max(m.s[0],m.s[2])*4)boxes=anchored(boxes,e.bounds.minY);for(const b of boxes){const mesh=meshBox(m,b,g.id);active.push({mesh,source:i,bounds:b,rotation:rotation(mesh.r)});}}
+        else if(!cuts.some(c=>overlaps(e.bounds,c)))active.push(e);
+      }
+      const attached=record?.cuts.length&&g.colliders.length&&g.kind!=='roof'?active.filter(e=>e.solid||solids.some(q=>Math.hypot(Math.max(q.bounds.minX-e.bounds.maxX,0,e.bounds.minX-q.bounds.maxX),Math.max(q.bounds.minY-e.bounds.maxY,0,e.bounds.minY-q.bounds.maxY),Math.max(q.bounds.minZ-e.bounds.maxZ,0,e.bounds.minZ-q.bounds.maxZ))<.4)):active;
+      return {active:attached,solids};
+    }
+    // Only touched groups need recompilation; their original order remains
+    // significant when definitions share a render slot. Restores mark all groups.
+    const geometryDirty=new Set(groups.values()),ownerIds=originalMeshes.map((_,i)=>meshOwner.get(i)),renderSlots=new Array(originalMeshes.length),firstIndex=new Uint32Array(originalMeshes.length),slotOffsets=new Float64Array(originalMeshes.length+1),claimed=new Set(definitions.flatMap(d=>d.colliders||[]));
+    // A changed source only shifts the starts of later sources. Keep those
+    // integer offsets in a Fenwick tree instead of revisiting every city mesh.
+    // A complete restore resets the base starts and the tree together.
+    function sourceStart(i){if(!Number.isInteger(i)||i<0||i>=firstIndex.length)return firstIndex[i];let n=i,offset=0;while(n>0){offset+=slotOffsets[n];n-=n&-n;}return firstIndex[i]+offset;}
+    function shiftSources(i,amount){for(let n=i+1;n<slotOffsets.length;n+=n&-n)slotOffsets[n]+=amount;}
+    function spliceMeshes(before,splices){
+      if(!splices.length)return before.slice();
+      const parts=[];let at=0;for(const q of splices){if(q.start>at)parts.push(before.slice(at,q.start));if(q.items.length)parts.push(q.items);at=q.start+q.deleteCount;}if(at<before.length)parts.push(before.slice(at));
+      // Normal blasts have only a few ranges. Avoid argument-count limits for
+      // exceptionally large generic FERRO worlds without changing their order.
+      if(parts.length<4096)return [].concat(...parts);
+      const result=[];for(const part of parts)for(const m of part)result.push(m);return result;
+    }
+    // Membership depends only on the fixed claimed indices and array length.
+    // The records themselves remain live and are copied at each publication.
+    let unclaimedIndices=[],unclaimedSourceLength=-1;
+    function rebuild(next=states,full=false){
+      let output;const before=meshGeneration?meshes:null,changedSlots=new Map();full=full||!meshGeneration;
+      for(const g of [...geometryDirty].sort((a,b)=>a.rebuildOrder-b.rebuildOrder)){
+        const record=next.get(g.id),count=record?.cuts.length||0,removed=!!record?.removed;
+        if(g.cacheRecord===record&&g.cacheCount===count&&g.cacheRemoved===removed)continue;
+        // Damage already compiled this exact record for support checks and
+        // debris. Reuse it; no caller can observe the interim render arrays.
+        let built=g.pendingBuilt&&g.pendingRecord===record?g.pendingBuilt:null;
+        if(!built){built=compile(g,record);geometryFor(g,built);}
+        g.pendingBuilt=null;g.pendingRecord=null;g.cacheRecord=record;g.cacheCount=count;g.cacheRemoved=removed;
+        for(const i of g.meshes){if(!full&&!changedSlots.has(i))changedSlots.set(i,renderSlots[i]||[]);renderSlots[i]=[];}
+        for(const e of g.active)renderSlots[e.source].push(e);
+      }
+      geometryDirty.clear();
+      // Splice starts refer to the previous flat array. Preserve occurrences
+      // and source ordering, including zero-length slots and shared meshes.
+      const splices=[],removed=[],added=[],offsetChanges=[];
+      for(const [i,previous]of [...changedSlots].sort((a,b)=>a[0]-b[0])){
+        if(!ownerIds[i])continue;const nextSlot=renderSlots[i]||[];
+        if(previous.length===nextSlot.length&&previous.every((e,j)=>e.mesh===nextSlot[j].mesh))continue;
+        const items=nextSlot.map(e=>e.mesh),start=sourceStart(i),last=splices[splices.length-1];
+        if(last&&start===last.start+last.deleteCount){last.deleteCount+=previous.length;for(const m of items)last.items.push(m);}
+        else splices.push({start,deleteCount:previous.length,items});
+        for(const e of previous)removed.push(e.mesh);for(const m of items)added.push(m);
+        if(nextSlot.length!==previous.length)offsetChanges.push([i,nextSlot.length-previous.length]);
+      }
+      // Preserve original mesh ordering, including coplanar decorative surfaces.
+      // Only a changed original mesh is replaced by its local surviving pieces.
+      if(full){
+        output=[];slotOffsets.fill(0);
+        for(let i=0;i<originalMeshes.length;i++){
+          const id=ownerIds[i];firstIndex[i]=output.length;
+          if(!id){output.push(originalMeshes[i]);continue;}
+          for(const e of renderSlots[i]||[])output.push(e.mesh);
+        }
+      }else{
+        output=spliceMeshes(before,splices);
+        for(const [i,amount]of offsetChanges)shiftSources(i,amount);
+      }
+      // Snapshot unclaimed external records now, matching the eager API even
+      // when a caller edits the original records before requesting colliders.
+      if(unclaimedSourceLength!==originalColliders.length){unclaimedIndices=[];for(let i=0;i<originalColliders.length;i++)if(!claimed.has(i))unclaimedIndices.push(i);unclaimedSourceLength=originalColliders.length;}
+      unclaimedBoxes=[];for(const i of unclaimedIndices){const c=originalColliders[i];unclaimedBoxes.push({...c,mesh:sourceStart(c.mesh)});}
+      meshes=output;colliders=null;lights=(world.lights||[]).filter(l=>!next.get(String(l.destructibleId))?.removed);
+      meshDelta={before,after:meshes,generation:++meshGeneration,full,splices,removed,added};
+    }
+    function collisionGeometry(){
+      // Outdoor EMPRISE derives oriented world boxes from the visible meshes;
+      // it never reads this optional FERRO collision array. Indoor callers and
+      // other games still receive the exact ordered, revision-local snapshot.
+      if(colliders)return colliders;
+      const boxes=[];
+      let index=0;for(let i=0;i<originalMeshes.length;i++){const id=ownerIds[i];if(!id){index++;continue;}for(const e of renderSlots[i]||[]){if(e.solid)boxes.push({...e.solid.bounds,mesh:index,destructibleId:id});index++;}}
+      for(const box of unclaimedBoxes)boxes.push(box);
+      return colliders=boxes;
+    }
+    rebuild();seedSupports();
+    function raycast(origin,direction,maxDistance=100){
+      if(!validPoint(origin)||!validPoint(direction)||!finite(maxDistance)||maxDistance<=0)return null;
+      const length=Math.hypot(...direction);if(length<EPS)return null;const dir=direction.map(v=>v/length),end=origin.map((v,i)=>v+dir[i]*Math.min(300,maxDistance));
+      const candidates=query({minX:Math.min(origin[0],end[0]),maxX:Math.max(origin[0],end[0]),minZ:Math.min(origin[2],end[2]),maxZ:Math.max(origin[2],end[2])});
+      let nearest=null,limit=Math.min(maxDistance,300);
+      for(const g of candidates){if(!isAlive(g.id)||!rayBox(origin,dir,g.bounds,limit))continue;for(const e of g.active){const h=rayMesh(origin,dir,e,limit);if(h&&h.distance<limit){limit=h.distance;nearest={...h,id:g.id,point:origin.map((v,i)=>v+dir[i]*h.distance)};}}}
+      return nearest;
+    }
+    const materialOf=m=>['metal','stone','wood','glass','dirt'].includes(m.material)?m.material:m.mat===3||m.mat===9?'stone':m.mat===10?'wood':m.mat===8||m.mat===11?'dirt':m.mat===12?'glass':'metal';
+    function randomFor(seed){let n=(seed|0)||1;return ()=>{n=Math.imul(n^n>>>15,2246822519);n=Math.imul(n^n>>>13,3266489917);return ((n^n>>>16)>>>0)/4294967296;};}
+    function chipsFor(g,e,point,power,out){
+      const m=e.mesh,seed=e.source*977+revision*911+Math.round(power*13),random=randomFor(seed);
+      for(let i=0;i<Math.min(3,Math.ceil(power/8)+1)&&out.length<12;i++){
+        const span=.025+random()*.075,a=random()*Math.PI*2,speed=1+random()*2;
+        out.push({x:point[0],y:point[1],z:point[2],size:[span,span*(.4+random()),span*(.6+random())],mat:m.mat||0,color:m.color?.slice(),material:materialOf(m),sourceId:g.id,velocity:[Math.cos(a)*speed,1+random()*2,Math.sin(a)*speed],life:.65+random()*.8,seed:seed+i});
+      }
+    }
+    function removedGeometry(g,before,after,point,power,direction,out){
+      // Diff the visible pieces, not the group's bounding box. A shot through a
+      // fence must drop the severed rail and keep the other rail and posts.
+      for(const e of before){
+        const keep=after.filter(q=>q.source===e.source);
+        if(keep.some(q=>q.mesh===e.mesh||KEYS.every(k=>Math.abs(q.bounds[k]-e.bounds[k])<EPS)))continue;
+        const m=e.mesh,axisBox=(m.shape||'box')==='box'&&(!m.r||m.r.every(v=>Math.abs(v)<EPS));
+        if(axisBox||e.solid&&keep.length){
+          let lost=[e.bounds];for(const q of keep)lost=lost.flatMap(b=>subtract(b,q.bounds));
+          for(const b of lost)out.push({mesh:meshBox(m,b,g.id),source:e.source,sourceId:g.id,kind:g.kind,point,power,direction});
+        }else if(!keep.length)out.push({mesh:m,source:e.source,sourceId:g.id,kind:g.kind,point,power,direction});
+      }
+    }
+    function fallingDebris(raw){
+      const worth=q=>Math.pow(q.mesh.s.reduce((v,n)=>v*n,1),.35)*Math.max(...q.mesh.s),ordered=raw.slice().sort((a,b)=>worth(b)-worth(a)),selected=[],alloc=new Map(),seen=new Set(),capacity=MAX_DEBRIS-8;
+      for(const q of ordered)if(!seen.has(q.sourceId)&&alloc.size<capacity){seen.add(q.sourceId);alloc.set(q,1);}
+      for(const q of ordered)if(alloc.size<capacity&&!alloc.has(q))alloc.set(q,1);
+      let used=alloc.size;while(used<capacity){let best=null,score=0;for(const [q,n] of alloc){const total=q.mesh.s.reduce((v,s)=>v*Math.max(1,Math.ceil(s/1.4)),1),value=worth(q)/(n+1);if(n<total&&value>score){best=q;score=value;}}if(!best)break;alloc.set(best,alloc.get(best)+1);used++;}
+      let crumbleVolume=0,totalVolume=0;const center=[0,0,0];let radius=0;
+      for(const q of ordered){const parts=fragment(q.mesh,alloc.get(q)||0);crumbleVolume+=parts.crumbleVolume;totalVolume+=parts.volume;for(let k=0;k<3;k++)center[k]+=q.mesh.p[k]*parts.volume;for(const part of parts.pieces)selected.push({...q,mesh:part.mesh,volume:part.volume});}
+      if(totalVolume)for(let k=0;k<3;k++)center[k]/=totalVolume;
+      for(const q of ordered)radius=Math.max(radius,Math.hypot(...q.mesh.p.map((v,k)=>v-center[k]))+Math.max(...q.mesh.s)/2);
+      const debris=selected.map((q,i)=>{
+        const m=q.mesh,seed=(q.source*977+(revision+1)*911+i*131)>>>0,random=randomFor(seed),material=materialOf(m),volume=q.volume,mass=clamp(volume*({metal:7800,stone:2200,wood:550,glass:2500,dirt:1500}[material]),.035,12000);
+        const angle=random()*Math.PI*2,dx=m.p[0]-q.point[0],dz=m.p[2]-q.point[2],length=Math.hypot(dx,dz),speed=clamp(Math.sqrt(q.power)*.30/Math.pow(Math.max(1,mass),.22),.35,3.2),dir=q.direction||[length>.03?dx/length:Math.cos(angle),0,length>.03?dz/length:Math.sin(angle)],spin=Math.max(...m.s)>Math.min(...m.s)*8?.55:1.4;
+        return {structural:true,sourceId:q.sourceId,shape:m.shape||'box',x:m.p[0],y:m.p[1],z:m.p[2],size:m.s.slice(),rotation:(m.r||[0,0,0]).slice(),angularVelocity:[(random()-.5)*spin,(random()-.5)*spin,(random()-.5)*spin],velocity:[dir[0]*speed,q.kind==='roof'?-.25:.35+random()*.9+dir[1]*speed,dir[2]*speed],resting:false,mat:m.mat||0,color:m.color?.slice(),material,mass,volume,life:1e7,seed};
+      });
+      if(crumbleVolume>EPS)debris.push({dust:true,structural:false,x:center[0],y:center[1],z:center[2],size:[clamp(radius*2,1,18),clamp(radius,1,7),clamp(radius*2,1,18)],volume:crumbleVolume,life:3.5,seed:revision+1});
+      return debris;
+    }
+    function damage(point,radius,power,bullet,ignoreId,direction){
+      const result={changed:false,revision,debris:[],events:[],pipeLeaks:[],collapsed:[]},fallen=[];
+      if(!validPoint(point)||!finite(radius)||!finite(power)||radius<=0||power<=0)return result;
+      radius=clamp(radius,.05,12);power=clamp(power,0,1000);
+      const reach={minX:point[0]-radius,maxX:point[0]+radius,minY:point[1]-radius,maxY:point[1]+radius,minZ:point[2]-radius,maxZ:point[2]+radius};
+      let targets=query(reach).filter(g=>g.id!==String(ignoreId)&&isAlive(g.id)&&g.active.some(e=>distance(point,e.bounds)<=radius));
+      if(bullet)targets=targets.sort((a,b)=>Math.min(...a.active.map(e=>distance(point,e.bounds)))-Math.min(...b.active.map(e=>distance(point,e.bounds)))).slice(0,1);
+      const touched=[];
+      for(const g of targets){
+        const nearest=g.active.reduce((best,e)=>!best||distance(point,e.bounds)<distance(point,best.bounds)?e:best,null),d=distance(point,nearest.bounds),impact=[Math.max(nearest.bounds.minX,Math.min(point[0],nearest.bounds.maxX)),Math.max(nearest.bounds.minY,Math.min(point[1],nearest.bounds.maxY)),Math.max(nearest.bounds.minZ,Math.min(point[2],nearest.bounds.maxZ))],amount=power*(bullet?1:Math.pow(Math.max(0,1-d/radius),.45));if(amount<=.02)continue;
+        const old=states.get(g.id)||{damage:0,cuts:[],removed:false},record={...old,cuts:old.cuts.slice(),damage:old.damage+amount},event={x:impact[0],y:impact[1],z:impact[2],sourceId:g.id,material:materialOf(nearest.mesh),power:amount,seed:nearest.source*977+(revision+1)*911};
+        chipsFor(g,nearest,impact,amount,result.debris);
+        if(record.damage<g.strength){states.set(g.id,record);geometryDirty.add(g);result.events.push({name:'materialImpact',...event});continue;}
+        record.damage=0;
+        const before=g.solids.reduce((v,q)=>v+volume(q.bounds),0),r=bullet?clamp(.30+Math.sqrt(power)*.13,.40,.85):radius*.66;
+        const cut={minX:impact[0]-r,maxX:impact[0]+r,minY:impact[1]-r,maxY:impact[1]+r,minZ:impact[2]-r,maxZ:impact[2]+r};
+        if(['tree','pipe'].includes(g.kind))record.removed=true;
+        else record.cuts.push(cut);
+        let built=compile(g,record);
+        const remains=built.solids.reduce((v,q)=>v+volume(q.bounds),0);
+        // Decorative groups can span a whole fence. Reaching their cut budget
+        // must never erase unrelated posts/rails to save a handful of polygons.
+        if(!g.colliders.length&&(record.cuts.length>MAX_CUTS||built.active.length>64)){states.set(g.id,{...old,damage:0});geometryDirty.add(g);result.events.push({name:'materialImpact',...event});continue;}
+        if(built.solids.length>MAX_PARTS||record.cuts.length>MAX_CUTS||!built.active.length||g.colliders.length&&(!built.solids.length||remains<g.originalVolume*.035))record.removed=true;
+        if(record.removed){record.cuts=[];built={active:[],solids:[]};result.collapsed.push(g.id);}
+        // A grazing explosion must not create a fake revision or damage hole.
+        if(record.removed||remains<before-EPS||built.active.length!==g.active.length||record.cuts.length){removedGeometry(g,g.active,built.active,impact,amount,direction,fallen);states.set(g.id,record);result.changed=true;touched.push(g.id);geometryFor(g,built);result.events.push({name:'materialBreak',...event});}
+        for(const p of world.pipes||[])if(p.destructibleId===g.id&&!leaked.has(p.id)){leaked.add(p.id);result.pipeLeaks.push(p.id);}
+      }
+      if(result.changed){
+        supportQueue=[...supportPending].sort((a,b)=>a-b);supportPending.clear();supportCursor=-1;for(const i of supportQueue)supportQueued[i]=1;
+        while(supportQueue.length){const roof=nextSupported();if(isAlive(roof.id)){
+          if(supportFails(roof)){
+            const point=[(roof.bounds.minX+roof.bounds.maxX)/2,roof.bounds.minY,(roof.bounds.minZ+roof.bounds.maxZ)/2];removedGeometry(roof,roof.active,[],point,45,undefined,fallen);
+            states.set(roof.id,{damage:0,cuts:[],removed:true});geometryFor(roof,{active:[],solids:[]});result.collapsed.push(roof.id);
+            for(const id of roof.dependents||[]){const g=groups.get(id);if(g&&isAlive(id)){removedGeometry(g,g.active,[],point,45,undefined,fallen);states.set(id,{damage:0,cuts:[],removed:true});geometryFor(g,{active:[],solids:[]});result.collapsed.push(id);}}
+            result.events.push({name:'materialBreak',x:point[0],y:point[1],z:point[2],sourceId:roof.id,material:materialOf(entries[roof.meshes[0]].mesh),power:45,seed:roof.meshes[0]*977+(revision+1)*911});
+          }
+        }}supportQueue=null;supportCursor=-1;
+        // Collapse only a locally over-fragmented body; never erase unrelated
+        // scenery to meet a global budget or emit blocking cosmetic debris.
+        let total=solidCount,limit=Math.max(512,originalColliders.length+384);
+        for(const id of touched)if(total>limit){const g=groups.get(id);total-=g.solids.length;removedGeometry(g,g.active,[],point,power,direction,fallen);states.set(id,{damage:0,cuts:[],removed:true});geometryFor(g,{active:[],solids:[]});if(!result.collapsed.includes(id))result.collapsed.push(id);}
+        result.debris=[...fallingDebris(fallen),...result.debris].slice(0,MAX_DEBRIS);
+        rebuild();revision++;result.revision=revision;
+      }
+      return result;
+    }
+    function snapshot(){return {version:1,signature,revision,states:Array.from(states,([id,s])=>({id,damage:s.damage,removed:!!s.removed,cuts:s.cuts.map(copyBox)})),leaks:Array.from(leaked)};}
+    function restore(value,options={}){
+      if(!value||value.version!==1||value.signature!==signature||!Number.isInteger(value.revision)||value.revision<0||value.revision>1e9||!Array.isArray(value.states)||value.states.length>groups.size||!Array.isArray(value.leaks))return false;
+      const next=new Map(),nextLeaks=new Set(),pipeIds=new Set((world.pipes||[]).map(p=>p.id));
+      for(const s of value.states){
+        if(!s||typeof s.id!=='string'||!groups.has(s.id)||next.has(s.id)||!finite(s.damage)||s.damage<0||s.damage>=groups.get(s.id).strength||typeof s.removed!=='boolean'||!Array.isArray(s.cuts)||s.cuts.length>MAX_CUTS||s.removed&&s.cuts.length)return false;
+        const cuts=[];
+        for(const b of s.cuts){if(!b||!KEYS.every(k=>finite(b[k]))||!(b.maxX>b.minX&&b.maxY>b.minY&&b.maxZ>b.minZ)||Math.max(b.maxX-b.minX,b.maxY-b.minY,b.maxZ-b.minZ)>24||!overlaps(b,groups.get(s.id).bounds))return false;cuts.push(copyBox(b));}
+        const record={damage:s.damage,removed:s.removed,cuts},g=groups.get(s.id),built=compile(g,record);if(built.solids.length>MAX_PARTS||cuts.length&&!g.colliders.length&&built.active.length>64)return false;next.set(s.id,record);
+      }
+      for(const id of value.leaks){if(!pipeIds.has(id)||nextLeaks.has(id))return false;nextLeaks.add(id);}
+      const total=Array.from(groups.values()).reduce((n,g)=>n+compile(g,next.get(g.id)).solids.length,0);
+      if(total>Math.max(512,originalColliders.length+384))return false;
+      // Validation finishes before any live array or state is replaced.
+      states.clear();for(const [id,s] of next)states.set(id,s);leaked.clear();for(const id of nextLeaks)leaked.add(id);
+      for(const g of groups.values())geometryDirty.add(g);
+      rebuild(states,true);seedSupports();revision=options.exactRevision?value.revision:Math.max(revision+1,value.revision);return true;
+    }
+    return {detach(id){const g=groups.get(id);if(!g||!isAlive(id))return [];const out=g.active.map(e=>e.mesh);states.set(id,{damage:0,cuts:[],removed:true});geometryDirty.add(g);rebuild();revision++;return out;},describe(id){const g=groups.get(id);return g?{id:g.id,meshes:g.active.map(e=>e.mesh),strength:g.strength,bounds:g.bounds}:null;},sourceSpan(index){return Number.isInteger(index)&&index>=0&&index<originalMeshes.length?{start:sourceStart(index),length:ownerIds[index]?(renderSlots[index]?.length||0):1}:null;},get meshes(){return meshes;},get meshDelta(){return meshDelta;},get colliders(){return collisionGeometry();},get lights(){return lights;},get revision(){return revision;},isAlive,raycast,
+      hit:(point,power,direction)=>damage(point,.22,power,true,undefined,validPoint(direction)?direction:undefined),blast:(point,radius,power,ignoreId)=>damage(point,radius,power,false,ignoreId),snapshot,restore};
+  }
+  G.FDestruction={create,fragment};
+})(typeof window!=='undefined'?window:globalThis);
+
+/* Point de rupture — navigation de la simulation (CONCEPTION.md §2). Ni window ni document : le fichier tourne dans le
+   travailleur, sur le fil principal et dans Node.
+
+   Deux grilles alignées sur la même origine, en millimètres :
+   - la grille fine de 2 m (masque2) dit où une unité peut se tenir : 0 mur, 1 praticable, 2 chaussée (les motards y
+     filent). Elle sert aux déplacements et au champ de densité de la foule ;
+   - la grille de navigation de 4 m : une case est praticable si ses quatre cases fines le sont, et si aucun obstacle
+     dynamique (barricade, avant-poste) ne la couvre. Les champs de direction s'y calculent.
+
+   Champs de direction : algorithme de Dial (files par coût, coûts entiers 10 et 14), 8 directions, sans couper d'angle
+   à travers un obstacle. Le champ est mis en cache par but et par version des obstacles ; chaque ordre de groupe en
+   partage un. Une case du champ vaut 0..127 (cap = code × 2 sur 256 directions, voir PDR.nav.DX), BUT ou AUCUN.
+   Les directions sont lissées sur trois pas tant que le chemin ne tourne pas de plus de 45°.
+
+   Caps : 256 directions ; 0 regarde +z, 64 regarde +x (la face regarde (sin cap, cos cap), comme le protocole).
+   DX[c], DZ[c] : le vecteur unité × 1024, calculé une fois par une série entière (aucun Math.sin). cap(dx, dz) : le cap
+   le plus proche d'un vecteur, en entiers. */
+(function (PDR) {
+  'use strict';
+
+  const CELLULE = 4000, FIN = 2000;            // mm
+  const ORTHO = 10, DIAG = 14;
+  const BUT = 254, AUCUN = 255;
+  const INFINI = 0xFFFFFFFF;
+
+  // ---- Tables d'angles. sin(k π / 128) pour k = 0..64 par la série de Taylor (opérations IEEE exactes et partout
+  // identiques), puis arrondi à 1/1024. ----
+  const QUART = new Int32Array(65);
+  for (let k = 0; k <= 64; k++) {
+    const t = k * Math.PI / 128;
+    let terme = t, somme = t;
+    for (let n = 1; n < 14; n++) { terme *= -t * t / ((2 * n) * (2 * n + 1)); somme += terme; }
+    QUART[k] = Math.round(somme * 1024);
+  }
+  const sinCap = h => { h &= 255; return h < 64 ? QUART[h] : h < 128 ? QUART[128 - h] : h < 192 ? -QUART[h - 128] : -QUART[256 - h]; };
+  const DX = new Int16Array(256), DZ = new Int16Array(256);
+  for (let h = 0; h < 256; h++) { DX[h] = sinCap(h); DZ[h] = sinCap(h + 64); }
+  // ATAN[q] : le cap (0..32) dont la tangente est la plus proche de q / 256, pour q = 0..256.
+  const ATAN = new Uint8Array(257);
+  for (let q = 0, k = 0; q <= 256; q++) {
+    while (k < 32 && Math.abs(q * DZ[k + 1] - 256 * DX[k + 1]) <= Math.abs(q * DZ[k] - 256 * DX[k])) k++;
+    ATAN[q] = k;
+  }
+  /** Cap 0..255 du vecteur (dx, dz) ; garde est rendu pour le vecteur nul. */
+  function cap(dx, dz, garde = 0) {
+    const ax = dx < 0 ? -dx : dx, az = dz < 0 ? -dz : dz;
+    if (ax === 0 && az === 0) return garde;
+    const k = ax <= az ? ATAN[Math.trunc(ax * 256 / az)] : 64 - ATAN[Math.trunc(az * 256 / ax)];
+    if (dz >= 0) return dx >= 0 ? k : (256 - k) & 255;
+    return dx >= 0 ? 128 - k : 128 + k;
+  }
+  /** Le cap en radians, pour le tampon de rendu (la face regarde (sin, cos)). */
+  const RADIANS = new Float32Array(256);
+  for (let h = 0; h < 256; h++) RADIANS[h] = h < 128 ? h * Math.PI / 128 : (h - 256) * Math.PI / 128;
+
+  /**
+   * creer(ville, { capaciteChamps }) : la navigation d'une ville.
+   * Toutes les positions sont en millimètres ; les cases sont des indices i + j × nx.
+   */
+  function creer(ville, options = {}) {
+    const e = ville.etendue;
+    const x0m = Math.floor((e.x0 - 8) / 4) * 4, z0m = Math.floor((e.z0 - 8) / 4) * 4;
+    const nx = Math.ceil((e.x1 + 8 - x0m) / 4), nz = Math.ceil((e.z1 + 8 - z0m) / 4), n = nx * nz;
+    const X0 = x0m * 1000, Z0 = z0m * 1000;
+    const nx2 = nx * 2, nz2 = nz * 2, n2 = nx2 * nz2;
+
+    // Grille fine : le centre de chaque case de 2 m est-il praticable, et sur une chaussée ?
+    const masque2 = new Uint8Array(n2);
+    for (let j = 1; j < nz2 - 1; j++) {
+      const z = z0m + j * 2 + 1;
+      for (let i = 1; i < nx2 - 1; i++) {
+        const x = x0m + i * 2 + 1;
+        if (ville.praticable(x, z)) masque2[i + j * nx2] = ville.surChaussee(x, z) ? 2 : 1;
+      }
+    }
+    // Grille de navigation : praticable si ses quatre cases fines le sont ; le bord reste fermé.
+    const statique = new Uint8Array(n), bloque = new Uint8Array(n), libre = new Uint8Array(n);
+    for (let j = 1; j < nz - 1; j++) for (let i = 1; i < nx - 1; i++) {
+      const f = 2 * i + 2 * j * nx2;
+      if (masque2[f] && masque2[f + 1] && masque2[f + nx2] && masque2[f + nx2 + 1]) statique[i + j * nx] = libre[i + j * nx] = 1;
+    }
+    // Sortie des cases fermées proches d'une case ouverte (bords de trottoir) : un parcours en largeur, trois cases.
+    const sortie = new Uint8Array(n).fill(AUCUN);
+    {
+      let front = [];
+      for (let c = 0; c < n; c++) if (statique[c]) front.push(c);
+      const vu = Uint8Array.from(statique);
+      for (let profondeur = 0; profondeur < 3 && front.length; profondeur++) {
+        const suivant = [];
+        for (const c of front) {
+          const i = c % nx, j = (c / nx) | 0;
+          for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) {
+            if (!di && !dj) continue;
+            const a = i + di, b = j + dj;
+            if (a < 0 || b < 0 || a >= nx || b >= nz) continue;
+            const v = a + b * nx;
+            if (vu[v]) continue;
+            vu[v] = 1;
+            sortie[v] = cap(-di, -dj) >> 1;
+            suivant.push(v);
+          }
+        }
+        front = suivant;
+      }
+    }
+
+    const nav = {
+      CELLULE, FIN, X0, Z0, nx, nz, n, nx2, nz2, n2, masque2, statique, bloque, libre, sortie, version: 0,
+      carte: { nx, nz, x0: x0m, z0: z0m, cellule: 4 },
+    };
+
+    /** Case de 4 m sous un point (bornée à la grille). */
+    nav.caseDe = (x, z) => {
+      let i = Math.trunc((x - X0) / CELLULE), j = Math.trunc((z - Z0) / CELLULE);
+      if (i < 0) i = 0; else if (i >= nx) i = nx - 1;
+      if (j < 0) j = 0; else if (j >= nz) j = nz - 1;
+      return i + j * nx;
+    };
+    /** Case de 2 m sous un point (bornée). */
+    nav.fineDe = (x, z) => {
+      let i = Math.trunc((x - X0) / FIN), j = Math.trunc((z - Z0) / FIN);
+      if (i < 0) i = 0; else if (i >= nx2) i = nx2 - 1;
+      if (j < 0) j = 0; else if (j >= nz2) j = nz2 - 1;
+      return i + j * nx2;
+    };
+    nav.centreX = c => X0 + (c % nx) * CELLULE + CELLULE / 2;
+    nav.centreZ = c => Z0 + ((c / nx) | 0) * CELLULE + CELLULE / 2;
+    nav.fineX = f => X0 + (f % nx2) * FIN + FIN / 2;
+    nav.fineZ = f => Z0 + ((f / nx2) | 0) * FIN + FIN / 2;
+    /** Une case fine est-elle praticable maintenant (mur, ou case de 4 m couverte par un obstacle) ? */
+    nav.fineLibre = f => masque2[f] !== 0 && bloque[((f % nx2) >> 1) + (((f / nx2) | 0) >> 1) * nx] === 0;
+
+    /** La case de 4 m praticable la plus proche du point, ou -1 dans un rayon de rmax cases. */
+    nav.caseProche = (x, z, rmax = 24) => {
+      const c = nav.caseDe(x, z);
+      if (libre[c]) return c;
+      const ci = c % nx, cj = (c / nx) | 0;
+      let meilleure = -1, d2 = Infinity;
+      for (let r = 1; r <= rmax; r++) {
+        for (let dj = -r; dj <= r; dj++) for (let di = -r; di <= r; di++) {
+          if (Math.max(di < 0 ? -di : di, dj < 0 ? -dj : dj) !== r) continue;
+          const i = ci + di, j = cj + dj;
+          if (i < 0 || j < 0 || i >= nx || j >= nz || !libre[i + j * nx]) continue;
+          const ex = X0 + i * CELLULE + CELLULE / 2 - x, ez = Z0 + j * CELLULE + CELLULE / 2 - z, d = ex * ex + ez * ez;
+          if (d < d2) { d2 = d; meilleure = i + j * nx; }
+        }
+        // Une case de l'anneau suivant est au moins à (r + 0,5) cases du point.
+        const e = (r + 0.5) * CELLULE;
+        if (meilleure >= 0 && d2 <= e * e) break;
+      }
+      return meilleure;
+    };
+    /** La case fine praticable la plus proche du point, ou -1. */
+    nav.fineProche = (x, z, rmax = 12) => {
+      const f = nav.fineDe(x, z);
+      if (nav.fineLibre(f)) return f;
+      const fi = f % nx2, fj = (f / nx2) | 0;
+      let meilleure = -1, d2 = Infinity;
+      for (let r = 1; r <= rmax; r++) {
+        for (let dj = -r; dj <= r; dj++) for (let di = -r; di <= r; di++) {
+          if (Math.max(di < 0 ? -di : di, dj < 0 ? -dj : dj) !== r) continue;
+          const i = fi + di, j = fj + dj;
+          if (i < 0 || j < 0 || i >= nx2 || j >= nz2 || !nav.fineLibre(i + j * nx2)) continue;
+          const ex = X0 + i * FIN + FIN / 2 - x, ez = Z0 + j * FIN + FIN / 2 - z, d = ex * ex + ez * ez;
+          if (d < d2) { d2 = d; meilleure = i + j * nx2; }
+        }
+        const e = (r + 0.5) * FIN;
+        if (meilleure >= 0 && d2 <= e * e) break;
+      }
+      return meilleure;
+    };
+
+    /**
+     * Les cases de 4 m que traverse le segment (a → b), sans trou en diagonale (tracé « supercouverture ») ; rend leur
+     * nombre, rangé dans sortieCases (Int32Array assez grand : longueur en cases × 2 + 2).
+     */
+    nav.segment = (xa, za, xb, zb, sortieCases) => {
+      const dx = xb - xa, dz = zb - za;
+      const pas = Math.max(1, Math.ceil(Math.max(dx < 0 ? -dx : dx, dz < 0 ? -dz : dz) / 500));
+      let k = 0, pi = -1, pj = -1;
+      for (let s = 0; s <= pas; s++) {
+        const x = xa + Math.trunc(dx * s / pas), z = za + Math.trunc(dz * s / pas);
+        const c = nav.caseDe(x, z), i = c % nx, j = (c / nx) | 0;
+        if (i === pi && j === pj) continue;
+        if (pi >= 0 && i !== pi && j !== pj) sortieCases[k++] = i + pj * nx;    // coin : la ligne reste 4-connexe
+        sortieCases[k++] = c;
+        pi = i; pj = j;
+      }
+      return k;
+    };
+
+    /** Pose (k = 1) ou retire (k = -1) un obstacle dynamique sur des cases ; la version des obstacles change. */
+    nav.obstacle = (cases, nombre, k) => {
+      for (let q = 0; q < nombre; q++) {
+        const c = cases[q];
+        bloque[c] = Math.max(0, bloque[c] + k);
+        libre[c] = statique[c] && !bloque[c] ? 1 : 0;
+      }
+      nav.version++;
+    };
+
+    // ---- Remplissage en largeur sur la grille fine : les places d'une formation ou d'une sortie de production. ----
+    const marque = new Uint32Array(n2), file = new Int32Array(n2);
+    let tampon = 1;
+    /**
+     * Range dans sortieFines jusqu'à max cases fines praticables, de proche en proche à partir du point, et rend leur
+     * nombre. accepter(f), facultatif, écarte des cases (sans couper le parcours).
+     */
+    nav.remplir = (x, z, max, sortieFines, accepter = null) => {
+      const depart = nav.fineProche(x, z);
+      if (depart < 0 || max <= 0) return 0;
+      if (++tampon === 0xFFFFFFFF) { marque.fill(0); tampon = 1; }
+      let tete = 0, queue = 0, k = 0;
+      file[queue++] = depart; marque[depart] = tampon;
+      while (tete < queue && k < max) {
+        const f = file[tete++];
+        if (!accepter || accepter(f)) sortieFines[k++] = f;
+        const i = f % nx2, j = (f / nx2) | 0;
+        for (let d = 0; d < 8; d++) {
+          const a = i + VOISINS_I[d], b = j + VOISINS_J[d];
+          if (a < 0 || b < 0 || a >= nx2 || b >= nz2) continue;
+          const v = a + b * nx2;
+          if (marque[v] === tampon || !nav.fineLibre(v)) continue;
+          if (d >= 4 && (!nav.fineLibre(i + VOISINS_I[d] + j * nx2) || !nav.fineLibre(i + (j + VOISINS_J[d]) * nx2))) continue;
+          marque[v] = tampon;
+          file[queue++] = v;
+        }
+      }
+      return k;
+    };
+
+    // ---- Champs de direction. ----
+    const dist = new Uint32Array(n), suivant = new Int32Array(n);
+    const FILES = 15;
+    const files = Array.from({ length: FILES }, () => new Int32Array(1024)), tailles = new Int32Array(FILES);
+    const empiler = (b, c) => {
+      if (tailles[b] === files[b].length) { const plus = new Int32Array(files[b].length * 2); plus.set(files[b]); files[b] = plus; }
+      files[b][tailles[b]++] = c;
+    };
+    const VOISIN = [1, -1, nx, -nx, nx + 1, nx - 1, -nx + 1, -nx - 1];
+    const COUT = [ORTHO, ORTHO, ORTHO, ORTHO, DIAG, DIAG, DIAG, DIAG];
+    const PAS_I = [1, -1, 0, 0, 1, -1, 1, -1], PAS_J = [0, 0, 1, -1, 1, 1, -1, -1];
+
+    /**
+     * Calcule le champ vers les sources (cases de 4 m) et l'écrit dans dir (Uint8Array(n)) ; rend le tableau des coûts
+     * (tampon interne, valable jusqu'au calcul suivant). Coût : 10 par pas droit, 14 en diagonale.
+     */
+    nav.calculer = (sources, nombre, dir) => {
+      dist.fill(INFINI);
+      tailles.fill(0);
+      let enAttente = 0;
+      for (let q = 0; q < nombre; q++) {
+        const s = sources[q];
+        if (s < 0 || s >= n || !libre[s] || dist[s] === 0) continue;
+        dist[s] = 0; empiler(0, s); enAttente++;
+      }
+      for (let d = 0; enAttente > 0; d++) {
+        const b = d % FILES;
+        // Les relâchements vont dans d'autres files (coûts 10 et 14 < 15) : files[b] ne grandit pas pendant la boucle.
+        while (tailles[b] > 0) {
+          const c = files[b][--tailles[b]];
+          enAttente--;
+          if (dist[c] !== d) continue;
+          for (let k = 0; k < 8; k++) {
+            const v = c + VOISIN[k];
+            if (!libre[v]) continue;
+            if (k >= 4 && (!libre[c + PAS_I[k]] || !libre[c + PAS_J[k] * nx])) continue;
+            const nd = d + COUT[k];
+            if (nd < dist[v]) { dist[v] = nd; empiler(nd % FILES, v); enAttente++; }
+          }
+        }
+      }
+      // Pas suivant de chaque case : le voisin atteignable le moins coûteux (à égalité, le premier dans l'ordre fixe).
+      for (let c = 0; c < n; c++) {
+        suivant[c] = -1;
+        const dc = dist[c];
+        if (dc === INFINI || dc === 0) continue;
+        let meilleur = -1, md = dc;
+        for (let k = 0; k < 8; k++) {
+          const v = c + VOISIN[k];
+          if (!libre[v] || dist[v] >= md) continue;
+          if (k >= 4 && (!libre[c + PAS_I[k]] || !libre[c + PAS_J[k] * nx])) continue;
+          md = dist[v]; meilleur = k;
+        }
+        suivant[c] = meilleur;
+      }
+      // Direction lissée : la somme des trois pas suivants, tant que le chemin ne tourne pas de plus de 45°.
+      for (let c = 0; c < n; c++) {
+        const dc = dist[c];
+        if (dc === INFINI) { dir[c] = AUCUN; continue; }
+        if (dc === 0) { dir[c] = BUT; continue; }
+        let k = suivant[c];
+        if (k < 0) { dir[c] = AUCUN; continue; }
+        let sx = PAS_I[k], sz = PAS_J[k], v = c + VOISIN[k];
+        for (let pas = 1; pas < 3; pas++) {
+          const k2 = suivant[v];
+          if (k2 < 0) break;
+          const px = PAS_I[k2], pz = PAS_J[k2];
+          if (px * PAS_I[k] + pz * PAS_J[k] <= 0) break;            // virage de 90° ou plus : on s'arrête
+          sx += px; sz += pz; v += VOISIN[k2]; k = k2;
+        }
+        dir[c] = cap(sx, sz) >> 1;
+      }
+      return dist;
+    };
+
+    // ---- Cache des champs : par clé (case du but, ou clé spéciale ≥ n) et par version des obstacles. ----
+    const capacite = options.capaciteChamps || 160;
+    const champs = [];                     // { cle, dir, version, ref, utilise, pret }
+    const parCle = new Map();
+    const enCours = [];                    // indices des champs à calculer, dans l'ordre des demandes
+    const sourcesTampon = new Int32Array(n);
+    let sourcesSpeciales = null;           // (cle, sortie) → nombre de sources, pour les clés ≥ n
+    nav.sourcesSpeciales = f => { sourcesSpeciales = f; };
+    nav.champs = champs;
+
+    /** Le champ de la clé (créé et mis en attente de calcul s'il n'existe pas) ; rend son indice. iteration : pour l'âge. */
+    nav.demander = (cle, iteration) => {
+      let k = parCle.get(cle);
+      if (k !== undefined) { champs[k].utilise = iteration; return k; }
+      if (champs.length < capacite) {
+        k = champs.length;
+        champs.push({ cle, dir: new Uint8Array(n).fill(AUCUN), version: -1, ref: 0, utilise: iteration, pret: false });
+      } else {
+        // On recycle le champ libre le plus anciennement servi ; s'il n'y en a pas, le cache grandit.
+        k = -1;
+        for (let q = 0; q < champs.length; q++) {
+          const ch = champs[q];
+          if (ch.ref === 0 && (k < 0 || ch.utilise < champs[k].utilise)) k = q;
+        }
+        if (k < 0) {
+          k = champs.length;
+          champs.push({ cle, dir: new Uint8Array(n).fill(AUCUN), version: -1, ref: 0, utilise: iteration, pret: false });
+        } else {
+          const ch = champs[k];
+          parCle.delete(ch.cle);
+          const p = enCours.indexOf(k);
+          if (p >= 0) enCours.splice(p, 1);
+          ch.cle = cle; ch.version = -1; ch.ref = 0; ch.utilise = iteration; ch.pret = false;
+          ch.dir.fill(AUCUN);
+        }
+      }
+      parCle.set(cle, k);
+      enCours.push(k);
+      return k;
+    };
+    nav.prendre = k => { champs[k].ref++; };
+    nav.lacher = k => { if (k >= 0 && champs[k].ref > 0) champs[k].ref--; };
+    /** Rend la clé d'un but : la case de 4 m praticable la plus proche du point. */
+    nav.cleDe = (x, z) => { const c = nav.caseProche(x, z); return c < 0 ? nav.caseDe(x, z) : c; };
+    /** Les champs des clés spéciales doivent être recalculés (les structures ont changé). */
+    nav.perimerSpeciaux = () => { for (const ch of champs) if (ch.cle >= n) ch.version = -1; };
+
+    function calculerChamp(k) {
+      const ch = champs[k];
+      let nombre;
+      if (ch.cle < n) { sourcesTampon[0] = ch.cle; nombre = 1; } else nombre = sourcesSpeciales ? sourcesSpeciales(ch.cle, sourcesTampon) : 0;
+      nav.calculer(sourcesTampon, nombre, ch.dir);
+      ch.version = nav.version;
+      ch.pret = true;
+    }
+    /**
+     * Calcule au plus budget champs : d'abord ceux qu'on vient de demander, puis ceux que la version des obstacles a
+     * périmés et qui servent encore (par nombre d'unités, puis par indice). Rend le nombre de champs calculés.
+     */
+    nav.avancer = (budget) => {
+      let fait = 0;
+      while (fait < budget && enCours.length) { calculerChamp(enCours.shift()); fait++; }
+      while (fait < budget) {
+        let k = -1;
+        for (let q = 0; q < champs.length; q++) {
+          const ch = champs[q];
+          if (ch.ref > 0 && ch.version !== nav.version && (k < 0 || ch.ref > champs[k].ref)) k = q;
+        }
+        if (k < 0) break;
+        calculerChamp(k);
+        fait++;
+      }
+      return fait;
+    };
+    nav.enAttente = () => enCours.length;
+
+    return nav;
+  }
+
+  const VOISINS_I = [1, -1, 0, 0, 1, -1, 1, -1], VOISINS_J = [0, 0, 1, -1, 1, 1, -1, -1];
+
+  PDR.nav = Object.freeze({ creer, cap, DX, DZ, RADIANS, BUT, AUCUN, CELLULE, FIN, ORTHO, DIAG });
+})(globalThis.PDR = globalThis.PDR || {});
+
+// Stable FERRO API; legacy namespace remains an alias of the same implementation.
+globalThis.FNavigation=globalThis.PDR.nav;
+
+/* FERRO input. Contract: docs/chantier-moteur/modules/entrees.md */
+(function(G){
+'use strict';
+const PAD_BUTTONS=Object.freeze(['A','B','X','Y','LB','RB','LT','RT','Back','Start','L3','R3','Up','Down','Left','Right','Home']);
+const TUNE={sensitivity:[1,.25,3],invertY:[false],padYaw:[300,60,600],padPitch:[190,40,400],padDead:[.12,0,.4],moveDead:[.15,0,.4],padCurve:[1.7,1,3],padBoost:[.8,0,1.5],padInvertY:[false],padVibration:[1,0,1],swapSticks:[false],touchAccel:[1,0,1],touchPitch:[1,.5,1.5],stickRadius:[56,32,96]};
+for(const k in TUNE)Object.freeze(TUNE[k]);Object.freeze(TUNE);
+const K={outer:.97,boostAt:.97,boostAfter:.18,boostRamp:.30,trigOn:.30,trigOff:.18,valueDead:.05,padRun:.92,activeAxis:.3,navAxis:.5,navDelay:.40,navRepeat:.12,touchDead:.12,follow:1.6,runOn:1.25,runOff:1.05,touchRad:.004,v0:400,v1:2200,accel:2.2,slop:4,compatMs:800,rumbleGap:40,dtMax:.25,tdtMin:.008,tdtMax:.05};
+const allowKey=code=>typeof code==='string'&&/^(Key[A-Z]|Digit[0-9]|Arrow(Up|Down|Left|Right)|Shift(Left|Right)|Space|Enter|Backspace|Tab)$/.test(code);
+const NAMES={Space:'Espace',Enter:'Entrée',ArrowUp:'↑',ArrowDown:'↓',ArrowLeft:'←',ArrowRight:'→',ShiftLeft:'Maj G',ShiftRight:'Maj D',ControlLeft:'Ctrl G',ControlRight:'Ctrl D',Backspace:'Retour',Tab:'Tab'};
+const GLYPHS={xbox:{Back:'Vue',Start:'Menu',L3:'LS',R3:'RS',Home:'Xbox'},ps:{A:'✕',B:'○',X:'□',Y:'△',LB:'L1',RB:'R1',LT:'L2',RT:'R2',Back:'Create',Start:'Options',Home:'PS'}};
+const DEVICES=['keyboard','mouse','touch','gamepad'],own=(o,k)=>Object.prototype.hasOwnProperty.call(o,k),isObj=v=>v!==null&&typeof v==='object'&&!Array.isArray(v);
+const need=(ok,what)=>{if(!ok)throw new Error('FInput : '+what+'.');},padOk=name=>name!=='Home'&&PAD_BUTTONS.includes(name),letter=c=>typeof c==='string'&&/^Key/.test(c);
+const fin=v=>Number.isFinite(v)?v:0,copy=o=>JSON.parse(JSON.stringify(o)),clamp=(v,hi)=>Math.min(hi,Math.max(0,v))||0;
+function keyName(code){return own(NAMES,code)?NAMES[code]:String(code).replace(/^(Key|Digit)/,'');}
+function compile(config){
+need(isObj(config),'config invalide');
+const allow=config.allowKey===undefined?allowKey:config.allowKey,list=config.actions,actions=[],index=new Map(),owner=new Map();
+need(typeof allow==='function','allowKey invalide');need(Array.isArray(list)&&list.length>0,'actions invalides');
+const isKey=c=>typeof c==='string'&&!!allow(c),text=v=>v===undefined||typeof v==='string';
+const codes=(id,v,max,ok,dev)=>{const r=v===undefined?[]:v;need(Array.isArray(r)&&r.length<=max&&r.every(ok),(dev==='k'?'touches':'boutons')+' invalides pour '+id);for(const c of r){need(!owner.has(dev+c),c+' déjà affecté à '+owner.get(dev+c));owner.set(dev+c,id);}return r.slice();};
+for(const a of list){
+const id=isObj(a)?a.id:undefined;
+need(typeof id==='string'&&/^[A-Za-z][A-Za-z0-9]*$/.test(id),'id invalide : '+String(id));need(!index.has(id),'id en double : '+id);need(a.type==='hold'||a.type==='press'||a.type==='value','type inconnu pour '+id);
+const label=a.label===undefined?id:a.label;
+need(typeof label==='string'&&text(a.touch)&&text(a.mouse),'libellé invalide pour '+id);need(a.alt===undefined||Array.isArray(a.alt)&&a.alt.every(isKey),'repli invalide pour '+id);
+actions.push({id,label,type:a.type,keys:codes(id,a.keys,3,isKey,'k'),pad:codes(id,a.pad,2,padOk,'p'),touch:a.touch,mouse:a.mouse,alt:a.alt?a.alt.slice():[]});index.set(id,actions.length-1);
+}
+const held=id=>index.has(id)&&actions[index.get(id)].type==='hold',decl=config.sticks===undefined?{}:config.sticks,sticks=[];
+need(isObj(decl),'sticks invalides');
+for(const name of Object.keys(decl)){
+const s=decl[name],w='stick '+name;
+need(/^[a-z][A-Za-z0-9]*$/.test(name)&&!index.has(name+'X')&&!index.has(name+'Y'),'nom de stick invalide : '+name);need(isObj(s)&&(s.type==='move'||s.type==='look')&&!sticks.some(t=>t.type===s.type),w+' : type invalide ou en double');
+const axis=v=>{const r=v===undefined?[]:v;need(Array.isArray(r)&&(r.length===0||r.length===2)&&r.every(held),w+' : axe invalide');return r.slice();},x=axis(s.x),y=axis(s.y);
+need(new Set(x.concat(y)).size===x.length+y.length,w+' : action en double');need(s.pad===undefined||(s.pad==='LS'||s.pad==='RS')&&!sticks.some(t=>t.pad===s.pad),w+' : pad invalide');
+need(s.run===undefined||s.type==='move'&&held(s.run),w+' : run invalide');need(s.rate===undefined||s.type==='look'&&Number.isFinite(s.rate)&&s.rate>0,w+' : rate invalide');
+sticks.push({name,type:s.type,x,y,pad:s.pad||null,run:s.run===undefined?null:s.run,rate:s.rate===undefined?2:s.rate});
+}
+const version=config.version===undefined?1:config.version,device=config.device===undefined?'keyboard':config.device,mouseScale=config.mouseScale===undefined?.0022:config.mouseScale;
+need(Number.isInteger(version)&&version>=1,'version invalide');need(DEVICES.includes(device),'appareil invalide : '+String(device));need(Number.isFinite(mouseScale),'mouseScale invalide');
+need(config.getGamepads===undefined||typeof config.getGamepads==='function','getGamepads invalide');
+return {actions,index,sticks,version,device,mouseScale,isKey,getGamepads:config.getGamepads||null,migrate:typeof config.migrate==='function'?config.migrate:null,settings:config.settings,one:config.singlePad===true,menu:config.menu===true,moveCurve:config.moveCurve===true,release:config.releaseAfterClear===true};
+}
+function radial(x,y,inner,outer){const m=Math.hypot(x,y),n=Math.min(1,(m-inner)/(outer-inner));return m>inner?[x/m*n||0,y/m*n||0,n]:[0,0,0];}
+function padStyle(id){return /054c|playstation|dualshock|dualsense|sony/i.test(id)?'ps':/045e|xbox|xinput/i.test(id)?'xbox':'generic';}
+function glyph(name,style){const g=own(GLYPHS,style)?GLYPHS[style]:{},a='Arrow'+name;return own(g,name)?g[name]:own(NAMES,a)?NAMES[a]:name;}
+function initial(C){const s={v:C.version,keys:{},pad:{},tune:{}};for(const a of C.actions){s.keys[a.id]=a.keys.slice();s.pad[a.id]=a.pad.slice();}for(const k in TUNE)s.tune[k]=TUNE[k][0];return s;}
+function table(t,C,f,max,ok){
+if(!isObj(t))return null;
+const used=new Set(),out={},free=c=>!used.has(c);
+for(const a of C.actions)if(own(t,a.id)){const v=t[a.id];if(!Array.isArray(v)||v.length>max||!v.every(c=>ok(c)&&free(c)&&used.add(c)))return null;}
+for(const a of C.actions){let v=t[a.id];if(!own(t,a.id)){v=a[f].filter(free);if(!v.length&&f==='keys')v=a.alt.filter(free).slice(0,1);for(const c of v)used.add(c);}out[a.id]=v;}
+return out;
+}
+function settle(raw,C){
+let r={};if(isObj(raw))try{r=copy(raw);}catch(e){}if(!isObj(r))r={};
+const from=Number.isInteger(r.v)?r.v:0,{migrate}=C;
+if(from<C.version&&migrate)try{const m=copy(migrate(copy(r),from));if(isObj(m))r=m;}catch(e){}
+const s=initial(C),t=isObj(r.tune)?r.tune:{};s.keys=table(r.keys,C,'keys',3,C.isKey)||s.keys;s.pad=table(r.pad,C,'pad',2,padOk)||s.pad;
+for(const k in TUNE){const [d,lo,hi]=TUNE[k],v=own(t,k)?t[k]:d;s.tune[k]=lo===undefined?typeof v==='boolean'?v:d:Number.isFinite(v)?Math.min(hi,Math.max(lo,v)):d;}
+return s;
+}
+function rebind(C,settings,device,action,code,none){
+const kb=device==='keyboard',f=kb?'keys':'pad',no=reason=>({ok:false,reason});
+if(!kb&&device!=='gamepad')return no('Appareil inconnu.');
+if(!C.index.has(action))return no('Action inconnue.');
+if(!none&&!(kb?C.isKey(code):padOk(code)))return no(kb?'Cette touche est réservée au navigateur.':code==='Home'?'Ce bouton est réservé au système.':'Bouton inconnu.');
+const s=settle(settings,C),other=none?null:C.actions.find(a=>a.id!==action&&s[f][a.id].includes(code));
+if(other)return {ok:false,conflict:other.id,reason:'Déjà utilisé'+(kb?'e':'')+' : '+other.label+'.'};
+s[f][action]=none?[]:[code];return {ok:true,settings:s};
+}
+function defaults(config){return initial(compile(config));}
+function normalize(raw,config){return settle(raw,compile(config));}
+function assign(config,settings,device,action,code){return rebind(compile(config),settings,device,action,code);}
+function unbind(config,settings,device,action){return rebind(compile(config),settings,device,action,null,true);}
+function guessDevice(win=G){try{const m=q=>win.matchMedia(q).matches;return m('(pointer: coarse)')||win.navigator?.maxTouchPoints>0&&m('(hover: none)')?'touch':'keyboard';}catch(e){return 'keyboard';}}
+function focusMove(R,c,D=G.document){
+if(!R||!D)return null;
+const es=Array.from(R.querySelectorAll?.('button,input,select,a[href],[tabindex]')||[]).filter(e=>!e.disabled&&!e.closest?.('[hidden]')&&e.getClientRects?.().length&&e.getAttribute?.('aria-hidden')!=='true');
+if(!es.length)return null;
+let at=es.indexOf(D.activeElement),el=es[at];
+const E=(e,type)=>e.dispatchEvent?.(new G.Event(type,{bubbles:true}));
+if(el&&(c==='decrease'||c==='increase'||(c==='left'||c==='right')&&el.type==='range')){
+const n=c==='decrease'||c==='left'?-1:1;
+if(el.type==='range'){
+const lo=Number(el.min)||0,hi=el.max===''?100:Number(el.max),step=Number(el.step)||1,v=Number(el.value)||0;
+el.value=String(Math.min(hi,Math.max(lo,Math.round((v+n*step)*1e9)/1e9)));E(el,'input');return el;
+}
+if(el.tagName==='SELECT'){
+const os=Array.from(el.options||[]).filter(o=>!o.disabled),index=os.findIndex(o=>o.value===el.value);
+if(os.length){el.value=os[Math.max(0,Math.min(os.length-1,index+n))].value;E(el,'change');}return el;
+}
+}
+if(c==='accept'){
+if(el){if(el.tagName==='SELECT')return focusMove(R,'increase',D);el.click?.();return el;}
+at=0;
+}else if(['up','left','down','right'].includes(c))at=at<0?0:(at+(c==='up'||c==='left'?-1:1)+es.length)%es.length;
+else if(at<0)at=0;
+el=es[at];el.focus?.({preventScroll:true});el.scrollIntoView?.({block:'nearest'});return el;
+}
+function create(config){
+const C=compile(config),held=new Set(),pressed=[],learnt=new Map(),rumbling=new Set(),acts=new WeakMap(),blocked=new Set();
+const A=C.actions.map(a=>({a,k:0,m:false,t:0,g:false,gr:false,tr:false,gv:0,latch:false,edge:false})),at=id=>A[C.index.get(id)];
+const sticks=C.sticks.map(s=>({kx:s.name+'X',ky:s.name+'Y',move:s.type==='move',x:s.x.map(at),y:s.y.map(at),rate:s.rate,pad:s.pad,run:s.run&&at(s.run)})),look=sticks.find(s=>!s.move),walk=sticks.find(s=>s.move);
+let S,codes,lay=null,lp=null,rt=-Infinity,dev=C.device,shown=dev,touchT=-Infinity,px=0,py=0,pmx=0,pmy=0,tmx=0,tmy=0,cap=null,got=null,seen=new Map(),gp=new Map(),pb=[],hold=0,quiet=false,block=false,navKey='',nh=0,nd=0;
+const trig=[false,false],on=s=>s.k>0||s.m||s.t>0||s.g||s.gr||s.tr,axis=v=>v.length?Number(on(v[1]))-Number(on(v[0])):0;
+const rise=(s,was,pad)=>{if(!was&&on(s)&&!(pad&&quiet)){s.latch=true;if(!s.edge){s.edge=true;pressed.push(s.a.id);}}},mouse=t=>{if(!(t-touchT<K.compatMs))dev='mouse';};
+const keyLabel=code=>{if(letter(code)){if(learnt.has(code))return learnt.get(code);const v=lay&&(typeof lay.get==='function'?lay.get(code):lay[code]);if(typeof v==='string'&&v)return [...v].length>1?v:v.toUpperCase();}return keyName(code);};
+const list=(v,f)=>v.length?v.map(f).join(' / '):'—';
+function configure(raw){S=settle(raw,C);codes=new Map();for(const s of A){s.k=0;for(const c of S.keys[s.a.id]){codes.set(c,s);if(held.has(c))s.k++;}s.pi=S.pad[s.a.id].map(n=>PAD_BUTTONS.indexOf(n));s.g=s.pi.some(j=>pb[j]);}return copy(S);}
+configure(C.settings);
+return {
+keyDown(code,t,repeat,key){
+dev='keyboard';if(letter(code)&&typeof key==='string'&&/^[^\s\p{C}]$/u.test(key))learnt.set(code,key.toUpperCase());
+if(cap==='keyboard'){if(!repeat&&typeof code==='string'){got={device:'keyboard',code};cap=null;}return true;}
+const s=codes.get(code);if(typeof code==='string'&&!held.has(code)){held.add(code);if(s){const was=on(s);s.k++;if(!repeat)rise(s,was);}}return !!s;
+},
+keyUp(code){const s=codes.get(code);if(held.delete(code)&&s)s.k--;return !!s;},
+mouseMove(dx,dy,t){const T=S.tune;px+=fin(dx)*C.mouseScale*T.sensitivity;py-=fin(dy)*C.mouseScale*T.sensitivity*(T.invertY?-1:1);mouse(t);},
+button(id,down,t,device){
+const s=at(id);if(!s||device!=='mouse'&&device!=='touch')return false;
+const was=on(s);if(device==='mouse'){s.m=!!down;mouse(t);}else{s.t=down?s.t+1:Math.max(0,s.t-1);dev='touch';touchT=t;}rise(s,was);return true;
+},
+addLook(x,y,device){px+=fin(x);py+=fin(y);if(DEVICES.includes(device))dev=device;},
+clear(){for(const a of rumbling){try{const r=typeof a.reset==='function'?a.reset():typeof a.playEffect==='function'?a.playEffect('dual-rumble',{startDelay:0,duration:1,weakMagnitude:0,strongMagnitude:0}):a.pulse(0,0);if(typeof r?.catch==='function')r.catch(()=>{});}catch(e){}}rumbling.clear();held.clear();for(const s of A){s.k=s.t=s.gv=0;s.m=s.g=s.gr=s.tr=s.latch=s.edge=false;}pressed.length=0;px=py=pmx=pmy=tmx=tmy=hold=0;cap=got=null;quiet=true;block=C.release;navKey='';nh=nd=0;},
+configure,get settings(){return copy(S);},get device(){return dev;},
+assign:(device,action,code)=>rebind(C,S,device,action,code),
+unbind:(device,action)=>rebind(C,S,device,action,null,true),
+capture(device){cap=device==='keyboard'||device==='gamepad'?device:null;got=null;},
+keyLabel,setLayout(map){lay=isObj(map)?map:null;},
+label(id,device=dev){
+const s=at(id);if(!s)return '?';
+const a=s.a;return device==='gamepad'?list(S.pad[id],n=>glyph(n,lp?.style||'generic')):device==='touch'?a.touch??a.label:device==='mouse'&&a.mouse!==undefined?a.mouse:list(S.keys[id],keyLabel);
+},
+rumble(strong,weak,ms,t){
+const v=S.tune.padVibration;if(v<=0||t-rt<K.rumbleGap)return false;
+try{const card=gp.has(lp)?lp:gp.keys().next().value,p=gp.get(card);if(!card)return false;if(!C.one||!acts.has(card))acts.set(card,p.vibrationActuator||p.hapticActuators?.[0]||null);const a=acts.get(card);if(!a)return false;
+const strongMagnitude=clamp(strong,1)*v,weakMagnitude=clamp(weak,1)*v,duration=clamp(ms,5000),r=typeof a.playEffect==='function'?a.playEffect('dual-rumble',{startDelay:0,duration,weakMagnitude,strongMagnitude}):a.pulse(Math.max(strongMagnitude,weakMagnitude),duration);rumbling.add(a);if(typeof r?.catch==='function')r.catch(()=>{});
+}catch(e){return false;}
+rt=t;return true;
+},
+frame(dt,ctx){
+dt=Number.isFinite(dt)?Math.min(K.dtMax,Math.max(0,dt)):0;
+const T=S.tune,sc=Number.isFinite(ctx?.lookScale)?ctx.lookScale:1,now=new Map(),P=new Map(),con=[],dis=[],b=[],tv=[0,0],card=o=>({...o});
+const side=s=>s&&s.pad?s.pad==='LS'!==T.swapSticks?0:2:-1,ms=side(walk),ls=side(look);
+let L=[],fa=null,mv=[0,0,0],lk=mv,navX=0,navY=0;
+try{L=Array.from((C.getGamepads?C.getGamepads():G.navigator.getGamepads())||[]);}catch(e){}
+const first=C.one?L.filter(p=>p&&typeof p==='object'&&p.connected!==false).sort((a,b)=>(a.index||0)-(b.index||0))[0]:null;
+L.forEach((p,i)=>{
+if(!p||typeof p!=='object'||p.connected===false)return;
+const id=String(p.id??''),index=p.index??i,key=index+':'+id,ax=j=>fin((p.axes||[])[j]),bt=p.buttons||[];
+const o=now.get(key)||seen.get(key)||{index,id,style:padStyle(id),standard:p.mapping==='standard'};
+if(!now.has(key)){if(!seen.has(key))con.push(card(o));now.set(key,o);P.set(o,p);}
+if(C.one&&p!==first)return;
+if(C.one)lp=o;
+let act=false;
+for(let j=0;j<17;j++){const q=bt[j]||0,v=fin(q.value??q),d=!!q.pressed;act=act||d||v>K.activeAxis;if(j===6||j===7)tv[j-6]=Math.max(tv[j-6],v);else b[j]=b[j]||d||v>.5;}
+for(let j=0;j<4;j++)act=act||Math.abs(ax(j))>K.activeAxis;
+if(act&&!(fa&&fa.index<=index))fa=o;
+const r=(o,dz,w)=>{const v=o<0?w:radial(ax(o),ax(o+1),dz,K.outer);return v[2]>w[2]?v:w;};mv=r(ms,T.moveDead,mv);lk=r(ls,T.padDead,lk);
+if(Math.abs(ax(0))>Math.abs(navX))navX=ax(0);if(Math.abs(ax(1))>Math.abs(navY))navY=ax(1);
+});
+for(const [key,o] of seen)if(!now.has(key))dis.push({index:o.index,id:o.id});
+seen=now;gp=P;for(let j=0;j<2;j++)b[j+6]=trig[j]=trig[j]?tv[j]>K.trigOff:tv[j]>K.trigOn;
+if(fa)dev='gamepad';lp=fa||(P.has(lp)?lp:null);
+if(block){for(let j=0;j<17;j++)if(b[j])blocked.add(j);block=false;}
+for(const j of blocked){if(!b[j])blocked.delete(j);else{b[j]=false;if(j===6||j===7)tv[j-6]=0;}}
+const code=cap==='gamepad'&&PAD_BUTTONS.find((n,j)=>j<16&&b[j]&&!pb[j]);
+if(code){got={device:cap,code};cap=null;quiet=true;}
+const val=j=>j===6||j===7?tv[j-6]>K.valueDead?Math.min(1,(tv[j-6]-K.valueDead)/(1-K.valueDead)):0:+!!b[j];
+for(const s of A){const was=on(s);s.g=s.pi.some(j=>b[j]);s.gv=s.pi.reduce((m,j)=>Math.max(m,val(j)),0);rise(s,was,1);}
+const moveGain=C.moveCurve&&mv[2]>0?Math.pow(mv[2],T.padCurve)/mv[2]:1;pmx=mv[0]*moveGain;pmy=-mv[1]*moveGain;
+if(walk&&walk.run){const s=walk.run,was=on(s);s.gr=mv[2]>=K.padRun;rise(s,was,1);}
+const [x,y,n]=lk,c=n>0?Math.pow(n,T.padCurve)/n:0;hold=n>K.boostAt?hold+dt:0;
+const e=hold>K.boostAfter?Math.min(1,(hold-K.boostAfter)/K.boostRamp):0;
+px+=x*c*T.padYaw*(1+T.padBoost*e)*sc*Math.PI/180*dt;py+=-y*c*T.padPitch*sc*(T.padInvertY?-1:1)*Math.PI/180*dt;
+if(look){px+=axis(look.x)*dt*look.rate;py+=axis(look.y)*dt*look.rate;}
+let nav=null;
+if(C.menu&&!got){
+const dir=b[12]?'up':b[13]?'down':b[14]?'left':b[15]?'right':Math.abs(navY)>.5?(navY<0?'up':'down'):Math.abs(navX)>.5?(navX<0?'left':'right'):'';
+const adjust=b[4]||b[6]?'decrease':b[5]||b[7]?'increase':'',repeat=adjust||dir,key=repeat;
+const changed=key!==navKey;if(changed){navKey=key;nh=0;nd=K.navDelay;}else nh+=dt;
+const moved=key&&(changed||nh>=nd);if(moved&&nh>0)nd+=K.navRepeat;
+nav={direction:moved&&!adjust?dir:null,adjust:moved&&adjust?adjust:null,accept:!!b[0]&&!pb[0]&&!quiet,back:!!b[1]&&!pb[1]&&!quiet,previous:!!b[4]&&!pb[4]&&!quiet,next:!!b[5]&&!pb[5]&&!quiet};
+}
+pb=b;quiet=false;
+const r={pressed:pressed.slice(),nav,device:dev,deviceChanged:dev!==shown,connected:con,disconnected:dis,pads:[...now.values()].map(card),captured:got};
+shown=dev;got=null;pressed.length=0;for(const s of A)s.edge=false;return r;
+},
+step(){
+const o={};
+for(const s of sticks){let x=px,y=py;if(s.move){x=axis(s.x);y=axis(s.y);if(pmx*pmx+pmy*pmy>x*x+y*y){x=pmx;y=pmy;}if(tmx*tmx+tmy*tmy>x*x+y*y){x=tmx;y=tmy;}}o[s.kx]=x||0;o[s.ky]=y||0;}
+px=py=0;
+for(const s of A){const k=s.a.type;o[s.a.id]=k==='press'?s.latch:k==='hold'?on(s)||s.latch:Math.max(s.gv,s.k>0||s.m||s.t>0?1:0);s.latch=false;}
+return o;
+},
+pendingLook(){return {x:px||0,y:py||0};}
+};
+}
+G.FInput={version:1,PAD_BUTTONS,TUNE,create,defaults,normalize,assign,unbind,keyName,radial,padStyle,glyph,guessDevice,focusMove};
+})(typeof window!=='undefined'?window:globalThis);
+
+/* FERRO — damped presentation. Aim and collision state are never modified here. */
+(function(G){
+  'use strict';
+  const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+  const finite=(v,fallback=0)=>Number.isFinite(v)?v:fallback;
+  function basis(yaw=0,pitch=0,roll=0){
+    const cy=Math.cos(yaw),sy=Math.sin(yaw),cp=Math.cos(pitch),sp=Math.sin(pitch),cr=Math.cos(roll),sr=Math.sin(roll);
+    const r=[cy,0,sy],u=[-sy*sp,cp,cy*sp],b=[-sy*cp,-sp,cy*cp];
+    return [r.map((v,k)=>v*cr+u[k]*sr),u.map((v,k)=>v*cr-r[k]*sr),b];
+  }
+  function rotation(x=0,y=0,z=0){
+    const cx=Math.cos(x),sx=Math.sin(x),cy=Math.cos(y),sy=Math.sin(y),cz=Math.cos(z),sz=Math.sin(z);
+    return [[cz*cy,sz*cy,-sy],[cz*sy*sx-sz*cx,sz*sy*sx+cz*cx,cy*sx],[cz*sy*cx+sz*sx,sz*sy*cx-cz*sx,cy*cx]];
+  }
+  // Trois sommes scalaires en littéral : même arithmétique et même ordre que le map d'origine,
+  // sans allouer de tableau intermédiaire.
+  const vector=(axes,v)=>[axes[0][0]*v[0]+axes[1][0]*v[1]+axes[2][0]*v[2],axes[0][1]*v[0]+axes[1][1]*v[1]+axes[2][1]*v[2],axes[0][2]*v[0]+axes[1][2]*v[1]+axes[2][2]*v[2]];
+  const placementMemo=new WeakMap();
+  function mount(camera,offset=[0,0,0],angles=[0,0,0]){
+    const axes=basis(camera.yaw||0,camera.pitch||0,camera.roll||0),shift=vector(axes,offset),p=camera.pos,m=rotation(angles[0],angles[1],angles[2]);
+    return {pos:[p[0]+shift[0],p[1]+shift[1],p[2]+shift[2]],axes:[vector(axes,m[0]),vector(axes,m[1]),vector(axes,m[2])]};
+  }
+  function place(frame,offset,rx=0){
+    const a=frame.axes,shift=vector(a,offset);
+    // The frame stays caller-owned (including frozen frames). Cache every basis
+    // component used by the Euler decomposition, including mutations in place.
+    let memo=placementMemo.get(frame);
+    if(!memo){memo={valid:false,rx:0,a00:0,a01:0,a02:0,a11:0,a12:0,a21:0,a22:0,r0:0,ry:0,rz:0};placementMemo.set(frame,memo);}
+    if(!memo.valid||!Object.is(memo.rx,rx)||!Object.is(memo.a00,a[0][0])||!Object.is(memo.a01,a[0][1])||!Object.is(memo.a02,a[0][2])
+      ||!Object.is(memo.a11,a[1][1])||!Object.is(memo.a12,a[1][2])||!Object.is(memo.a21,a[2][1])||!Object.is(memo.a22,a[2][2])){
+      const c=Math.cos(rx),s=Math.sin(rx),a1y=a[1][1]*c+a[2][1]*s,a1z=a[1][2]*c+a[2][2]*s,a2y=a[2][1]*c-a[1][1]*s,a2z=a[2][2]*c-a[1][2]*s;
+      const ry=Math.asin(clamp(-a[0][2],-1,1)),regular=Math.abs(Math.cos(ry))>1e-6;
+      memo.valid=true;memo.rx=rx;memo.a00=a[0][0];memo.a01=a[0][1];memo.a02=a[0][2];memo.a11=a[1][1];memo.a12=a[1][2];memo.a21=a[2][1];memo.a22=a[2][2];
+      memo.ry=ry;memo.r0=regular?Math.atan2(a1z,a2z):Math.atan2(-a2y,a1y);
+      memo.rz=regular?Math.atan2(a[0][1],a[0][0]):0;
+    }
+    const p=frame.pos;
+    return {p:[p[0]+shift[0],p[1]+shift[1],p[2]+shift[2]],r:[memo.r0,memo.ry,memo.rz]};
+  }
+  function create(options={}){
+    const recoil=Object.create(null);for(const [kind,value] of Object.entries(options?.recoil||{}))if(value&&typeof value==='object')recoil[kind]={omega:clamp(finite(value.omega),1,80),velocity:clamp(finite(value.velocity),0,20),pitch:clamp(finite(value.pitchDegrees),0,5)*Math.PI/180,fov:clamp(finite(value.fovDegrees),-5,5),roll:clamp(finite(value.rollDegrees),0,2)*Math.PI/180};
+    let kickOmega=27,shotIndex=0,stepY=null,stepOffset=0;
+    const springs={};
+    const view={height:0,roll:0,fov:0,step:0,pitch:0,recoilFov:0,recoilRoll:0,weapon:{offset:[0,0,0],rotation:[0,0,0],slide:0}};
+    function channel(key){return springs[key]||(springs[key]={x:0,v:0});}
+    // Exact critically damped step for a constant target. Stable at any render cadence.
+    function damp(key,target,omega,dt){
+      const q=channel(key),x=q.x-target,e=Math.exp(-omega*dt),t=(q.v+omega*x)*dt;
+      q.x=target+(x+t)*e;q.v=(q.v-omega*t)*e;return q.x;
+    }
+    function impulse(kind,amount=1){
+      const response=recoil[kind];if(response){
+        kickOmega=response.omega;channel('kick').v=Math.min(30,channel('kick').v+response.velocity);
+        channel('cameraKick').v+=response.pitch*kickOmega*Math.E;
+        channel('kickFov').v+=response.fov*14*Math.E;
+        channel('kickRoll').v+=response.roll*kickOmega*Math.E*(shotIndex++%2?-1:1);return;
+      }
+      if(kind==='shot')channel('kick').v+=1.9;
+      else if(kind==='pistol')channel('kick').v+=1.45;
+      else if(kind==='fracture')channel('kick').v+=3.5;
+      else if(kind==='rocket')channel('kick').v+=5.5;
+      else if(kind==='blast')channel('blast').v=Math.min(3,channel('blast').v+clamp(finite(amount),0,1)*1.4);
+      else if(kind==='land'&&options.cameraSteps)channel('landing').v-=Math.min(.08,Math.max(0,finite(amount))*.012)*18*Math.E;
+      else if(kind==='switch')channel('equip').v-=2.5;
+      else if(kind==='hurt')channel('impact').v+=.7;
+      else if(kind==='pulse')channel('equip').v-=1.1;
+      else if(kind==='melee')channel('melee').v=Math.max(channel('melee').v,5.8);
+    }
+    function reset(){
+      for(const key of Object.keys(springs))delete springs[key];
+      kickOmega=27;shotIndex=0;stepY=null;stepOffset=0;view.step=0;view.height=view.roll=view.fov=view.pitch=view.recoilFov=view.recoilRoll=0;view.weapon.offset.fill(0);view.weapon.rotation.fill(0);view.weapon.slide=0;
+      return view;
+    }
+    function update(dt,loc={},signals={},enabled=true){
+      dt=clamp(finite(dt),0,.12);
+      const speed=Math.max(0,finite(loc.speed)),move=speed>.04?clamp(finite(loc.moveBlend),0,1):0;
+      const run=clamp(finite(loc.sprintBlend),0,1),dash=clamp(finite(loc.dashBlend),0,1),phase=finite(loc.stridePhase);
+      const strafe=clamp(finite(loc.strafe)/5,-1,1),forward=clamp(finite(loc.forward)/5,-1,1);
+      const yawRate=clamp(finite(signals.lookYaw),-8,8),pitchRate=clamp(finite(signals.lookPitch),-6,6),time=finite(signals.time);
+      const kick=damp('kick',0,kickOmega,dt),equip=damp('equip',0,21,dt),impact=damp('impact',0,23,dt),blast=damp('blast',0,17,dt),melee=damp('melee',0,19,dt);
+      const intensity=enabled?1:.22,runPose=run*(signals.firing?.18:1);
+      const breathing=Math.sin(time*1.45)*.002*(1-move);
+      const x=damp('x',Math.sin(phase)*.014*move-strafe*.014-yawRate*.003,25,dt);
+      const y=damp('y',Math.cos(phase*2)*.009*move-runPose*.024-dash*.028+breathing,25,dt);
+      const z=damp('z',runPose*.012+dash*.032-forward*.004,23,dt);
+      const pitch=damp('pitch',runPose*-.085-pitchRate*.008-clamp(finite(loc.accelForward),-20,20)*.0011,25,dt);
+      const yaw=damp('yaw',-yawRate*.01-strafe*.013,25,dt);
+      const roll=damp('weaponRoll',-strafe*.043-Math.sin(phase)*.014*move-yawRate*.003,25,dt);
+      view.weapon.offset[0]=x*intensity-melee*.45;
+      view.weapon.offset[1]=(y+equip-impact*.24)*intensity;
+      view.weapon.offset[2]=z*intensity+kick*(enabled?1:.55)-melee*.9;
+      view.weapon.rotation[0]=pitch*intensity+kick*.85;
+      view.weapon.rotation[1]=yaw*intensity-melee*1.4;
+      view.weapon.rotation[2]=roll*intensity+melee*2;
+      const warmth=clamp((finite(signals.heat)-.75)/.25,0,1);if(warmth>0)view.weapon.rotation[0]+=Math.sin(time*61)*.005*warmth*intensity;
+      view.weapon.slide=clamp(kick*1.1,0,.075);
+      if(enabled){
+        view.height=damp('height',Math.cos(phase*2)*.010*move-dash*.022,21,dt)+Math.sin(time*37)*blast*.06;
+        view.roll=damp('cameraRoll',-strafe*.008+clamp(yawRate*.0007,-.004,.004),13,dt)+Math.sin(time*31)*blast*.025;
+        view.fov=damp('fov',run*4.5+dash*5.5,12,dt);
+      }else{
+        view.height=view.roll=view.fov=0;
+        for(const key of ['height','cameraRoll','fov']){const q=channel(key);q.x=q.v=0;}
+      }
+      if(options.cameraSteps){const y=Number.isFinite(signals.groundY)?signals.groundY:null,delta=stepY===null||y===null?0:y-stepY;stepOffset*=Math.exp(-14*dt);if(signals.grounded&&Math.abs(delta)<=.45)stepOffset-=delta;else if(!signals.grounded||Math.abs(delta)>.45)stepOffset=0;stepY=y;view.step=enabled?stepOffset:0;view.height+=view.step+damp('landing',0,18,dt)*(enabled?1:.3);}
+      const recoilScale=enabled?1:.3;view.pitch=damp('cameraKick',0,kickOmega,dt)*recoilScale;view.recoilFov=damp('kickFov',0,14,dt)*recoilScale;view.recoilRoll=damp('kickRoll',0,kickOmega,dt)*recoilScale;view.fov+=view.recoilFov;view.roll+=view.recoilRoll;
+      return view;
+    }
+    return {view,reset,update,impulse};
+  }
+  G.FMotion={create,basis,mount,place};
+})(typeof window!=='undefined'?window:globalThis);
+
+/* FERRO — procedural destruction FX. Simulation owns every hazardous pose/time. */
+(function(G){
+  'use strict';
+  const clamp=(v,a,b)=>Math.max(a,Math.min(b,v)),num=(v,f=0)=>Number.isFinite(v)?v:f;
+  const hash=(seed,k=0)=>{let n=Math.imul((seed|0)^Math.imul(k+17,374761393),668265263);n=Math.imul(n^(n>>>13),1274126177);return ((n^(n>>>16))>>>0)/4294967296;};
+  const unit=v=>{const n=Math.hypot(...v)||1;return v.map(x=>x/n);},add=(p,d,k)=>p.map((x,i)=>x+d[i]*k);
+  const orient=d=>[Math.acos(clamp(d[1],-1,1)),Math.atan2(d[0],d[2]),0];
+  const debrisShapes=['box','bevel','cylinder','sphere','octa','ring','foliage'];
+  function rotate(p,r){let [x,y,z]=p;const c=r.map(Math.cos),s=r.map(Math.sin);[y,z]=[c[0]*y-s[0]*z,s[0]*y+c[0]*z];[x,z]=[c[1]*x+s[1]*z,-s[1]*x+c[1]*z];return [c[2]*x-s[2]*y,s[2]*x+c[2]*y,z];}
+  const mesh=(shape,p,s,mat=7,color,r=[0,0,0],part='')=>{const m=G.FRender.mesh(shape,p,s,mat,r,0);m.color=color;m.surface='object';m.effectPart=part;return m;};
+  function build(state,world,camera,options={}){
+    if(!state)return [];
+    if(typeof options==='string')options={quality:options};
+    const software=options.backend==='canvas2d',tier=options.quality==='low'?0:options.quality==='high'?2:1;
+    const eye=camera?.pos||[state.player?.x||0,(state.player?.y||0)+1.62,state.player?.z||0],time=num(state.time),out=[];
+    const budget=(software?[24,44,64]:[48,96,144])[tier],debrisBudget=(software?[8,18,28]:[18,38,60])[tier];let particles=0;
+    const point=e=>[num(e.x),num(e.y),num(e.z)],distance=p=>Math.hypot(p[0]-eye[0],p[1]-eye[1],p[2]-eye[2]);
+    const fade=(p,r=0)=>clamp(((software?42:105)-Math.max(0,distance(p)-r))/(software?18:40),0,1);
+    const close=(list,limit=Infinity)=>Array.from(list||[]).filter(e=>[e.x,e.y,e.z].every(Number.isFinite)).sort((a,b)=>distance(point(a))-distance(point(b))).slice(0,limit);
+    function puff(p,s,color,alpha,emissive=0,part='dust',shape='sphere',r=[0,0,0],mandatory=false){
+      alpha*=fade(p,Math.hypot(...s)*.5);if(!mandatory&&particles>=budget||alpha<.008||s.some(v=>!(v>.002)))return;
+      const m=mesh(shape,p,s,7,color,r,part);m.fx=true;m.alpha=clamp(alpha,0,.94);m.emissive=emissive;if(part==='blast-core'||part==='fire-cloud')m.fxFire=true;if(part==='blast-dust')m.fxSmoke=true;if(part==='blast-ember')m.fxSpark=true;if(mandatory)m.fxPriority='hazard';out.push(m);particles++;return m;
+    }
+    function solid(shape,p,s,mat,color,r,part){const m=mesh(shape,p,s,mat,color,r,part);out.push(m);return m;}
+
+    // Telegraphs use the actual collision disc, annulus or swept capsule.
+    // Large markers are kept while any part of their extent is in range.
+    for(const a of state.bossAttacks||[]){
+      if((!a.warning&&!a.active)||![a.x,a.y,a.z].every(Number.isFinite))continue;
+      const p=[a.x,a.y+.026,a.z],warning=!!a.warning,color=warning?[1,.58,.08]:[1,.17,.035];
+      const band=(radius,inner,part)=>{if(!(radius>.005)||radius<=inner)return;const m=puff(p,[radius*2,.022,radius*2],color,warning?.76:.68,warning?1.3:1.8,part,'ring',[0,0,0],true);if(m)m.innerRatio=clamp(inner/radius,0,.998);};
+      if(a.kind==='ring'){
+        const r=warning?num(a.radius):num(a.currentRadius),inner=warning?Math.max(0,r-.2):Math.max(0,num(a.innerRadius));if(!a.gaps)band(r,inner,'boss-ring');else{const thick=Math.max(.12,r-inner),mid=(r+inner)/2;for(let i=0;i<48;i++){const angle=i*Math.PI/24;if(Math.abs(Math.sin(angle-(a.angle+a.age*.25)))<Math.sin(.26+Math.PI/48))continue;const d=[Math.sin(angle),0,-Math.cos(angle)],q=add(p,d,mid);puff(q,[Math.max(.01,mid*Math.PI/24),.025,thick],color,warning?.76:.68,1.5,'boss-ring-segment','box',[0,Math.atan2(d[0],d[2]),0],true);}}
+      }else if(a.kind==='sweep'){
+        const d=unit([num(a.dx),0,num(a.dz,1)]),length=Math.max(0,num(a.length)),width=Math.max(.01,num(a.width)),yaw=Math.atan2(d[0],d[2]),center=add(p,d,length*.5);
+        puff(center,[width*2,.022,Math.max(.01,length)],color,warning?.16:.28,1.0,'boss-sweep','box',[0,yaw,0],true);
+        for(const k of [0,length])puff(add(p,d,k),[width*2,.022,width*2],color,warning?.16:.28,1.0,'boss-sweep-cap','cylinder',[0,0,0],true);
+        for(const sign of [-1,1]){const side=[center[0]+d[2]*width*sign,center[1]+.002,center[2]-d[0]*width*sign];puff(side,[.045,.025,Math.max(.01,length)],color,.74,1.5,'boss-sweep-edge','box',[0,yaw,0],true);}
+      }else if(a.kind==='slam'||a.kind==='rocketZone'){
+        const radius=Math.max(0,num(a.radius));if(radius<=0)continue;
+        if(a.burn&&a.active&&a.age-a.tell>(a.kind==='rocketZone'?.35:.22)){puff(p,[radius*2,.06,radius*2],[1,.28,.025],.3,1.8,'boss-burning-floor','cylinder',[0,0,0],true);for(let i=0;i<5;i++){const angle=i*1.2566+num(a.id),r=radius*.6;puff([p[0]+Math.sin(angle)*r,p[1]+.25+Math.sin(time*9+i)*.1,p[2]+Math.cos(angle)*r],[.25,.6,.25],[1,.45,.06],.5,2,'boss-burning-flame','octa',[0,0,0],true);}continue;}
+        puff(p,[radius*2,.018,radius*2],color,warning?.09:.22,1.1,'boss-zone','cylinder',[0,0,0],true);band(radius,Math.max(0,radius-.14),'boss-zone-edge');
+        if(warning){const remaining=clamp(1-num(a.age)/Math.max(.001,num(a.tell)),0,1);band(radius*remaining,Math.max(0,radius*remaining-.09),'boss-countdown');puff([p[0],p[1]+4,p[2]],[.4,8,.4],color,.35,1,'boss-column',a.kind==='slam'?'box':'cylinder',[0,0,0],true);}
+        else puff([p[0],p[1]+.25,p[2]],[radius*2,.45,radius*2],color,.35*clamp(1-(num(a.age)-num(a.tell))/.35,0,1),1.6,'boss-zone-flash','cylinder',[0,0,0],true);
+      }
+    }
+
+    // Moving hazards are never paid for from the cosmetic particle allowance.
+    // Their dimensions/centres come directly from the collision box, including
+    // a press or blade halted by contact with a player/enemy.
+    for(const trap of state.traps||[]){
+      if(trap.destroyed)continue;
+      if(!trap.box){
+        if(trap.kind==='spikes'&&trap.warning&&[trap.x,trap.y,trap.z].every(Number.isFinite)){
+          const p=point(trap),w=Math.max(.2,num(trap.w,2)),d=Math.max(.2,num(trap.d,2));
+          if(distance(p)<90)for(const sign of [-1,1]){
+            const a=solid('box',[p[0]+sign*w*.46,p[1]+.018,p[2]],[.045,.025,d*.94],5,[1,.48,.08],[0,0,0],'spike-warning');
+            const b=solid('box',[p[0],p[1]+.018,p[2]+sign*d*.46],[w*.94,.025,.045],5,[1,.48,.08],[0,0,0],'spike-warning');a.emissive=b.emissive=.55;
+          }
+        }
+        continue;
+      }
+      const q=trap.box,lo=[q.minX,q.minY,q.minZ],hi=[q.maxX,q.maxY,q.maxZ];if(!lo.concat(hi).every(Number.isFinite))continue;
+      const s=hi.map((v,k)=>v-lo[k]),p=lo.map((v,k)=>(v+hi[k])/2);if(s.some(v=>v<=0)||distance(p)>180+Math.hypot(...s))continue;
+      const alert=trap.hot?[.76,.19,.045]:trap.warning?[.95,.55,.08]:[.25,.39,.37],near=distance(p)<(software?18:32),detail=near&&tier>0;
+      if(trap.kind==='press'){
+        solid(detail?'bevel':'box',p,s,0,[.24,.27,.27],[0,0,0],'press-body');
+        const strips=detail?4:2;for(let i=0;i<strips;i++){
+          const x=p[0]+s[0]*((i+.5)/strips-.5),z=p[2]+s[2]*.493;
+          solid('box',[x,p[1]-s[1]*.22,z],[s[0]/strips*.42,s[1]*.24,Math.min(.015,s[2]*.01)],1,alert,[0,0,0],'press-stripe');
+        }
+      }else if(trap.kind==='spikes'){
+        const nx=detail?3:2,nz=detail?3:2;
+        for(let x=0;x<nx;x++)for(let z=0;z<nz;z++){
+          const pos=[lo[0]+s[0]*(x+.5)/nx,p[1],lo[2]+s[2]*(z+.5)/nz];
+          solid('octa',pos,[Math.min(.22,s[0]/nx*.72),s[1],Math.min(.22,s[2]/nz*.72)],3,[.55,.58,.56],[0,0,0],'spike');
+        }
+      }else if(trap.kind==='blade'){
+        const axis=s.indexOf(Math.min(...s)),plane=[0,1,2].filter(k=>k!==axis),diameter=Math.min(s[plane[0]],s[plane[1]]),thickness=s[axis],normal=[0,0,0];normal[axis]=1;
+        const r=orient(normal),angle=num(trap.angle);
+        solid('cylinder',p,[diameter*.82,thickness*.92,diameter*.82],3,[.52,.56,.56],r,'blade-disc');
+        solid('cylinder',p,[diameter*.22,thickness,diameter*.22],0,[.19,.24,.25],r,'blade-hub');
+        const teeth=detail?12:8;
+        for(let i=0;i<teeth;i++){
+          const a=angle+i*Math.PI*2/teeth,pos=p.slice(),size=[diameter*.13,diameter*.13,diameter*.13];
+          pos[plane[0]]+=Math.cos(a)*diameter*.43;pos[plane[1]]+=Math.sin(a)*diameter*.43;size[axis]=thickness*.88;
+          solid('octa',pos,size,3,i%3? [.57,.59,.57]:alert,[0,0,0],'blade-tooth');
+        }
+      }
+    }
+
+    // A hot pipe's cloud stays inside its directed hazard volume. Warnings
+    // show a nozzle glow; they never draw a damaging-looking full jet early.
+    for(const pipe of close(state.pipes,software?4:8)){
+      if(pipe.broken||!pipe.active||(!pipe.hot&&!pipe.warning))continue;
+      const p=Array.isArray(pipe.nozzle)&&pipe.nozzle.length===3&&pipe.nozzle.every(Number.isFinite)?pipe.nozzle.slice():point(pipe),d=unit([num(pipe.dx,1),num(pipe.dy),num(pipe.dz)]),length=Math.max(.05,num(pipe.length,3)),radius=Math.max(.04,num(pipe.radius,.45)),r=orient(d),seed=num(pipe.id,1);
+      if(fade(p)<=0)continue;
+      const collar=solid('ring',p,[radius*.64,.035,radius*.64],pipe.hot?5:1,pipe.hot?[.85,.31,.08]:[.88,.55,.12],r,'pipe-warning');collar.emissive=pipe.hot?.25:.12;
+      if(!pipe.hot)continue;
+      const count=software?(tier?5:3):(tier===2?9:tier?7:4);
+      for(let i=0;i<count;i++){
+        const f=(time*1.8+i/count+hash(seed,i)*.13)%1,width=Math.min(radius*(.65+.9*f),length*.38),travel=width*.5+Math.max(0,length-width)*f;
+        puff(add(p,d,travel),[width,width,width],[.68,.74,.74],(.32-.17*f)*(1-Math.abs(f-.5)*.3),.06,'steam');
+      }
+    }
+
+    // Seconds, rather than normalized lifetime, keep the detonation sharp even
+    // while its smoke survives. These deterministic cosmetics never deal damage.
+    const blasts=close((state.explosions||[]).filter(e=>num(e.age)>=0&&num(e.age)<num(e.life,2.4)),software?6:12);
+    for(let index=0;index<blasts.length;index++){
+      const e=blasts[index],age=Math.max(0,num(e.age)),life=Math.max(.01,num(e.life,2.4)),t=age/life;
+      const p=point(e),radius=Math.max(.1,num(e.radius,3)),seed=num(e.seed,num(e.id,1)),near=distance(p)<(software?20:48);
+      // Share remaining cosmetics across simultaneous blasts; one fireball must
+      // not consume every later explosion's flash and pressure front.
+      const allowance=Math.max(0,Math.floor((budget-particles)/(blasts.length-index))),start=particles;
+      const emit=(...args)=>particles-start<allowance?puff(...args):undefined;
+      const expansion=radius*(.14+.72*(1-Math.exp(-age*9))),fireTime=Math.min(.86,life*.9),heat=clamp(1-age/fireTime,0,1);
+      if(age<.14)emit(p,[expansion*1.28,expansion*1.28,expansion*1.28],[1,.91,.59],.94*(1-age/.14),4.8,'blast-core');
+      if(age<.48){
+        const wave=radius*(.1+1.24*Math.sqrt(age/.48)),strength=1-age/.48;
+        const front=emit(p,[wave*2,.035+radius*.018,wave*2],[1,.67,.3],.65*strength,1.8*strength,'shock-ring','ring',orient(unit(eye.map((v,k)=>v-p[k]))));
+        if(front)front.innerRatio=.92+.05*(1-strength);
+        if(near&&tier>0)emit(p,[wave*2,wave*2,wave*2],[.78,.72,.61],.12*strength,.18,'pressure-shell');
+      }
+      const density=near?(software?tier+3:tier*2+4):2;
+      if(heat>0)for(let i=0;i<density;i++){
+        const a=hash(seed,i)*Math.PI*2,h=hash(seed,i+19),reach=expansion*(.18+hash(seed,i+31)*.36),center=[p[0]+Math.cos(a)*reach,p[1]+radius*age*(.4+h*.65),p[2]+Math.sin(a)*reach];
+        const size=expansion*(.8+hash(seed,i+61)*.72),flicker=.88+.12*Math.sin(age*27+i*2.4),color=[1,.12+.43*heat,.018+.11*heat*heat];
+        emit(center,[size,size*(1.02+h*.5),size],color,(.38+.2*heat)*Math.sqrt(heat)*flicker,1.5+heat*2.4,'fire-cloud','sphere',[age*.5,a,0]);
+      }
+      if(age>.12){
+        const count=Math.max(2,density-1),smoke=clamp((age-.12)/.4,0,1)*Math.pow(1-t,.72);
+        for(let i=0;i<count;i++){
+          const a=hash(seed,i+91)*Math.PI*2,spread=radius*(.16+age*.22),center=[p[0]+Math.cos(a)*spread,p[1]+radius*(.1+age*(.32+hash(seed,i+111)*.13)),p[2]+Math.sin(a)*spread],size=radius*(.38+age*.38)*(1+hash(seed,i+131)*.35);
+          emit(center,[size,size*(1.05+hash(seed,i+151)*.35),size],[.16+.08*heat,.145+.06*heat,.12+.025*heat],smoke*.32,heat*.16,'blast-dust');
+        }
+      }
+      if(near&&age<1.05)for(let i=0;i<(software?3:5+tier*3);i++){
+        const a=hash(seed,i+171)*Math.PI*2,speed=radius*(1.15+hash(seed,i+191)*1.1),up=radius*(.55+hash(seed,i+211)*1.2),velocity=[Math.cos(a)*speed,up-6*age,Math.sin(a)*speed];
+        const tip=[p[0]+velocity[0]*age,p[1]+up*age-3*age*age,p[2]+velocity[2]*age],width=.018+radius*.006,trail=Math.max(width,Math.min(radius*.42,Math.hypot(...velocity)*.052)),direction=unit(velocity),center=add(tip,direction,-trail*.5),hot=1-age/1.05;
+        emit(center,[width,trail,width],[1,.24+hot*.4,.025+hot*.14],.84*hot,1.9+hot*1.8,'blast-ember','octa',orient(direction));
+      }
+    }
+
+    // Rocket and grenade solids stay within the actual projectile collision
+    // sphere, including their tip/fins. Trails alone extend behind that body.
+    const trails=[];
+    for(const q of close(state.projectiles)){
+      if(q.kind!=='rocket'&&q.kind!=='grenade')continue;
+      const p=point(q),radius=Math.max(.02,num(q.radius,q.kind==='rocket'?.24:.17));if(distance(p)>180+radius)continue;
+      const velocity=[num(q.vx),num(q.vy),num(q.vz)],speed=Math.hypot(...velocity),d=speed>.001?unit(velocity):[0,0,-1],r=orient(d),near=distance(p)<(software?22:48),tint=q.owner==='player'?[.12,.56,.54]:[.62,.24,.08];
+      if(q.kind==='rocket'){
+        solid('cylinder',p,[radius*.48,radius*1.3,radius*.48],0,[.23,.27,.25],r,'rocket-body');
+        solid('octa',add(p,d,radius*.65),[radius*.5,radius*.5,radius*.5],3,[.57,.56,.44],r,'rocket-nose');
+        if(near){const tail=add(p,d,-radius*.55);solid('box',tail,[radius*1.1,radius*.35,radius*.14],0,tint,r,'rocket-fin');solid('box',tail,[radius*.14,radius*.35,radius*1.1],0,tint,r,'rocket-fin');}
+        trails.push({q,p,d,speed,radius});
+      }else{
+        const rotation=[num(q.age)*4.3,num(q.age)*2.2,num(q.age)*3.1];
+        solid('sphere',p,[radius*1.7,radius*1.7,radius*1.7],7,[.24,.28,.17],rotation,'grenade-body');
+        if(near){const cap=rotate([0,radius*.72,0],rotation).map((v,k)=>v+p[k]);const m=solid('box',cap,[radius*.55,radius*.24,radius*.55],5,tint,rotation,'grenade-fuse');m.emissive=.25+.35*(1-clamp(num(q.fuse,2)/2,0,1));}
+        trails.push({q,p,d,speed,radius});
+      }
+    }
+    for(const {q,p,d,speed,radius} of trails){
+      if(q.kind==='rocket'){
+        const tail=add(p,d,-radius*.9),length=Math.min(3.2,Math.max(0,num(q.age))*speed);
+        puff(tail,[radius*.6,radius*.6,radius*.6],[1,.63,.12],.8,3,'rocket-jet');
+        const count=software?(tier?3:1):(tier===2?6:4);
+        for(let i=0;i<count;i++){const f=(i+1)/(count+1),size=radius*(.7+f*1.7);puff(add(tail,d,-length*f),[size,size,size],[.45,.43,.38],.28*(1-f),0,'rocket-smoke');}
+      }else if(num(q.fuse,2)<.7)puff(p,[radius*2.1,radius*2.1,radius*2.1],[1,.38,.08],.12+.1*Math.sin(time*35),.7,'grenade-warning');
+    }
+    // Structural wreckage is real surviving geometry, not a short-lived
+    // particle. Simulation alone owns its pose, settlement and retirement.
+    // Filter before budgeting so expired chips cannot hide intact wreckage.
+    const wreckage=[],yaw=num(camera?.yaw),pitch=num(camera?.pitch),heading=Number.isFinite(camera?.yaw)||Number.isFinite(camera?.pitch)?[Math.sin(yaw)*Math.cos(pitch),Math.sin(pitch),-Math.cos(yaw)*Math.cos(pitch)]:null;
+    const reach=software?42:105,bandSize=software?12:24;
+    for(const q of state.debris||[]){
+      if(!(Number.isFinite(q.x)&&Number.isFinite(q.y)&&Number.isFinite(q.z)))continue;
+      const structural=q.structural===true,age=Math.max(0,num(q.age)),life=Math.max(.01,num(q.life,1.5));if(!structural&&age>=life)continue;
+      const raw=Array.isArray(q.size)?q.size:[num(q.size,.12),num(q.size,.12),num(q.size,.12)];
+      if(structural&&(raw.length!==3||raw.some(v=>!Number.isFinite(v)||v<=0)))continue;
+      const shrink=structural?1:clamp((life-age)/(life*.24),0,1);
+      const sx=structural?raw[0]:clamp(num(raw[0],.1),.015,3)*shrink,sy=structural?raw[1]:clamp(num(raw[1],.1),.015,3)*shrink,sz=structural?raw[2]:clamp(num(raw[2],.1),.015,3)*shrink;
+      if(!structural&&(sx<.005||sy<.005||sz<.005))continue;
+      const dx=q.x-eye[0],dy=q.y-eye[1],dz=q.z-eye[2],radius=Math.hypot(sx,sy,sz)*.5,d=Math.max(0,Math.hypot(dx,dy,dz)-radius);
+      if(d>=reach)continue;
+      const band=Math.floor(d/bandSize),rear=heading&&dx*heading[0]+dy*heading[1]+dz*heading[2]<-radius?1:0;
+      wreckage.push({q,px:q.x,py:q.y,pz:q.z,sx,sy,sz,raw,structural,age,band,rear,score:d/(1+Math.min(radius,3)*.3),id:num(q.id,num(q.seed))});
+    }
+    // Un seul tri : structural décroissant, puis rear, band, score, id. La partition stable
+    // par groupe (rear, band) remplace le second tri et le jeu de clés en chaînes : le premier
+    // morceau de chaque sourceId garde sa place, les répétitions passent après, sans bouger.
+    const order=(a,b)=>Number(b.structural)-Number(a.structural)||a.rear-b.rear||a.band-b.band||a.score-b.score||a.id-b.id;
+    wreckage.sort(order);
+    const kept=[];
+    for(let i=0;i<wreckage.length&&kept.length<debrisBudget;){
+      const head=wreckage[i];let j=i+1;
+      while(j<wreckage.length&&wreckage[j].structural===head.structural&&wreckage[j].rear===head.rear&&wreckage[j].band===head.band)j++;
+      const seen=head.structural?new Set():null,repeats=[];
+      for(let k=i;k<j&&kept.length<debrisBudget;k++){const item=wreckage[k];
+        if(seen&&typeof item.q.sourceId==='string'){if(seen.has(item.q.sourceId)){repeats.push(item);continue;}seen.add(item.q.sourceId);}
+        kept.push(item);}
+      for(let k=0;k<repeats.length&&kept.length<debrisBudget;k++)kept.push(repeats[k]);
+      i=j;
+    }
+    for(const item of kept){
+      const q=item.q,structural=item.structural;
+      const supplied=Array.isArray(q.rotation)&&q.rotation.length===3&&q.rotation.every(Number.isFinite),seed=num(q.seed,1);
+      const r=supplied?q.rotation.slice():structural?[0,0,0]:q.resting?[0,hash(seed,2)*Math.PI*2,0]:[item.age*(hash(seed,1)*5-2.5),item.age*(hash(seed,2)*5-2.5),item.age*(hash(seed,3)*5-2.5)];
+      const p=[item.px,item.py,item.pz];
+      if(!structural&&q.resting)p[1]-=(clamp(num(item.raw[1],.1),.015,3)-item.sy)*.5;
+      const shape=structural&&debrisShapes.includes(q.shape)?q.shape:'box',color=Array.isArray(q.color)?q.color.slice():undefined,m=solid(shape,p,[item.sx,item.sy,item.sz],clamp(num(q.mat,3),0,12),color,r,'debris');
+      if(structural){m.structural=true;m.debrisId=q.id;m.sourceId=q.sourceId;m.material=q.material;}
+    }
+    return out;
+  }
+  function flash(state,camera){
+    const eye=camera?.pos||[0,0,0];let value=0;
+    for(const e of state?.explosions||[]){const age=num(e.age);if(age<0||age>.18)continue;const distance=Math.hypot(num(e.x)-eye[0],num(e.y)-eye[1],num(e.z)-eye[2]);value=Math.max(value,Math.exp(-age*22)/(1+distance*distance*.045));}
+    return Math.min(.85,value);
+  }
+  function lights(state){
+    const p=state?.player||{},eye=[num(p.x),num(p.y)+1.62,num(p.z)],sources=[];
+    for(const e of state?.explosions||[]){
+      const age=num(e.age);if(age<0||age>=Math.min(1.05,num(e.life,2.4)))continue;
+      const radius=Math.max(.1,num(e.radius,3)),heat=Math.exp(-age*5),power=clamp(radius*7+num(e.power)*.08,12,52)*heat;
+      if(power<.25)continue;sources.push({p:[num(e.x),num(e.y),num(e.z)],color:[1,.31+.28*heat,.045+.09*heat],power,range:clamp(radius*3.2,6,35)});
+    }
+    for(const q of state?.projectiles||[])if(q.kind==='rocket'&&num(q.age)>=0&&num(q.life,1)>0){
+      sources.push({p:[num(q.x),num(q.y),num(q.z)],color:[1,.28,.055],power:3.5+.5*Math.sin(num(q.age)*24),range:5.5});
+    }
+    // Discovery permanently wakes the pedestal. It uses persisted campaign
+    // state, so reloads restore the light without replaying an audio event.
+    // Cosmetic shrine lights share the fixed pool and yield to live combat.
+    const campaign=state?.campaign,discovered=campaign?.discovered||[];
+    for(const trophy of state?.world?.trophies||[]){
+      if(![trophy.x,trophy.y,trophy.z].every(Number.isFinite))continue;
+      const current=campaign?.trophies?.find(t=>t.id===trophy.id),phase=current?.phase;
+      if(!(phase&&phase!=='sealed')&&!discovered.includes(trophy.key))continue;
+      const grace=phase==='grace';
+      sources.push({p:[trophy.x,trophy.y+2.1,trophy.z],color:grace?[.68,.89,1]:[.26,.66,.80],power:grace?10:3.2,range:grace?10:7,trophy:true});
+    }
+    const score=l=>l.power/(1+l.p.reduce((n,v,k)=>n+(v-eye[k])**2,0)*.06);
+    return sources.filter(l=>l.p.every(Number.isFinite)&&l.p.reduce((n,v,k)=>n+(v-eye[k])**2,0)<(l.range+45)**2).sort((a,b)=>(!!a.trophy-!!b.trophy)||score(b)-score(a)).slice(0,4);
+  }
+  G.FEffects={build,flash,lights};
+})(typeof window!=='undefined'?window:globalThis);
+
+/* METAL: original procedural audio. No imported recordings or external assets. */
+(function (window) {
+  'use strict';
+  var materials = {
+    metal: {duration:.28,cut:3600,grain:.026,noise:.32,modes:[[393,.17,.34],[711,.11,.22],[1173,.085,.18],[1937,.055,.10],[3181,.035,.06]]},
+    stone: {duration:.18,cut:2300,grain:.022,noise:.92,modes:[[241,.023,.23],[517,.015,.12],[1103,.010,.06]]},
+    wood: {duration:.17,cut:1700,grain:.016,noise:.58,modes:[[183,.045,.37],[419,.025,.21],[937,.012,.10]]},
+    glass: {duration:.32,cut:6500,grain:.010,noise:.24,modes:[[2137,.095,.28],[3371,.073,.26],[5219,.051,.20],[7411,.033,.13]]},
+    dirt: {duration:.15,cut:1100,grain:.031,noise:1.05,modes:[]}
+  };
+  var effectNames = ['pistol','smg','shotgun','rocket','grenade','explosion','steam','body','swish','click'];
+  Object.keys(materials).forEach(function (m) { ['impact','break','land','step'].forEach(function (a) { effectNames.push(a+':'+m); }); });
+  ['fan','piston','reactor','lift'].forEach(function (m) { effectNames.push('motor:'+m); });
+
+  // Original PCM, generated once before play. Short noise
+  // impulses excite damped, inharmonic material modes. These are not pitch
+  // sweeps; every shot contains its crack, body and mechanical action in one
+  // voice. Two seeded variants avoid identical automatic-fire transients.
+  // The pure renderer is exposed for offline waveform/peak/duration checks.
+  // LOAD-13: the renderer is resumable. step(n) advances n samples and keeps
+  // the filter state, so warmBank can slice a heavy effect across loading
+  // frames without changing one sample; synthesize runs the same renderer to
+  // its end and therefore returns exactly the same Float32Array.
+  function synthJob(name, variant, sampleRate) {
+    var exp=Math.exp,sin=Math.sin,abs=Math.abs,max=Math.max,min=Math.min,PI=Math.PI;
+    var rate = max(8000,min(48000,Number(sampleRate)||22050)), split=name.split(':'), action=split[0], material=materials[split[1]], motor=action==='motor';
+    if (effectNames.indexOf(name)<0) throw new Error('Unknown procedural sound: '+name);
+    var seed = (0x42a39f ^ Math.imul((variant|0)+1,0x9e3779b9))>>>0;
+    for (var h=0;h<name.length;h++) seed=(Math.imul(seed,33)^name.charCodeAt(h))>>>0;
+    function rand(){seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/4294967296;}
+    var tune=.975+rand()*.05, duration=motor?.8:material?(action==='break'?material.duration+(.33+(split[1]==='glass'?.10:0)):action==='step'?.17:action==='land'?material.duration+.07:material.duration):({pistol:.165,smg:.105,shotgun:.32,rocket:.41,grenade:.29,explosion:.86,steam:.36,body:.16,swish:.14,click:.07}[name]);
+    var out=new Float32Array(Math.ceil(duration*rate)), low=0, soft=0, previous=0, highpass=0, peak=0;
+    var cutoff=material?material.cut:motor?1800:1900, alpha=1-exp(-2*PI*min(rate*.35,cutoff)/rate), slow=1-exp(-2*PI*460/rate);
+    var starts=[0], weights=[1];
+    if(material&&(action==='break'||action==='land')){
+      var count=action==='break'?7:3;
+      for(var b=1;b<count;b++){starts.push(action==='land'?b*.052+rand()*.009:[0,.022,.054,.096,.16,.25,.38][b]+rand()*.012);weights.push((action==='land'?.32:.64)*exp(-b*(action==='land'?.5:.24)));}
+    }
+    var i=0, sealed=false;
+    return {
+      total: out.length,
+      step: function (count) {
+        var end=min(out.length,i+(count>0?count:out.length));
+        for(;i<end;i++){
+      var t=i/rate,white=rand()*2-1;low+=alpha*(white-low);soft+=slow*(white-soft);
+      var bright=white-low,band=low-soft,x=0,u,j;
+      if(material){
+        for(var k=0;k<starts.length;k++){
+          u=t-starts[k];if(u<0)continue;
+          var decay=action==='step'?.019:material.grain, color=split[1]==='glass'?bright*.75+band:split[1]==='dirt'?soft*.7+band*.7:low;
+          x+=weights[k]*material.noise*color*exp(-u/decay);
+          for(j=0;j<material.modes.length;j++){
+            var mode=material.modes[j],frequency=min(rate*.4,mode[0]*tune*(action==='step'?.82:1));
+            x+=weights[k]*mode[2]*(action==='step'?.24:1)*sin(2*PI*frequency*u)*exp(-u/(mode[1]*(action==='step'?.42:1)));
+          }
+          if(action==='break')x+=weights[k]*band*.27*exp(-u/.050);
+        }
+        if(action==='step')x+=.38*sin(2*PI*128*t)*exp(-t/.017)+soft*.6*exp(-max(0,t-.035)/.023)*(t>.035?1:0);
+      }else if(motor){
+        // Only a real nearby machine opens these gains. Filtered friction and
+        // cyclic load give a location, without the old room-wide bass chord.
+        var cycle=t/.8,kind=split[1];
+        if(kind==='fan')x=band*(.38+.08*sin(2*PI*8*cycle))+soft*.10;
+        else if(kind==='piston'){u=t%.4;x=(band*.65+soft*.45)*exp(-u/.075)+.10*sin(2*PI*152.5*t)*exp(-u/.045);}
+        else if(kind==='reactor')x=band*(.26+.14*Math.pow(sin(2*PI*19*cycle),2))+soft*.11;
+        else x=band*.30+soft*.19+.035*sin(2*PI*237.5*t)*(1+.3*sin(2*PI*7*cycle));
+      }else if(name==='pistol'||name==='smg'||name==='shotgun'){
+        var pistol=name==='pistol',shotgun=name==='shotgun',body=pistol?166:shotgun?119:205,tail=pistol?.025:shotgun?.052:.017;
+        x=(bright*.70+band*.7)*exp(-t/(shotgun?.013:pistol?.006:.0045));
+        x+=(soft*1.7+.30*sin(2*PI*body*t*tune))*exp(-t/tail);
+        if(shotgun)for(j=1;j<4;j++){u=t-j*.0027;if(u>=0)x+=.25*bright*exp(-u/.006);}
+        u=t-(shotgun?.18:pistol?.044:.025);
+        if(u>=0)x+=(band*.34+.07*sin(2*PI*(shotgun?613:1287)*u))*exp(-u/(shotgun?.023:.006));
+      }else if(name==='rocket'){
+        x=(band*.92+soft*.45)*(1-exp(-t/.004))*exp(-t/.108)+bright*.45*exp(-t/.004);
+        x+=.16*sin(2*PI*132*t)*exp(-t/.037);
+      }else if(name==='grenade'){
+        x=(soft*1.4+band*.45)*exp(-t/.043)+.46*sin(2*PI*109*t)*exp(-t/.041);
+        x+=.20*sin(2*PI*317*t)*exp(-t/.026)+bright*.5*exp(-t/.004);
+        u=t-.065;if(u>=0)x+=(band*.38+.08*sin(2*PI*947*u))*exp(-u/.012);
+      }else if(name==='explosion'){
+        x=bright*.9*exp(-t/.007)+soft*2.7*exp(-t/.115)+band*.7*exp(-t/.17);
+        x+=.24*sin(2*PI*96*t)*exp(-t/.052);
+        for(j=1;j<5;j++){u=t-[0,.064,.15,.28,.43][j];if(u>=0)x+=band*(.24/j)*exp(-u/.033);}
+      }else if(name==='steam')x=(band*.65+bright*.25)*(1-exp(-t/.002))*exp(-t/.075)+soft*.18*exp(-t/.018);
+      else if(name==='body')x=(soft*1.2+.20*sin(2*PI*142*t))*exp(-t/.026)+band*.15*exp(-t/.009);
+      else if(name==='swish')x=band*Math.pow(sin(PI*t/duration),2)*.7;
+      else x=(band*.8+bright*.3+.11*sin(2*PI*731*t))*exp(-t/.008);
+      // Remove DC/subsonic drift, make both ends exactly zero, preserve the
+      // natural crest factor. No clipping/normalization runs during combat.
+      highpass=.991*(highpass+x-previous);previous=x;
+      var fade=min(1,t/(motor?.006:.00045),(duration-t)/.009);out[i]=highpass*max(0,fade);peak=max(peak,abs(out[i]));
+        }
+        return i>=out.length;
+      },
+      // Same normalization as the synchronous path, applied once, after the
+      // last sample: crest factor and both zero ends are unchanged.
+      seal: function () {
+        if(sealed)return out; sealed=true;
+        var normal=peak>0?.84/peak:0;
+        for(var k=0;k<out.length;k++)out[k]*=normal;
+        out[0]=0;out[out.length-1]=0;return out;
+      }
+    };
+  }
+  function synthesize(name, variant, sampleRate) { var job=synthJob(name,variant,sampleRate); job.step(0); return job.seal(); }
+  // FEEL-06 / MIX-01: parametric layered report for a game's recipe table.
+  // Crack [gain, ms], pitched thump {f0,f1,tp,ta,g}, saturated two-pole noise
+  // body {cut,tb,g,drive}, mechanism clicks [[s,gain,Hz]], short room {tr,g},
+  // then a rate-aware 25 Hz DC blocker and gentle density saturation. Every
+  // number comes from the game; this knows no weapon. Seeded by name+variant.
+  var ROOM_TAPS=[[.011,.34],[.017,.27],[.023,.21],[.031,.15],[.043,.10]];
+  // Resumable form of the layered report, same interface as synthJob: {total,
+  // step(count), seal()}. A game recipe built by FAudio.recipe is therefore
+  // cuttable like an engine effect, so LOAD-13 can bound it inside the slice.
+  // The sample loop, the LCG and the normalization are byte for byte those of
+  // the one-shot layered() below: step(64) four times seals the same
+  // Float32Array as step(0).
+  function layeredJob(name,spec,variant,sampleRate){
+    var exp=Math.exp,sin=Math.sin,tanh=Math.tanh,min=Math.min,PI=Math.PI,s=spec||{},key=String(name);
+    var rate=Math.max(8000,min(48000,Number(sampleRate)||22050)),seed=(0x5eed^Math.imul((variant|0)+1,0x9e3779b9))>>>0;
+    for(var h=0;h<key.length;h++)seed=(Math.imul(seed,33)^key.charCodeAt(h))>>>0;
+    function rnd(){seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/4294967296*2-1;}
+    function one(f){return 1-exp(-2*PI*f/rate);}
+    var n=Math.max(0,Math.ceil(Number(s.dur)*rate))||0,out=new Float32Array(n),tune=1+(rnd()*.03);
+    var c=s.crack,th=s.thump,b=s.body,room=s.room,mech=[],taps=[],hist=room?new Float32Array(n):null,i=0,k,m,u,sealed=false;
+    (s.mech||[]).forEach(function(q){mech.push([q[0],q[1],q[2],one(q[2]*1.4),one(q[2]*.7)]);});
+    if(room)ROOM_TAPS.forEach(function(q){taps.push([Math.round(q[0]*rate),q[1]]);});
+    var crackPole=one(2500),crackTau=c?c[1]/1000:1,bodyPole=b?one(b.cut):0,bodyNorm=b?tanh(b.drive):1,roomPole=one(900),dcR=exp(-2*PI*25/rate),density=tanh(1.25);
+    var hp=0,phase=0,lp1=0,lp2=0,bandA=0,bandB=0,roomLp=0,dcx=0,dcy=0;
+    return {
+      total: n,
+      step: function (count) {
+        var end=min(n,i+(count>0?count:n));
+        for(;i<end;i++){
+      var t=i/rate,w=rnd(),x=0,clicks=0;
+      if(c){hp+=crackPole*(w-hp);x=(w-hp)*c[0]*exp(-t/crackTau);}
+      if(th){phase+=2*PI*((th.f1+(th.f0-th.f1)*exp(-t/th.tp))*tune)/rate;x+=sin(phase)*th.g*min(1,t/.0006)*exp(-t/th.ta);}
+      if(b){lp1+=bodyPole*(w-lp1);lp2+=bodyPole*(lp1-lp2);x+=tanh(lp2*3.2*b.g*exp(-t/b.tb)*b.drive)/bodyNorm;}
+      for(k=0;k<mech.length;k++){m=mech[k];u=t-m[0];if(u>=0&&u<.06){bandA+=m[3]*(w-bandA);bandB+=m[4]*(bandA-bandB);clicks+=((bandA-bandB)*2.2*exp(-u/.004)+.35*sin(2*PI*m[2]*u)*exp(-u/.011))*m[1];}}
+      x+=clicks;
+      if(room){hist[i]=x;for(k=0;k<taps.length;k++)if(i>=taps[k][0])x+=hist[i-taps[k][0]]*taps[k][1]*room.g*2.2;roomLp+=roomPole*(w-roomLp);x+=roomLp*room.g*1.6*exp(-t/room.tr)*min(1,t/.012);}
+      dcy=x-dcx+dcR*dcy;dcx=x;out[i]=tanh(dcy*1.25)/density;
+        }
+        return i>=n;
+      },
+      seal: function () {
+        if(sealed)return out; sealed=true;
+        var fade=Math.round((Number.isFinite(s.fade)?s.fade:.012)*rate),peak=0,j;
+        for(j=0;j<fade&&j<n;j++)out[n-1-j]*=j/fade;
+        for(j=0;j<n;j++)peak=Math.max(peak,Math.abs(out[j]));
+        var gain=peak>0?.84/peak:0;for(j=0;j<n;j++)out[j]*=gain;
+        if(n){out[0]=0;out[n-1]=0;}return out;
+      }
+    };
+  }
+  function layered(name,spec,variant,sampleRate){var job=layeredJob(name,spec,variant,sampleRate);job.step(0);return job.seal();}
+  // A recipe table only replaces built-in names. Output that throws, is empty
+  // or not finite falls back to the v0.2 recipe: without a table, PCM is v0.2.
+  function tablePCM(recipes,name,variant,sampleRate){
+    var r=recipes&&effectNames.indexOf(name)>=0&&Object.prototype.hasOwnProperty.call(recipes,name)?recipes[name]:null,data=null;
+    if(!r||typeof r.synth!=='function')return null;
+    try{data=r.synth(variant|0,Math.max(8000,Math.min(48000,Number(sampleRate)||22050)));}catch(_){return null;}
+    if(!data||!(data.length>0))return null;
+    for(var i=0;i<data.length;i++)if(!Number.isFinite(data[i]))return null;
+    return data;
+  }
+  // MIX-02 : le rattrapage automatique du DynamicsCompressor de Chromium. Le
+  // nœud remonte tout de (1/courbe(0 dBFS))^0,6, un gain que le code ne nomme
+  // jamais et qui change dès qu'on touche au seuil, au genou ou au ratio. La
+  // courbe de genou est T + (1 - e^(-k(x-T)))/k, k trouvé par 15 bissections
+  // géométriques entre 0,1 et 10 000 pour que la pente en dB prise entre x et
+  // 1,001x à l'entrée du genou vaille 1/ratio. Reproduit au centième les quatre
+  // couples rendus par le banc (job=calib) : 3,731 / 4,547 / 2,557 / 3,531 dB.
+  function makeupDb(threshold, knee, ratio) {
+    var t = Number(threshold); if (!Number.isFinite(t)) t = 0;
+    var g = Math.max(0, Number(knee) || 0), r = Math.max(1, Number(ratio) || 1);
+    var T = Math.pow(10, t / 20), xk = Math.pow(10, (t + g) / 20), LOG1001 = Math.log(1.001);
+    function curve(x, k) { return x < T ? x : T + (1 - Math.exp(-k * (x - T))) / k; }
+    function slope(k) { return Math.log(curve(1.001 * xk, k) / curve(xk, k)) / LOG1001; }
+    var target = 1 / r, lo = 0.1, hi = 10000, i, k;
+    for (i = 0; i < 15; i++) { k = Math.sqrt(lo * hi); if (slope(k) > target) lo = k; else hi = k; }
+    k = Math.sqrt(lo * hi);
+    var y1 = t + g > 0 ? curve(1, k) : Math.pow(10, (20 * Math.log10(curve(xk, k)) - (t + g) / r) / 20);
+    return -0.6 * 20 * Math.log10(y1);
+  }
+  // Le rattrapage de référence : celui de la chaîne v0.2 (-19 / genou 18 / 5:1),
+  // seul repère fixe commun aux trois jeux. level:'fixe' ramène le niveau des
+  // sons faibles à ce qu'il était avec cette chaîne-là.
+  var MAKEUP_REFERENCE = makeupDb(-19, 18, 5);
+  window.FAudio = {
+    synthesize: function (name, variant, sampleRate, recipes) { return tablePCM(recipes,name,variant,sampleRate)||synthesize(name,variant,sampleRate); },
+    recipe: function (name, spec) { return {variants:spec&&spec.variants===1?1:2,synth:function(variant,rate){return layered(name,spec,variant,rate);},job:function(variant,rate){return layeredJob(name,spec,variant,rate);}}; },
+    effectNames: effectNames.slice(),
+    makeupDb: makeupDb,
+    create: function (options) {
+      options=options||{};
+      var recipes = Object.create(null), table = options && options.recipes;
+      if (table) Object.keys(table).forEach(function (name) { var r = table[name]; if (r && typeof r.synth === 'function' && effectNames.indexOf(name) >= 0) recipes[name] = {synth: r.synth, job: typeof r.job === 'function' ? r.job : null, variants: r.variants === 1 ? 1 : 2}; });
+      // A game may add its own one-shot names (confirmations, stings). They are
+      // prepared with the bank, never during play, and never touch an engine
+      // effect name: without them the bank is the built-in one, bit for bit.
+      var extras = Object.create(null), extraTable = options && options.extras;
+      if (extraTable) Object.keys(extraTable).sort().forEach(function (name) { var r = extraTable[name]; if (r && typeof r.synth === 'function' && name && effectNames.indexOf(name) < 0 && name.indexOf('motor:') !== 0 && name.indexOf(':') < 0) extras[name] = {synth: r.synth, job: typeof r.job === 'function' ? r.job : null, variants: r.variants === 1 ? 1 : 2}; });
+      var extraNames = Object.keys(extras);
+      // MIX-11: a bench may hand the engine an OfflineAudioContext so the whole
+      // mix renders offline, deterministically, with no device and no clock. An
+      // injected context is never opened, resumed nor closed by the engine; it
+      // reports 'suspended' while rendering, so it counts as live on its own.
+      var injected = options && options.context && typeof options.context.createGain === 'function' ? options.context : null;
+      var offline = !!(injected && typeof injected.startRendering === 'function');
+      // MIX-02 : la chaîne maître peut être réglée par le jeu. Sans option, les
+      // valeurs et le comportement d'aujourd'hui, au bit près. Avec
+      // chain:{masterGain, compressor:{threshold,knee,ratio,attack,release},
+      // level:'auto'|'fixe'}, level:'fixe' ajoute un GainNode APRÈS le
+      // compresseur et AVANT l'écrêteur — jamais sur master.gain, qui est avant
+      // le compresseur et déplacerait son point de travail.
+      // MIX-V1 : les tenues du duck deviennent une classe par famille de cues,
+      // avec sa profondeur et son maintien. Sans l'option, rien ne change : les
+      // trois expressions régulières et la table de maintien d'aujourd'hui. Un
+      // jeu qui la donne remplace, pour les cues qu'elle nomme, la profondeur
+      // et/ou le maintien ; fixed:true ignore le niveau du son (cueLevel).
+      var duckClasses = null;
+      if (options && options.duck && Array.isArray(options.duck.classes)) {
+        duckClasses = [];
+        options.duck.classes.forEach(function (c) {
+          if (!c) return;
+          var re = c.cues instanceof RegExp ? c.cues : c.cues && c.cues.length
+            ? new RegExp('^(?:' + [].concat(c.cues).join('|') + ')$') : null;
+          if (!re) return;
+          duckClasses.push({re: re, depth: Number.isFinite(c.depth) ? c.depth : null,
+            hold: Number.isFinite(c.hold) ? c.hold : null, fixed: !!c.fixed});
+        });
+        if (!duckClasses.length) duckClasses = null;
+      }
+      // MIX-04 : un jeu releve le niveau de ses propres rapports d'armes (option
+      // weaponGain), jamais ceux des ennemis ni les autres effets : la table n'est
+      // lue que dans les cues du joueur. Sans option, le multiplicateur vaut
+      // exactement 1 et le rendu reste identique bit a bit.
+      var voiceGain = options && options.weaponGain ? options.weaponGain : null;
+      function wg(name) { return voiceGain && Number.isFinite(voiceGain[name]) ? voiceGain[name] : 1; }
+      var chain = options && options.chain ? options.chain : null;
+      var chainComp = chain && chain.compressor ? chain.compressor : null;
+      var chainFixed = !!(chain && chain.level === 'fixe');
+      var MASTER_GAIN = chain && Number.isFinite(chain.masterGain) ? chain.masterGain : .65;
+      function chainValue(key, fallback) { return chainComp && Number.isFinite(chainComp[key]) ? chainComp[key] : fallback; }
+      var ctx = null, master, limiter, guard, chainMakeup, effects, ambience, musicBus, airFilter, airVolume, echoSend, noiseBuffer, steamLevel, steamPan, steamFilter, hiss, air;
+      var muted = false, disposed = false, failed = false, threat = 0, pressure = 0, stage = 0, musicCue = '';
+      var lastStep = -1, stepSide = 1, lastAlert = -1, lastTouch = -1, touchRun = 0;
+      var environment = {}, outside = 0, machinery = 0, machineSide = 0, machineKind = 'lift', machineOccluded = 0, steam = 0, steamSide = 0, steamOccluded = 0, music = null, playing = false, titlePlaying = false;
+      var bank = Object.create(null), motors = [], ambientDuckUntil = 0, variation = 0, warming = null, warmTimer = null, warmResolve = null;
+      var mix = {master:1,music:.45,effects:1,ambience:1};
+      var persistent = [], voices = new Set(), noiseSeed = 0x96f3, fxLast = Object.create(null), targets = new WeakMap();
+      // MIX-10 : la graine du morceau, donnee par le jeu, varie la boucle. Sans
+      // elle (aucun setStage avec graine), FMusic recoit undefined et joue
+      // l'arrangement ecrit, octet pour octet comme avant.
+      var musicSeed, priority = 2, cue = '', cueLevel = 1, cueDucked = false, duckUntil = 0, duckDepth = 1, preview = null, previewSerial = 0, api;
+      var MUSIC_GAIN = .56, EFFECTS_GAIN = .9, AMBIENCE_GAIN = .7;
+      // FEEL-07: how long each weapon cue holds the soundtrack down before the
+      // 180 ms release. The heavy reports (pump shell, rocket, grenade) hold
+      // 220 ms, the SMG burst only 180 ms, so automatic fire lets the music
+      // back between rounds instead of burying it for a whole magazine.
+      var DUCK_HOLD = {fracture: .22, rocket: .22, grenade: .22, grenadeLaunch: .22, shot: .18};
+      var stats = {musicCue:'',idle:false,voices:0,peakVoices:0,fxSkipped:0,stolenVoices:0,duckGain:MUSIC_GAIN,preview:false,titlePlaying:false,outputCeiling:1,makeupDb:0,pcmBuffers:0,pcmBytes:0,pcmReady:false,windGain:0,machineryGain:0,steamGain:0};
+      Object.defineProperty(stats, "activeCues", {enumerable:true,get:function(){var result={};voices.forEach(function(v){result[v.cue]=(result[v.cue]||0)+1;});return result;}});
+      function remember(node) { persistent.push(node); return node; }
+      function random() {
+        noiseSeed = (Math.imul(noiseSeed, 1664525) + 1013904223) | 0;
+        return (noiseSeed >>> 0) / 4294967296;
+      }
+      function clean(entry) {
+        entry.nodes.forEach(function (n) { try { n.disconnect(); } catch (_) {} });
+        voices.delete(entry);
+        stats.voices = voices.size;
+      }
+      function track(source, nodes, level) {
+        var entry = { source: source, nodes: nodes, cue:cue, priority:priority, level:level || 0, preview:preview && preview.id };
+        voices.add(entry);
+        stats.voices = voices.size; stats.peakVoices = Math.max(stats.peakVoices, voices.size);
+        source.onended = function () { clean(entry); };
+      }
+      function live() {
+        // An offline context stays 'suspended' until startRendering() and has no
+        // clock to wait for: for the engine it is live from the first call.
+        return !!ctx && (offline || ctx.state === 'running');
+      }
+      function available() {
+        return ctx && !disposed && (!muted || preview) && live();
+      }
+      function reserve(level, bus) {
+        if (!available() || titlePlaying && !preview || level <= .0001 || (bus === ambience ? mix.ambience : mix.effects) <= 0) return false;
+        // Distant enemies get 32 voices, world interactions 40. The remaining
+        // eight slots belong to the player and urgent warnings. A loud nearby
+        // cue may replace a quieter lower-priority voice, never the MOD bus.
+        var limit = priority < 2 ? 32 : priority === 2 ? 40 : 48;
+        if (voices.size >= limit) {
+          var candidate = null;
+          voices.forEach(function (v) { if (v.priority < priority && (!candidate || v.priority < candidate.priority || v.priority === candidate.priority && v.level < candidate.level)) candidate = v; });
+          if (!candidate) { stats.fxSkipped++; return false; }
+          try { candidate.source.stop(ctx.currentTime); } catch (_) {}
+          clean(candidate); stats.stolenVoices++;
+        }
+        return true;
+      }
+      function duckMusic() {
+        if (cueDucked || !musicBus || !cue || mix.effects <= 0) return;
+        var weapon = /^(shot|fracture|rocket|grenade|grenadeLaunch|melee|hurt)$/.test(cue);
+        var strength = weapon ? .35 : /^(boss|horror|metallic|powerCut|alarm|explosion)/.test(cue) ? .38 : /^(empty|weaponPickup|trophy|wave|core|mechanism)$/.test(cue) ? .68 : 1, duckClass = null;
+        // MIX-V1 : une classe qui nomme ce cue prend la main sur la profondeur et
+        // sur le maintien. Sans l'option duck.classes, duckClass reste nul et le
+        // calcul ci-dessous est exactement celui d'aujourd'hui.
+        if (duckClasses) for (var di = 0; di < duckClasses.length; di++) if (duckClasses[di].re.test(cue)) { duckClass = duckClasses[di]; break; }
+        if (duckClass && duckClass.depth !== null) strength = duckClass.depth;
+        if (strength === 1) return;
+        // MIX-V2 : un duck de 6,9 dB pour des tirs a 20 % de volume est une perte
+        // sèche. La profondeur suit le volume des effets, et a 1 (le defaut) le
+        // facteur vaut exactement 1 : le rendu reste identique bit a bit.
+        strength = 1 - (1-strength) * (duckClass && duckClass.fixed ? 1 : Math.min(1,Math.max(0,cueLevel)*1.25)) * Math.min(1,mix.effects);
+        cueDucked = true;
+        var now = ctx.currentTime, hold = DUCK_HOLD[cue] || (weapon ? .14 : strength < .4 ? .28 : .14);
+        if (duckClass && duckClass.hold !== null) hold = duckClass.hold;
+        ambientDuckUntil = Math.max(ambientDuckUntil,now+.20);
+        duckDepth = now < duckUntil ? Math.min(duckDepth, strength) : strength;
+        duckUntil = Math.max(duckUntil, now + hold);
+        musicBus.gain.cancelScheduledValues(now);
+        musicBus.gain.setTargetAtTime(MUSIC_GAIN * duckDepth, now, .006);
+        musicBus.gain.setTargetAtTime(MUSIC_GAIN, duckUntil, .18);
+        stats.duckGain = MUSIC_GAIN * duckDepth;
+      }
+      function updateMaster() {
+        if (!ctx || !master || disposed) return;
+        var now = ctx.currentTime;
+        master.gain.cancelScheduledValues(now);
+        master.gain.setTargetAtTime(muted && !preview ? 0 : MASTER_GAIN * mix.master, now, .025);
+        // An audio-clock cutoff guarantees a two-second menu audition even if
+        // the UI thread/timers are throttled. Its JS pump is also cancelled.
+        if (preview && muted) {
+          master.gain.setValueAtTime(MASTER_GAIN * mix.master, Math.max(now,preview.end-.018));
+          master.gain.linearRampToValueAtTime(0, preview.end);
+        }
+      }
+      function syncMusic() {
+        stats.titlePlaying = titlePlaying;
+        if (!music) return;
+        // The title is a score selection, never an environmental stage or a
+        // running simulation. Keep stage numeric for wind/room calculations.
+        // An in-game event may hold an adaptive piece; the sector theme only
+        // returns when that hold is released, never on every frame.
+        var wanted = titlePlaying ? 'title' : (musicCue || String(stage));
+        if (!musicCue || titlePlaying) music.setStage(wanted, titlePlaying ? undefined : musicSeed);
+        music.setThreat(titlePlaying ? 0 : Math.max(threat,pressure*.65));
+        music.setPlaying(playing || titlePlaying);
+        stats.musicCue = titlePlaying ? '' : musicCue;
+      }
+      function requestMusic(cue, meta) {
+        if (!music || disposed || titlePlaying) return false;
+        if (cue === null || cue === undefined || cue === '') { musicCue = ''; syncMusic(); return true; }
+        var name = String(cue), info = meta || {};
+        if (!window.FMusic || !window.FMusic.isCue || !window.FMusic.isCue(name)) return false;
+        var accepted = music.setCue(name, {key: info.key || name, urgent: !!info.urgent, force: !!info.force});
+        // The hold is kept even when the director ignores a duplicate: the
+        // sector theme must not snap back under a piece already requested.
+        musicCue = name;
+        stats.musicCue = name;
+        // The piece is only reached at the next bar line, so its instruments are
+        // uploaded here rather than under the first note that needs them.
+        if (accepted && music.prepare) music.prepare(name);
+        return accepted;
+      }
+      function effectEvent(name, value, interval) {
+        if (!available()) return null;
+        var event = value || {}, level = Math.max(0, Math.min(1, Number.isFinite(event.level) ? event.level : 1));
+        var previous = fxLast[name], now = ctx.currentTime;
+        // Simultaneous distant blasts share a transient; a much nearer/louder
+        // event may still replace it. Music is never counted in this budget.
+        if (level < .018 || previous && now - previous.time < interval && level <= previous.level * 1.45) { stats.fxSkipped++; return null; }
+        fxLast[name] = {time:now,level:level};
+        return {level:level,pan:Math.max(-1,Math.min(1,Number(event.pan)||0)),event:event};
+      }
+      function handEvent(name,value,interval){
+        var hand=value&&value.hand,side=hand==='left'?-.22:hand==='right'?.22:0;
+        var event=effectEvent(name+':'+(hand==='left'?'left':hand==='right'?'right':'single'),value,interval);
+        if(event)event.pan=Math.max(-1,Math.min(1,event.pan+side));
+        return event;
+      }
+      // LOOP-14 / MIX-08: setTargetAtTime is a memoryless exponential, so the
+      // same target and time constant sent again draws the same curve. Strict
+      // equality only: a threshold leaves an audible error. Setters still apply
+      // at once; this memory absorbs tick's repeat in the same frame. Every
+      // automation of the persistent ambience parameters goes through here;
+      // master and music buses never do (cancelled, scheduled ahead).
+      function approach(param, value, time, tau) {
+        var last = targets.get(param);
+        if (last && last.value === value && last.tau === tau) return;
+        param.setTargetAtTime(value, time, tau);
+        if (last) { last.value = value; last.tau = tau; } else targets.set(param, {value: value, tau: tau});
+      }
+      // MIX-07 : une boucle dont la cible de gain est nulle ne doit pas couter de
+      // DSP. On la debranche de son filtre et on la rebranche des que la cible
+      // remonte. Le BufferSource continue de tourner : rien n'est arrete, relance
+      // ni recalcul en phase, et le gain revient par la meme automatisation.
+      var links = new Map();
+      function loopLink(source, filter, on) {
+        if (!source || !filter) return;
+        var linked = links.get(source) !== false;
+        if (on === linked) return;
+        try { if (on) source.connect(filter); else source.disconnect(filter); } catch (err) {}
+        links.set(source, on);
+      }
+      function updateSteam() {
+        if (!ctx || !steamLevel || disposed) return;
+        var audible=playing&&available()&&mix.ambience>0,mask=ctx.currentTime<ambientDuckUntil?.55:1;
+        stats.steamGain=audible?steam*.055*mask:0;
+        approach(steamLevel.gain, stats.steamGain, ctx.currentTime, steam ? .06 : .018);
+        loopLink(hiss, steamFilter, stats.steamGain > 0);
+        if (steamPan.pan) approach(steamPan.pan, steamSide, ctx.currentTime, .12);
+        approach(steamFilter.frequency, 1950-steamOccluded*1250, ctx.currentTime, .12);
+      }
+      function updateMachinery() {
+        if(!ctx||disposed)return;
+        var audible=playing&&available()&&mix.ambience>0,mask=ctx.currentTime<ambientDuckUntil?.55:1;
+        stats.machineryGain=audible?machinery*.075*mask:0;
+        motors.forEach(function(m){
+          var target=m.kind===machineKind?stats.machineryGain:0;
+          approach(m.gain.gain,target,ctx.currentTime,.055);
+          loopLink(m.source,m.filter,target>0);
+          if(m.pan.pan)approach(m.pan.pan,machineSide,ctx.currentTime,.09);
+          approach(m.filter.frequency,4200-machineOccluded*3400,ctx.currentTime,.12);
+        });
+      }
+      function horrorCue(kind,value) {
+        if (!playing) return;
+        var event=value||{},intensity=Math.max(0,Math.min(1,Number.isFinite(event.intensity)?event.intensity:.75));
+        var e=effectEvent('horror:'+kind,{level:(Number.isFinite(event.level)?event.level:1)*intensity,pan:event.pan},.5);
+        if (!e) return; var g=e.level,tier=Math.max(0,Math.min(4,Number(event.tier)||0)),tune=1+tier*.025;
+        if (kind==='metallicSlam') {
+          pcm('impact:metal',.40*g,e.pan,event,.78);pcm('break:metal',.19*g,e.pan,event,.94);
+        } else if (kind==='blackout') {
+          pcm('click',.20*g,e.pan,event,.74);pcm('steam',.095*g,e.pan,event,1.3);
+        } else if (kind==='alarm') {
+          for(var i=0;i<2;i++){tone(340*tune,450*tune,.24,.055*g,'triangle',i*.34,e.pan,1250);tone(680*tune,880*tune,.15,.018*g,'sine',i*.34+.025,e.pan);}
+        } else if (kind==='ambush') {
+          pcm('impact:stone',.32*g,e.pan,event,.85);pcm('break:metal',.19*g,e.pan,event,1.08);
+        }
+      }
+      function panNode(value) {
+        if (ctx.createStereoPanner) {
+          var p = ctx.createStereoPanner();
+          p.pan.value = Math.max(-1,Math.min(1,Number(value)||0));
+          return p;
+        }
+        return ctx.createGain();
+      }
+      function tone(frequency, end, duration, level, shape, offset, pan, cutoff, bus) {
+        if (!reserve(level,bus)) return;
+        duckMusic();
+        var t = ctx.currentTime + (offset || 0), o = ctx.createOscillator();
+        var g = ctx.createGain(), p = panNode(pan), nodes = [o, g, p];
+        o.type = shape || 'sine';
+        o.frequency.setValueAtTime(Math.max(1, frequency), t);
+        if (end) o.frequency.exponentialRampToValueAtTime(Math.max(1, end), t + duration);
+        g.gain.setValueAtTime(0, t);
+        g.gain.linearRampToValueAtTime(level, t + Math.min(.005, duration / 6));
+        g.gain.exponentialRampToValueAtTime(Math.max(.00011,level*.28), t + duration*.46);
+        g.gain.exponentialRampToValueAtTime(.0001, t + duration);
+        if (cutoff) {
+          var f = ctx.createBiquadFilter();
+          f.type = 'lowpass'; f.frequency.value = cutoff; f.Q.value = .65;
+          o.connect(f); f.connect(g); nodes.push(f);
+        } else o.connect(g);
+        g.connect(p); p.connect(bus || effects);
+        track(o, nodes, level);
+        o.start(t); o.stop(t + duration + .03);
+      }
+      function noise(duration, level, frequency, pan, offset, type, bus) {
+        if (!reserve(level,bus)) return;
+        duckMusic();
+        var t = ctx.currentTime + (offset || 0), s = ctx.createBufferSource();
+        var f = ctx.createBiquadFilter(), g = ctx.createGain(), p = panNode(pan);
+        s.buffer = noiseBuffer;
+        f.type = type || 'bandpass'; f.frequency.value = frequency; f.Q.value = .7;
+        g.gain.setValueAtTime(0, t);
+        g.gain.linearRampToValueAtTime(level, t + .004);
+        g.gain.exponentialRampToValueAtTime(Math.max(.00011,level*.18), t + duration*.52);
+        g.gain.exponentialRampToValueAtTime(.0001, t + duration);
+        s.connect(f); f.connect(g); g.connect(p); p.connect(bus || effects);
+        track(s, [s, f, g, p], level);
+        s.start(t, random() * .7); s.stop(t + duration + .02);
+      }
+      function pcm(name,level,pan,event,rate,bus,cutoff) {
+        if(!reserve(level,bus))return;
+        var choices=bank[name];if(!choices)return;
+        duckMusic();event=event||{};
+        var seed=Number.isFinite(event.seed)?event.seed>>>0:(variation++*2654435761)>>>0;
+        var buffer=choices[seed%choices.length],pitch=Math.max(.65,Math.min(1.4,(rate||1)*(1+((seed>>>5)%13-6)*.0025)));
+        var source=ctx.createBufferSource(),gain=ctx.createGain(),panorama=panNode(pan),nodes=[source,gain,panorama],t=ctx.currentTime;
+        source.buffer=buffer;source.playbackRate.value=pitch;
+        var occluded=Math.max(0,Math.min(1,Number(event.occluded)||0)),distance=Math.max(0,Math.min(1,Number.isFinite(event.level)?event.level:1));
+        // FEEL-07: an optional ceiling on top of the distance muffle. Enemy fire
+        // is asked for at 1.1 kHz so a salvo reads as "over there" and never
+        // competes with the player's own report for the same 2-4 kHz space.
+        var cut=(occluded>0||distance<.7)?Math.max(650,(4200+distance*9000)*(1-occluded*.88)):Infinity;
+        if(Number.isFinite(cutoff))cut=Math.min(cut,cutoff);
+        if(Number.isFinite(cut)){var filter=ctx.createBiquadFilter();filter.type='lowpass';filter.Q.value=.55;filter.frequency.value=cut;source.connect(filter);filter.connect(gain);nodes.push(filter);}else source.connect(gain);
+        gain.gain.setValueAtTime(0,t);gain.gain.linearRampToValueAtTime(level,t+.0006);
+        gain.gain.setValueAtTime(level,t+buffer.duration/pitch-.006);gain.gain.linearRampToValueAtTime(0,t+buffer.duration/pitch);
+        gain.connect(panorama);panorama.connect(bus||effects);track(source,nodes,level);
+        source.start(t);source.stop(t+buffer.duration/pitch+.005);
+      }
+      function materialCue(action,value) {
+        if(!playing&&!preview)return;
+        value=value||{};var kind=materials[value.material]?value.material:'stone',pan=Number(value.pan)||0;
+        var e=effectEvent(action+':'+kind+':'+Math.round(pan*3),value,action==='break'?.045:action==='land'?.032:.022);if(!e)return;
+        var energy=Number.isFinite(value.energy)?Math.max(0,value.energy):Number.isFinite(value.power)?Math.max(0,value.power)/18:1;
+        if(energy<=.001)return;
+        var force=Math.min(1.25,.28+Math.sqrt(energy)*.55),mass=Math.max(.15,Math.min(8,Number(value.mass)||1));
+        pcm(action+':'+kind,e.level*force*(action==='break'?.36:action==='land'?.15:.22),e.pan,value,Math.max(.74,Math.min(1.18,1.04-Math.log2(mass)*.055)));
+      }
+      function warmBank(yieldWork,localOnly) {
+        if(!ctx||disposed)return Promise.resolve(false);
+        if(stats.pcmReady)return Promise.resolve(true);
+        function variantsOf(name){var recipe=recipes[name]||extras[name];return recipe?recipe.variants:name.indexOf('motor:')===0?1:2;}
+        function recipeData(name,variant){
+          var recipe=recipes[name]||extras[name];
+          if(recipe){var data=null;try{data=recipe.synth(variant|0,22050);}catch(_){}
+            if(data&&data.length>0){for(var i=0;i<data.length;i++)if(!Number.isFinite(data[i])){data=null;break;}
+              if(data)return data;}}
+          return synthesize(name,variant,22050);
+        }
+        function bufferFor(name,data){
+          var buffer=ctx.createBuffer(1,data.length,22050);
+          buffer.getChannelData(0).set(data);bank[name].push(buffer);stats.pcmBuffers++;stats.pcmBytes+=data.byteLength;
+        }
+        function build(name){
+          if(bank[name]||!ctx||disposed)return;
+          bank[name]=[];
+          for(var v=0;v<variantsOf(name);v++)bufferFor(name,recipeData(name,v));
+        }
+        function finish(){
+          if(!ctx||disposed)return false;
+          motors.forEach(function(m){if(m.source)return;var source=remember(ctx.createBufferSource());source.buffer=bank['motor:'+m.kind][0];source.loop=true;source.connect(m.filter);source.start();m.source=source;});
+          stats.pcmReady=true;return true;
+        }
+        // Loading yields between small batches. A legacy caller which starts
+        // play without prepare gets the same complete bank before play begins.
+        var bankNames = extraNames.length ? effectNames.concat(extraNames) : effectNames;
+        if(!yieldWork||typeof setTimeout!=='function'){bankNames.forEach(build);return Promise.resolve(finish());}
+        if(warming)return warming;
+        if(!localOnly&&typeof options.preparePCM==='function'){
+          warming=(async function(){
+            for(var name of bankNames)for(var variant=0;variant<variantsOf(name);variant++){
+              if(disposed||!ctx)return false;if(bank[name]&&bank[name].length>variant)continue;
+              var data=await options.preparePCM(name,variant);
+              if(disposed||!ctx)return false;
+              if(!data||!(data instanceof Float32Array)||!data.length||data.length>220500)throw new Error('Unprepared PCM');
+              for(var i=0;i<data.length;i++)if(!Number.isFinite(data[i]))throw new Error('Invalid PCM');
+              if(!bank[name])bank[name]=[];bufferFor(name,data);
+            }
+            return finish();
+          })().catch(function(){warming=null;return disposed?false:warmBank(true,true);});
+          return warming;
+        }
+        // LOAD-13: the loading screen yields on a time budget, never on an
+        // effect count. One unit of work is one variant, and the built-in
+        // renderer is resumable, so even the heaviest break stops inside the
+        // budget and resumes on the next slice; an opaque recipe from a game
+        // cannot be cut, so it always opens a fresh slice. Without a clock
+        // (test rigs, cold realms) the same queue advances one variant per
+        // slice, deterministically: no slice count depends on time there.
+        // The bank stays bit for bit the synchronous one.
+        var SLICE_MS=8,BLOCK=256,BLOCK_TARGET_MS=1.5,BLOCK_MIN=16,SLICE_MARGIN_MS=.6,jobs=[],index=0,cost=Object.create(null),peakCost=Object.create(null),worst=0;
+        for(var ni=0;ni<bankNames.length;ni++){var jobName=bankNames[ni];var jobRecipe=recipes[jobName]||extras[jobName]||null;for(var jobVariant=0;jobVariant<variantsOf(jobName);jobVariant++)jobs.push({name:jobName,variant:jobVariant,recipe:jobRecipe,opaque:!!(jobRecipe&&typeof jobRecipe.job!=='function'),renderer:null,total:0,opened:false,blockMs:0,ms:0,block:BLOCK,per:0,done:0});}
+        var clock=typeof performance==='object'&&performance&&typeof performance.now==='function'?function(){return performance.now();}:null;
+        function open(job){job.opened=true;if(job.opaque)return;
+          // A recipe built by FAudio.recipe carries its own resumable renderer,
+          // so a game's weapon is cuttable exactly like an engine effect.
+          job.renderer=job.recipe?job.recipe.job(job.variant,22050):synthJob(job.name,job.variant,22050);
+          job.total=job.renderer.total;
+          // The first block of a job used to run unconditionally at 256 samples, which
+          // cost up to 19 ms on the heaviest break. Size it from a measured cost instead:
+          // the variant already rendered for this name, else the worst rate seen so far.
+          // Nothing is known yet (first job of the bank) → BLOCK_MIN, never BLOCK: the one
+          // block no prediction can cover stays at most BLOCK_MIN samples long.
+          var seen=cost[job.name],avg=seen!==undefined&&job.total>0?seen/job.total:0;
+          // The average rate of the variant already rendered underestimates the peak:
+          // a break gets more expensive as its staggered impacts come in. Size from the
+          // worst rate ever seen for this name. When nothing is known about the name,
+          // nothing is guessed either: the job opens at BLOCK_MIN samples, which is
+          // bounded even for the heaviest effect, and the next blocks are sized from
+          // this job's own measured rate. Guessing from the global worst is what let
+          // rocket#0 and break:metal#0 open a 256-sample block worth 13 to 18 ms.
+          var per=Math.max(avg,peakCost[job.name]||0);
+          job.block=clock&&per>0?Math.max(BLOCK_MIN,Math.min(BLOCK,Math.floor(BLOCK_TARGET_MS/per))):BLOCK_MIN;
+        }
+        function predict(job){var seen=cost[job.name];return Math.max(seen!==undefined?seen:0,worst*job.total);}
+        function finite(data){if(!data||!(data.length>0))return false;for(var i=0;i<data.length;i++)if(!Number.isFinite(data[i]))return false;return true;}
+        function run(job,deadline){
+          if(bank[job.name]&&bank[job.name].length>job.variant)return true;
+          if(!bank[job.name])bank[job.name]=[];
+          var t0=clock?clock():0;
+          if(job.opaque){
+            bufferFor(job.name,recipeData(job.name,job.variant));
+            if(clock){var ms=clock()-t0;if(cost[job.name]===undefined)cost[job.name]=ms;}
+            return true;
+          }
+          for(;;){
+            // Predict with the worse of the last block and the job's own worst rate at
+            // this block size: a cheap stretch of the envelope must not buy an expensive
+            // one, which is what let a single block run 15 ms past the budget.
+            if(clock&&job.blockMs>0&&clock()+Math.max(job.blockMs,job.per*job.block)>deadline)return false;
+            var b0=clock?clock():0,from=job.done;
+            var done=job.renderer.step(job.block);
+            job.done=done?job.total:Math.min(job.total,from+job.block);
+            if(clock){
+              var spent=clock()-b0,did=job.done-from;
+              job.ms+=spent;job.blockMs=spent;
+              if(did>0){
+                var per=spent/did;
+                // Running maximum, never an average: the cheap tail of an effect must
+                // not re-open a block of 256 samples just before its expensive middle.
+                if(per>job.per)job.per=per;
+                if(job.per>peakCost[job.name])peakCost[job.name]=job.per;
+                job.block=Math.max(BLOCK_MIN,Math.min(BLOCK,Math.floor(BLOCK_TARGET_MS/job.per)));
+                if(job.per>worst)worst=job.per;
+              }
+            }
+            if(done)break;
+          }
+          // The cost of a name is its complete sample time, recorded once, when the job
+          // is finished: recorded earlier it came from a partial run and sized the next
+          // variant's first block far too large.
+          if(clock&&cost[job.name]===undefined)cost[job.name]=job.ms;
+          var sealed=job.renderer.seal();
+          job.renderer=null;
+          // Same fallback as recipeData for a game recipe: bad output falls back to v0.2.
+          bufferFor(job.name,job.recipe&&!finite(sealed)?synthesize(job.name,job.variant,22050):sealed);
+          return true;
+        }
+        warming=new Promise(function(resolve){warmResolve=resolve;function pump(){
+          warmTimer=null;
+          if(!ctx||disposed){warmResolve=null;resolve(false);return;}
+          var sliceT0=clock?clock():0,work=false;
+          for(;;){
+            if(index>=jobs.length)break;
+            var job=jobs[index];
+            if(!job.opened)open(job);
+            if(clock){
+              var left=SLICE_MS-(clock()-sliceT0);
+              // The slice is bounded by what the browser actually runs: the timer
+              // callback, its microtasks, seal() and createBuffer. Keep a margin
+              // instead of spending the whole 8 ms on the sample loop.
+              if(left<=SLICE_MARGIN_MS)break;
+              if(work&&job.opaque&&predict(job)>left)break;
+            }else if(work)break;
+            if(!run(job,sliceT0+SLICE_MS-SLICE_MARGIN_MS))break;
+            index++;work=true;
+          }
+          if(index<jobs.length)warmTimer=setTimeout(pump,0);else{warmResolve=null;resolve(finish());}
+        }pump();});
+        return warming;
+      }
+      function initialize() {
+        if (ctx || disposed || failed) return;
+        if (!injected) {
+          var Audio = window.AudioContext || window.webkitAudioContext;
+          if (!Audio) { failed = true; return; }
+        }
+        try {
+          ctx = injected || new Audio();
+          master = remember(ctx.createGain());
+          master.gain.value = muted ? 0 : MASTER_GAIN * mix.master;
+          limiter = remember(ctx.createDynamicsCompressor());
+          // FEEL-07 (MIX-02): -12 dB, knee 6, ratio 3:1, 12 ms in, 120 ms out.
+          // The MIX bench decided these values on the four recorded scenes and a
+          // 24-round SMG burst: peak stays <= .68 and no sample reaches the .875
+          // guard, so nothing saturates. Chrome runs the attack about 6 ms early.
+          limiter.threshold.value = chainValue('threshold', -12); limiter.knee.value = chainValue('knee', 6);
+          limiter.ratio.value = chainValue('ratio', 3); limiter.attack.value = chainValue('attack', .012); limiter.release.value = chainValue('release', .12);
+          stats.makeupDb = makeupDb(limiter.threshold.value, limiter.knee.value, limiter.ratio.value);
+          if (chainFixed) { chainMakeup = remember(ctx.createGain()); chainMakeup.gain.value = Math.pow(10, (MAKEUP_REFERENCE - stats.makeupDb) / 20); }
+          // The existing compressor/mix stays intact. This final soft ceiling
+          // is exactly linear below .875 and mathematically bounded above it,
+          // including coincident rockets, debris and the MOD soundtrack.
+          guard = remember(ctx.createWaveShaper()); var curve = new Float32Array(2049);
+          for (var ci = 0; ci < curve.length; ci++) {
+            var input = ci / 1024 - 1, magnitude = Math.abs(input);
+            curve[ci] = Math.sign(input) * (magnitude <= .875 ? magnitude : .875 + .095 * (1 - Math.exp(-(magnitude - .875) / .095)));
+          }
+          guard.curve = curve; guard.oversample = 'none'; stats.outputCeiling = curve[curve.length-1];
+          master.connect(limiter); limiter.connect(guard); guard.connect(ctx.destination);
+          // level:'fixe' : après le compresseur, avant l'écrêteur (voir plus haut).
+          if (chainMakeup) { limiter.disconnect(); limiter.connect(chainMakeup); chainMakeup.connect(guard); }
+          effects = remember(ctx.createGain()); effects.gain.value = EFFECTS_GAIN * mix.effects; effects.connect(master);
+          ambience = remember(ctx.createGain()); ambience.gain.value = AMBIENCE_GAIN * mix.ambience; ambience.connect(master);
+          musicBus = remember(ctx.createGain()); musicBus.gain.value = MUSIC_GAIN; musicBus.connect(master);
+
+          // A short, dark room reflection. Open sky gets almost no return;
+          // repeated automatic fire must not build a second blanket of noise.
+          var send = remember(ctx.createGain()), delay = remember(ctx.createDelay(.5));
+          echoSend = send;
+          var damping = remember(ctx.createBiquadFilter()), feedback = remember(ctx.createGain());
+          send.gain.value = .09; delay.delayTime.value = .117;
+          damping.type = 'lowpass'; damping.frequency.value = 1450; feedback.gain.value = .14;
+          effects.connect(send); send.connect(delay); delay.connect(damping);
+          damping.connect(master); damping.connect(feedback); feedback.connect(delay);
+
+          noiseBuffer = ctx.createBuffer(1, Math.floor(ctx.sampleRate * 2), ctx.sampleRate);
+          var data = noiseBuffer.getChannelData(0), smooth = 0;
+          for (var i = 0; i < data.length; i++) {
+            var white = random() * 2 - 1;
+            smooth = smooth * .96 + white * .04;
+            data[i] = white * .64 + smooth * .55;
+          }
+          hiss = remember(ctx.createBufferSource());steamFilter = remember(ctx.createBiquadFilter());
+          steamLevel = remember(ctx.createGain()); steamPan = remember(panNode(0));
+          hiss.buffer = noiseBuffer; hiss.loop = true; steamFilter.type = 'bandpass'; steamFilter.frequency.value = 1950; steamFilter.Q.value = .6; steamLevel.gain.value = 0;
+          hiss.connect(steamFilter); steamFilter.connect(steamLevel); steamLevel.connect(steamPan); steamPan.connect(ambience); hiss.start();
+          air = remember(ctx.createBufferSource()); airVolume = remember(ctx.createGain());
+          airFilter = remember(ctx.createBiquadFilter());
+          air.buffer = noiseBuffer; air.loop = true;
+          airFilter.type = 'bandpass'; airFilter.frequency.value = 780; airFilter.Q.value = .55;
+          airVolume.gain.value = 0;
+          air.connect(airFilter); airFilter.connect(airVolume); airVolume.connect(ambience); air.start();
+
+          ['fan','piston','reactor','lift'].forEach(function(kind){
+            var gain=remember(ctx.createGain()),filter=remember(ctx.createBiquadFilter()),pan=remember(panNode(0));
+            gain.gain.value=0;filter.type='lowpass';filter.frequency.value=4200;filter.Q.value=.55;
+            filter.connect(gain);gain.connect(pan);pan.connect(ambience);motors.push({kind:kind,source:null,gain:gain,filter:filter,pan:pan});
+          });
+          if (window.FMusic) { music = FMusic.create(ctx, musicBus); music.setVolume(mix.music); syncMusic(); }
+          if(playing)warmBank(false);
+        } catch (_) {
+          failed = true;
+          if (ctx && !injected) { try { ctx.close().catch(function () {}); } catch (_) {} }
+          ctx = null;
+        }
+      }
+      // MIX-V4 : au repos, le contexte audio ne doit plus rien couter. Apres 1,5 s
+      // sans rien a dire — le temps que les queues trainantes s'eteignent —, on le
+      // suspend ; le reveil est la promesse de resume(), asynchrone par nature.
+      // Ni start() ni testMix() ne laissent le contexte endormi.
+      var idle = false, idleTimer = null;
+      function clearIdle() { if (idleTimer !== null) { clearTimeout(idleTimer); idleTimer = null; } }
+      function setIdle(value) {
+        var next = !!value;
+        if (!next) { clearIdle(); if (idle) { idle = false; stats.idle = false; resume(); } return; }
+        if (idle || idleTimer !== null) return;
+        idle = true; stats.idle = true;
+        idleTimer = setTimeout(function () {
+          idleTimer = null;
+          if (idle && !disposed && !offline && ctx) { try { ctx.suspend().catch(function () {}); } catch (_) {} }
+        }, 1500);
+      }
+      function resume() {
+        initialize();
+        clearIdle(); idle = false; stats.idle = false;
+        if (!ctx || disposed || offline) return Promise.resolve();
+        if (ctx.state === 'suspended' || ctx.state === 'interrupted') {
+          try { return ctx.resume().catch(function () {}); } catch (_) {}
+        }
+        return Promise.resolve();
+      }
+      function tick() {
+        // Tracker scheduling has its own bounded voices; gunfire never starves it.
+        if (music) music.tick();
+        updateSteam();
+        updateMachinery();
+        if (!available()) return;
+        var now = ctx.currentTime;
+        var active = playing;
+        if (now >= duckUntil + 1) stats.duckGain = MUSIC_GAIN;
+        // No indoor bed and no synthetic birds or ominous bass chord. Wind
+        // follows the exterior exposure and has long, genuinely silent gaps.
+        var wind=Math.max(0,Math.min(2,Number.isFinite(environment.wind)?environment.wind:1));
+        var gust=Math.max(0,Math.min(1,(Math.sin(now*.19+1.2)+.28*Math.sin(now*.53)-.28)*1.25));
+        var mask=(1-Math.max(threat,pressure)*.45)*(now<ambientDuckUntil?.55:1);
+        approach(airFilter.frequency,780+stage*180+(environment.biome==='woodland'?-100:0),now,.4);
+        stats.windGain=active&&mix.ambience>0?outside*wind*gust*.020*mask:0;
+        approach(airVolume.gain,stats.windGain,now,stats.windGain?.22:.045);
+        loopLink(air,airFilter,stats.windGain>0);
+        approach(echoSend.gain,.09-outside*.08,now,.45);
+
+      }
+      function cancelTestMix() {
+        previewSerial++;
+        var previous = preview;
+        if (!previous) return;
+        preview = null; stats.preview = false;
+        if (previous.timer !== null) clearTimeout(previous.timer);
+        for (var entry of Array.from(voices)) if (entry.preview === previous.id) { try { entry.source.stop(); } catch (_) {} clean(entry); }
+        syncMusic();
+        if (musicBus && ctx) { musicBus.gain.cancelScheduledValues(ctx.currentTime); musicBus.gain.setTargetAtTime(MUSIC_GAIN,ctx.currentTime,.03); }
+        duckUntil = 0; duckDepth = 1; stats.duckGain = MUSIC_GAIN;
+        updateMaster();
+        if (ctx && !playing) {approach(airVolume.gain,0,ctx.currentTime,.018);stats.windGain=0;updateSteam();updateMachinery();}
+      }
+      function testMix(options) {
+        cancelTestMix();
+        var serial = ++previewSerial;
+        if (disposed || options && options.muted || mix.master <= 0 || typeof setTimeout !== 'function') return Promise.resolve(false);
+        return resume().then(function () {
+          if (!ctx || disposed || serial !== previewSerial || !live()) return false;
+          warmBank(false);
+          var start = ctx.currentTime, audition = {id:serial,end:start+2,timer:null,index:0};
+          preview = audition; stats.preview = true; updateMaster();
+          if (music) music.setPlaying(true);
+          // These use the real buses, samples and cue methods. Volume sliders,
+          // including an intentionally silent effects/ambience/music bus, hold.
+          var events = [
+            {at:0,run:function(){noise(.75,.035,1100,-.35,0,'bandpass',ambience);}},
+            {at:.25,run:function(){api.shot({weapon:4});}},
+            {at:.55,run:function(){api.shot();}},
+            {at:.9,run:function(){api.materialBreak({material:'stone',level:.8,seed:9});}},
+            {at:1.45,run:function(){api.ammoPickup();}}
+          ];
+          function pump() {
+            if (preview !== audition || disposed) return;
+            if (ctx.currentTime >= audition.end || !live()) { cancelTestMix(); return; }
+            while (audition.index < events.length && ctx.currentTime-start >= events[audition.index].at) events[audition.index++].run();
+            tick(); audition.timer = setTimeout(pump,40);
+          }
+          pump(); return true;
+        });
+      }
+      api = {
+        start: resume,
+        resume: resume,
+        prepare: function (value, seed) {
+          var next=Math.max(0,Math.min(2,Math.floor(Number(value)||0)));
+          // The user gesture opens the shared context through start/resume.
+          // This method only prepares existing player buffers after pure PCM
+          // warmup; it neither opens a device nor changes the active score.
+          if (disposed) return Promise.resolve(false);
+          var fx=warmBank(true),score=window.FMusic?FMusic.warmup(next,seed):Promise.resolve(false);
+          return Promise.all([fx,score]).then(function () {
+            if(!ctx||disposed||!stats.pcmReady)return false;
+            if(!music)return true;return options.asyncPrepare?music.prepareAsync(next,seed):music.prepare(next,seed);
+          });
+        },
+        prepareCues: async function (values) {
+          if(disposed||!window.FMusic)return false;
+          for(var value of values){await FMusic.warmup(value);if(disposed)return false;
+            if(music){if(options.asyncPrepare)await music.prepareAsync(value);else music.prepare(value);}}
+          return !!ctx&&!disposed;
+        },
+        prepareTitle: function () {
+          // Warm only the title instruments. Opening the device still belongs
+          // to start/resume in a user gesture; no world effects are synthesized.
+          if (disposed || !window.FMusic) return Promise.resolve(false);
+          return FMusic.warmup('title').then(function () {
+            if(!ctx||!live()||disposed||!music)return false;return options.asyncPrepare?music.prepareAsync('title'):music.prepare('title');
+          });
+        },
+        setTitlePlaying: function (value) {
+          var next = !!value && !disposed;
+          if (next === titlePlaying) return;
+          cancelTestMix();
+          if (next && playing) api.setPlaying(false);
+          titlePlaying = next;
+          if (next) musicCue = '';
+          if (next && ctx) {
+            // A last combat impact must not duck the first title riff.
+            musicBus.gain.cancelScheduledValues(ctx.currentTime);
+            musicBus.gain.setTargetAtTime(MUSIC_GAIN,ctx.currentTime,.018);
+            duckUntil = 0; duckDepth = 1; ambientDuckUntil = 0; stats.duckGain = MUSIC_GAIN;
+            for (var entry of Array.from(voices)) { try { entry.source.stop(); } catch (_) {} clean(entry); }
+            approach(airVolume.gain,0,ctx.currentTime,.018); stats.windGain = 0;
+            updateSteam(); updateMachinery();
+          }
+          syncMusic();
+        },
+        setMuted: function (value) {
+          var next = !!value;
+          if (next !== muted) cancelTestMix();
+          muted = next;
+          updateMaster();
+          updateSteam();updateMachinery();
+          if(muted&&!preview&&ctx&&airVolume){approach(airVolume.gain,0,ctx.currentTime,.018);stats.windGain=0;}
+        },
+        setThreat: function (value) { threat = Math.max(0, Math.min(1, Number(value) || 0)); if (music) music.setThreat(titlePlaying ? 0 : Math.max(threat,pressure*.65)); },
+        // MUS-04: an in-game event asks the adaptive director for another piece.
+        // The transport is never restarted by the caller: FImuse finishes the
+        // bar, plays the written join and enters the target on the bar line.
+        requestMusic: requestMusic,
+        releaseMusic: function () { return requestMusic(''); },
+        setPressure: function (value) { pressure = Math.max(0,Math.min(1,Number(value)||0)); if (music) music.setThreat(titlePlaying ? 0 : Math.max(threat,pressure*.65)); },
+        setStage: function (value, valueSeed) { cancelTestMix(); stage = Math.max(0, Math.min(2, Math.floor(Number(value) || 0))); if (arguments.length > 1) musicSeed = Number.isFinite(valueSeed) ? valueSeed | 0 : undefined; pressure = 0; steam = 0; machinery = 0; musicCue = ''; updateSteam();updateMachinery(); syncMusic(); },
+        setPlaying: function (value) { cancelTestMix(); playing = !!value;if(playing){titlePlaying=false;if(ctx)warmBank(false);} updateSteam();updateMachinery(); syncMusic(); if (!playing && ctx && airVolume) {approach(airVolume.gain,0,ctx.currentTime,.018);stats.windGain=0;for(var entry of Array.from(voices)){try{entry.source.stop();}catch(_){}clean(entry);}} },
+        setMix: function (value) {
+          for (var key in mix) if (Number.isFinite(value && value[key])) mix[key] = Math.max(0, Math.min(1, value[key]));
+          if (!ctx || disposed) return;
+          updateMaster();
+          effects.gain.setTargetAtTime(EFFECTS_GAIN * mix.effects, ctx.currentTime, .025);
+          ambience.gain.setTargetAtTime(AMBIENCE_GAIN * mix.ambience, ctx.currentTime, .025);
+          updateSteam();updateMachinery();
+          if(mix.ambience<=0){approach(airVolume.gain,0,ctx.currentTime,.018);stats.windGain=0;loopLink(air,airFilter,false);}
+          if (music) music.setVolume(mix.music);
+        },
+        setEnvironment: function (value, amount) { environment = value || {}; outside = Math.max(0, Math.min(1, Number(amount) || 0)); },
+        setMachinery: function (value, pan, kind, occluded) { machinery = Math.max(0,Math.min(1,Number(value)||0));machineSide=Math.max(-1,Math.min(1,Number(pan)||0));machineKind=['fan','piston','reactor','lift'].indexOf(kind)>=0?kind:'lift';machineOccluded=Math.max(0,Math.min(1,Number(occluded)||0));updateMachinery(); },
+        setSteam: function (value, pan, occluded) { steam = Math.max(0,Math.min(1,Number(value)||0)); steamSide = Math.max(-1,Math.min(1,Number(pan)||0));steamOccluded=Math.max(0,Math.min(1,Number(occluded)||0)); updateSteam(); },
+        stats: stats,
+        // MIX-11: the nodes of the real chain, for the offline bench and the
+        // tests only. A game never reads them; nothing here is a public API.
+        graph: function () {
+          return ctx ? {master: master, limiter: limiter, guard: guard, effects: effects, ambience: ambience, musicBus: musicBus} : null;
+        },
+        tick: tick,
+        setIdle: setIdle,
+        testMix: testMix,
+        cancelTestMix: cancelTestMix,
+        materialImpact: function(value){materialCue('impact',value);},
+        materialBreak: function(value){materialCue('break',value);},
+        debrisLand: function(value){materialCue('land',value);},
+        horror: function (event) { horrorCue(event&&event.kind,event); },
+        metallicSlam: function (event) { horrorCue('metallicSlam',event); },
+        horrorSting: function (event) { horrorCue('ambush',event); },
+        powerCut: function (event) { horrorCue('blackout',event); },
+        alarm: function (event) { horrorCue('alarm',event); },
+        rocket: function (value) {
+          if(!playing&&!preview)return;
+          var e = handEvent('rocket',value,.055); if (e)pcm('rocket',.57*e.level*wg('rocket'),e.pan,e.event);
+        },
+        grenade: function (value) {
+          if(!playing&&!preview)return;
+          var e = effectEvent('grenade',value,.085); if(e)pcm('grenade',.54*e.level,e.pan,e.event,1.08);
+        },
+        grenadeLaunch: function(value){
+          if(!playing&&!preview)return;
+          var e=handEvent('grenadeLaunch',value,.075);if(e)pcm('grenade',.66*e.level,e.pan,e.event);
+        },
+        explosion: function (value) {
+          var e = effectEvent('explosion',value,.095); if (!e) return;
+          var kind=e.event.kind,steamBlast=kind==='steam',boss=kind==='boss';
+          var size=Math.max(.7,Math.min(1.8,(Number(e.event.radius)||3.5)/3.5*(boss?1.12:1)));
+          var power=Math.max(.72,Math.min(1.35,Math.sqrt(Math.max(0,Number(e.event.power)||32)/32)));
+          // One non-tonal crack/pressure/debris buffer, without a sustained
+          // sub-bass glide. Size stretches the decay; distance removes highs.
+          pcm(steamBlast?'steam':'explosion',e.level*power*(steamBlast?.40:.75),e.pan,e.event,1/Math.sqrt(size));
+        },
+        pipeLeak: function (value) {
+          var e = effectEvent('pipeLeak',value,.13); if(e)pcm('steam',.32*e.level,e.pan,e.event);
+        },
+        creak: function (value) {
+          var e = effectEvent('creak',value,.15); if(e)pcm('break:metal',.15*e.level,e.pan,e.event,.78);
+        },
+        trap: function (value) {
+          var e = effectEvent('trap',value,.1); if (!e) return; var g = e.level, kind = e.event.kind;
+          if (kind === 'blade') { pcm('swish',.27*g,e.pan,e.event,1.25);pcm('click',.16*g,e.pan,e.event); }
+          else if (kind === 'spikes') pcm('impact:metal',.31*g,e.pan,e.event,1.35);
+          else { pcm('impact:metal',.29*g,e.pan,e.event,.75);pcm('body',.37*g,e.pan,e.event,.78); }
+        },
+        bossTell: function (value) {
+          var e = effectEvent('bossTell',value,.25); if (!e) return; var g = e.level;
+          var kind=e.event.kind;if(kind==='slam'){tone(60,110,1.4,.28*g,'triangle',0,e.pan,400);pcm('body',.22*g,e.pan,e.event,.7);}
+          else if(kind==='ring'){tone(110,390,1.3,.27*g,'triangle',0,e.pan,1300);tone(220,780,1.3,.09*g,'sine',0,-e.pan*.3);}
+          else if(kind==='rocketZone'){for(var i=0,t=0;i<12&&t<1.5;i++){tone(650,650,.045,.27*g,'sine',t,e.pan,2200);t+=1/(4+i*.8);}}
+          else{tone(900,1800,1.35,.25*g,'sine',0,e.pan,2600);pcm('swish',.14*g,e.pan,e.event,.8);}
+        },
+        weakHit: function(value){var e=effectEvent('weakHit',value,.06);if(e){pcm('impact:metal',.22*e.level,e.pan,e.event,1.4);tone(2600,2100,.08,.15*e.level,'sine',0,e.pan,4000);}},
+        bossArmorHit: function(value){var e=effectEvent('bossArmorHit',value,.09);if(e)pcm('body',.09*e.level,e.pan,e.event,.8);},
+        enemyPain: function(value){var e=effectEvent('enemyPain',value,.12);if(e)pcm('impact:metal',.12*e.level,e.pan,e.event,.9);},
+        bossRoar: function (value) {
+          var e = effectEvent('bossRoar',value,.6); if (!e) return; var g = e.level;
+          pcm('break:metal',.39*g,e.pan,e.event,.74);pcm('steam',.21*g,e.pan,e.event,.8);
+        },
+        bossImpact: function (value) {
+          var e = effectEvent('bossImpact',value,.12); if (!e) return; var g = e.level;
+          pcm('explosion',.58*g,e.pan,e.event,1.12);pcm('impact:stone',.23*g,e.pan,e.event,.85);
+        },
+        bossDeath: function (value) {
+          var e = effectEvent('bossDeath',value,1.4); if (!e) return; var g = e.level;
+          pcm('explosion',.62*g,e.pan,e.event,.87);pcm('break:metal',.33*g,e.pan,e.event,.8);
+        },
+        thunder: function(value){if(!playing||!available())return;var e=effectEvent('thunder',value,1);if(e){pcm('explosion',.55*e.level,e.pan,e.event,.65);noise(2.2,.07*e.level,190,e.pan,.2,'lowpass');}},
+        setWeather: function(rain,wind,shelter){if(!available())return;var level=playing?(Math.max(0,rain)*.045+Math.max(0,wind)*.012)*(shelter?.25:1):0;approach(airFilter.frequency,900+Math.max(0,rain)*2400,ctx.currentTime,.25);approach(airVolume.gain,level,ctx.currentTime,.3);stats.windGain=level;},
+        policeSiren: function (value) { if(!playing||!available())return;var e=effectEvent('policeSiren',value,.7);if(!e)return;tone(620,980,.35,.10*e.level,'sine',0,e.pan);tone(980,620,.35,.10*e.level,'sine',.36,e.pan); },
+        shot: function (value) {
+          var pistol=!!value&&value.weapon===4;
+          if(!playing&&!preview)return;
+          var e=handEvent(pistol?'pistol':'shot',value,pistol?.08:.045);if(!e)return;var g=e.level;
+          pcm(pistol?'pistol':'smg',(pistol?.63:.49)*g*wg(pistol?'pistol':'smg'),e.pan,e.event);
+        },
+        fracture: function (value) {
+          if(!playing&&!preview)return;
+          var e=handEvent('fracture',value,.075);if(e)pcm('shotgun',.77*e.level*wg('shotgun'),e.pan,e.event);
+        },
+        pulse: function () {
+          if (!available()) return;
+          tone(90, 520, .14, .18, 'sine', 0, -.25);
+          tone(240, 35, .55, .22, 'triangle', .07, .2, 1600);
+          noise(.55, .17, 580, 0, .04, 'lowpass');
+          tone(960, 120, .5, .055, 'sine', .06, -.3);
+        },
+        switchWeapon: function () {
+          pcm('click',.14,.10,null,.85);
+        },
+        dash: function () {
+          if (!available()) return;
+          pcm('swish',.19,0,null,.9);
+        },
+        phoneMessage: function () {
+          if(!available()||!playing)return;
+          tone(880,880,.085,.055,'sine',0,0,2400);
+          tone(1174.66,1174.66,.12,.045,'sine',.10,0,2400);
+        },
+        alerted: function (event) {
+          if (!available() || ctx.currentTime - lastAlert < .45) return;
+          lastAlert = ctx.currentTime; event = event || {};
+          var level = Math.min(1, event.level || 1) * .065, pan = event.pan || 0;
+          tone(530, 820, .085, level, 'triangle', 0, pan, 1500);
+          tone(1040, 720, .12, level * .55, 'sine', .095, pan, 1800);
+        },
+        enemyShot: function (event) {
+          event = event || {};
+          var pan = Math.max(-1,Math.min(1,Number(event.pan)||0)), e = effectEvent('enemyShot:'+Math.round(pan*4),event,.06);
+          if (!e || e.level < .055) return;
+          // FEEL-07: the enemy fires the player's own report, slowed to .85, closed
+          // at 1.1 kHz, without the mechanical click and at level .24, so a salvo
+          // reads as "over there" instead of a thinner copy of the player's shot.
+          // The mech-free copies come from METAL's extras; without them the v0.2
+          // cues keep their own rate and click rather than falling silent.
+          var heavy = event.kind === 3, alt = heavy ? 'enemyGrenade' : 'enemySmg';
+          pcm(bank[alt] ? alt : (heavy ? 'grenade' : 'smg'), e.level * .24, pan, event, .85, null, 1100);
+        },
+        bossPhase: function () {
+          [0, .18, .36].forEach(function (offset) {
+            tone(110, 55, .4, .09, 'sawtooth', offset, 0, 600);
+            tone(440, 220, .25, .04, 'triangle', offset, .2, 1200);
+          });
+        },
+        hit: function (value) {
+          // FEEL-07: a game's confirmation replaces the v0.2 click. The run of
+          // consecutive hits lives here, on the audio clock: nothing enters the
+          // simulation and nothing is saved.
+          if (extras.touchConfirm) {
+            var t = ctx ? ctx.currentTime : 0;
+            touchRun = lastTouch < 0 || t - lastTouch > .45 ? 0 : Math.min(6, touchRun + 1);
+            lastTouch = t;
+            pcm('touchConfirm', .30, Number(value && value.pan) || 0, value, Math.pow(2, touchRun / 12));
+            return;
+          }
+          pcm('click',.12,0,null,1.3);
+        },
+        hurt: function () {
+          pcm('body',.45,0,null,.85);
+        },
+        kill: function (value) {
+          if (extras.killConfirm) { pcm('killConfirm', .45, 0, value, 1); return; }
+          pcm('body',.19,0,null,.94);pcm('impact:dirt',.09,0,null);
+        },
+        pickup: function () {
+          tone(659.255, 659.255, .18, .075, 'sine', 0, -.18);
+          tone(987.767, 987.767, .25, .065, 'sine', .08, .18);
+        },
+        ammoPickup: function (value) {
+          var e=effectEvent('ammoPickup',value,.08);if(!e)return;
+          noise(.045,.10*e.level,2700,e.pan,0,'highpass');
+          tone(235,150,.10,.075*e.level,'triangle',.025,e.pan,1400);
+          tone(660,880,.14,.055*e.level,'sine',.07,-e.pan*.3,1900);
+        },
+        weaponPickup: function (value) {
+          var e=effectEvent('weaponPickup',value,.2);if(!e)return;
+          noise(.09,.13*e.level,1800,e.pan,0,'bandpass');tone(120,52,.21,.13*e.level,'triangle',0,e.pan,900);
+          tone(330,440,.23,.075*e.level,'sawtooth',.08,-.16,1200);tone(660,880,.26,.055*e.level,'triangle',.18,.16,1800);
+        },
+        // A new campaign discovery has one short forged-metal fanfare. It is
+        // dispatched only by the discovery event, never by snapshot restore.
+        trophy: function (value) {
+          if(!playing&&!preview)return;
+          var e=effectEvent('trophy',value,1.1);if(!e)return;var g=e.level;
+          noise(.095,.13*g,1900,e.pan,0,'bandpass');
+          tone(88,55,.24,.12*g,'triangle',0,e.pan,950);
+          tone(164.81,164.81,.32,.085*g,'sawtooth',.035,-.12,1400);
+          tone(246.94,246.94,.36,.07*g,'sawtooth',.13,.12,1600);
+          tone(329.63,329.63,.48,.06*g,'triangle',.25,0,2200);
+        },
+        heatWarning: function (value) {
+          var e=effectEvent('heatWarning:'+((value&&value.hand)||'right'),value,.6);if(!e)return;
+          pcm('click',.09*e.level,e.event.hand==='left'?-.2:.2,e.event,.78);
+        },
+        empty: function (value) {
+          var e=effectEvent('empty',value,.18);if(!e)return;
+          pcm('click',.24*e.level,e.pan,e.event,1.2);
+        },
+        melee: function (value) {
+          var e=effectEvent('melee',value,.12);if(!e)return;
+          pcm('swish',.22*e.level,e.pan,e.event,.94);
+          if(e.event.hit)pcm('body',.40*e.level,e.pan,e.event,.9);
+        },
+        wave: function (value) {
+          var e=effectEvent('wave',value,.8);if(!e)return;
+          tone(98,58,.55,.11*e.level,'sawtooth',0,-.2,650);noise(.19,.07*e.level,1400,.2,.03,'bandpass');
+          tone(294,277,.31,.065*e.level,'triangle',.08,.2,1300);tone(196,185,.46,.055*e.level,'triangle',.12,-.2,1100);
+        },
+        core: function () {
+          [329.627, 440, 659.255].forEach(function (n, i) {
+            tone(n, n, .65, .075, 'triangle', i * .13, (i - 1) * .22, 1800);
+            tone(n * 2, n * 2, .42, .025, 'sine', i * .13 + .01, 0);
+          });
+        },
+        mechanism: function (event) {
+          var e=effectEvent('mechanism',event,.12);if(e){pcm('click',.20*e.level,e.pan,e.event,.78);pcm('impact:metal',.14*e.level,e.pan,e.event,.85);}
+        },
+        jumpPad: function (event) {
+          event = event || {}; var level = (event.level || 1) * (event.actor === 'enemy' ? .06 : .16), pan = event.pan || 0;
+          tone(80, 650, .36, level, 'sawtooth', 0, pan, 1200);
+          noise(.27, level * .8, 1800, pan, 0, 'bandpass');
+          tone(42, 90, .22, level, 'sine', 0, pan);
+        },
+        land: function (event) {
+          event=event||{};var e=effectEvent('land:'+Math.round((event.pan||0)*3),event,.05);if(!e)return;
+          var impact=Math.min(1,(Number.isFinite(event.impact)?event.impact:4)/10),kind=materials[event.material]?event.material:event.outdoor?'dirt':'stone';
+          pcm('step:'+kind,e.level*impact*(event.actor==='enemy'?.12:.28),e.pan,event,.78);
+        },
+        liftStart: function (event) {
+          var e=effectEvent('liftStart',event,.2);if(e)pcm('impact:metal',.19*e.level,e.pan,e.event,.75);
+        },
+        liftStop: function (event) {
+          var e=effectEvent('liftStop',event,.2);if(e){pcm('click',.19*e.level,e.pan,e.event,.85);pcm('impact:metal',.12*e.level,e.pan,e.event,.95);}
+        },
+        win: function () {
+          [220, 329.627, 440, 523.251, 659.255, 880].forEach(function (n, i) {
+            tone(n, n, .9, .085, 'triangle', i * .14, Math.sin(i) * .3, 1900);
+          });
+        },
+        step: function (speed, surface) {
+          if (!available() || !playing || !(speed > .2)) return;
+          // The measured stride in game.js schedules steps; this only rejects duplicates.
+          if (ctx.currentTime - lastStep < .1) return;
+          lastStep = ctx.currentTime; stepSide *= -1;
+          var weight=Math.max(.4,Math.min(1.15,speed/4.5)),kind=surface&&materials[surface.material]?surface.material:surface&&surface.outdoor?'dirt':'metal';
+          pcm('step:'+kind,.13*weight,stepSide*.16,surface,1+(weight-1)*.035);
+        },
+        dispose: function () {
+          clearIdle();
+          if (disposed) return;
+          cancelTestMix();
+          disposed = true;
+          titlePlaying = false; stats.titlePlaying = false;
+          if(warmTimer!==null)clearTimeout(warmTimer);warmTimer=null;if(warmResolve)warmResolve(false);warmResolve=null;
+          if (music) { music.dispose(); music = null; }
+          voices.forEach(function (entry) {
+            try { entry.source.stop(); } catch (_) {}
+            clean(entry);
+          });
+          persistent.forEach(function (node) {
+            try { if (node.stop) node.stop(); } catch (_) {}
+            try { node.disconnect(); } catch (_) {}
+          });
+          persistent.length = 0;
+          if (ctx && !injected) { try { ctx.close().catch(function () {}); } catch (_) {} }
+          ctx = null; noiseBuffer = null;bank=Object.create(null);motors.length=0;
+        }
+      };
+      // Priority belongs to a cue, not its waveform. A rocket's click, body
+      // and exhaust keep the same reservation and cause one short music dip.
+      var urgent = /^(shot|fracture|pulse|rocket|grenade|grenadeLaunch|hurt|bossTell|bossRoar|bossImpact|bossDeath|bossPhase|weakHit|horror|metallicSlam|horrorSting|powerCut|alarm|empty|melee|weaponPickup|trophy|wave|core|win)$/;
+      var helpers = /^(start|resume|prepare|set|tick|testMix|cancelTestMix|dispose|graph|requestMusic|releaseMusic)/;
+      Object.keys(api).forEach(function (name) {
+        if (typeof api[name] !== 'function' || helpers.test(name)) return;
+        var method = api[name];
+        api[name] = function () {
+          if (titlePlaying && !preview) return;
+          var event = arguments[0], previousPriority=priority, previousCue=cue, previousLevel=cueLevel, previousDucked=cueDucked;
+          if (event && typeof event==='object' && Number.isFinite(event.level) && event.level<=.008) return;
+          priority = name==='enemyShot'||name==='alerted'||name==='debrisLand'||name==='step' ? 1 : urgent.test(name) ? 3 : 2;
+          if ((name==='rocket'||name==='grenade') && event && event.owner !== undefined && event.owner !== 'player') priority=2;
+          cue=name;cueLevel=event&&typeof event==='object'&&Number.isFinite(event.level)?Math.max(0,Math.min(1,event.level)):1;
+          if(event&&typeof event==='object'&&Number.isFinite(event.intensity))cueLevel*=Math.max(0,Math.min(1,event.intensity));
+          cueDucked=false;
+          try { return method.apply(api,arguments); }
+          finally { priority=previousPriority;cue=previousCue;cueLevel=previousLevel;cueDucked=previousDucked; }
+        };
+      });
+      return api;
+    }
+  };
+})(typeof window !== 'undefined' ? window : globalThis);
+
+/* FERRO recipes v1 — portable authoring source, no DOM, GPU or game globals.
+ * validate/decode return normalized independent data; encode is canonical JSON.
+ * compile expands a validated DAG to frozen FERRO meshes + source ownership.
+ * createCompiler has a bounded LRU and cumulative .stats; compile only on edits.
+ * createHistory.current is frozen; commit/undo/redo return the current snapshot.
+ * Units: metres, radians, linear RGB. Rotation uses the renderer's Rz*Ry*Rx.
+ */
+(function(root){'use strict';
+const FORMAT='ferro-recipe',VERSION=1,MAX_BYTES=1048576,MAX_NODES=256,MAX_INSTANCES=10000;
+const SHAPES=new Set(['box','sphere','cylinder','octa','ring','bevel','wedge']);
+const KINDS=new Set([0,1,2,3,4,5,6,7,8,9,10,13,14,15,19,20]);
+const fail=message=>{throw new TypeError('Recette FERRO : '+message);};
+function object(v,label){if(!v||typeof v!=='object'||Array.isArray(v))fail(label+' doit être un objet.');return v;}
+function number(v,min,max,label,integer=false){if(!Number.isFinite(v)||v<min||v>max||(integer&&!Number.isInteger(v)))fail(label+' doit être '+(integer?'un entier':'un nombre fini')+' entre '+min+' et '+max+'.');return Object.is(v,-0)?0:v;}
+function label(v,what){if(typeof v!=='string'||!v.trim()||v.length>100)fail(what+' : texte de 1 à 100 caractères requis.');return v.trim();}
+function id(v,what){if(typeof v!=='string'||!(/^[a-zA-Z][a-zA-Z0-9_-]{0,63}$/).test(v))fail(what+' : identifiant invalide.');return v;}
+function vector(v,min,max,what){if(!Array.isArray(v)||v.length!==3)fail(what+' doit contenir trois nombres.');return v.map((x,i)=>number(x,min,max,what+' ['+i+']'));}
+function list(v,max,what){if(!Array.isArray(v)||v.length>max)fail(what+' : liste de '+max+' éléments maximum requise.');return v;}
+function unique(values,what){const seen=new Set();for(const value of values){if(seen.has(value))fail(what+' en double : '+value+'.');seen.add(value);}return seen;}
+function freeze(v){if(v&&typeof v==='object'&&!Object.isFrozen(v)){Object.freeze(v);for(const x of Object.values(v))freeze(x);}return v;}
+const copy=v=>JSON.parse(JSON.stringify(v));
+function validate(source){
+ object(source,'La source');if(source.format!==FORMAT)fail('format inconnu.');if(source.version!==VERSION)fail('version '+String(source.version)+' non prise en charge.');
+ const out={format:FORMAT,version:VERSION,name:label(source.name,'Nom de scène'),seed:number(source.seed,0,4294967295,'Graine',true),materials:[],nodes:[],roots:[]};
+ out.materials=list(source.materials,64,'Matériaux').map((m,i)=>{object(m,'Matériau '+i);if(!KINDS.has(m.kind))fail('procédure de matériau inconnue.');return {id:id(m.id,'Matériau'),name:label(m.name,'Nom du matériau'),kind:m.kind,color:vector(m.color,0,1,'Couleur'),emissive:number(m.emissive,0,8,'Émission')};});
+ if(!out.materials.length)fail('au moins un matériau est requis.');const materialIds=unique(out.materials.map(m=>m.id),'Matériau');
+ out.nodes=list(source.nodes,MAX_NODES,'Opérations').map((n,i)=>{object(n,'Opération '+i);const base={id:id(n.id,'Opération'),name:label(n.name,'Nom de l’opération'),op:n.op};
+  if(n.op==='primitive'){if(!SHAPES.has(n.shape))fail('forme inconnue : '+String(n.shape)+'.');if(!materialIds.has(n.material))fail('matériau manquant : '+String(n.material)+'.');return {...base,shape:n.shape,material:n.material,p:vector(n.p,-10000,10000,'Position'),s:vector(n.s,.001,1000,'Dimensions'),r:vector(n.r,-20*Math.PI,20*Math.PI,'Rotation')};}
+  if(n.op==='repeat')return {...base,input:id(n.input,'Source de répétition'),count:number(n.count,1,256,'Nombre de répétitions',true),step:vector(n.step,-10000,10000,'Décalage'),jitter:vector(n.jitter,0,1000,'Variation')};
+  if(n.op==='group'){const inputs=list(n.inputs,MAX_NODES,'Sources du groupe').map(x=>id(x,'Source de groupe'));unique(inputs,'Source de groupe');return {...base,inputs};}
+  fail('opération inconnue : '+String(n.op)+'.');
+ });
+ const nodeIds=unique(out.nodes.map(n=>n.id),'Opération'),nodes=new Map(out.nodes.map(n=>[n.id,n]));
+ out.roots=list(source.roots,MAX_NODES,'Racines').map(x=>id(x,'Racine'));unique(out.roots,'Racine');
+ for(const n of out.nodes)for(const ref of n.op==='repeat'?[n.input]:n.inputs||[])if(!nodeIds.has(ref))fail('source manquante : '+ref+'.');
+ for(const ref of out.roots)if(!nodeIds.has(ref))fail('racine manquante : '+ref+'.');
+ const visited=new Map(),counts=new Map();
+ function count(ref){if(visited.get(ref)===1)fail('cycle détecté autour de '+ref+'.');if(visited.get(ref)===2)return counts.get(ref);visited.set(ref,1);const n=nodes.get(ref);let result=n.op==='primitive'?1:n.op==='repeat'?count(n.input)*n.count:n.inputs.reduce((sum,x)=>Math.min(MAX_INSTANCES+1,sum+count(x)),0);result=Math.min(MAX_INSTANCES+1,result);visited.set(ref,2);counts.set(ref,result);return result;}
+ // Validate every component, including nodes not currently exposed as roots.
+ for(const n of out.nodes)count(n.id);
+ if(out.roots.reduce((sum,ref)=>sum+counts.get(ref),0)>MAX_INSTANCES)fail('expansion supérieure à '+MAX_INSTANCES+' instances. Réduisez les répétitions.');
+ return out;
+}
+function byteLength(text){return typeof TextEncoder!=='undefined'?new TextEncoder().encode(text).length:encodeURIComponent(text).replace(/%[A-F\d]{2}|./g,'x').length;}
+function encode(recipe){return JSON.stringify(validate(recipe),null,2)+'\n';}
+function decode(text){if(typeof text!=='string'||text.length>MAX_BYTES||byteLength(text)>MAX_BYTES)fail('fichier trop volumineux (1 Mo maximum).');let value;try{value=JSON.parse(text);}catch{fail('JSON invalide.');}return validate(value);}
+function hash(text){let h=2166136261;for(let i=0;i<text.length;i++){h^=text.charCodeAt(i);h=Math.imul(h,16777619);}h^=h>>>16;h=Math.imul(h,0x7feb352d);h^=h>>>15;h=Math.imul(h,0x846ca68b);return (h^(h>>>16))>>>0;}
+function generate(recipe){
+ const nodes=new Map(recipe.nodes.map(n=>[n.id,n])),materials=new Map(recipe.materials.map(m=>[m.id,m])),meshes=[],owners=[];
+ function expand(ref,offset,rootId,path){const n=nodes.get(ref);
+  if(n.op==='primitive'){const m=materials.get(n.material),p=n.p.map((v,i)=>v+offset[i]);if(p.some(v=>!Number.isFinite(v)||Math.abs(v)>10000))fail('position générée hors de la zone ±10000 m.');meshes.push({shape:n.shape,p,s:n.s.slice(),r:n.r.slice(),color:m.color.slice(),mat:m.kind,emissive:m.emissive,outdoor:true,surface:'object'});owners.push({primitive:n.id,root:rootId,path});}
+  else if(n.op==='group'){for(const child of n.inputs)expand(child,offset,rootId,path+'/'+child);}
+  else for(let i=0;i<n.count;i++){const next=offset.map((v,axis)=>v+i*n.step[axis]+(hash(recipe.seed+':'+path+':'+n.id+':'+i+':'+axis)/4294967295*2-1)*n.jitter[axis]);expand(n.input,next,rootId,path+'/'+i);}
+ }
+ for(const ref of recipe.roots)expand(ref,[0,0,0],ref,ref);
+ return freeze({meshes,owners,stats:{instances:meshes.length,nodes:recipe.nodes.length}});
+}
+function compile(recipe){return generate(validate(recipe));}
+function createCompiler({limit=32}={}){
+ number(limit,1,128,'Limite du cache',true);const cache=new Map();let hits=0,misses=0;
+ return {compile(source){const recipe=validate(source),key=JSON.stringify(recipe);let result=cache.get(key);if(result){hits++;cache.delete(key);cache.set(key,result);return result;}misses++;result=generate(recipe);cache.set(key,result);while(cache.size>limit)cache.delete(cache.keys().next().value);return result;},clear(){cache.clear();hits=misses=0;},get stats(){return {entries:cache.size,hits,misses,limit};}};
+}
+function createHistory(initial,{limit=80}={}){
+ number(limit,2,256,'Limite d’historique',true);const snapshot=value=>{const normalized=validate(value);generate(normalized);return freeze(normalized);};let list=[snapshot(initial)],index=0;
+ return {get current(){return list[index];},get canUndo(){return index>0;},get canRedo(){return index<list.length-1;},commit(value){const next=snapshot(value);if(JSON.stringify(next)===JSON.stringify(list[index]))return list[index];list=list.slice(0,index+1);list.push(next);if(list.length>limit)list.shift();index=list.length-1;return list[index];},undo(){if(index>0)index--;return list[index];},redo(){if(index<list.length-1)index++;return list[index];}};
+}
+function exportModule(source){const json=encode(source).trim().replace(/\u2028/g,'\\u2028').replace(/\u2029/g,'\\u2029');return '/* FERRO recipe v1. Load src/ferro/recipes.js in each game. No baked mesh assets. */\nexport const recipe = '+json+';\nexport default function generate(FRecipes, seed = recipe.seed) {\n  if (!FRecipes || FRecipes.version !== 1) throw new Error("FERRO recipes v1 requis");\n  return FRecipes.compile({...recipe, seed});\n}\n';}
+function demo(){
+ const materials=[{id:'concrete',name:'Béton coquille',kind:3,color:[.66,.65,.57],emissive:0},{id:'orange',name:'Acier signal',kind:0,color:[.92,.29,.075],emissive:0},{id:'dark',name:'Acier pétrole',kind:0,color:[.12,.25,.27],emissive:0},{id:'wood',name:'Bois des caisses',kind:10,color:[.45,.28,.12],emissive:0},{id:'stone',name:'Enduit sable',kind:13,color:[.72,.65,.51],emissive:0}];
+ const primitive=(id,name,shape,material,p,s,r=[0,0,0])=>({id,name,op:'primitive',shape,material,p,s,r});
+ const repeat=(id,name,input,count,step,jitter=[0,0,0])=>({id,name,op:'repeat',input,count,step,jitter});
+ const nodes=[primitive('quai','Plateforme du quai','bevel','concrete',[0,-.35,0],[17,.7,12]),primitive('pied','Pied du portique','bevel','orange',[-4.2,2.6,-2],[.42,5.2,.55]),repeat('pieds','Montants du portique','pied',2,[8.4,0,0]),primitive('poutre','Traverse du portique','bevel','orange',[0,5.25,-2],[9.3,.5,.6]),primitive('rail','Rail de levage','box','dark',[0,4.91,-2],[9.3,.14,.2]),primitive('cable','Câble de levage','cylinder','dark',[.6,3.95,-2],[.07,1.8,.07]),primitive('charge','Charge suspendue','bevel','wood',[.6,2.65,-2],[1.7,1.3,1.5]),primitive('caisse','Caisse de stockage','bevel','wood',[-5,.6,1.4],[1.2,1.2,1.2]),repeat('caisses','Caisses en rangée','caisse',4,[1.5,0,0],[.08,0,.15]),primitive('baril','Fût métallique','cylinder','dark',[3.6,.7,2],[.85,1.4,.85]),repeat('barils','Série de fûts','baril',3,[1.2,0,0],[.06,0,.08]),primitive('bollard','Borne de quai','cylinder','orange',[-7,.34,4.8],[.28,.68,.28]),repeat('bornes','Alignement du quai','bollard',9,[1.75,0,0]),primitive('mur','Muret de fond','bevel','stone',[0,.8,-5.3],[16,1.6,.35]),primitive('dalle','Joints de pavage','box','dark',[-7.5,.005,0],[.025,.01,11])];
+ // The last stripe remains a primitive; all repetition is explicit and editable.
+ return validate({format:FORMAT,version:VERSION,name:'Le quai des possibles',seed:135,materials,nodes,roots:['quai','pieds','poutre','rail','cable','charge','caisses','barils','bornes','mur','dalle']});
+}
+root.FRecipes=Object.freeze({version:VERSION,validate,encode,decode,compile,createCompiler,createHistory,exportModule,demo,limits:Object.freeze({bytes:MAX_BYTES,nodes:MAX_NODES,instances:MAX_INSTANCES})});
+})(globalThis);
+
+/* FERRO common host API. Modules remain optional and game rules stay in adapters. */
+(function(G){'use strict';
+ const names={render:'FRender',backends:'FRenderBackends',physics:'FPhysics',physicsGeometry:'FPhysicsGeometry',geometry:'FGeometry',navigation:'FNavigation',materials:'FMaterials',destruction:'FDestruction',input:'FInput',audio:'FAudio',motion:'FMotion',effects:'FEffects',recipes:'FRecipes',math:'FMath',music:'FMusic',musicTransitions:'FImuse'};
+ function requireModule(name){const module=G[names[name]];if(!module)throw new Error('FERRO : module '+name+' non chargé.');return module;}
+ const api={version:'0.2.0-preview.1',apiVersion:1,
+  capabilities(){return Object.fromEntries(Object.entries(names).map(([name,key])=>[name,!!G[key]]));},
+  require:requireModule,
+  async createRenderer(canvas,options={}){const materials=options.materials||requireModule('materials').create();if(!materials.layers.length)await materials.load();return requireModule('backends').create(canvas,{...options,materials});},
+  // Existing saves retain the original profile when their game calls FPhysics.
+  // Newly authored physical worlds explicitly use the geometry-aware profile.
+  createPhysics(options){return requireModule('physics').create({bounded:true,geometry:true,...options});},
+  createAudio(options){return requireModule('audio').create(options);},
+  compileRecipe(recipe){return requireModule('recipes').compile(recipe);}
+ };
+ for(const name of Object.keys(names))Object.defineProperty(api,name,{enumerable:true,get(){return requireModule(name);}});
+ G.FERRO=Object.freeze(api);
+})(globalThis);

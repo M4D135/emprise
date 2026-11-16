@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-for(const f of ['ferro/renderer','bitume/carene','bitume/main','bitume/voiture','bitume/conduite','vehicles'])await import('../src/'+f+'.js');
+for(const f of ['ferro/renderer','ferro/geometry','bitume/main','bitume/voiture','bitume/conduite','vehicles'])await import('../src/'+f+'.js');
 const geometry=new Map(),register=FRender.forme;
 FRender.forme=(name,triangles)=>{geometry.set(name,triangles);return register(name,triangles);};
 await import('../src/mobility.js');

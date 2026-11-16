@@ -1,0 +1,106 @@
+TAP version 13
+# Subtest: effects are deterministic read-only views of authoritative ages and disappear when expired
+ok 1 - effects are deterministic read-only views of authoritative ages and disappear when expired
+  ---
+  duration_ms: 1.74875
+  type: 'test'
+  ...
+# Subtest: rocket tips, fins and tumbling grenades fit entirely inside their real swept collision sphere
+ok 2 - rocket tips, fins and tumbling grenades fit entirely inside their real swept collision sphere
+  ---
+  duration_ms: 5.954541
+  type: 'test'
+  ...
+# Subtest: presses, blades and spikes occupy exactly the current physical box without invented motion
+ok 3 - presses, blades and spikes occupy exactly the current physical box without invented motion
+  ---
+  duration_ms: 2.361167
+  type: 'test'
+  ...
+# Subtest: steam starts at the exposed nozzle and remains within the actual directed hot volume
+ok 4 - steam starts at the exposed nozzle and remains within the actual directed hot volume
+  ---
+  duration_ms: 0.322542
+  type: 'test'
+  ...
+# Subtest: detonations separate a fast expanding pressure front, hot fire, ballistic embers and lingering cold smoke
+ok 5 - detonations separate a fast expanding pressure front, hot fire, ballistic embers and lingering cold smoke
+  ---
+  duration_ms: 1.312291
+  type: 'test'
+  ...
+# Subtest: blast lighting is anchored to live sources, fades independently of smoke and retains a fixed light budget
+ok 6 - blast lighting is anchored to live sources, fades independently of smoke and retains a fixed light budget
+  ---
+  duration_ms: 0.351708
+  type: 'test'
+  ...
+# Subtest: spark trails end at the ballistic tip while cold smoke and hot sparks keep distinct material tags
+ok 7 - spark trails end at the ballistic tip while cold smoke and hot sparks keep distinct material tags
+  ---
+  duration_ms: 0.306791
+  type: 'test'
+  ...
+# Subtest: settled wide roof slabs keep their bottom on the floor throughout their fade
+ok 8 - settled wide roof slabs keep their bottom on the floor throughout their fade
+  ---
+  duration_ms: 0.130292
+  type: 'test'
+  ...
+# Subtest: structural debris keeps its full source geometry, material and authoritative pose after cosmetic lifetimes
+ok 9 - structural debris keeps its full source geometry, material and authoritative pose after cosmetic lifetimes
+  ---
+  duration_ms: 1.501791
+  type: 'test'
+  ...
+# Subtest: settled structural slabs and fallen rails stay on their supplied floor without flattening or shrinking
+ok 10 - settled structural slabs and fallen rails stay on their supplied floor without flattening or shrinking
+  ---
+  duration_ms: 1.542666
+  type: 'test'
+  ...
+# Subtest: structural draw budgets retain nearby source groups, visible poses and hazards amid chips and old wreckage
+ok 11 - structural draw budgets retain nearby source groups, visible poses and hazards amid chips and old wreckage
+  ---
+  duration_ms: 5.647792
+  type: 'test'
+  ...
+# Subtest: expired and invalid debris do not spend draw slots and long structural extents remain visible
+ok 12 - expired and invalid debris do not spend draw slots and long structural extents remain visible
+  ---
+  duration_ms: 0.278542
+  type: 'test'
+  ...
+# Subtest: boss circles, exact annuli and swept capsules remain visible at large arena edges and at the feet
+ok 13 - boss circles, exact annuli and swept capsules remain visible at large arena edges and at the feet
+  ---
+  duration_ms: 0.131041
+  type: 'test'
+  ...
+# Subtest: cosmetic storm budgets keep hazards/projectile bodies and do not mutate or simulate debris
+ok 14 - cosmetic storm budgets keep hazards/projectile bodies and do not mutate or simulate debris
+  ---
+  duration_ms: 4.628167
+  type: 'test'
+  ...
+# Subtest: trophy lighting follows persisted discoveries and grace, retains its ground anchor and yields to combat lights
+ok 15 - trophy lighting follows persisted discoveries and grace, retains its ground anchor and yields to combat lights
+  ---
+  duration_ms: 0.176584
+  type: 'test'
+  ...
+# Subtest: Barrage and slam countdowns shrink to the true impact while their tall columns have different shapes
+ok 16 - Barrage and slam countdowns shrink to the true impact while their tall columns have different shapes
+  ---
+  duration_ms: 0.101459
+  type: 'test'
+  ...
+1..16
+# tests 16
+# suites 0
+# pass 16
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 64.053541

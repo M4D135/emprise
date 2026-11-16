@@ -1,0 +1,251 @@
+{
+  "format": "ferro-engine",
+  "version": "0.2.0-preview.1",
+  "apiVersion": 1,
+  "pilot": "emprise",
+  "status": "pilot-validation",
+  "contentPolicy": "Procedural geometry, generated surfaces and synthesized sound. No imported visual or audio assets.",
+  "modules": [
+    {
+      "id": "math",
+      "path": "src/ferro/fmath.js"
+    },
+    {
+      "id": "render",
+      "path": "src/ferro/renderer.js"
+    },
+    {
+      "id": "webgpu-shaders",
+      "path": "src/ferro/webgpu-shaders.js"
+    },
+    {
+      "id": "webgpu",
+      "path": "src/ferro/webgpu-renderer.js"
+    },
+    {
+      "id": "backends",
+      "path": "src/ferro/backends.js"
+    },
+    {
+      "id": "geometry",
+      "path": "src/ferro/geometry.js"
+    },
+    {
+      "id": "materials",
+      "path": "src/ferro/materials.js"
+    },
+    {
+      "id": "physics-geometry",
+      "path": "src/ferro/physics-geometry.js"
+    },
+    {
+      "id": "physics",
+      "path": "src/ferro/physics.js"
+    },
+    {
+      "id": "destruction",
+      "path": "src/ferro/destruction.js"
+    },
+    {
+      "id": "navigation",
+      "path": "src/ferro/navigation.js"
+    },
+    {
+      "id": "input",
+      "path": "src/ferro/input.js"
+    },
+    {
+      "id": "motion",
+      "path": "src/ferro/motion.js"
+    },
+    {
+      "id": "effects",
+      "path": "src/ferro/effects.js"
+    },
+    {
+      "id": "audio",
+      "path": "src/ferro/audio.js"
+    },
+    {
+      "id": "recipes",
+      "path": "src/ferro/recipes.js"
+    }
+  ],
+  "optionalModules": [
+    {
+      "id": "imuse",
+      "path": "src/ferro/imuse.js"
+    },
+    {
+      "id": "music",
+      "path": "src/ferro/music.js"
+    }
+  ],
+  "hostAPI": "src/ferro/engine.js",
+  "targets": [
+    "emprise",
+    "metal",
+    "bitume",
+    "point-de-rupture"
+  ],
+  "validatedHost": "emprise",
+  "migrationStatus": {
+    "emprise": "isolated pilot",
+    "metal": "not propagated",
+    "bitume": "not propagated",
+    "point-de-rupture": "not propagated"
+  },
+  "origins": {
+    "emprise": "672bb463466584f997ea572e40d48b149009bffe",
+    "metal": "474aa08bd4bf717947fa794bd50fe0484b97eab0",
+    "bitume": "365b3e2d43c9d4fd84a81c7d7974b62c2a906129",
+    "point-de-rupture": "5ba44c9d2f9c667eac687b9d0fa2f170606ce2f8"
+  },
+  "files": [
+    {
+      "id": "math",
+      "path": "src/ferro/fmath.js",
+      "packagePath": "modules/fmath.js",
+      "bytes": 19961,
+      "sha256": "bb001302bd2d57239c86183615c921563cf21f0490d67eef42586d1fc3457c9f"
+    },
+    {
+      "id": "render",
+      "path": "src/ferro/renderer.js",
+      "packagePath": "modules/renderer.js",
+      "bytes": 181698,
+      "sha256": "e1ad456373b7211b62627acceba8b51cc5b172fe4651ebc940016259b1ec3759"
+    },
+    {
+      "id": "webgpu-shaders",
+      "path": "src/ferro/webgpu-shaders.js",
+      "packagePath": "modules/webgpu-shaders.js",
+      "bytes": 397961,
+      "sha256": "30e6e88093fe12f41c00e77d11dfac57156568ae0c991c287e3497f0e6366d83"
+    },
+    {
+      "id": "webgpu",
+      "path": "src/ferro/webgpu-renderer.js",
+      "packagePath": "modules/webgpu-renderer.js",
+      "bytes": 49225,
+      "sha256": "d6e48b76e2aa981c5ccf4cd1cb00aeb126130e0e883b3f82d9b827e31c3a510e"
+    },
+    {
+      "id": "backends",
+      "path": "src/ferro/backends.js",
+      "packagePath": "modules/backends.js",
+      "bytes": 3486,
+      "sha256": "436cc5684ee3c8d950874489d4b267ae9e4a65e365771da434e70fe2e7ff518b"
+    },
+    {
+      "id": "geometry",
+      "path": "src/ferro/geometry.js",
+      "packagePath": "modules/geometry.js",
+      "bytes": 16443,
+      "sha256": "8d0a044069ccb0eb2dec76c5f203ff1b4335a70f34b6d0aa971861cd2262eda7"
+    },
+    {
+      "id": "materials",
+      "path": "src/ferro/materials.js",
+      "packagePath": "modules/materials.js",
+      "bytes": 1866,
+      "sha256": "fd1789bd21ec43d4cd028d3ebffdb490e5bfe53d8b73fa0f7bdbd44ce7d2a954"
+    },
+    {
+      "id": "physics-geometry",
+      "path": "src/ferro/physics-geometry.js",
+      "packagePath": "modules/physics-geometry.js",
+      "bytes": 14294,
+      "sha256": "c22965240de6a8f743aad87ff8514aaf7932a1c7f2a3635812b912e5fd9e9653"
+    },
+    {
+      "id": "physics",
+      "path": "src/ferro/physics.js",
+      "packagePath": "modules/physics.js",
+      "bytes": 81287,
+      "sha256": "9a6e3dbd9115b13f6f5daf9d2843f6ffa219f0b2d4c53d2106ac9dec769f175a"
+    },
+    {
+      "id": "destruction",
+      "path": "src/ferro/destruction.js",
+      "packagePath": "modules/destruction.js",
+      "bytes": 36450,
+      "sha256": "1eb0501110dd4f8369ff3812431d1e65b5d9df2ae17484368ef7aec6085aaeb1"
+    },
+    {
+      "id": "navigation",
+      "path": "src/ferro/navigation.js",
+      "packagePath": "modules/navigation.js",
+      "bytes": 18607,
+      "sha256": "addfdb9bb3a30cc7a8fe747ca919c72a99d8bc8f79a44162757d6ac8113d0cb6"
+    },
+    {
+      "id": "input",
+      "path": "src/ferro/input.js",
+      "packagePath": "modules/input.js",
+      "bytes": 17991,
+      "sha256": "2a7bfcf27c4dede79708882a604fa3264d32615fe3cf513deae807c07e109e68"
+    },
+    {
+      "id": "motion",
+      "path": "src/ferro/motion.js",
+      "packagePath": "modules/motion.js",
+      "bytes": 8280,
+      "sha256": "6f5078fafa6e61850ff58fde484463db05c3b1fff5e5a1bc2818191b13618ec4"
+    },
+    {
+      "id": "effects",
+      "path": "src/ferro/effects.js",
+      "packagePath": "modules/effects.js",
+      "bytes": 20784,
+      "sha256": "e873e7def347fb205594351fc9f0fd8e08fdb42ced36254ec68f071790bb3b42"
+    },
+    {
+      "id": "audio",
+      "path": "src/ferro/audio.js",
+      "packagePath": "modules/audio.js",
+      "bytes": 77233,
+      "sha256": "af0a6173d3c1db12e16c9a570d8aad86788f1dfde06508077cbee402d046f2a0"
+    },
+    {
+      "id": "recipes",
+      "path": "src/ferro/recipes.js",
+      "packagePath": "modules/recipes.js",
+      "bytes": 10912,
+      "sha256": "761acc958d522bd2873529672fbb7fad22208bf0190ca395622136ac3582953f"
+    },
+    {
+      "id": "imuse",
+      "path": "src/ferro/imuse.js",
+      "packagePath": "modules/imuse.js",
+      "bytes": 10260,
+      "sha256": "8aa71cb0cdc9a5d0d1a42dab965563bd810d26151745ceb1ad603ab1c0851e16"
+    },
+    {
+      "id": "music",
+      "path": "src/ferro/music.js",
+      "packagePath": "modules/music.js",
+      "bytes": 61763,
+      "sha256": "e59d6d2ed84bb70bf108f54d8d1f8510a02533f36e1d0741ac1d144c8830ea20"
+    },
+    {
+      "id": "host",
+      "path": "src/ferro/engine.js",
+      "packagePath": "modules/engine.js",
+      "bytes": 1608,
+      "sha256": "15c3607852c7bc71b988cccfc97e7df5a6a28406b7b22046f7d70b6a8c694f64"
+    },
+    {
+      "id": "ferro-runtime.js",
+      "packagePath": "ferro-runtime.js",
+      "bytes": 958153,
+      "sha256": "752ed2ad0a4aa5aef4c6b3abd0361501118234af2b557e780b62ab8e22e5c823"
+    },
+    {
+      "id": "ferro-music.js",
+      "packagePath": "ferro-music.js",
+      "bytes": 72075,
+      "sha256": "174286fcd1b727ff01bd83366baf40b919afd36fa273b3cad77ea06b9b8128db"
+    }
+  ]
+}

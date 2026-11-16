@@ -1,0 +1,17 @@
+[
+  {
+    "name": "mobility-models",
+    "exit": 0,
+    "seconds": 0.21
+  },
+  {
+    "name": "crowd-webgpu",
+    "exit": 0,
+    "seconds": 0.2
+  },
+  {
+    "name": "save-recovery",
+    "exit": 0,
+    "seconds": 0.31
+  }
+]

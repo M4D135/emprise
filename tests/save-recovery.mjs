@@ -6,7 +6,7 @@ import vm from 'node:vm';
 const read=name=>fs.readFileSync(new URL('../src/'+name,import.meta.url),'utf8');
 let world;
 const noop=()=>{},context=vm.createContext({console,structuredClone,FRender:{forme:noop},PDR:{villeReelle:{hasard:()=>()=>.5}},RADE:{world:{create:()=>world},traffic:{create:()=>({})},crowd:{create:()=>({people:[]})}},FSimulation:{create:()=>{const state={player:{...world.combatWorld.spawn,y:.08,yaw:0,pitch:0,hp:100},enemies:[],inventory:{ammo:[180,36,12]},weapon:0};return {state,relocate(x,z,yaw){Object.assign(state.player,{x,z,yaw,y:world.ground(x,z)});}}}}});
-for(const name of ['bitume/carene.js','bitume/main.js','bitume/voiture.js','marine.js','campaign.js','session.js'])vm.runInContext(read(name),context,{filename:name});
+for(const name of ['ferro/geometry.js','bitume/main.js','bitume/voiture.js','marine.js','campaign.js','session.js'])vm.runInContext(read(name),context,{filename:name});
 context.RADE.campaign.layout=()=>({sites:[{id:'site-0',gang:1,rate:45,guards:[]}],reserves:[]});
 function fixture(){const calls=[];const w={bounds:{minX:-1000,maxX:1000,minZ:-1000,maxZ:1000},combatWorld:{spawn:{x:340,z:0},enemies:[]},fleet:[],car:{},scenery:[],water:x=>x<300,blocked:(x,z,r)=>x-r<300||Math.abs(x-650)<30,ground:()=>.08,candidates:()=>[],ray:(_o,_d,d)=>d};w.freeNear=(x,z,r,opts={})=>{calls.push({x,z,r,...opts});if(!w.blocked(x,z,r))return [x,z];if(opts.required===false)return null;throw Error('Aucun point libre près de '+x+','+z);};return {w,calls};}
 const p={x:9.89877439307345,z:176.93137656723448,hp:56,yaw:.7},save={version:2,cash:871,xp:42,kills:3,savedAt:1000,sites:[{id:'site-0',gang:0,upgrade:2}],player:p};

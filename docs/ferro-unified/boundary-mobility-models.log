@@ -1,0 +1,134 @@
+{
+  "provenance": "original-procedural-runtime",
+  "importedAssets": 0,
+  "models": {
+    "tmax": {
+      "previous": {
+        "fixed": 31,
+        "renderedWithRider": 62,
+        "trianglesWithRider": 5588
+      },
+      "fixedInstances": 61,
+      "lods": [
+        {
+          "distance": 0,
+          "instances": 93,
+          "triangles": 14612
+        },
+        {
+          "distance": 40,
+          "instances": 79,
+          "triangles": 12280
+        },
+        {
+          "distance": 100,
+          "instances": 55,
+          "triangles": 9672
+        }
+      ],
+      "bounds": {
+        "lo": [
+          -1.0725,
+          0.08000000000000002,
+          -0.39640014944721924
+        ],
+        "hi": [
+          1.0979741184719172,
+          1.537,
+          0.39640014944721924
+        ]
+      },
+      "contactChecks": true
+    },
+    "scooter": {
+      "previous": {
+        "fixed": 15,
+        "renderedWithRider": 46,
+        "trianglesWithRider": 3432
+      },
+      "fixedInstances": 40,
+      "lods": [
+        {
+          "distance": 0,
+          "instances": 68,
+          "triangles": 7956
+        },
+        {
+          "distance": 40,
+          "instances": 54,
+          "triangles": 6156
+        },
+        {
+          "distance": 100,
+          "instances": 37,
+          "triangles": 3948
+        }
+      ],
+      "bounds": {
+        "lo": [
+          -0.599989421108027,
+          0.08000000000000002,
+          -0.2200763606209192
+        ],
+        "hi": [
+          0.5933710307009,
+          1.2280000000000002,
+          0.2200763606209192
+        ]
+      },
+      "contactChecks": true
+    },
+    "bike": {
+      "previous": {
+        "fixed": 23,
+        "renderedWithRider": 76,
+        "trianglesWithRider": 4308
+      },
+      "fixedInstances": 46,
+      "lods": [
+        {
+          "distance": 0,
+          "instances": 79,
+          "triangles": 9760
+        },
+        {
+          "distance": 40,
+          "instances": 79,
+          "triangles": 8288
+        },
+        {
+          "distance": 100,
+          "instances": 51,
+          "triangles": 4916
+        }
+      ],
+      "bounds": {
+        "lo": [
+          -0.9115076850284765,
+          0.08000000000000002,
+          -0.2889878908074691
+        ],
+        "hi": [
+          0.9079351302128473,
+          1.1980000000000002,
+          0.2889878908074691
+        ]
+      },
+      "contactChecks": true
+    }
+  },
+  "lodDistances": [
+    28,
+    75
+  ],
+  "maxRenderDistanceSuggested": 190,
+  "checks": [
+    "Physical dimensions, mass, camera and driving constants preserved",
+    "Finite vertices, positive scales and unit normals",
+    "Closed tyre/rim/fairing winding",
+    "Paint variants do not move cached parts",
+    "Specific silhouettes and bounded LOD counts",
+    "Steered spokes remain in wheel plane",
+    "Rider hands follow grips and feet follow pedals"
+  ]
+}

@@ -1,0 +1,117 @@
+{
+  "checks": [
+    "Vent réel : départ moteur coupé de la brise à l’orage ; calme sans poussée ni voile gonflée",
+    "Allures et amures : pas de propulsion face au vent ; remontée au près par deux bords, travers et vent arrière symétriques",
+    "Réglage de voile : mauvaise orientation, réduction, affalage et passage arrière +/-π cohérents",
+    "Obstacle réel : poussée conservée et blocage explicitement signalé ; départ possible après dégagement",
+    "Flottaison : niveau −1,25m, coque immergée, houle spatiale commune, gîte sous le vent et caméra embarquée/nage raccordées",
+    "Sauvegarde : poste, cap, position, voile et moteur conservés ; états transitoires de flottaison finis à la reprise",
+    "Vrai spawn Marseille : 24m navigables pour chaque embarcation, puis 20s de départ sous voile sans canot en travers"
+  ],
+  "measurements": {
+    "wind-0": {
+      "speed": 0,
+      "distance": 0,
+      "load": 0,
+      "force": 0,
+      "blocked": false
+    },
+    "wind-0.15": {
+      "speed": 0.417241788549001,
+      "distance": 2.4863153426544615,
+      "load": 0.5838223839360074,
+      "force": 0.07209755816515323,
+      "blocked": false
+    },
+    "wind-0.28": {
+      "speed": 1.2076898055002419,
+      "distance": 7.971630171448668,
+      "load": 0.7463389204628308,
+      "force": 0.22145347734464454,
+      "blocked": false
+    },
+    "wind-0.8": {
+      "speed": 4.518776734388355,
+      "distance": 38.115009273246045,
+      "load": 0.5517880799836448,
+      "force": 1.515127789186397,
+      "blocked": false
+    },
+    "wind-1.55": {
+      "speed": 6.5,
+      "distance": 55.23652144831612,
+      "load": 0.7654045752270877,
+      "force": 3,
+      "blocked": false
+    },
+    "point-0": {
+      "speed": 0,
+      "distance": 0,
+      "load": 0,
+      "force": 0,
+      "blocked": false
+    },
+    "point-30": {
+      "speed": 0,
+      "distance": 0,
+      "load": 0,
+      "force": 0,
+      "blocked": false
+    },
+    "point-45": {
+      "speed": 1.5855237448460295,
+      "distance": 15.546897325106915,
+      "load": 0.10885235629570424,
+      "force": 0.29160703885374606,
+      "blocked": false
+    },
+    "point-60": {
+      "speed": 3.067621069154894,
+      "distance": 31.311861528850205,
+      "load": 0.2517193839315699,
+      "force": 0.7971469690695394,
+      "blocked": false
+    },
+    "point-90": {
+      "speed": 4.52018212149756,
+      "distance": 47.15434828671771,
+      "load": 0.5515551271006818,
+      "force": 1.5147562433575301,
+      "blocked": false
+    },
+    "point-135": {
+      "speed": 3.436384896268397,
+      "distance": 35.69487937270026,
+      "load": 0.8802523518370919,
+      "force": 0.958609545241796,
+      "blocked": false
+    },
+    "point-180": {
+      "speed": 2.6715816419889626,
+      "distance": 27.86486766650969,
+      "load": 0.8200000000000001,
+      "force": 0.6389864279738082,
+      "blocked": false
+    },
+    "marseille": {
+      "start": {
+        "x": 36.5,
+        "z": 160
+      },
+      "end": {
+        "x": 36.5,
+        "z": 174.73873279976638
+      },
+      "seconds": 20,
+      "distance": 14.738732799766382,
+      "speed": 0.9982997685382825,
+      "engineOn": false,
+      "load": 0.9980457421514974,
+      "force": 0.15666538140104752,
+      "blocked": false,
+      "waterLevel": -1.25,
+      "hullY": -1.265082126485695
+    }
+  },
+  "limits": "Modèle de voile et de flottaison conçu pour le jeu ; polaire, traînée et trois composantes de houle procédurales, sans simulation hydrodynamique volumique."
+}

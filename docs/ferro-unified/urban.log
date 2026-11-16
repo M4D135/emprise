@@ -1,0 +1,42 @@
+{
+  "checks": [
+    "Destruction et débris persistants après sauvegarde/reprise",
+    "Commande arme 3 : vraie roquette, trajectoire, impact, explosion et départ de feu",
+    "Même impulsion : réponse inversement proportionnelle à 10 / 100 kg ; chute et contact au sol",
+    "Commandes G puis B : saisir, tenir et lancer un objet physique de 20 kg",
+    "Débris isolés par adresse : aucun obstacle invisible ni interaction physique entre deux intérieurs",
+    "Contact rigide sur boîte tournée : la zone extérieure reste libre"
+  ],
+  "fixtures": [
+    {
+      "test": "Rockets-equivalent blasts through an existing façade: matching geometry and collision removal",
+      "before": 8.000000000000025,
+      "after": 20,
+      "rigidBodies": 20
+    },
+    {
+      "test": "Degraded engine/tyres/steering persist and reduce real drivetrain acceleration",
+      "healthy": 21.31826351001892,
+      "damaged": 14.018374095810747,
+      "condition": {
+        "body": 0.35,
+        "engine": 0.5125,
+        "tires": 0.818,
+        "steering": 0.6425
+      }
+    },
+    {
+      "test": "Feu, fourgon roulant, trois pompiers et extinction par jet",
+      "elapsed": 38.24999999999847,
+      "report": {
+        "breaches": 2,
+        "ignitions": 2,
+        "extinguished": 1,
+        "dispatches": 1,
+        "impacts": 18,
+        "vehicleExplosions": 0,
+        "crumbleVolume": 0
+      }
+    }
+  ]
+}
