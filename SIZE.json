@@ -1,8 +1,8 @@
 {
   "version": "0.6.4",
-  "build": "9819899b6c",
-  "bytes": 22870116,
-  "sha256": "ff1bf7d83c989d8b6925c642f0870ac30a904de8ef0a6f1f605e3bbb4cc96704",
+  "build": "3d69d42450",
+  "bytes": 22869769,
+  "sha256": "c53028cbfb870fd0b438958345fc6ee0c927859f7c4bdcbfbc8fbd1f5440de28",
   "modules": [
     "ferro/fmath",
     "ferro/renderer",
