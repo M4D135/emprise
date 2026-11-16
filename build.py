@@ -11,7 +11,9 @@ game_modules=['metal/simulation', 'metal/actors', 'metal/audio-recipes', 'metal/
 modules=engine_modules+game_modules
 version=json.loads((root/'VERSION.json').read_text())
 page=(root/'src/index.html').read_text().replace('/*STYLE*/',(root/'src/style.css').read_text())
-code='\n'.join((root/'src'/f'{m}.js').read_text() for m in modules)
+code='\n'.join((root/'src'/f'{m}.js').read_text() for m in modules if m!='game')
+entry=(root/'src/game.js').read_text()
+code+='\nFERRO.initPhysics().then(function(){\n'+entry+"\n}).catch(function(error){console.error('FERRO physics initialization failed',error);const notice=document.createElement('p');notice.setAttribute('role','alert');notice.textContent='Impossible de démarrer le jeu. Rechargez la page.';document.body.appendChild(notice);});"
 source_hash=hashlib.sha256((page+code+json.dumps(version,sort_keys=True)).encode()).hexdigest()[:10]
 page=page.replace('__VERSION__',version['version']).replace('__BUILD__',source_hash)
 code='globalThis.RADE={build:'+json.dumps({**version,'id':source_hash})+'};\n'+code

@@ -1,6 +1,6 @@
 {
   "format": "ferro-engine",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "apiVersion": 1,
   "pilot": "emprise",
   "status": "reference",
@@ -41,6 +41,14 @@
     {
       "id": "physics-geometry",
       "path": "src/ferro/physics-geometry.js"
+    },
+    {
+      "id": "physxRuntime",
+      "path": "src/ferro/physx-runtime.js"
+    },
+    {
+      "id": "physx",
+      "path": "src/ferro/physx.js"
     },
     {
       "id": "physics",

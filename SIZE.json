@@ -1,8 +1,8 @@
 {
   "version": "0.6.6",
-  "build": "4520bd4d50",
-  "bytes": 22905260,
-  "sha256": "5c521daf04fbee5275b40dade5095a34a8b04b4f49b477c43140365edfe55eda",
+  "build": "b3b27318ff",
+  "bytes": 34987170,
+  "sha256": "28323216b9c29d524bb848dcd785c14e96ee6b6bcda9f24c3f94b4a4c6031cb7",
   "modules": [
     "ferro/fmath",
     "ferro/renderer",
@@ -13,6 +13,8 @@
     "ferro/materials",
     "ferro/vehicle-dynamics",
     "ferro/physics-geometry",
+    "ferro/physx-runtime",
+    "ferro/physx",
     "ferro/physics",
     "ferro/destruction",
     "ferro/navigation",
