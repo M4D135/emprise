@@ -1,0 +1,28 @@
+{
+  "date": "2026-11-16T00:05:29.502428+00:00",
+  "url": "https://ferro.estrasse.fr/",
+  "commit": "56779a3901087bf1587256131e35327450ad1a31",
+  "sha256": "186f2f54ef141468417ff4624290e39a9b448f7d745ee83991afa81f541f1807",
+  "runtimeSha256": "761acc958d522bd2873529672fbb7fad22208bf0190ca395622136ac3582953f",
+  "bytes": 678691,
+  "status": 200,
+  "release": "/home/ddd/apps/ferro/releases/56779a3901087bf1587256131e35327450ad1a31",
+  "previous": null,
+  "httpsVerified": true,
+  "headers": {
+    "Accept-Ranges": "bytes",
+    "Cache-Control": "no-cache",
+    "Content-Length": "678691",
+    "Content-Type": "text/html; charset=utf-8",
+    "Etag": "\"dmw72sg3p74uejoj\"",
+    "Last-Modified": "Mon, 16 Nov 2026 00:05:20 GMT",
+    "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
+    "Referrer-Policy": "strict-origin-when-cross-origin",
+    "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
+    "Vary": "Accept-Encoding",
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "DENY",
+    "Date": "Mon, 16 Nov 2026 00:05:29 GMT",
+    "Connection": "close"
+  }
+}

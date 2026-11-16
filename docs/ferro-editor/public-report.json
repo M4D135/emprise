@@ -1,0 +1,31 @@
+{
+  "url": "https://ferro.estrasse.fr/",
+  "backends": [
+    {
+      "backend": "webgl2",
+      "triangles": 2880,
+      "instances": 26,
+      "errors": [],
+      "failed": false,
+      "status": "Forme ajoutée. Déplacez-la dans la vue ou réglez ses paramètres.",
+      "errorStatus": false
+    },
+    {
+      "backend": "webgpu",
+      "triangles": 2928,
+      "instances": 27,
+      "errors": [],
+      "failed": false,
+      "status": "Forme ajoutée. Déplacez-la dans la vue ou réglez ses paramètres.",
+      "errorStatus": false
+    }
+  ],
+  "httpsStorageReload": true,
+  "neighborStatus": {
+    "gta.estrasse.fr": 200,
+    "bitume.estrasse.fr": 200,
+    "pdr.estrasse.fr": 200,
+    "fps.estrasse.fr": 200
+  },
+  "runtimeSha256": "761acc958d522bd2873529672fbb7fad22208bf0190ca395622136ac3582953f"
+}
