@@ -1,0 +1,8 @@
+# FERRO Atelier — fichier autonome, publication explicite depuis le Mac.
+ferro.estrasse.fr {
+    import security_headers
+    root * /home/ddd/apps/ferro/current
+    encode zstd gzip
+    header Cache-Control "no-cache"
+    file_server
+}

@@ -1,0 +1,601 @@
+{
+  "date": "2026-11-16",
+  "pilot": "emprise",
+  "status": "frozen-source-collection",
+  "scope": "Candidate source modules; collection is not a claim of merged changes.",
+  "projects": [
+    {
+      "project": "emprise",
+      "root": "/Users/david/Documents/Codex/2026-11-14/files-pasted-by-the-user-cr/outputs/rade",
+      "commit": "672bb463466584f997ea572e40d48b149009bffe",
+      "files": [
+        {
+          "path": "src/bitume/carene.js",
+          "bytes": 16312,
+          "sha256": "8da5450a26e5d292d6628b6c687392b84658f7f9b110e0692df9d95dbebfea4a"
+        },
+        {
+          "path": "src/bitume/conduite.js",
+          "bytes": 35121,
+          "sha256": "850f985e4f76831935b0be57eb8a459aef8f36e9218680326b656defd88a86d2"
+        },
+        {
+          "path": "src/bitume/main.js",
+          "bytes": 7825,
+          "sha256": "49e97a7cb481e6c987131148e12e941448c33d280d31bd2af9551d5e1c31f55a"
+        },
+        {
+          "path": "src/bitume/son.js",
+          "bytes": 21097,
+          "sha256": "5f4c60a755a7d7e21ce85ec8eedcbeaac32f16d104904d9ebc1d93fd25d95dcd"
+        },
+        {
+          "path": "src/bitume/voiture.js",
+          "bytes": 47476,
+          "sha256": "54cfc793dc9428059116cfa32213075f2e4c56ee67fdb6aa480dfc2c0da5add3"
+        },
+        {
+          "path": "src/ferro/PROVENANCE.md",
+          "bytes": 13117,
+          "sha256": "5625b5fc0047eaf03a1bf3d0fe3f50dbd487c3b1e6d4fafeeab82f7d21c613ff"
+        },
+        {
+          "path": "src/ferro/backends.js",
+          "bytes": 3486,
+          "sha256": "436cc5684ee3c8d950874489d4b267ae9e4a65e365771da434e70fe2e7ff518b"
+        },
+        {
+          "path": "src/ferro/destruction.js",
+          "bytes": 36450,
+          "sha256": "1eb0501110dd4f8369ff3812431d1e65b5d9df2ae17484368ef7aec6085aaeb1"
+        },
+        {
+          "path": "src/ferro/renderer.js",
+          "bytes": 181174,
+          "sha256": "c268957562dba93843a4f017be5ae46210136161bd307c8fd0bb8a6a284a2e00"
+        },
+        {
+          "path": "src/ferro/webgpu-renderer.js",
+          "bytes": 49198,
+          "sha256": "c6c82faeba2b3f237a8c02cdf151cdd4ecde1fe06a782baae2a2e921b5925bb5"
+        },
+        {
+          "path": "src/ferro/webgpu-shaders.js",
+          "bytes": 397961,
+          "sha256": "30e6e88093fe12f41c00e77d11dfac57156568ae0c991c287e3497f0e6366d83"
+        },
+        {
+          "path": "src/materials.js",
+          "bytes": 1816,
+          "sha256": "d0b370c061c97ef7379046a9adf40f9c7d48f4f6145a644dbd540cb435eaf4a7"
+        },
+        {
+          "path": "src/metal/actors.js",
+          "bytes": 27015,
+          "sha256": "e1bb0d61ec0002b4f1c74a10a7365a25db6db036399a22d6854e052595335844"
+        },
+        {
+          "path": "src/metal/audio-recipes.js",
+          "bytes": 3255,
+          "sha256": "fd923bfbdceb2fe5fb34fca8d1eea1bf2e86149cf49f61fe78fed24c84f32570"
+        },
+        {
+          "path": "src/metal/audio.js",
+          "bytes": 64078,
+          "sha256": "996ed27521b881655134a4fac6e45886c44bd56081bfbc86a842fc4382bce74a"
+        },
+        {
+          "path": "src/metal/effects.js",
+          "bytes": 18725,
+          "sha256": "9407c066b0543086cba6539eb8c2ab46c397d0ee240c2c44a718bafc3b699ef5"
+        },
+        {
+          "path": "src/metal/fmath.js",
+          "bytes": 19961,
+          "sha256": "bb001302bd2d57239c86183615c921563cf21f0490d67eef42586d1fc3457c9f"
+        },
+        {
+          "path": "src/metal/input.js",
+          "bytes": 16253,
+          "sha256": "40c4cdfc34f402ab1f7f05a172f40ad237ee16df4f1d08ab8cdd4f4a6bddf02f"
+        },
+        {
+          "path": "src/metal/motion.js",
+          "bytes": 5280,
+          "sha256": "c20b6e38fdafecc96fc340851f842c504e159b1cc0192d7b506b789159ed9087"
+        },
+        {
+          "path": "src/metal/physics.js",
+          "bytes": 79603,
+          "sha256": "3713eb8837502cc68e0904c77c8fd0e287ec8bc2a911def3d754d23a190c093d"
+        },
+        {
+          "path": "src/metal/simulation.js",
+          "bytes": 221812,
+          "sha256": "98e829dc7d4cefea49d6ea260620cb3bf89e39fbbd327f4e90aa9cafb9a3f25b"
+        },
+        {
+          "path": "src/metal/weapon.js",
+          "bytes": 8784,
+          "sha256": "4680b8feaee186c6a90136512ab0bcc35085cddb8eabaf00783542cc9a2ba6fa"
+        },
+        {
+          "path": "src/pdr/foule-webgpu.js",
+          "bytes": 17000,
+          "sha256": "55df2126dc99564c06fbdb845772beee73484b7f44786e69ea31cba8e8577eb2"
+        },
+        {
+          "path": "src/pdr/foule.js",
+          "bytes": 62703,
+          "sha256": "146b19f7044a3a73882832723d12ac7d5cfd948432d11ae5d3764e8b38214450"
+        },
+        {
+          "path": "src/pdr/sim/nav.js",
+          "bytes": 18480,
+          "sha256": "f72bbb75ebaa266933b0e9402cc4ac04c1852f3346d4b4c17e70248ebed29b1e"
+        },
+        {
+          "path": "src/pdr/sim/regles.js",
+          "bytes": 24589,
+          "sha256": "9c62f5003461ab693b27d138805a7f75dfd45d8e1059daff4adf3b9cf59dac19"
+        },
+        {
+          "path": "src/pdr/ville-reelle.js",
+          "bytes": 145445,
+          "sha256": "f0105e8beddfeab0493e5773f34d8e5545c9f18f1908c555bcdb8d81bba1b251"
+        },
+        {
+          "path": "src/pdr/villes/marseille.js",
+          "bytes": 245035,
+          "sha256": "b2cb276ff41ef5a94a15d90f79f30d68b307f0154e9d728c0490055ee9455f5b"
+        },
+        {
+          "path": "src/replay.js",
+          "bytes": 2139,
+          "sha256": "465c0289e825c9e70284fa07eb7d27e6613a969f72c321cd0fd054c55840396b"
+        },
+        {
+          "path": "src/weather.js",
+          "bytes": 6208,
+          "sha256": "a764ccb1a79d7602f0b10cc77bbc9e9dfcfce9c9776e63a9ff8542ab8c43a939"
+        }
+      ]
+    },
+    {
+      "project": "metal",
+      "root": "/Users/david/Documents/Codex/2026-11-15/metal-pilotage/work/finish-physics",
+      "commit": "474aa08bd4bf717947fa794bd50fe0484b97eab0",
+      "files": [
+        {
+          "path": "src/actors.js",
+          "bytes": 29087,
+          "sha256": "6377cdc15c820c593705a2f0cea07ff04d2e30b9d241799269c645d5637dce3f"
+        },
+        {
+          "path": "src/audio-recipes.js",
+          "bytes": 4897,
+          "sha256": "c8f0784154bebc971a9c2c256520e07e03d575c10139a0a9d6638edcaf815979"
+        },
+        {
+          "path": "src/audio.js",
+          "bytes": 76053,
+          "sha256": "f4669814a763e400f7ef0e249ae6a2d6f8455a62ff3cad560c06d64b85408ae4"
+        },
+        {
+          "path": "src/brain.js",
+          "bytes": 8923,
+          "sha256": "598175891738fbdef6788d2d5e0eee89e279a472837a49e4966ca19e0de7bcf9"
+        },
+        {
+          "path": "src/controls.js",
+          "bytes": 4128,
+          "sha256": "b5cbb90b227b6c3957ba3910928d02d92b9c79d7cccf988a85d7c6566c4db428"
+        },
+        {
+          "path": "src/demo-metal.js",
+          "bytes": 3405,
+          "sha256": "d438cc451dfc6a50607fb3f52b5f168960f282dd0727b17b5486fb24d0cac6c1"
+        },
+        {
+          "path": "src/demo.js",
+          "bytes": 28562,
+          "sha256": "1169679cfa96463222f6343a6f4f3feeadfc7b90cd65d8f1b7ece6e9e0600575"
+        },
+        {
+          "path": "src/destruction.js",
+          "bytes": 31452,
+          "sha256": "8e7d89cff2428207df42b1feb90e7c785c915ff4f36a6263a4b7b02131692f55"
+        },
+        {
+          "path": "src/economy.js",
+          "bytes": 11561,
+          "sha256": "1d1d50657864190afdb91639c56142c44714119f54e0685d8a4c4aa4cc6f4dc6"
+        },
+        {
+          "path": "src/effects.js",
+          "bytes": 20784,
+          "sha256": "e873e7def347fb205594351fc9f0fd8e08fdb42ced36254ec68f071790bb3b42"
+        },
+        {
+          "path": "src/fmath.js",
+          "bytes": 19961,
+          "sha256": "bb001302bd2d57239c86183615c921563cf21f0490d67eef42586d1fc3457c9f"
+        },
+        {
+          "path": "src/game.js",
+          "bytes": 139675,
+          "sha256": "8172099ee679bf1aa807c7be6612a82510cad0a5e9e75d3b9c257c5af0312435"
+        },
+        {
+          "path": "src/gpu-profile.js",
+          "bytes": 2548,
+          "sha256": "513e7cb0523a50f62edb427f2ed563ec98d9bc771a70f357fce8409157faa9c4"
+        },
+        {
+          "path": "src/host.js",
+          "bytes": 2713,
+          "sha256": "a3e43f857319f1b2f222bd6ac6de174cab8c219c67e6fcd386aa97b52a10e544"
+        },
+        {
+          "path": "src/imuse.js",
+          "bytes": 10260,
+          "sha256": "8aa71cb0cdc9a5d0d1a42dab965563bd810d26151745ceb1ad603ab1c0851e16"
+        },
+        {
+          "path": "src/input.js",
+          "bytes": 17991,
+          "sha256": "2a7bfcf27c4dede79708882a604fa3264d32615fe3cf513deae807c07e109e68"
+        },
+        {
+          "path": "src/jobs.js",
+          "bytes": 5829,
+          "sha256": "c027761f5d29d62ef542e444c95a17c551fececc1cbeb492668c2d35d7b13aa7"
+        },
+        {
+          "path": "src/loop.js",
+          "bytes": 7685,
+          "sha256": "f6777ad3141ed9b9dae6b860aded5aa625433c87f3068077a5204324a7c42e2f"
+        },
+        {
+          "path": "src/metal-physics.js",
+          "bytes": 24322,
+          "sha256": "f9111449cd200cb6cf3f8883fe1cb19ec1e56ee04d9933c68097a77006106c2e"
+        },
+        {
+          "path": "src/motion.js",
+          "bytes": 8280,
+          "sha256": "6f5078fafa6e61850ff58fde484463db05c3b1fff5e5a1bc2818191b13618ec4"
+        },
+        {
+          "path": "src/music-director.js",
+          "bytes": 3908,
+          "sha256": "9667768b33949637ffa4d4fd3cffa18a62267e9933e2c91fac2c494fe944c9b2"
+        },
+        {
+          "path": "src/music.js",
+          "bytes": 61763,
+          "sha256": "e59d6d2ed84bb70bf108f54d8d1f8510a02533f36e1d0741ac1d144c8830ea20"
+        },
+        {
+          "path": "src/options.js",
+          "bytes": 10103,
+          "sha256": "f7ac8fff5f06aa682d9fadf34517cf5a9f9ee1c182d488905ed00d6b3ddf7069"
+        },
+        {
+          "path": "src/passages.js",
+          "bytes": 10108,
+          "sha256": "9ea582ebc45e8237f668d8848f9ef662ba5b947aa6a9e31f592991bb056b32e4"
+        },
+        {
+          "path": "src/physics-geometry.js",
+          "bytes": 14294,
+          "sha256": "c22965240de6a8f743aad87ff8514aaf7932a1c7f2a3635812b912e5fd9e9653"
+        },
+        {
+          "path": "src/physics.js",
+          "bytes": 79407,
+          "sha256": "90372b9bbd021a313203d698da47c0ba34b37b5afc8cf961fe027e5a9a8dfc94"
+        },
+        {
+          "path": "src/pilot.js",
+          "bytes": 22068,
+          "sha256": "27a9407bfc844b9dbf56c1777df3f37a10f8f76c5a24a476ab2db0d157c12a1e"
+        },
+        {
+          "path": "src/profiles.js",
+          "bytes": 8488,
+          "sha256": "086d08e837ae8cc97d51b6c638f206e4e0374352da3a4b286f36def2eb072ce7"
+        },
+        {
+          "path": "src/reflections.js",
+          "bytes": 11411,
+          "sha256": "56e799146c1849adc8d58bfa20e771015dbe377a834eae769674ff4402ff0a4c"
+        },
+        {
+          "path": "src/renderer.js",
+          "bytes": 147277,
+          "sha256": "601818f20a03fad09168eacd2864365689a4cf985dfde0c13d59a29d47eb5570"
+        },
+        {
+          "path": "src/replay-metal.js",
+          "bytes": 2188,
+          "sha256": "4546d35255fa8c35e15799f162e7fa386a973170ec4de3f95b4ef6da3f705b1e"
+        },
+        {
+          "path": "src/schedule.js",
+          "bytes": 4221,
+          "sha256": "48a8b7cf0bba9a54ef6cff896110a654195b05606392c2d74ef3a3691edf9d12"
+        },
+        {
+          "path": "src/simulation.js",
+          "bytes": 272422,
+          "sha256": "f90651403d8faac75f00a3a8dd59dca8034a820909faeb5b97115f5dbe731f3a"
+        },
+        {
+          "path": "src/skies.js",
+          "bytes": 23094,
+          "sha256": "bd4b38002c8c800a5f7551a73712c721909ed22ae145d15fbf7f853ff30eddea"
+        },
+        {
+          "path": "src/soundscape.js",
+          "bytes": 5077,
+          "sha256": "aea15f23bf1c07bb79c2476e55803189dfbe0956060cba8a238127e6032bc10e"
+        },
+        {
+          "path": "src/surface.js",
+          "bytes": 3419,
+          "sha256": "46915edee28daa0408ea1c18abd664babef76e2e6bce52c2990a431f90cee77e"
+        },
+        {
+          "path": "src/tasks.js",
+          "bytes": 759,
+          "sha256": "ab6b70af05907352ab901b9c99425f47dbf48f11a37f029c641a3789bf5b5ea4"
+        },
+        {
+          "path": "src/touch.js",
+          "bytes": 3698,
+          "sha256": "e51b7cea94ab6773f66292158acedcc4f514ec18c4575a475abb35a620df2d7e"
+        },
+        {
+          "path": "src/world.js",
+          "bytes": 142916,
+          "sha256": "9ecffd872920398ec731cdb74a8080f9dbf85bd42fb28cbf3ccbf89bb9533105"
+        }
+      ]
+    },
+    {
+      "project": "bitume",
+      "root": "/Users/david/Projects/bitume",
+      "commit": "365b3e2d43c9d4fd84a81c7d7974b62c2a906129",
+      "files": [
+        {
+          "path": "src/carene.js",
+          "bytes": 16312,
+          "sha256": "8da5450a26e5d292d6628b6c687392b84658f7f9b110e0692df9d95dbebfea4a"
+        },
+        {
+          "path": "src/circuit.js",
+          "bytes": 17710,
+          "sha256": "ebdd47259085426246e6bb4c42869602199ce65f36098768303c5d42cf17e6ef"
+        },
+        {
+          "path": "src/conduite.js",
+          "bytes": 46275,
+          "sha256": "ebefe9703b9fbea48eac726b8a7d1fe2ff6daf2fcc4c6dad615961059a2cb2df"
+        },
+        {
+          "path": "src/contacts.js",
+          "bytes": 7096,
+          "sha256": "6179432bdb19a76ee7e5bb5d10ce67a2e753152f6d447b16c83219981894ba98"
+        },
+        {
+          "path": "src/course.js",
+          "bytes": 24117,
+          "sha256": "f731ff42305f7299c38177889cbbcfa540d05164c77153d708efd168b109d219"
+        },
+        {
+          "path": "src/decor.js",
+          "bytes": 40023,
+          "sha256": "257ecf829332fce588efb1c8f554da83c1b0eb21d89caf2418d467d4abbfcb99"
+        },
+        {
+          "path": "src/degats.js",
+          "bytes": 3228,
+          "sha256": "5e2fd02929a112c67f9a63203a247139008840fc52842dba5dcddeca4b8d4bba"
+        },
+        {
+          "path": "src/jeu.js",
+          "bytes": 78228,
+          "sha256": "68acc14fad02f1e4a2b4df8a4791668fb029aa06169d1ae7772b49c33af8dff5"
+        },
+        {
+          "path": "src/main.js",
+          "bytes": 7825,
+          "sha256": "49e97a7cb481e6c987131148e12e941448c33d280d31bd2af9551d5e1c31f55a"
+        },
+        {
+          "path": "src/meteo.js",
+          "bytes": 8413,
+          "sha256": "1f02eb5a300253a37aded223e825b8e33dd1e89ab70fb1605fe1ea58bc0fc792"
+        },
+        {
+          "path": "src/moteur/PROVENANCE.md",
+          "bytes": 10096,
+          "sha256": "076bdfae37ffad781bb5b6abd06f3564867cb0627ba0ccaf16228301e4339d84"
+        },
+        {
+          "path": "src/moteur/renderer.js",
+          "bytes": 185280,
+          "sha256": "f3057fd6765371f16a8dd1982349c261c483fba847eb06c1847dcd661d3faec2"
+        },
+        {
+          "path": "src/obstacles.js",
+          "bytes": 13181,
+          "sha256": "369e7527b910b850cbf88097a2e81f710462a03308b3c4c6c6cfe2be5523e10f"
+        },
+        {
+          "path": "src/realisateur.js",
+          "bytes": 5822,
+          "sha256": "fe729f5f5511029f1e730b505192c952f5ddece2491b1c1ff2bf9f05aeb3b2df"
+        },
+        {
+          "path": "src/son.js",
+          "bytes": 20994,
+          "sha256": "140a4e96b76083374fe2aa8b725bc56dc0ee6b06f6db1ddb0ce2b8f2535da146"
+        },
+        {
+          "path": "src/traces.js",
+          "bytes": 14728,
+          "sha256": "c7427b781718ab6dbae107fe72edd02ceddf626136d6c5d28cb57a913393bd86"
+        },
+        {
+          "path": "src/voiture.js",
+          "bytes": 48128,
+          "sha256": "9a89f5c34ab2d74f7e0714e166d6198a3ec21194cf4f5abcac6c6da156744006"
+        }
+      ]
+    },
+    {
+      "project": "pdr",
+      "root": "/Users/david/Projects/point-de-rupture",
+      "commit": "5ba44c9d2f9c667eac687b9d0fa2f170606ce2f8",
+      "files": [
+        {
+          "path": "Jeu/src/camera.js",
+          "bytes": 29039,
+          "sha256": "73f20d3e539ff4f81b0d5e73953cb5f55c64ef530a2988e3fe01bf8111b0393b"
+        },
+        {
+          "path": "Jeu/src/decor.js",
+          "bytes": 97538,
+          "sha256": "fda161be37a94a5f033f4d37969385b53e28c3213fe9a7b99320ca2f5d87bb4f"
+        },
+        {
+          "path": "Jeu/src/foule.js",
+          "bytes": 56602,
+          "sha256": "e2a938c73828119f16035ccc42f46f0d4e6b55479574aff3b915dcb853d231ef"
+        },
+        {
+          "path": "Jeu/src/hote.js",
+          "bytes": 6138,
+          "sha256": "bea93efcc8e6b20a52c259ca704c5a2362e05459ae73c28ce6c079f2a87a15f0"
+        },
+        {
+          "path": "Jeu/src/interface/commandes.js",
+          "bytes": 57088,
+          "sha256": "591fa3e16922a42f69726500ddb0740d22aa43963d00ef68754c8934a95e8a7e"
+        },
+        {
+          "path": "Jeu/src/interface/hud.js",
+          "bytes": 44199,
+          "sha256": "e049c4961a6a3fec882695076b38dadbdead2c3bdc5f341869608b5b98318c82"
+        },
+        {
+          "path": "Jeu/src/interface/minicarte.js",
+          "bytes": 18699,
+          "sha256": "82e124c5b5466fac0f5b0237ba1fc5d555b051c60f7e6eb4bd8bed7e79ee0c2c"
+        },
+        {
+          "path": "Jeu/src/interface/reglages.js",
+          "bytes": 32543,
+          "sha256": "81611868fe77e5389d771b1952aa2d49a9231c5aef9fe5a1d49f02743543e029"
+        },
+        {
+          "path": "Jeu/src/interface/titre.js",
+          "bytes": 42789,
+          "sha256": "f917c7b5984923c20ecee15b13ab0a9e67d266de485bdbed6b2d5b973dca6f08"
+        },
+        {
+          "path": "Jeu/src/jeu.js",
+          "bytes": 14895,
+          "sha256": "35b332721b886475ec658ba92bb65a80ef883056abf6e1c1cc9e17a3c9f546a3"
+        },
+        {
+          "path": "Jeu/src/moteur/PROVENANCE-SON.md",
+          "bytes": 7300,
+          "sha256": "e4bcc7e94dab1afb433ebf19b6209bc74356705335afb146702f81cb2fad63b0"
+        },
+        {
+          "path": "Jeu/src/moteur/PROVENANCE.md",
+          "bytes": 14103,
+          "sha256": "868a72e4e8a7ea618f74ad373db995cd165fae13461ed94c85bde3aa0ece7d52"
+        },
+        {
+          "path": "Jeu/src/moteur/audio.js",
+          "bytes": 77340,
+          "sha256": "80bca745a449c641bcbd67eb07d9d922f46cb2215188a19e3ff11a67d9e5946b"
+        },
+        {
+          "path": "Jeu/src/moteur/musique.js",
+          "bytes": 91076,
+          "sha256": "002e0adf3b50354329b9373a428361f0492eaf1d0e736aef9c2abe04fb5509d5"
+        },
+        {
+          "path": "Jeu/src/moteur/renderer.js",
+          "bytes": 138579,
+          "sha256": "a3432a86f5850812f649aed43c4f7f5a27abacb1d91865d1dd2f6ff83a34063d"
+        },
+        {
+          "path": "Jeu/src/noyau.js",
+          "bytes": 13929,
+          "sha256": "a31cc4e146de7123980f95199bfd8db5acd12fbc529f6a29d75a93fce09b0e8e"
+        },
+        {
+          "path": "Jeu/src/sim/ia.js",
+          "bytes": 40239,
+          "sha256": "2e52d0a8d7ec75068bb391ca154d72c5114e7355c9a63fbbb64061587e4d9b0b"
+        },
+        {
+          "path": "Jeu/src/sim/immeubles.js",
+          "bytes": 19494,
+          "sha256": "6c7e618c066ea62e8a9016d6dd4b32052825b4a7c532b2c74f263bb46356aff4"
+        },
+        {
+          "path": "Jeu/src/sim/monde.js",
+          "bytes": 162803,
+          "sha256": "6a51d558b820dda14d42f274ebd873b050c35996c5b3a6e66c4892a8a9527fd0"
+        },
+        {
+          "path": "Jeu/src/sim/nav.js",
+          "bytes": 18480,
+          "sha256": "f72bbb75ebaa266933b0e9402cc4ac04c1852f3346d4b4c17e70248ebed29b1e"
+        },
+        {
+          "path": "Jeu/src/sim/protocole.js",
+          "bytes": 22980,
+          "sha256": "3215a3a929ab562cac2b0b6b88ac6ab54994c1fe679bdeb2127431d5fc410d4d"
+        },
+        {
+          "path": "Jeu/src/sim/regles.js",
+          "bytes": 25098,
+          "sha256": "d21d0baf07ba4c9349ae52ad11d2b86d78a8b2a7aca055d62eef1af97869280f"
+        },
+        {
+          "path": "Jeu/src/sim/travailleur.js",
+          "bytes": 9269,
+          "sha256": "9e7b68badcf24b3da2ece53e4c24eafd9c2bfad7049cad95555f30dd4d8388f7"
+        },
+        {
+          "path": "Jeu/src/son.js",
+          "bytes": 31178,
+          "sha256": "e8480db515e72800860f45cf8569a2b3e4d599f5e61184c2635a1fc0ce513adc"
+        },
+        {
+          "path": "Jeu/src/ville-reelle.js",
+          "bytes": 141247,
+          "sha256": "a12052b6e83d75c296ee56fbbcfb1134f7baeea989cdc78299f17a723106f06d"
+        },
+        {
+          "path": "Jeu/src/ville.js",
+          "bytes": 58411,
+          "sha256": "817e7cc152665f4e4ca840c0dc00ebc9d90ba849a6fb499fa7bd7ab32983b1ad"
+        },
+        {
+          "path": "Jeu/src/villes/marseille.js",
+          "bytes": 245035,
+          "sha256": "b2cb276ff41ef5a94a15d90f79f30d68b307f0154e9d728c0490055ee9455f5b"
+        }
+      ]
+    }
+  ]
+}
