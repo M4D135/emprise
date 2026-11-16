@@ -53,6 +53,19 @@ function create(world,n=480,{hurt=()=>{},notify=()=>{},allowAggression=false}={}
   for(let i=0;i<n;i++){const p=people[i];if(p.hp<=0)continue;const hx=Math.floor(p.x/2),hz=Math.floor(p.z/2);let row=hash.get(hz);if(!row){row=rows[rowCount]||(rows[rowCount]=new Map());rowCount++;row.clear();hash.set(hz,row);}let bucket=row.get(hx);if(!bucket){bucket=buckets[bucketCount]||(buckets[bucketCount]=[]);bucketCount++;bucket.length=0;row.set(hx,bucket);}bucket.push(i);}
   for(let i=0;i<n;i++){
    const p=people[i];if(p.hp<=0){p.moveSpeed=0;packed[i*4]=p.x;packed[i*4+1]=p.z;packed[i*4+2]=p.cap;packed[i*4+3]=PDR.regles.coder(3,i%10,0,0,0);continue;}
+   // A nearby altercation owns the pose; moving traffic still takes priority.
+   if(p._altercationPose&&!p.altercation){if(Number.isFinite(p.yaw))p.cap=Math.PI-p.yaw;delete p.yaw;delete p._altercationPose;}
+   if(p.altercation){
+    const danger=moving.some(car=>{const dx=p.x-car.x,dz=p.z-car.z,u=(dx*car.cc+dz*car.ss)*car.direction,v=-dx*car.ss+dz*car.cc;return u>=-3&&u<=6+car.speed*.7&&Math.abs(v)<=2.4;});
+    if(danger)p.altercation.danger=true;
+    else{
+     const old=p._altercationPose,moved=old?Math.hypot(p.x-old.x,p.z-old.z):0;p._altercationPose={x:p.x,z:p.z};p.walkDistance+=moved;
+     if(Number.isFinite(p.yaw))p.cap=Math.PI-p.yaw;
+     const gait=p.gait,phase=gait.phase,amount=gait.amount;R.people.advanceGait(gait,moved,p.moveSpeed||0,dt);
+     locomotion[i*4]=phase;locomotion[i*4+1]=gait.phase;locomotion[i*4+2]=amount;locomotion[i*4+3]=gait.amount;
+     packed[i*4]=p.x;packed[i*4+1]=p.z;packed[i*4+2]=p.cap;packed[i*4+3]=PDR.regles.coder(3,i%10,0,63,0);continue;
+    }
+   }
    const cell=nav.caseDe(p.x*1000,p.z*1000),field=nav.champs[p.goal],code=cell>=0&&cell<nav.n&&field?field.dir[cell]:PDR.nav.AUCUN;
    if(code===PDR.nav.BUT||(code===PDR.nav.AUCUN&&tick%20===i%20))p.goal=(p.goal+1+(i%3))%goals.length;
    let vx=0,vz=0;if(code>=0&&code<128){vx=PDR.nav.DX[code*2]/1024||0;vz=PDR.nav.DZ[code*2]/1024||0;}
@@ -67,7 +80,7 @@ function create(world,n=480,{hurt=()=>{},notify=()=>{},allowAggression=false}={}
    }
    if(fearless){p.fear=0;p.panic=0;p.threat=null;}
    let pursuing=false;
-   if(allowAggression&&fearless&&canReachPlayer){
+   if(allowAggression&&fearless&&canReachPlayer&&!p.altercation){
     const dx=target.x-p.x,dz=target.z-p.z,d=Math.hypot(dx,dz);
     const visible=d<18&&(!world.ray||world.ray([p.x,1.25,p.z],[dx/(d||1),0,dz/(d||1)],d)>=d);
     if(!p.aggression&&p.provocationCooldown<=0&&aggressors<2&&d<5&&visible&&!p.injury?.leg){p.encounter=(p.encounter||0)+dt;if(p.encounter>.8){p.aggression=12;p.hostility=1;p.encounter=0;aggressors++;notify('Un passant vous prend à partie.');}}else p.encounter=0;
@@ -101,7 +114,7 @@ function create(world,n=480,{hurt=()=>{},notify=()=>{},allowAggression=false}={}
    if(p.blocked>.4)p.turnWait=0;
    if(p.blocked>2){p.goal=(p.goal+1)%goals.length;p.blocked=0;}
    if(moved>.001){const target=Math.atan2(p.x-ox,p.z-oz),delta=Math.atan2(Math.sin(target-p.cap),Math.cos(target-p.cap));p.cap+=Math.max(-dt*9,Math.min(dt*9,delta));}
-   packed[i*4]=p.x;packed[i*4+1]=p.z;packed[i*4+2]=p.cap;packed[i*4+3]=PDR.regles.coder(p.injury||p.aggression>0?3:i%3,i%10,moved>.001?(p.panic?8:1):0,63,0);
+   packed[i*4]=p.x;packed[i*4+1]=p.z;packed[i*4+2]=p.cap;packed[i*4+3]=PDR.regles.coder(p.injury||p.aggression>0||p.altercation?3:i%3,i%10,moved>.001?(p.panic?8:1):0,63,0);
   }
   }finally{updateDepth--;}
  }

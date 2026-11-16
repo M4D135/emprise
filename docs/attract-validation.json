@@ -1,61 +1,61 @@
 {
   "backend": "webgpu",
-  "delaySeconds": 5.008300000011921,
-  "firstDemoPlayingSeconds": 9.073400000035763,
-  "pollObservedDelaySeconds": 5.013100000023842,
-  "timingReadRoundTripSeconds": 0.00041308399522677064,
+  "delaySeconds": 5.000600000023842,
+  "firstDemoPlayingSeconds": 9.311399999976159,
+  "pollObservedDelaySeconds": 5.0275,
+  "timingReadRoundTripSeconds": 0.00020533398492261767,
   "pageTiming": {
     "titles": [
-      506,
-      11595.700000047684,
-      27462.30000001192,
-      69062.30000001192,
-      92694.60000002384,
-      97361.70000004768
+      543.6999999880791,
+      11877.399999976158,
+      27826.399999976158,
+      69193.19999998808,
+      93060.80000001192,
+      98472.69999998808
     ],
     "cycles": [
       {
-        "titleAt": 506,
-        "loadingAt": 5514.300000011921,
-        "readyAt": 9556.100000023842,
+        "titleAt": 543.6999999880791,
+        "loadingAt": 5544.300000011921,
+        "readyAt": 9832.699999988079,
         "initialTime": 0,
-        "firstDrawAt": 9572.600000023842,
-        "firstDrawEnd": 9579.400000035763,
-        "progressAt": 11557.700000047684,
+        "firstDrawAt": 9847.800000011921,
+        "firstDrawEnd": 9855.099999964237,
+        "progressAt": 11833.5,
+        "progressTime": 1.991666666666662,
+        "cancelled": true
+      },
+      {
+        "titleAt": 11877.399999976158,
+        "loadingAt": 16894.5,
+        "readyAt": 20573.099999964237,
+        "initialTime": 0,
+        "firstDrawAt": 20575.5,
+        "firstDrawEnd": 20578,
+        "progressAt": 22574,
         "progressTime": 1.9833333333333287,
         "cancelled": true
       },
       {
-        "titleAt": 11595.700000047684,
-        "loadingAt": 16613,
-        "readyAt": 20198.400000035763,
+        "titleAt": 27826.399999976158,
+        "loadingAt": 32827.59999996424,
+        "readyAt": 36447,
         "initialTime": 0,
-        "firstDrawAt": 20200.30000001192,
-        "firstDrawEnd": 20203.30000001192,
-        "progressAt": 22200,
+        "firstDrawAt": 36456.69999998808,
+        "firstDrawEnd": 36458.5,
+        "progressAt": 38448.89999997616,
         "progressTime": 1.991666666666662,
         "cancelled": true
       },
       {
-        "titleAt": 27462.30000001192,
-        "loadingAt": 32479.400000035763,
-        "readyAt": 36067.60000002384,
+        "titleAt": 69193.19999998808,
+        "loadingAt": 74194.09999996424,
+        "readyAt": 78389,
         "initialTime": 0,
-        "firstDrawAt": 36077.5,
-        "firstDrawEnd": 36078.80000001192,
-        "progressAt": 38067.90000003576,
-        "progressTime": 1.991666666666662,
-        "cancelled": true
-      },
-      {
-        "titleAt": 69062.30000001192,
-        "loadingAt": 74079.5,
-        "readyAt": 78082.5,
-        "initialTime": 0,
-        "firstDrawAt": 78093.5,
-        "firstDrawEnd": 78096,
-        "progressAt": 80083.60000002384,
-        "progressTime": 1.991666666666662,
+        "firstDrawAt": 78400.69999998808,
+        "firstDrawEnd": 78403.39999997616,
+        "progressAt": 80389.80000001192,
+        "progressTime": 1.9833333333333287,
         "cancelled": true
       }
     ]
@@ -70,7 +70,7 @@
   "keysAndMouseReturnToTitle": true,
   "singleResidentSession": true,
   "initialTitleWithoutWorld": {
-    "at": 1794824823989,
+    "at": 1794825974426,
     "created": 0,
     "ready": true,
     "sessionNull": true,
@@ -123,5 +123,5 @@
   "policeReplayValidated": true,
   "errors": [],
   "url": "file://dist/index.html",
-  "buildSha256": "57509819e074dafde526144f2bfa7ba8f32f2c07e7ddf4723350c39ab595ea8a"
+  "buildSha256": "5c521daf04fbee5275b40dade5095a34a8b04b4f49b477c43140365edfe55eda"
 }

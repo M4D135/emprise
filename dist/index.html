@@ -61,7 +61,7 @@ body.touch .dialog{padding:12px max(12px,env(safe-area-inset-right)) max(12px,en
 <canvas id="scene" aria-label="Monde 3D de Seille"></canvas>
 <div id="loading">EMPRISE <span>Construction de Seille…</span></div>
 <section id="recovery" hidden role="alertdialog" aria-modal="true" aria-labelledby="recovery-title" aria-describedby="recovery-message"><div class="recovery-card"><div class="eyebrow">EMPRISE</div><h2 id="recovery-title">La partie s’est interrompue.</h2><p id="recovery-message">Votre sauvegarde est conservée. Vous pouvez la recharger ou commencer une nouvelle partie.</p><div class="recovery-actions"><button id="fatal-reload">Recharger la partie</button><button id="fatal-reset">Nouvelle partie</button></div><details><summary>Détail de l’erreur</summary><p id="recovery-detail"></p></details><small>Clavier : Tab, Entrée · Manette : croix, bouton de validation</small></div></section>
-<section id="title" hidden><div class="eyebrow">SEILLE</div><h1>EMPRISE<span>.</span></h1><div class="game-version" aria-label="Version 0.6.5">V0.6.5 <small>FERRO · BUILD 4a9600e51a</small></div><p><span id="saved-status"></span></p><button id="start">ENTRER DANS LA VILLE <b>↗</b></button><button id="title-controls" class="secondary">COMMANDES</button><button id="title-reset" class="secondary">NOUVELLE PARTIE</button><small id="pad-status"></small><div class="titlefooter">01 / VIEUX-PORT</div></section>
+<section id="title" hidden><div class="eyebrow">SEILLE</div><h1>EMPRISE<span>.</span></h1><div class="game-version" aria-label="Version 0.6.6">V0.6.6 <small>FERRO · BUILD 4520bd4d50</small></div><p><span id="saved-status"></span></p><button id="start">ENTRER DANS LA VILLE <b>↗</b></button><button id="title-controls" class="secondary">COMMANDES</button><button id="title-reset" class="secondary">NOUVELLE PARTIE</button><small id="pad-status"></small><div class="titlefooter">01 / VIEUX-PORT</div></section>
 <div id="hud" hidden><header><div class="brand">EMPRISE<span>.</span><small>SEILLE</small></div><div class="wallet"><b id="cash"></b><div id="wanted"></div><small id="law"></small></div><button id="pause" aria-label="Mettre en pause" title="Pause · P">Ⅱ</button><div class="stats"><span id="perf">60 FPS</span></div></header><div id="compass" aria-label="Boussole"><b id="compass-heading">N</b><span id="compass-degrees">000°</span></div><button id="phone-alert" hidden aria-label="Lire les nouveaux messages"><span>SMS</span><b id="phone-count"></b></button><div id="sailing" hidden><div class="wind-vane" aria-label="Vent apparent"><span id="wind-label">VENT</span><b id="wind-arrow">↑</b></div><div><strong id="sail-station"></strong><p id="sail-summary"></p><p id="sail-catch"></p><meter id="sail-power" min="0" max="1" value="0" aria-label="Charge réelle de la voile"></meter><small id="sail-keys"></small></div></div><section id="objective" hidden><span class="label">AFFRONTEMENT EN COURS</span><h2 id="task"></h2><div id="progress"></div></section><div id="target"></div><div id="cross">·</div><div id="hit" hidden>×</div><div id="notice" role="status"></div><div id="vehicle"><span id="mode">À PIED</span><strong id="speed">100 <small>PV</small></strong><div id="engine">MITRAILLETTE · 1 / 2</div><div id="heat"><i></i></div></div><footer><span id="keys">ZQSD / WASD marcher · Maj courir · E véhicule · Clic tirer</span><button id="sound">SON ON</button></footer><div class="credit">© contributeurs OpenStreetMap · OpenFreeMap · ODbL · Hauteurs IGN BD TOPO</div></div>
 <section id="paused" hidden><div class="panel"><div class="eyebrow">EMPRISE / PROGRESSION SOLO</div><h2 id="pauseTitle">Une pause sur le quai.</h2><div id="ledger"></div><button id="pause-controls" class="secondary">COMMANDES</button><button id="pause-notebook" class="secondary">CARNET DU RÉSEAU · J</button><button id="pause-actions" class="secondary">ACTIONS</button><button id="pause-sound" class="secondary" aria-pressed="false">COUPER LE SON</button><div class="graphics"><label><input id="reflections" type="checkbox" checked> Reflets de la scène</label><label><input id="shadows" type="checkbox" checked> Ombres dynamiques</label></div><p>ZQSD / WASD : se déplacer ou conduire<br>Maj : courir · E : entrer / sortir / éjecter le conducteur · contact automatique (F pour couper)<br>S : freiner, puis reculer · Espace : frein à main / esquive · Maj au volant : frein à main<br>H : changer de couleur · C : changer de vue · Molette : zoom FPS / troisième personne · Souris : viser · Clic : tirer<br>1 / 2 / 3 : armes, dont roquettes · V : crosse · R : onde<br>G : saisir / poser · B : lancer · I : incendier · T : réparer au garage<br>O : téléphone / SMS · J : carnet du réseau · M : consulter votre plan (achat requis)<br>Voilier : C change de poste, A/D oriente, W/S déploie la voile<br>Échap : pause · Glisser pour viser si capture refusée</p><label class="paint">COULEUR DU VÉHICULE <input id="paint" type="color" value="#bb2729" aria-label="Couleur du véhicule"></label><button id="resume">REPRENDRE ↗</button><button id="restart" class="secondary">EFFACER LA PROGRESSION</button></div></section>
 <div id="touch" hidden aria-label="Commandes tactiles">
@@ -82,7 +82,7 @@ body.touch .dialog{padding:12px max(12px,env(safe-area-inset-right)) max(12px,en
 <section id="notebook" class="dialog" hidden><div class="paper notebook"><span class="eyebrow">NOTES PERSONNELLES</span><h2>Le carnet du réseau.</h2><div id="notebook-summary"></div><div id="notebook-mission"></div><h3>Adresses et territoires</h3><div id="notebook-places"></div><h3>Dans votre sac</h3><div id="notebook-inventory"></div><h3>Derniers événements</h3><ol id="notebook-history"></ol><button id="close-notebook">REFERMER · J / ÉCHAP</button><small>Ces notes ne donnent aucune position en direct. Le temps continue pendant leur lecture.</small></div></section>
 <section id="phone" hidden aria-label="Téléphone et messages"><div class="phone-device"><div class="phone-screen"><div class="phone-status"><span id="phone-clock">09:41</span><i class="phone-island"></i><span class="phone-network">▂▄▆ <span>▰</span></span></div><div class="phone-toolbar"><button id="phone-back" aria-label="Conversations">‹</button><span>Messages</span><button id="close-phone" aria-label="Ranger le téléphone">×</button></div><header class="phone-header"><h2 id="phone-heading">Messages</h2><p id="phone-subtitle"></p></header><div id="phone-contract" hidden></div><div id="phone-content"></div><div class="phone-home"></div></div><small class="phone-model">iPhone 18 Pro Max · concept EMPRISE</small></div><small class="phone-context">O / Échap pour ranger · Le monde continue</small></section>
 <script>
-globalThis.RADE={build:{"version": "0.6.5", "name": "Fluidit\u00e9", "engine": "FERRO", "title": "EMPRISE", "id": "4a9600e51a"}};
+globalThis.RADE={build:{"version": "0.6.6", "name": "Vie de rue", "engine": "FERRO", "title": "EMPRISE", "id": "4520bd4d50"}};
 /* FERRO — FMath: sin, cos, atan, atan2 and hypot identical on every platform.
  *
  * A plain-JavaScript port of fdlibm 5.3 as adapted by V8 (src/base/ieee754.cc):
@@ -18862,6 +18862,19 @@ function create(world,n=480,{hurt=()=>{},notify=()=>{},allowAggression=false}={}
   for(let i=0;i<n;i++){const p=people[i];if(p.hp<=0)continue;const hx=Math.floor(p.x/2),hz=Math.floor(p.z/2);let row=hash.get(hz);if(!row){row=rows[rowCount]||(rows[rowCount]=new Map());rowCount++;row.clear();hash.set(hz,row);}let bucket=row.get(hx);if(!bucket){bucket=buckets[bucketCount]||(buckets[bucketCount]=[]);bucketCount++;bucket.length=0;row.set(hx,bucket);}bucket.push(i);}
   for(let i=0;i<n;i++){
    const p=people[i];if(p.hp<=0){p.moveSpeed=0;packed[i*4]=p.x;packed[i*4+1]=p.z;packed[i*4+2]=p.cap;packed[i*4+3]=PDR.regles.coder(3,i%10,0,0,0);continue;}
+   // A nearby altercation owns the pose; moving traffic still takes priority.
+   if(p._altercationPose&&!p.altercation){if(Number.isFinite(p.yaw))p.cap=Math.PI-p.yaw;delete p.yaw;delete p._altercationPose;}
+   if(p.altercation){
+    const danger=moving.some(car=>{const dx=p.x-car.x,dz=p.z-car.z,u=(dx*car.cc+dz*car.ss)*car.direction,v=-dx*car.ss+dz*car.cc;return u>=-3&&u<=6+car.speed*.7&&Math.abs(v)<=2.4;});
+    if(danger)p.altercation.danger=true;
+    else{
+     const old=p._altercationPose,moved=old?Math.hypot(p.x-old.x,p.z-old.z):0;p._altercationPose={x:p.x,z:p.z};p.walkDistance+=moved;
+     if(Number.isFinite(p.yaw))p.cap=Math.PI-p.yaw;
+     const gait=p.gait,phase=gait.phase,amount=gait.amount;R.people.advanceGait(gait,moved,p.moveSpeed||0,dt);
+     locomotion[i*4]=phase;locomotion[i*4+1]=gait.phase;locomotion[i*4+2]=amount;locomotion[i*4+3]=gait.amount;
+     packed[i*4]=p.x;packed[i*4+1]=p.z;packed[i*4+2]=p.cap;packed[i*4+3]=PDR.regles.coder(3,i%10,0,63,0);continue;
+    }
+   }
    const cell=nav.caseDe(p.x*1000,p.z*1000),field=nav.champs[p.goal],code=cell>=0&&cell<nav.n&&field?field.dir[cell]:PDR.nav.AUCUN;
    if(code===PDR.nav.BUT||(code===PDR.nav.AUCUN&&tick%20===i%20))p.goal=(p.goal+1+(i%3))%goals.length;
    let vx=0,vz=0;if(code>=0&&code<128){vx=PDR.nav.DX[code*2]/1024||0;vz=PDR.nav.DZ[code*2]/1024||0;}
@@ -18876,7 +18889,7 @@ function create(world,n=480,{hurt=()=>{},notify=()=>{},allowAggression=false}={}
    }
    if(fearless){p.fear=0;p.panic=0;p.threat=null;}
    let pursuing=false;
-   if(allowAggression&&fearless&&canReachPlayer){
+   if(allowAggression&&fearless&&canReachPlayer&&!p.altercation){
     const dx=target.x-p.x,dz=target.z-p.z,d=Math.hypot(dx,dz);
     const visible=d<18&&(!world.ray||world.ray([p.x,1.25,p.z],[dx/(d||1),0,dz/(d||1)],d)>=d);
     if(!p.aggression&&p.provocationCooldown<=0&&aggressors<2&&d<5&&visible&&!p.injury?.leg){p.encounter=(p.encounter||0)+dt;if(p.encounter>.8){p.aggression=12;p.hostility=1;p.encounter=0;aggressors++;notify('Un passant vous prend à partie.');}}else p.encounter=0;
@@ -18910,7 +18923,7 @@ function create(world,n=480,{hurt=()=>{},notify=()=>{},allowAggression=false}={}
    if(p.blocked>.4)p.turnWait=0;
    if(p.blocked>2){p.goal=(p.goal+1)%goals.length;p.blocked=0;}
    if(moved>.001){const target=Math.atan2(p.x-ox,p.z-oz),delta=Math.atan2(Math.sin(target-p.cap),Math.cos(target-p.cap));p.cap+=Math.max(-dt*9,Math.min(dt*9,delta));}
-   packed[i*4]=p.x;packed[i*4+1]=p.z;packed[i*4+2]=p.cap;packed[i*4+3]=PDR.regles.coder(p.injury||p.aggression>0?3:i%3,i%10,moved>.001?(p.panic?8:1):0,63,0);
+   packed[i*4]=p.x;packed[i*4+1]=p.z;packed[i*4+2]=p.cap;packed[i*4+3]=PDR.regles.coder(p.injury||p.aggression>0||p.altercation?3:i%3,i%10,moved>.001?(p.panic?8:1):0,63,0);
   }
   }finally{updateDepth--;}
  }
@@ -20933,7 +20946,7 @@ function create(world,sim,crowd,{interiors,urban,campaign,saved,notify=()=>{},on
   if(!registered.has(e)){registered.add(e);const d=records.get(e.id);if(d&&[d.x,d.z,d.hp].every(Number.isFinite)&&d.x>=(world.bounds?.minX??-1100)&&d.x<=(world.bounds?.maxX??1100)&&d.z>=(world.bounds?.minZ??-1100)&&d.z<=(world.bounds?.maxZ??1100)){Object.assign(e,{x:d.x,z:d.z,baseY:world.ground?.(d.x,d.z)??.08,hp:Math.max(0,Math.min(100,d.hp)),...(Number.isFinite(d.yaw)?{yaw:d.yaw}:{}),injury:d.injury?{head:!!d.injury.head,leg:!!d.injury.leg,arm:!!d.injury.arm,dead:d.hp<=0}:null});if(Number.isFinite(e.cap)){if(Number.isFinite(d.cap))e.cap=d.cap;delete e.yaw;}if(typeof d.inside==='boolean')e.inside=d.inside;for(const k of ['fear','hostility'])if(Number.isFinite(d[k]))e[k]=Math.max(0,Math.min(1,d[k]));if(Number.isFinite(d.grievance))e.grievance=Math.max(0,Math.min(90,d.grievance));if(['confront','flee','recover','driving'].includes(d.reaction))e.reaction=d.reaction;if(Number.isInteger(d.ownerVehicle))e.ownerVehicle=d.ownerVehicle;for(const k of ['aggression','provocationCooldown','panic'])if(Number.isFinite(d[k]))e[k]=Math.max(0,Math.min(45,d[k]));}}
   return e;
  }
- function remember(e){if(e.injury||e.hp<100||e.inside===false||e.grievance||e.fear>.01||e.hostility>0||e.aggression>0)records.set(e.id,{id:e.id,x:e.x,z:e.z,hp:e.hp,injury:e.injury,yaw:e.yaw,cap:e.cap,inside:e.inside,fear:e.fear,hostility:e.hostility,grievance:e.grievance,reaction:e.reaction,ownerVehicle:e.ownerVehicle,aggression:e.aggression,provocationCooldown:e.provocationCooldown,panic:e.panic});}
+ function remember(e){if(records.has(e.id)||e.altercation||e.injury||e.hp<100||e.inside===false||e.grievance||e.fear>.01||e.hostility>0||e.aggression>0)records.set(e.id,{id:e.id,x:e.x,z:e.z,hp:e.hp,injury:e.injury,yaw:e.yaw,cap:e.cap,inside:e.inside,fear:e.fear,hostility:e.hostility,grievance:e.grievance,reaction:e.reaction,ownerVehicle:e.ownerVehicle,aggression:e.aggression,provocationCooldown:e.provocationCooldown,panic:e.panic});}
  function drivers(){for(const c of world.fleet){if(!c.driver&&!c.parked&&(c.ai||c.emergency||records.has(14000+c.id)))c.driver=initialize({id:14000+c.id,inside:true,civil:true,hp:100,x:c.x,z:c.z},14000+c.id);if(c.driver){if(c.driver.inside){c.driver.x=c.x;c.driver.z=c.z;c.driver.yaw=c.cap+Math.PI/2;}else{c.ai=false;c.emergency=false;}if(c.driver.hp<=0&&c.driver.inside){c.ai=false;c.moteur=false;}}}}
  drivers();for(const e of world.boundaryOfficers||[])initialize(e,e.id);
  for(let i=0;i<crowd.people.length;i++)initialize(crowd.people[i],i+10000);
@@ -20964,6 +20977,11 @@ function create(world,sim,crowd,{interiors,urban,campaign,saved,notify=()=>{},on
   }
  }
  world.combatWorld.traceActors=trace;world.combatWorld.injure=(e,zone)=>region(e,zone);world.combatWorld.hurtCivil=hurtCivil;
+ // Ambient punches use real HP units and never attribute a crime to the player.
+ function hurtAmbient(e,amount){
+  if(!e||e.inside||!(e.hp>25)||!Number.isFinite(amount)||amount<=0)return false;
+  initialize(e,e.id);e.hp=Math.max(25,e.hp-Math.min(8,amount));remember(e);return true;
+ }
  function stolen(c){const e=c.driver;if(!e||e.hp<=0)return;e.hostility=.9;e.fear=e.temperament==='provocateur'?0:.18;e.grievance=90;e.reaction='confront';e.panic=0;e.ownerVehicle=c.id;e.reclaimHold=0;notify('Le conducteur veut récupérer son véhicule.');}
  function ownerMove(e,target,speed,dt){const dx=target.x-e.x,dz=target.z-e.z,d=Math.hypot(dx,dz)||1;let best=null;
   for(const a of [0,.55,-.55,1.05,-1.05,1.57,-1.57]){const x=(dx*Math.cos(a)-dz*Math.sin(a))/d,z=(dx*Math.sin(a)+dz*Math.cos(a))/d,step=Math.min(speed*dt,d);if(world.blocked(e.x+x*.45,e.z+z*.45,.26,world.ground?.(e.x+x*.45,e.z+z*.45)??.08)||world.blocked(e.x+x*step,e.z+z*step,.26,world.ground?.(e.x+x*step,e.z+z*step)??.08))continue;best={x,z,step};break;}
@@ -20993,15 +21011,134 @@ function create(world,sim,crowd,{interiors,urban,campaign,saved,notify=()=>{},on
   for(const [id,e] of merchants)if(e.hp<=0){const site=campaign.sites.find(s=>s.id===id);if(site)site.closed=true;}
   for(const e of sim.state.enemies)if(e.injury){if(e.injury.leg)e.y=e.baseY+.4;if(e.hp<=0)e.injury.dead=true;}
   for(const ev of events)if(ev.name==='explosion')for(const e of civils()){if(e.inside||e.hp<=0)continue;const d=Math.hypot(e.x-ev.x,e.z-ev.z);if(d<ev.radius&&world.ray([ev.x,1,ev.z],[(e.x-ev.x)/(d||1),0,(e.z-ev.z)/(d||1)],Math.max(0,d-.3))>=d-.4)hurtCivil(e,(1-d/ev.radius)*2,'torso');}
-  for(const e of [...world.fleet.map(c=>c.driver).filter(e=>e&&!e.inside),...merchants.values()]){if(e.hp<=0)continue;e.thrown=Math.max(0,(e.thrown||0)-dt);if(e.footPolice)continue;if(ownerUpdate(e,dt,events))continue;if(e.thrown)continue;if(e.panic>0){e.panic-=dt;const dx=e.x-p.x,dz=e.z-p.z,d=Math.hypot(dx,dz)||1,v=e.injury?.leg?.35:2.1;e.yaw=Math.atan2(dx,-dz);if(!world.blocked(e.x+dx/d*v*dt,e.z,.28,world.ground?.(e.x+dx/d*v*dt,e.z)??.08))e.x+=dx/d*v*dt;if(!world.blocked(e.x,e.z+dz/d*v*dt,.28,world.ground?.(e.x,e.z+dz/d*v*dt)??.08))e.z+=dz/d*v*dt;e.moveSpeed=v;e.baseY=world.ground?.(e.x,e.z)??.08;}}
+  for(const e of [...world.fleet.map(c=>c.driver).filter(e=>e&&!e.inside),...merchants.values()]){if(e.hp<=0)continue;e.thrown=Math.max(0,(e.thrown||0)-dt);if(e.footPolice)continue;if(ownerUpdate(e,dt,events))continue;if(e.thrown||e.altercation)continue;if(e.panic>0){e.panic-=dt;const dx=e.x-p.x,dz=e.z-p.z,d=Math.hypot(dx,dz)||1,v=e.injury?.leg?.35:2.1;e.yaw=Math.atan2(dx,-dz);if(!world.blocked(e.x+dx/d*v*dt,e.z,.28,world.ground?.(e.x+dx/d*v*dt,e.z)??.08))e.x+=dx/d*v*dt;if(!world.blocked(e.x,e.z+dz/d*v*dt,.28,world.ground?.(e.x,e.z+dz/d*v*dt)??.08))e.z+=dz/d*v*dt;e.moveSpeed=v;e.baseY=world.ground?.(e.x,e.z)??.08;}}
  }
- function geometry(time){const out=[];for(const e of [...crowd.people.filter(e=>e.injury||e.aggression>0),...(world.boundaryOfficers||[]).filter(e=>e.hp<=0),...world.fleet.map(c=>c.driver).filter(e=>e&&!e.inside),...merchants.values(),...sim.state.enemies.filter(e=>e.hp<=0&&e.injury)])if(!e.footPolice&&Math.hypot(e.x-p.x,e.z-p.z)<100)out.push(...R.people.build({...e,civil:e.radeCivil,renderBody:true,yaw:e.yaw??Math.PI-e.cap},{time,distance:Math.hypot(e.x-p.x,e.z-p.z)}));return out;}
+ function geometry(time){const out=[];for(const e of [...crowd.people.filter(e=>e.injury||e.aggression>0||e.altercation),...(world.boundaryOfficers||[]).filter(e=>e.hp<=0),...world.fleet.map(c=>c.driver).filter(e=>e&&!e.inside),...merchants.values(),...sim.state.enemies.filter(e=>e.hp<=0&&e.injury)])if(!e.footPolice&&Math.hypot(e.x-p.x,e.z-p.z)<100)out.push(...R.people.build({...e,civil:e.radeCivil,renderBody:true,yaw:e.yaw??Math.PI-e.cap},{time,distance:Math.hypot(e.x-p.x,e.z-p.z)}));return out;}
  function save(){for(const e of [...lastRoom,...civils(),...world.fleet.map(c=>c.driver).filter(Boolean)])remember(e);return {people:[...records.values()],enemies:sim.state.enemies.filter(e=>e.injury).map(e=>({id:e.id,injury:e.injury}))};}
  if(saved){for(const d of saved.enemies||[]){const e=sim.state.enemies[d?.id];if(e&&d.injury)e.injury={head:!!d.injury.head,leg:!!d.injury.leg,arm:!!d.injury.arm,dead:e.hp<=0};}}
  update(0,[]);
- return {trace,hitShape,hurtCivil,stolen,update,geometry,save,merchants,get stats(){return {hits,headshots};}};
+ return {trace,hitShape,hurtCivil,hurtAmbient,ownerMove,stolen,update,geometry,save,merchants,get stats(){return {hits,headshots};}};
 }
 R.injuries={create};})(globalThis.RADE);
+
+/* EMPRISE — local ambient disputes. Decisions are slow; movement remains continuous.
+ * Spark supplied the first state-machine drafts; integration keeps violence between
+ * NPCs separate from the player's crime and existing stolen-vehicle ownership. */
+(function(R){'use strict';
+function hash(id){let h=Math.imul(id^0x6d2b79f5,0x45d9f3b);h=Math.imul(h^(h>>>16),0x45d9f3b);return(h^(h>>>16))>>>0;}
+function create(world,sim,crowd,injuries,{saved,notify=()=>{}}={}){
+ const player=sim.state.player,scenes=[],horns=new Map(),cooldowns=new Map();
+ let clock=0,decisionAt=0,pedAt=25,rng=0x1a2b3c4d,nextId=1;
+ const counters={created:0,strikes:0,dispersed:0};
+ const random=()=>{rng=(Math.imul(rng,1664525)+1013904223)>>>0;return rng/4294967296;};
+ const dist=(a,b)=>Math.hypot(a.x-b.x,a.z-b.z),occupied=c=>c===world.car&&world.playerSeated;
+ const healthy=e=>e&&e.hp>25&&!e.injury?.leg&&!e.injury?.dead&&!e.grievance&&!e.thrown&&(e.fear||0)<=.65;
+ const available=e=>healthy(e)&&!e.altercation&&!(e.aggression>0)&&!(e.panic>1)&&(cooldowns.get(e.id)||0)<=clock;
+ const ground=(x,z)=>world.ground?.(x,z)??.08;
+ function bounded(map,key,value,limit){if(!map.has(key)&&map.size>=limit)map.delete(map.keys().next().value);map.set(key,value);}
+ function los(a,b,ignore){const dx=b.x-a.x,dz=b.z-a.z,d=Math.hypot(dx,dz);return d<.01||!world.ray||world.ray([a.x,(a.baseY??ground(a.x,a.z))+1.05,a.z],[dx/d,0,dz/d],d,ignore)>=d-.3;}
+ function door(c,e){const w=R.vehicles.SPECS[c.model].width/2+.65,co=Math.cos(c.cap),si=Math.sin(c.cap);let best=null;
+  for(const side of [-1,1]){const q={x:c.x-si*side*w,z:c.z+co*side*w};if(!world.blocked(q.x,q.z,.28,ground(q.x,q.z))&&(!best||dist(q,e)<dist(best,e)))best=q;}return best;
+ }
+ function usable(c){return c&&!c.police&&!c.policeStolen&&!c.hidden&&!c.parked&&!c.exploded&&!c.burning&&!c.burned&&!occupied(c)&&c.driver&&c.driver.hp>0&&(c.condition?.engine??1)>.3&&(c.condition?.body??1)>.3;}
+ function canExit(c){return usable(c)&&c.ai&&c.moteur&&!c.uncontrolled&&Math.abs(c.v)<.5&&c.driver.inside&&available(c.driver)&&!!door(c,c.driver);}
+ function control(q,id){q.e.altercation={id,danger:false};q.e.moveSpeed=0;}
+ function release(q,panic=false){const e=q.e;if(!e)return;e.altercation=null;e.strike=0;e.moveSpeed=0;
+  if(Number.isFinite(e.cap)&&Number.isFinite(e.yaw)){e.cap=Math.PI-e.yaw;delete e.yaw;}
+  if(panic&&e.hp>0&&!e.inside&&!e.grievance){e.fear=Math.max(e.fear||0,.4);e.panic=Math.max(e.panic||0,2);}
+  e.provocationCooldown=Math.max(e.provocationCooldown||0,15);q.done=true;
+ }
+ function returning(s){if(s.phase==='return')return;s.phase='return';s.timer=0;s.wait=0;counters.dispersed++;for(const q of [s.a,s.b]){q.e.strike=0;q.e.moveSpeed=0;}}
+ function start(a,b,reason){if(scenes.length>=2||a.e===b.e||!available(a.e)||!available(b.e)||dist(a.e,player)>55||dist(b.e,player)>55)return false;
+  for(const q of [a,b])if(q.c&&!canExit(q.c))return false;
+  const s={id:nextId++,a,b,phase:'tension',timer:0,wait:0,turn:0,dispute:2+random()*2,witnessed:false,reason};
+  for(const q of [a,b]){if(q.c){const d=door(q.c,q.e);q.e.inside=false;q.e.x=d.x;q.e.z=d.z;q.e.baseY=ground(d.x,d.z);q.c.ai=q.c.moteur=false;q.c.u=q.c.w=q.c.v=q.c.omega=0;}control(q,s.id);bounded(cooldowns,q.e.id,clock+65,64);}
+  scenes.push(s);counters.created++;notify('Une altercation éclate dans la rue.');return true;
+ }
+ function noticeTraffic(events){if(world.room||!Array.isArray(events))return;
+  for(const ev of events){if(ev?.name!=='carHorn'||!['vehicle','pedestrian'].includes(ev.reason)||!Number.isInteger(ev.vehicleId))continue;
+   let q=horns.get(ev.vehicleId);if(!q||clock-q.first>20)q={count:0,first:clock,last:clock,reason:ev.reason};q.count=Math.min(3,q.count+1);q.last=clock;q.reason=ev.reason;bounded(horns,ev.vehicleId,q,32);
+  }
+ }
+ function target(c,reason){const co=Math.cos(c.cap),si=Math.sin(c.cap);let found=null,best=6.5;
+  const consider=(e,car)=>{const dx=e.x-c.x,dz=e.z-c.z,along=dx*co+dz*si,across=-dx*si+dz*co,d=Math.hypot(dx,dz);
+   if(along<=.3||along>6.5||Math.abs(across)>1.6||d>=best)return;
+   // Test only the gap between bumpers: neither car's own body is an occluder.
+   const start=R.vehicles.SPECS[c.model].length/2+.15,end=car?R.vehicles.SPECS[car.model].length/2+.15:.3;
+   const a={x:c.x+dx/d*start,z:c.z+dz/d*start,baseY:ground(c.x,c.z)},b={x:e.x-dx/d*end,z:e.z-dz/d*end};
+   if(d>start+end&&!los(a,b,c))return;best=d;found={e,c:car};
+  };
+  if(reason==='vehicle')for(const other of world.fleet){if(other!==c&&canExit(other))consider(other.driver,other);}
+  if(reason==='pedestrian')for(const e of crowd.people){if(available(e)&&!e.inside)consider(e,null);}
+  return found;
+ }
+ function decisions(){
+  for(const [id,q] of horns){if(clock-q.last>20){horns.delete(id);continue;}if(q.count<2||scenes.length>=2)continue;
+   const c=world.fleet.find(c=>c.id===id);if(!c||hash(id*7+3)%100>=20||!canExit(c)||dist(c,player)>55)continue;
+   const other=target(c,q.reason);if(other&&start({e:c.driver,c},other,q.reason))horns.delete(id);
+  }
+  for(const [id,t] of cooldowns)if(t<clock)cooldowns.delete(id);
+  if(clock<pedAt||scenes.length>=2)return;pedAt=clock+20+random()*25;
+  const candidates=[];for(const e of crowd.people){if(candidates.length>=8)break;if(available(e)&&!e.inside&&dist(e,player)<45&&hash(e.id*11+5)%100<33)candidates.push(e);}
+  for(let i=0;i<candidates.length;i++)for(let j=i+1;j<candidates.length;j++)if(dist(candidates[i],candidates[j])<4&&los(candidates[i],candidates[j])){start({e:candidates[i],c:null},{e:candidates[j],c:null},'pedestrianDispute');return;}
+ }
+ function policeNear(e){for(const c of world.fleet)if(c.police&&!c.policeStolen&&!c.exploded&&c.ai&&dist(c,e)<20){const d=dist(c,e),end={x:c.x+(e.x-c.x)/(d||1)*2.5,z:c.z+(e.z-c.z)/(d||1)*2.5};if(los(e,end,c))return true;}
+  for(const p of world.boundaryOfficers||[])if(p.hp>0&&dist(p,e)<20&&los(e,p))return true;return false;
+ }
+ function witness(s){if(s.witnessed)return;s.witnessed=true;const x=(s.a.e.x+s.b.e.x)/2,z=(s.a.e.z+s.b.e.z)/2;
+  for(const e of crowd.people)if(e.hp>0&&!e.inside&&!e.altercation&&Math.hypot(e.x-x,e.z-z)<12){e.fear=Math.min(1,(e.fear||0)+.45);e.panic=Math.max(e.panic||0,3);e.threat={x,z};}
+ }
+ function approach(q,other,dt){const d=dist(q.e,other);if(d>1.22)injuries.ownerMove(q.e,other,Math.min(1.8,(d-1.2)/dt),dt);else q.e.moveSpeed=0;
+  q.e.yaw=Math.atan2(other.x-q.e.x,-(other.z-q.e.z));
+ }
+ function returnActor(q,dt,timer){if(q.done)return;
+  if(!healthy(q.e)||q.e.altercation?.danger||q.c&&(!usable(q.c)||q.c.driver!==q.e)){release(q,true);return;}
+  if(!q.c){release(q);return;}
+  const d=door(q.c,q.e);if(!d||timer>12){release(q,true);return;}
+  injuries.ownerMove(q.e,d,1.7,dt);
+  if(dist(q.e,d)<.4&&Math.abs(q.c.v)<.5){q.e.inside=true;q.e.x=q.c.x;q.e.z=q.c.z;q.e.reaction='driving';q.e.panic=0;q.c.ai=q.c.moteur=true;q.c.uncontrolled=false;release(q);}
+ }
+ function update(dt,events=[]){if(!Number.isFinite(dt)||dt<=0||world.room)return;dt=Math.min(dt,.2);clock+=dt;
+  const decide=clock>=decisionAt;if(decide){decisionAt=clock+1;decisions();}
+  for(let i=scenes.length-1;i>=0;i--){const s=scenes[i],a=s.a.e,b=s.b.e;s.timer+=dt;
+   for(const q of [s.a,s.b])q.e.strike=Math.max(0,(q.e.strike||0)-dt);
+   const danger=[s.a,s.b].some(q=>!healthy(q.e)||q.e.altercation?.danger||q.c&&(!usable(q.c)||q.c.driver!==q.e));
+   const shot=events.some(ev=>['shot','enemyShot','explosion','vehicleExplosion'].includes(ev.name)&&Number.isFinite(ev.x)&&Number.isFinite(ev.z)&&(Math.hypot(a.x-ev.x,a.z-ev.z)<30||Math.hypot(b.x-ev.x,b.z-ev.z)<30));
+   const far=dist(a,player)>65||dist(b,player)>65;
+   if(danger||shot||far||dist(a,b)>15||decide&&(policeNear(a)||policeNear(b)))returning(s);
+   if(far){release(s.a,true);release(s.b,true);}
+   if(s.phase==='return'){returnActor(s.a,dt,s.timer);returnActor(s.b,dt,s.timer);if(s.a.done&&s.b.done)scenes.splice(i,1);continue;}
+   if(s.phase==='tension'){if(s.timer>=1){s.phase='approach';s.timer=0;}continue;}
+   if(s.phase==='approach'){
+    approach(s.a,b,dt);approach(s.b,a,dt);if(dist(a,b)<1.45&&los(a,b)){s.phase='dispute';s.timer=0;}else if(s.timer>8)returning(s);continue;
+   }
+   a.moveSpeed=b.moveSpeed=0;a.yaw=Math.atan2(b.x-a.x,-(b.z-a.z));b.yaw=Math.atan2(a.x-b.x,-(a.z-b.z));
+   if(s.phase==='dispute'){if(s.timer>=s.dispute){s.phase='strikes';s.timer=0;s.wait=0;}continue;}
+   if(s.phase==='strikes'){
+    if(dist(a,b)>1.5||!los(a,b)){returning(s);continue;}
+    s.wait-=dt;if(s.wait<=0){witness(s);const attacker=s.turn%2?a:b,victim=s.turn%2?b:a;s.turn++;s.wait=1.1;attacker.strike=.4;if(injuries.hurtAmbient(victim,3+Math.floor(random()*3),attacker)!==false)counters.strikes++;}
+    if(s.timer>=20||a.hp<=25||b.hp<=25)returning(s);
+   }
+  }
+ }
+ function save(){return {version:1,clock,decisionAt,pedAt,rng,nextId,stats:{...counters},horns:[...horns],cooldowns:[...cooldowns],scenes:scenes.map(s=>({id:s.id,phase:s.phase,timer:s.timer,wait:s.wait,turn:s.turn,dispute:s.dispute,witnessed:s.witnessed,reason:s.reason,a:{id:s.a.e.id,car:s.a.c?.id??null,done:!!s.a.done},b:{id:s.b.e.id,car:s.b.c?.id??null,done:!!s.b.done}}))};}
+ if(saved?.version===1&&Number.isFinite(saved.clock)&&saved.clock>=0){
+  clock=saved.clock;decisionAt=Number.isFinite(saved.decisionAt)?Math.min(clock+1,saved.decisionAt):clock;pedAt=Number.isFinite(saved.pedAt)?Math.max(clock,Math.min(clock+45,saved.pedAt)):clock+25;
+  rng=Number.isInteger(saved.rng)?saved.rng>>>0:rng;nextId=Number.isInteger(saved.nextId)?saved.nextId:1;
+  for(const k of Object.keys(counters))if(Number.isFinite(saved.stats?.[k]))counters[k]=Math.max(0,saved.stats[k]);
+  for(const pair of (Array.isArray(saved.horns)?saved.horns:[]).slice(-32)){if(!Array.isArray(pair))continue;const [id,q]=pair;if(Number.isInteger(id)&&q&&Number.isFinite(q.first)&&Number.isFinite(q.last)&&q.count>0&&q.last<=clock&&q.last>clock-20&&['vehicle','pedestrian'].includes(q.reason))horns.set(id,{count:Math.min(3,q.count),first:q.first,last:q.last,reason:q.reason});}
+  for(const pair of (Array.isArray(saved.cooldowns)?saved.cooldowns:[]).slice(-64))if(Array.isArray(pair)&&Number.isInteger(pair[0])&&Number.isFinite(pair[1])&&pair[1]>clock)cooldowns.set(pair[0],Math.min(clock+65,pair[1]));
+  for(const d of (Array.isArray(saved.scenes)?saved.scenes:[]).slice(0,2)){
+   const restore=q=>{if(!q)return null;const c=q.car===null?null:world.fleet.find(c=>c.id===q.car),e=c?c.driver:crowd.people.find(e=>e.id===q.id);return e&&e.id===q.id&&!e.altercation&&Number.isFinite(e.x)&&Number.isFinite(e.z)?{e,c,done:!!q.done}:null;};
+   const a=restore(d?.a),b=restore(d?.b);if(!a||!b||a.e===b.e)continue;
+   const s={id:Number.isInteger(d.id)&&d.id>0?d.id:nextId++,a,b,phase:['tension','approach','dispute','strikes','return'].includes(d.phase)?d.phase:'return',timer:Number.isFinite(d.timer)?Math.max(0,Math.min(25,d.timer)):0,wait:Number.isFinite(d.wait)?Math.max(0,Math.min(1.1,d.wait)):0,turn:Number.isInteger(d.turn)?Math.max(0,d.turn):0,dispute:Number.isFinite(d.dispute)?Math.max(2,Math.min(4,d.dispute)):3,witnessed:!!d.witnessed,reason:d.reason};
+   for(const q of [a,b])if(!q.done){control(q,s.id);if(q.c&&!q.e.inside){q.c.ai=q.c.moteur=false;q.c.u=q.c.w=q.c.v=q.c.omega=0;}else if(q.c){q.done=true;q.e.altercation=null;}}
+   scenes.push(s);
+  }
+ }
+ return {noticeTraffic,update,save,get scenes(){return scenes;},get stats(){return {...counters,activeScenes:scenes.length};}};
+}
+R.altercations={create};})(globalThis.RADE=globalThis.RADE||{});
 
 /* EMPRISE — existing patrol drivers dismount, investigate and arrest on foot. */
 (function(R){'use strict';
@@ -21807,6 +21944,7 @@ function create({pedestrians=480,expanded=!!R.campaign,saved=null,now=Date.now()
  let car=world.car,mode='foot',time=0,crowdClock=0,trafficClock=0,message='',messageTime=0,phase=0,returned=false,lastEvents=[],nearObjective=false,crowdEvents=[];const history=(Array.isArray(saved?.journal)?saved.journal:[]).filter(e=>e&&Number.isFinite(e.time)&&typeof e.text==='string'&&e.text.length<=400).slice(-80).map(e=>({time:e.time,text:e.text}));
  const tell=(s,{remember=true}={})=>{message=s;messageTime=5;if(s.startsWith('SMS ·'))lastEvents.push({name:'phoneMessage'});if(remember&&history.at(-1)?.text!==s){history.push({time,text:s});if(history.length>80)history.shift();}};
  const traffic=expanded?R.traffic.create(world):null,campaign=expanded?R.campaign.create(world,sim,layout,{saved,now,notify:tell}):null,crowd=R.crowd.create(world,pedestrians,{allowAggression:expanded&&!!R.injuries,hurt:(amount,e)=>sim.hurt(amount,false,{x:e.x,y:1,z:e.z}),notify:tell});world.player=player;world.pedestrians=crowd.people;world.weather=weather?.state||null;const interiors=expanded&&R.interiors?R.interiors.create(world,sim,{saved:saved?.interiors,notify:tell}):null;const urban=expanded&&R.urban?R.urban.create(world,sim,{saved:saved?.urban,interiors,campaign,traffic,notify:tell,batchStreetExplosions:true}):null;const marine=R.marine?R.marine.create(world,{saved:saved?.marine,notify:tell}):null;const business=expanded&&R.business?R.business.create(world,sim,{interiors,campaign,saved:saved?.business,notify:tell}):null;const injuries=expanded&&R.injuries?R.injuries.create(world,sim,crowd,{interiors,urban,campaign,saved:saved?.injuries,notify:tell,onReclaim:ownerReclaim}):null;
+ const altercations=injuries&&R.altercations?R.altercations.create(world,sim,crowd,injuries,{saved:saved?.altercations,notify:tell}):null;
  const police=expanded&&R.police?R.police.create(world,sim,{traffic,campaign,saved:saved?.police,notify:tell}):null;
  loot=expanded&&R.loot?R.loot.create(world,sim,{campaign,business,interiors,saved:saved?.loot,notify:tell}):null;
  const phone=expanded&&R.phone?R.phone.create(world,sim,{campaign,business,interiors,traffic,saved:saved?.phone,notify:tell}):null;
@@ -21860,16 +21998,16 @@ function create({pedestrians=480,expanded=!!R.campaign,saved=null,now=Date.now()
   if(phase>=2&&sim.state.enemies.slice(0,3).every(e=>e.hp<=0)&&phase<3){phase=3;if(!expanded)tell('Zone sécurisée. Retrouvez votre véhicule.');}
   if(returned&&car.v>2&&phase===3){phase=4;if(!expanded)tell('MISSION ACCOMPLIE · La ville reste ouverte.');}
   world.playerSeated=mode!=='foot';
-  if(campaign){campaign.tick(dt,lastEvents);trafficClock+=dt;if(trafficClock>=1/30){trafficRender.before(traffic.cars);traffic.update(trafficClock,campaign.law,player);for(const e of traffic.events||[]){const dx=e.x-player.x,dz=e.z-player.z,distance=Math.hypot(dx,dz);if(distance>=45)continue;const fade=1-distance/45;lastEvents.push({...e,level:e.level*fade*fade,pan:Math.max(-1,Math.min(1,(dx*Math.cos(player.yaw)+dz*Math.sin(player.yaw))/Math.max(1,distance)))});}trafficRender.after(traffic.cars,trafficClock);trafficClock=0;}
+  if(campaign){campaign.tick(dt,lastEvents);trafficClock+=dt;if(trafficClock>=1/30){trafficRender.before(traffic.cars);traffic.update(trafficClock,campaign.law,player);altercations?.noticeTraffic(traffic.events);for(const e of traffic.events||[]){const dx=e.x-player.x,dz=e.z-player.z,distance=Math.hypot(dx,dz);if(distance>=45)continue;const fade=1-distance/45;lastEvents.push({...e,level:e.level*fade*fade,pan:Math.max(-1,Math.min(1,(dx*Math.cos(player.yaw)+dz*Math.sin(player.yaw))/Math.max(1,distance)))});}trafficRender.after(traffic.cars,trafficClock);trafficClock=0;}
    const law=campaign.law,policeContext={seated:mode==='car',vehicle:car,speed:mode==='car'?car.v:sim.state.locomotion.speed,hidden:!!interiors?.active||mode==='swim'||mode==='boat'};
    police?.update(dt,policeContext);law.seen=!!law.seen||!!police?.seen;
    const status=police?police.arrestStatus(player,policeContext):traffic.arrestStatus(player,policeContext);
    if(law.wanted>0&&status.eligible){law.arrest+=dt;if(law.arrest>4){campaign.arrest();respawn(true);}}else law.arrest=Math.max(0,law.arrest-dt*1.5);
    if(law.wanted&&Math.floor(time/.85)!==Math.floor((time-dt)/.85)&&traffic.cars.some(c=>c.police&&c.ai&&Math.hypot(c.x-player.x,c.z-player.z)<85))lastEvents.push({name:'policeSiren',level:.25});
   }
-  urban?.update(dt,lastEvents);if(mode==='foot'){world.resolveOverlap?.(player,dt);if(!interiors?.active)urban?.crossBreach(previous,player);}business?.update(dt,lastEvents);injuries?.update(dt,lastEvents);loot?.update();phone?.update(dt,lastEvents,{mode,car});lastEvents.push(...weatherEvents);crowdEvents.push(...lastEvents);crowdClock+=dt;if(crowdClock>=.05){crowd.update(crowdClock,crowdEvents);crowdClock=0;crowdEvents=[];}
+  urban?.update(dt,lastEvents);if(mode==='foot'){world.resolveOverlap?.(player,dt);if(!interiors?.active)urban?.crossBreach(previous,player);}business?.update(dt,lastEvents);altercations?.update(dt,lastEvents);injuries?.update(dt,lastEvents);loot?.update();phone?.update(dt,lastEvents,{mode,car});lastEvents.push(...weatherEvents);crowdEvents.push(...lastEvents);crowdClock+=dt;if(crowdClock>=.05){crowd.update(crowdClock,crowdEvents);crowdClock=0;crowdEvents=[];}
  }
- return {world,sim,crowd,traffic,campaign,weather,interiors,urban,injuries,loot,police,phone,save(){const data=campaign.save();if(interiors?.active)data.player={...data.player,...interiors.outside};return {...data,city:world.cityStream?.save(),ammunition:{version:1,ammo:sim.state.inventory.ammo.slice(),weapon:sim.state.weapon},weather:weather?.save(),police:police?.save(),interiors:interiors?.save(),urban:urban?.save(),injuries:injuries?.save(),marine:marine?.save(),business:business?.save(),loot:loot?.save(),phone:phone?.save(),journal:history.slice(-80)};},expanded,marine,business,get car(){return car;},player,interact,exitCandidates,respawn,update,history,tell,trafficView(c,alpha=trafficClock*30){return trafficRender.view(c,alpha,mode==='car'&&c===car);},resetTrafficPresentation(){trafficRender.reset();},get trafficAlpha(){return trafficClock*30;},get mode(){return mode;},get phase(){return phase;},get time(){return time;},get message(){return messageTime?message:'';},get events(){return lastEvents;},get crowdAlpha(){return crowdClock/.05;}};
+ return {world,sim,crowd,traffic,campaign,weather,interiors,urban,injuries,altercations,loot,police,phone,save(){const data=campaign.save();if(interiors?.active)data.player={...data.player,...interiors.outside};return {...data,city:world.cityStream?.save(),ammunition:{version:1,ammo:sim.state.inventory.ammo.slice(),weapon:sim.state.weapon},weather:weather?.save(),police:police?.save(),interiors:interiors?.save(),urban:urban?.save(),injuries:injuries?.save(),altercations:altercations?.save(),marine:marine?.save(),business:business?.save(),loot:loot?.save(),phone:phone?.save(),journal:history.slice(-80)};},expanded,marine,business,get car(){return car;},player,interact,exitCandidates,respawn,update,history,tell,trafficView(c,alpha=trafficClock*30){return trafficRender.view(c,alpha,mode==='car'&&c===car);},resetTrafficPresentation(){trafficRender.reset();},get trafficAlpha(){return trafficClock*30;},get mode(){return mode;},get phase(){return phase;},get time(){return time;},get message(){return messageTime?message:'';},get events(){return lastEvents;},get crowdAlpha(){return crowdClock/.05;}};
 }
 R.session={create,trafficPresentation};})(globalThis.RADE=globalThis.RADE||{});
 

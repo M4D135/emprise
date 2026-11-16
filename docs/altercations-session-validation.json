@@ -1,0 +1,10 @@
+{
+  "pass": true,
+  "pedestrians": 480,
+  "checks": [
+    "Real city collision/owner movement, both drivers punch, no player damage or police heat",
+    "Full session save/reload restores physical actors and both drivers return without teleporting",
+    "Controlled pedestrian excluded from instanced crowd and rendered by injury/interaction geometry; navigation restored",
+    "Recovered healthy driver updates earlier displaced record"
+  ]
+}

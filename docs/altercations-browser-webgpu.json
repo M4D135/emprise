@@ -1,0 +1,134 @@
+{
+  "pass": true,
+  "backend": "webgpu",
+  "build": "4520bd4d50",
+  "during": {
+    "stats": {
+      "created": 1,
+      "strikes": 2,
+      "dispersed": 0,
+      "activeScenes": 1
+    },
+    "cars": [
+      {
+        "id": 16,
+        "inside": false,
+        "hp": 97,
+        "ai": false
+      },
+      {
+        "id": 6,
+        "inside": false,
+        "hp": 96,
+        "ai": false
+      }
+    ],
+    "metrics": {
+      "frame": {
+        "n": 465,
+        "p50": 16.69999999999891,
+        "p95": 17.600000000000364
+      },
+      "cpu": {
+        "n": 465,
+        "p50": 7.5,
+        "p95": 12.899999976158142
+      },
+      "resolution": [
+        1440,
+        900
+      ],
+      "pedestrians": 480,
+      "traffic": 15,
+      "renderer": {
+        "backend": "webgpu",
+        "webglVersion": 0,
+        "webgpu": true,
+        "contextLost": false,
+        "deviceLost": false,
+        "drawCalls": 184,
+        "triangles": 529396,
+        "instances": 2690,
+        "uploadBytes": 112704,
+        "errorEvents": [],
+        "gpuTimingAvailable": true,
+        "primitiveIndexing": true,
+        "primitiveIndexStats": {
+          "shapes": 7,
+          "references": 2352,
+          "vertices": 618,
+          "restored": 0
+        },
+        "pbrLayers": 2,
+        "renderScale": 1,
+        "pixelRatio": 1,
+        "width": 1440,
+        "height": 900,
+        "msaa": 4,
+        "requestedBackend": "webgpu",
+        "fallbackReason": null,
+        "worldRevision": 0,
+        "staticTotal": 307502,
+        "biome": "ville",
+        "chunks": 9493,
+        "chunkBuildBytes": 19680064,
+        "chunkUpdateIncremental": false,
+        "chunkEntriesVisited": 307501,
+        "viewDistance": 64,
+        "staticVisible": 448,
+        "staticCulled": 307053,
+        "dynamicLights": 0,
+        "blackoutLights": 0,
+        "fxInstances": 13,
+        "uniformUploadBytes": 2432,
+        "bloom": true,
+        "shadows": true,
+        "shadowMode": "sun-atlas",
+        "shadowMaps": 1,
+        "crowdInstances": 0,
+        "pdrLotInstances": 0,
+        "shadowChunks": 265,
+        "shadowStatic": 40211,
+        "backgroundWater": 1,
+        "backgroundDrawCalls": 1,
+        "visibleChunks": 656,
+        "lotsVisibles": 0,
+        "reflections": true,
+        "reflectionSteps": 48,
+        "gpuBuffers": 9510,
+        "gpuTextures": 15,
+        "pipelineCount": 16,
+        "uniformSlots": 9
+      },
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/157.0.0.0 Safari/537.36"
+    },
+    "heat": 0,
+    "errors": []
+  },
+  "after": {
+    "stats": {
+      "created": 1,
+      "strikes": 19,
+      "dispersed": 1,
+      "activeScenes": 0
+    },
+    "cars": [
+      {
+        "id": 16,
+        "inside": true,
+        "ai": true,
+        "engine": true,
+        "hp": 56
+      },
+      {
+        "id": 6,
+        "inside": true,
+        "ai": true,
+        "engine": true,
+        "hp": 57
+      }
+    ],
+    "errors": []
+  },
+  "scope": "Scripted road dispute through real integrated session and rendered FERRO frames. 480 pedestrians retained, other vehicles moved away for controlled functional scenario. Not a full traffic stress/performance benchmark."
+}

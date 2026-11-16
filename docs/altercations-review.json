@@ -1,0 +1,12 @@
+{
+  "review": "Spark final source review; independent executable tests remain authoritative",
+  "run": "f626000a1182495597a9abeeccf6c217",
+  "answerSha256": "9c6057cc188329617f9c383c94b7264df0804d0037af39ed3ff902a42fce8690",
+  "summary": "No blocking defect reported; full response retained locally in ignored work folder.",
+  "appliedSourceSha256": {
+    "src/altercations.js": "11125f6db27bd2313230dfd43ac59e30b804be8340dc32eab23fd3159958ada8",
+    "src/crowd.js": "6f3245ab96df315922c85c7e2388eda5a77c47315a42b375ec11d94c035ce609",
+    "src/injuries.js": "7e05bb43f2103f4fc9d52ba5de8b325387899faad531cccbf7de7e6074fed9c9",
+    "src/session.js": "737827fc237dca27ee9ec2c954b7d89dfc75e3bd06d50f627809cdebaf396000"
+  }
+}

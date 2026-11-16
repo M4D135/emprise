@@ -1,0 +1,16 @@
+{
+  "pass": true,
+  "checks": [
+    "Two horns start a scene; one horn, player blockage, moving/empty/unsafe cars do not",
+    "Driver choice depends on ID, not skin, sex or clothing; real movement, reciprocal punches and return",
+    "Only the obstruction ahead and in line of sight can trigger",
+    "No punch through walls or outside reach; witnesses react once at first punch",
+    "Nearby gunfire disperses; distant shots do not; no reactivation of wreck/player vehicle/dead driver",
+    "Fear, leg wound, theft grievance and traffic danger have priority",
+    "Police intervenes only in line of sight; no endless return when a door becomes blocked",
+    "Pedestrian disputes and road/pedestrian arguments occur without a quadratic crowd scan",
+    "At most two incidents; queues bounded; pause and interiors do not advance state",
+    "Save/resume preserves participants, timer, random damage and physical return"
+  ],
+  "scope": "Actual state machine with deterministic collision/movement fixture; no graphical or physical iPhone claim"
+}

@@ -1,8 +1,8 @@
 {
-  "version": "0.6.5",
-  "build": "4a9600e51a",
-  "bytes": 22892193,
-  "sha256": "57509819e074dafde526144f2bfa7ba8f32f2c07e7ddf4723350c39ab595ea8a",
+  "version": "0.6.6",
+  "build": "4520bd4d50",
+  "bytes": 22905260,
+  "sha256": "5c521daf04fbee5275b40dade5095a34a8b04b4f49b477c43140365edfe55eda",
   "modules": [
     "ferro/fmath",
     "ferro/renderer",
@@ -70,6 +70,7 @@
     "breach",
     "urban",
     "injuries",
+    "altercations",
     "police",
     "business",
     "loot",
